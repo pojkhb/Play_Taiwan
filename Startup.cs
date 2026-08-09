@@ -80,40 +80,41 @@ namespace backend
                         )
                     };
                 });
-
-            #region 共用涵式
-                services.AddScoped<Services.SharedFunctionService>();
-                services.AddScoped<dao.SharedFunctionDao>();
+ #region S05-登入/探員帳號 (Auth)
+                services.AddScoped<Services.AuthService>();
+                services.AddScoped<dao.AuthDao>();
             #endregion
-
-            #region 框架功能
-                services.AddScoped<Services.FrameFunctionService>();
-                services.AddScoped<dao.FrameFunctionDao>();
-            #endregion 
-
-            #region S01-帳號管理
-                services.AddScoped<Services.OperatorSettingService>();
-                services.AddScoped<dao.OperatorSettingDao>();
+            #region S06-首頁總覽
+                services.AddScoped<Services.HomeService>();
+                services.AddScoped<dao.HomeDao>();
             #endregion
-            #region S02-角色權限設定
-                services.AddScoped<Services.RoleModuleSettingService>();
-                services.AddScoped<dao.RoleModuleSettingDao>();
+            #region S07-劇本生成 (RAG+LLM)
+                services.AddScoped<Services.StoryService>();
+                services.AddScoped<dao.StoryDao>();
             #endregion
-            #region S03-模組設定
-                services.AddScoped<Services.ModuleSettingService>();
-                services.AddScoped<dao.ModuleSettingDao>();
+            #region S08-地圖/節點/導航
+                services.AddScoped<Services.MapService>();
+                services.AddScoped<dao.MapDao>();
             #endregion
-            #region S04-帳號申請
-                services.AddScoped<Services.OperatorApplyService>();
-                services.AddScoped<dao.OperatorApplyDao>();
+            #region S09-任務答題
+                services.AddScoped<Services.TaskService>();
+                services.AddScoped<dao.TaskDao>();
             #endregion
-            #region 忘記密碼
-                services.AddScoped<Services.ForgotPasswordService>();
-                services.AddScoped<dao.ForgotPasswordDao>();
+            #region S10-明信片
+                services.AddScoped<Services.PostcardService>();
+                services.AddScoped<dao.PostcardDao>();
             #endregion
-            #region 歷史紀錄
-                services.AddScoped<Services.LogService>();
-                services.AddScoped<dao.LogDao>();
+            #region S11-徽章
+                services.AddScoped<Services.BadgeService>();
+                services.AddScoped<dao.BadgeDao>();
+            #endregion
+            #region S12-過往紀錄
+                services.AddScoped<Services.HistoryService>();
+                services.AddScoped<dao.HistoryDao>();
+            #endregion
+            #region S13-收藏
+                services.AddScoped<Services.FavoriteService>();
+                services.AddScoped<dao.FavoriteDao>();
             #endregion
 
             // JWT Authorize

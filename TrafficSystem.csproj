@@ -3,6 +3,8 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -35,4 +37,11 @@
     <PackageReference Include="System.Security.Cryptography.Csp" Version="4.3.0" />
   </ItemGroup>
 
+  <!-- Play Taiwan MVP：暫時不編譯舊的 JWT / 權限系統 -->
+  <ItemGroup>
+    <Compile Remove="Middleware\jwt\JWTDao.cs" />
+    <Compile Remove="Middleware\jwt\JWTModel.cs" />
+    <Compile Remove="Middleware\jwt\JWTService.cs" />
+    <Compile Remove="Middleware\jwtMiddleware.cs" />
+  </ItemGroup>
 </Project>

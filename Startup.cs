@@ -1,14 +1,14 @@
 using System;
 using System.Linq;
-using System.Text;
+// using System.Text;
 
-using backend.Middleware;
-using backend.Middleware.jwt;
+// using backend.Middleware;
+// using backend.Middleware.jwt;
 using backend.Services;
 using backend.dao;
 using backend.utils;
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+// using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.IdentityModel.Tokens;
+// using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 namespace backend
@@ -60,26 +60,26 @@ namespace backend
             });
 
             // JWT
-            services
-                .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(options =>
-                {
-                    var ServerSecret = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(Configuration["JWT:Key"])
-                    );
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidIssuer = Configuration["Jwt:Issuer"],
-                        ValidateAudience = true,
-                        ValidAudience = Configuration["Jwt:Issuer"],
-                        ValidateLifetime = false,
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(Configuration["Jwt:Key"])
-                        )
-                    };
-                });
+            // services
+            //     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            //     .AddJwtBearer(options =>
+            //     {
+            //         var ServerSecret = new SymmetricSecurityKey(
+            //             Encoding.UTF8.GetBytes(Configuration["JWT:Key"])
+            //         );
+            //         options.TokenValidationParameters = new TokenValidationParameters
+            //         {
+            //             ValidateIssuer = true,
+            //             ValidIssuer = Configuration["Jwt:Issuer"],
+            //             ValidateAudience = true,
+            //             ValidAudience = Configuration["Jwt:Issuer"],
+            //             ValidateLifetime = false,
+            //             ValidateIssuerSigningKey = true,
+            //             IssuerSigningKey = new SymmetricSecurityKey(
+            //                 Encoding.UTF8.GetBytes(Configuration["Jwt:Key"])
+            //             )
+            //         };
+            //     });
  #region S05-登入/探員帳號 (Auth)
                 services.AddScoped<Services.AuthService>();
                 services.AddScoped<dao.AuthDao>();
@@ -118,10 +118,10 @@ namespace backend
             #endregion
 
             // JWT Authorize
-            services.AddScoped<JWTUserService>();
-            services.AddScoped<JWTDao>();
-            services.AddScoped<RoleProcessService>();
-            services.AddScoped<RoleProcessDao>();
+            // services.AddScoped<JWTUserService>();
+            // services.AddScoped<JWTDao>();
+            // services.AddScoped<RoleProcessService>();
+            // services.AddScoped<RoleProcessDao>();
 
             services
                 .AddControllers()
@@ -156,7 +156,7 @@ namespace backend
 
             app.UseRouting();
             /* 中介軟體 */
-            app.UseMiddleware<jwtMiddleware>();
+            // app.UseMiddleware<jwtMiddleware>();
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();

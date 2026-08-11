@@ -1,0 +1,42 @@
+# .NET 編譯輸出
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio 暫存與使用者設定
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# 測試結果與覆蓋率報告
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# NuGet 暫存
+*.nupkg
+*.snupkg
+packages/
+
+# 暫存檔與系統檔
+*.tmp
+*.temp
+*.log
+.DS_Store
+Thumbs.db
+
+# 本機敏感設定：資料庫密碼、JWT Secret 不上傳
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+
+# 環境變數／機密檔
+.env
+.env.*
+!.env.example

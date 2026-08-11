@@ -1,6 +1,6 @@
 using System;
 using System.Linq;
-// using System.Text;
+using System.Text;
 
 // using backend.Middleware;
 // using backend.Middleware.jwt;
@@ -8,7 +8,7 @@ using backend.Services;
 using backend.dao;
 using backend.utils;
 
-// using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-// using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 namespace backend
@@ -80,41 +80,41 @@ namespace backend
             //             )
             //         };
             //     });
- #region S05-登入/探員帳號 (Auth)
-                services.AddScoped<Services.AuthService>();
-                services.AddScoped<dao.AuthDao>();
+            #region S05-登入/探員帳號 (Auth)
+            services.AddScoped<Services.AuthService>();
+            services.AddScoped<dao.AuthDao>();
             #endregion
             #region S06-首頁總覽
-                services.AddScoped<Services.HomeService>();
-                services.AddScoped<dao.HomeDao>();
+            services.AddScoped<Services.HomeService>();
+            services.AddScoped<dao.HomeDao>();
             #endregion
             #region S07-劇本生成 (RAG+LLM)
-                services.AddScoped<Services.StoryService>();
-                services.AddScoped<dao.StoryDao>();
+            services.AddScoped<Services.StoryService>();
+            services.AddScoped<dao.StoryDao>();
             #endregion
             #region S08-地圖/節點/導航
-                services.AddScoped<Services.MapService>();
-                services.AddScoped<dao.MapDao>();
+            services.AddScoped<Services.MapService>();
+            services.AddScoped<dao.MapDao>();
             #endregion
             #region S09-任務答題
-                services.AddScoped<Services.TaskService>();
-                services.AddScoped<dao.TaskDao>();
+            services.AddScoped<Services.TaskService>();
+            services.AddScoped<dao.TaskDao>();
             #endregion
             #region S10-明信片
-                services.AddScoped<Services.PostcardService>();
-                services.AddScoped<dao.PostcardDao>();
+            services.AddScoped<Services.PostcardService>();
+            services.AddScoped<dao.PostcardDao>();
             #endregion
             #region S11-徽章
-                services.AddScoped<Services.BadgeService>();
-                services.AddScoped<dao.BadgeDao>();
+            services.AddScoped<Services.BadgeService>();
+            services.AddScoped<dao.BadgeDao>();
             #endregion
             #region S12-過往紀錄
-                services.AddScoped<Services.HistoryService>();
-                services.AddScoped<dao.HistoryDao>();
+            services.AddScoped<Services.HistoryService>();
+            services.AddScoped<dao.HistoryDao>();
             #endregion
             #region S13-收藏
-                services.AddScoped<Services.FavoriteService>();
-                services.AddScoped<dao.FavoriteDao>();
+            services.AddScoped<Services.FavoriteService>();
+            services.AddScoped<dao.FavoriteDao>();
             #endregion
 
             // JWT Authorize
@@ -131,10 +131,76 @@ namespace backend
 
             services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
 
+            var jwtSecret = Configuration["AppSettings:jwt_secret"];
+
+            if (string.IsNullOrWhiteSpace(jwtSecret))
+            {
+                throw new InvalidOperationException(
+                    "找不到 AppSettings:jwt_secret，請確認 appsettings.Development.json。"
+                );
+            }
+
+            services
+                .AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                })
+                .AddJwtBearer(options =>
+                {
+                    options.RequireHttpsMetadata = false;
+
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(jwtSecret)
+                        ),
+
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
+
+            services.AddAuthorization();
+
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "backend", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Play Taiwan API",
+                    Version = "v1"
+                });
+
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "貼上 JWT Token，Swagger 會自動加入 Bearer 前綴。"
+                });
+
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+                });
             });
+
             services.AddMvc();
         }
 
@@ -155,6 +221,8 @@ namespace backend
             });
 
             app.UseRouting();
+            app.UseAuthentication();
+            app.UseAuthorization();
             /* 中介軟體 */
             // app.UseMiddleware<jwtMiddleware>();
             app.UseEndpoints(endpoints =>

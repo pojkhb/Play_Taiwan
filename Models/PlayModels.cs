@@ -16,6 +16,13 @@ namespace backend.Models
         public string ep_id { get; set; }
         public string ep_name { get; set; }    // 帳號名稱 (可編輯)
     }
+    public class EpAccount
+    {
+        public string ep_id { get; set; }      // 探員代號。
+        public string ep_name { get; set; }    // 探員顯示名稱。
+        public string ep_pswd { get; set; }    // 資料庫內儲存的 HMAC SHA256 密碼雜湊。
+        public bool is_active { get; set; }    // 帳號是否啟用。
+    }
 
     public class EpAccountUpdateRequest
     {
@@ -129,7 +136,24 @@ namespace backend.Models
     public class NpcInteractionResponse
     {
         public string node_id { get; set; }
-        public string npc_dialogue { get; set; }        // 隨機互動模板套資訊
+
+        // 地點／場景
+        public string location_name { get; set; }
+        public string location_subtitle { get; set; }
+        public string scene_image_url { get; set; }
+
+        // NPC
+        public string npc_id { get; set; }
+        public string npc_name { get; set; }
+        public string npc_avatar_url { get; set; }
+
+        // 對話
+        public string npc_dialogue { get; set; }
+        public string emotion { get; set; } // normal / happy / hint
+
+        // 前端按鈕與後續動作
+        public string skip_button_text { get; set; }
+        public string next_task_id { get; set; }       // 隨機互動模板套資訊
     }
 
     public class NavigationRequest

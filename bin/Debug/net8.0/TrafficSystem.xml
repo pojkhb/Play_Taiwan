@@ -64,6 +64,11 @@
              <param name="req">欲更新的探員帳號名稱。</param>
              <returns>帳號名稱更新結果。</returns>
         </member>
+        <member name="M:backend.Services.AuthService.GenerateJwtToken(backend.Models.EpAccount)">
+            <summary>
+            產生探員登入 JWT Token。
+            </summary>
+        </member>
         <member name="M:backend.utils.common.CoordinateFormatDecimal(System.Double,System.Int32)">
             座標格式調整，小數位數自訂
         </member>

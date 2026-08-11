@@ -20,21 +20,27 @@ namespace backend.dao
             _MysqlConnect = new MySqlConnection(_appSettings.mydb);
             _ipContext = httpContextAccessor.HttpContext;
         }
-
-        #region 登入
-        public LoginResponse Login(LoginRequest req)
+        #region 依探員代號查詢帳號
+        public EpAccount GetEpAccount(string ep_id)
         {
-            // TODO: 資料表 ep_account 尚未建置，欄位保留如下:
-            // ep_id (探員代號 PK), ep_pswd (雜湊密碼), ep_name (帳號名稱), created_at, updated_at
-            // string sql = @"SELECT ep_id, ep_name, ep_pswd FROM ep_account WHERE ep_id = @ep_id";
-            // var data = _MysqlConnect.QueryFirstOrDefault<LoginResponse>(sql, new { ep_id = req.ep_id });
+            string sql = @"
+        SELECT
+            ep_id,
+            ep_name,
+            ep_pswd,
+            is_active
+        FROM ep_account
+        WHERE ep_id = @ep_id
+        LIMIT 1;
+    ";
 
-            return new LoginResponse
-            {
-                token = "mock-jwt-token",
-                ep_id = req.ep_id,
-                ep_name = "EP001"
-            };
+            return _MysqlConnect.QueryFirstOrDefault<EpAccount>(
+                sql,
+                new
+                {
+                    ep_id = ep_id
+                }
+            );
         }
         #endregion
 

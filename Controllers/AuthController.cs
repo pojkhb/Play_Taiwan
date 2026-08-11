@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
@@ -11,6 +12,7 @@ namespace backend.Controllers
     /// 登入與探員帳號管理 API。
     /// 對應頁面：登入、設定－探員帳號。
     /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
@@ -42,6 +44,7 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="req">登入資料，包含探員代號與通行密碼。</param>
         /// <returns>登入結果，成功時回傳探員資訊與 JWT Token。</returns>
+        [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
         // POST: api/Auth/Login
@@ -79,6 +82,7 @@ namespace backend.Controllers
         /// 可在此 API 一併撤銷 Token。
         /// </remarks>
         /// <returns>登出執行結果。</returns>
+        [Authorize]
         [HttpPost]
         [Route("Logout")]
         // POST: api/Auth/Logout
@@ -117,6 +121,7 @@ namespace backend.Controllers
         /// 對應「設定－探員帳號」頁面。
         /// </remarks>
         /// <returns>目前登入探員的代號與帳號名稱。</returns>
+        [Authorize]
         [HttpGet]
         [Route("Profile")]
         // GET: api/Auth/Profile
@@ -161,6 +166,7 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="req">欲更新的探員帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
+        [Authorize]
         [HttpPut]
         [Route("Profile")]
         // PUT: api/Auth/Profile

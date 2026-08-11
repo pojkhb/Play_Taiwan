@@ -167,9 +167,9 @@ namespace backend.Controllers
         /// <param name="req">欲更新的探員帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
         [Authorize]
-        [HttpPut]
+        [HttpPost]
         [Route("Profile")]
-        // PUT: api/Auth/Profile
+        // POST: api/Auth/Profile
         public IActionResult UpdateProfile([FromBody] EpAccountUpdateRequest req)
         {
             try

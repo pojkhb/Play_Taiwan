@@ -1,4 +1,5 @@
 using System;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
@@ -9,19 +10,23 @@ namespace backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // 首頁 (對應畫面: 首頁 目前總覽)
     public class HomeController : ControllerBase
     {
         private readonly ILogger<HomeController> _logger;
         private readonly HomeService _service;
 
-        public HomeController(ILogger<HomeController> logger, HomeService service)
+        public HomeController(
+            ILogger<HomeController> logger,
+            HomeService service
+        )
         {
             _logger = logger;
             _service = service;
         }
 
         #region 首頁目前總覽
+
+        [Authorize]
         [HttpGet]
         [Route("Overview")]
         // GET: api/Home/Overview
@@ -33,14 +38,31 @@ namespace backend.Controllers
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetOverview(),
+                    Result = _service.GetOverview()
+                });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return Unauthorized(new ResultViewModel<HomeOverviewResponse>
+                {
+                    isSuccess = false,
+                    message = e.Message,
+                    Result = null
                 });
             }
             catch (Exception e)
             {
-                return NotFound(new ResultViewModel<HomeOverviewResponse> { isSuccess = false, message = e.Message.ToString(), Result = null });
+                _logger.LogError(e, "首頁總覽查詢失敗");
+
+                return StatusCode(500, new ResultViewModel<HomeOverviewResponse>
+                {
+                    isSuccess = false,
+                    message = "首頁總覽查詢失敗：" + e.Message,
+                    Result = null
+                });
             }
         }
+
         #endregion
     }
 }

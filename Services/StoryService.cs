@@ -7,43 +7,39 @@ namespace backend.Services
     public class StoryService
     {
         private readonly StoryDao _dao;
-        public StoryService(StoryDao dao) { _dao = dao; }
 
-        #region 轉盤抽取地區
-        public StoryWheelSpinResponse SpinWheel()
+        public StoryService(StoryDao dao)
         {
-            return _dao.SpinWheel();
+            _dao = dao;
         }
-        #endregion
 
-        #region 產生劇本選項 (呼叫 RAG+LLM 服務)
-        public List<StoryOptionResponse> GenerateStoryOptions(StoryGenerateRequest req)
+        public StoryWheelSpinResponse WheelSpin()
         {
-            // TODO: 呼叫外部 RAG/LLM 服務 (Python microservice / Azure OpenAI)，
-            // 依 req.region / req.preferences / req.party_size 產生 2-3 個劇本選項
-            return _dao.GenerateStoryOptions(req);
+            return _dao.WheelSpin();
         }
-        #endregion
 
-        #region 劇情觀看更多
-        public StoryDetailResponse GetStoryDetail(string story_id)
+        public List<StoryWheelSpinResponse> GetRegions(string mode)
         {
-            return _dao.GetStoryDetail(story_id);
+            return _dao.GetRegions(mode);
         }
-        #endregion
 
-        #region 確認選卷
-        public void ConfirmStory(StoryConfirmRequest req)
+        public List<StoryOptionResponse> GenerateOptions(
+            StoryGenerateRequest req
+        )
         {
-            _dao.ConfirmStory(req);
+            return _dao.GenerateOptions(req);
         }
-        #endregion
 
-        #region 劇本結束總結
-        public StoryEndingResponse GetEnding(string story_id)
+        public StoryDetailResponse GetDetail(string storyId)
         {
-            return _dao.GetEnding(story_id);
+            return _dao.GetDetail(storyId);
         }
-        #endregion
+
+        public StoryDetailResponse ConfirmStory(
+            StoryConfirmRequest req
+        )
+        {
+            return _dao.GetDetail(req.story_id);
+        }
     }
 }

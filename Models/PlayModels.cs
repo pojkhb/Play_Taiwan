@@ -50,16 +50,20 @@ namespace backend.Models
     // ===================== 劇本 / 選擇模式 =====================
     public class StoryGenerateRequest
     {
-        public string mode { get; set; }           // "現在揪出發" or "來點遊意思"
-        public string region { get; set; }         // 地區 (現在揪出發用)
-        public bool use_geo { get; set; }          // 使用當前定位
-        public int party_size { get; set; }        // 旅程人數
-        public List<string> preferences { get; set; } // 偏好(可複選): 家庭出遊/好友結伴/文史建築...
+        public string mode { get; set; }                 // 選擇模式
+        public string region_id { get; set; }            // 地區代號
+        public string region { get; set; }               // 地區名稱
+        public bool use_geo { get; set; }                // 是否使用定位
+        public int party_size { get; set; }              // 旅程人數
+        public List<string> preferences { get; set; }    // 旅遊偏好
     }
 
     public class StoryWheelSpinResponse
     {
-        public string region { get; set; }         // 轉盤結果地區, e.g. 台南安平
+        public string region_id { get; set; }      // 地區固定代號，例如 region_tainan_anping
+        public string region { get; set; }         // 前端顯示的地區名稱，例如 台南安平
+        public string city_name { get; set; }      // 所屬城市名稱，例如 臺南市
+        public string district_name { get; set; }  // 所屬行政區名稱，例如 安平區
     }
 
     public class StoryOptionResponse
@@ -71,8 +75,9 @@ namespace backend.Models
         public string transport { get; set; }         // 預計交通工具
         public List<string> expected_badges { get; set; }
         public int expected_postcards { get; set; }
-        public string region { get; set; }
-        public List<string> route_preview { get; set; } // 探索總覽 第一站/第二站...
+        public string region_id { get; set; }             // 地區代號
+        public string region { get; set; }                // 地區名稱
+        public List<string> route_preview { get; set; }  // 探索路線預覽
 
         public class RouteNode
         {

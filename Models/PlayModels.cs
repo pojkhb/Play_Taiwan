@@ -124,6 +124,10 @@ namespace backend.Models
         public bool is_night_only { get; set; }
         public string fog_hint { get; set; }        // 雲霧區隱約描述
         public List<string> child_node_ids { get; set; } // 樹狀分支
+        public string image_url { get; set; }          // 已解鎖景點原圖
+        public string silhouette_image_url { get; set; } // 之後才使用的真剪影圖
+        public int node_order { get; set; }            // 前端畫路線排序
+
     }
 
     public class NodeDetailResponse

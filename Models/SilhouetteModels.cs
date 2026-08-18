@@ -1,20 +1,15 @@
 using System;
 
-namespace TrafficSystem.Models;
-
-public class Silhouette
+namespace backend.Models
 {
-    public long Id { get; set; }
-
-    public string Name { get; set; } = string.Empty;
-    public string ImageUrl { get; set; } = string.Empty;
-
-    public string? City { get; set; }
-    public string? Category { get; set; }
-
-    public bool IsActive { get; set; }
-    public int SortOrder { get; set; }
-
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}   
+    public class Silhouette
+    {
+        public string silhouette_id { get; set; }
+        public string name { get; set; }
+        public string image_url { get; set; }
+        public string city { get; set; }
+        public string category { get; set; }
+        public bool is_active { get; set; }
+        public int sort_order { get; set; }
+    }
+}

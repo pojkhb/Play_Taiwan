@@ -54,7 +54,7 @@ namespace backend.Controllers
 
         #endregion
 
-        #region 取得单一剪影
+        #region 取得單一剪影
 
         [HttpGet("{silhouette_id}")]
         public IActionResult GetSilhouette(string silhouette_id)
@@ -84,6 +84,71 @@ namespace backend.Controllers
                 _logger.LogError(e, "取得剪影失敗，silhouette_id: {SilhouetteId}", silhouette_id);
 
                 return BadRequest(new ResultViewModel<Silhouette>
+                {
+                    isSuccess = false,
+                    message = e.Message,
+                    Result = null
+                });
+            }
+        }
+
+        #endregion
+
+        #region 產生亮度閾值剪影
+
+        [HttpPost("{silhouette_id}/Generate")]
+        public IActionResult GenerateSilhouette(
+            string silhouette_id,
+            [FromQuery] int threshold = 150)
+        {
+            try
+            {
+                string imageUrl = _service.GenerateSilhouette(
+                    silhouette_id,
+                    threshold);
+
+                return Ok(new ResultViewModel<string>
+                {
+                    isSuccess = true,
+                    message = "剪影產生成功",
+                    Result = imageUrl
+                });
+            }
+            catch (KeyNotFoundException e)
+            {
+                return NotFound(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message,
+                    Result = null
+                });
+            }
+            catch (ArgumentException e)
+            {
+                return BadRequest(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message,
+                    Result = null
+                });
+            }
+            catch (FileNotFoundException e)
+            {
+                return NotFound(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message,
+                    Result = null
+                });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(
+                    e,
+                    "產生剪影失敗，silhouette_id: {SilhouetteId}",
+                    silhouette_id);
+
+                return BadRequest(new ResultViewModel<string>
                 {
                     isSuccess = false,
                     message = e.Message,

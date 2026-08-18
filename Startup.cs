@@ -116,7 +116,10 @@ namespace backend
             services.AddScoped<Services.FavoriteService>();
             services.AddScoped<dao.FavoriteDao>();
             #endregion
-
+            #region S14-剪影圖片
+            services.AddScoped<Services.SilhouetteService>();
+            services.AddScoped<dao.SilhouetteDao>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();
@@ -208,7 +211,7 @@ namespace backend
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             app.UseCors();
-
+            app.UseStaticFiles();
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();

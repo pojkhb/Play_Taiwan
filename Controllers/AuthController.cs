@@ -44,6 +44,7 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="req">登入資料，包含探員代號與通行密碼。</param>
         /// <returns>登入結果，成功時回傳探員資訊與 JWT Token。</returns>
+        // API：探員登入（Login）－驗證探員代號與密碼，成功後回傳 JWT Token
         [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
@@ -82,6 +83,7 @@ namespace backend.Controllers
         /// 可在此 API 一併撤銷 Token。
         /// </remarks>
         /// <returns>登出執行結果。</returns>
+        // API：探員登出（Logout）－清除目前登入狀態
         [Authorize]
         [HttpPost]
         [Route("Logout")]
@@ -121,6 +123,7 @@ namespace backend.Controllers
         /// 對應「設定－探員帳號」頁面。
         /// </remarks>
         /// <returns>目前登入探員的代號與帳號名稱。</returns>
+        // API：查詢探員帳號資訊（Profile）－回傳目前登入探員的代號與名稱
         [Authorize]
         [HttpGet]
         [Route("Profile")]
@@ -166,6 +169,7 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="req">欲更新的探員帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
+        // API：更新探員帳號名稱（UpdateProfile）－修改目前登入探員的顯示名稱
         [Authorize]
         [HttpPost]
         [Route("Profile")]

@@ -171,25 +171,31 @@ namespace backend
             services.AddAuthorization();
 
             services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v1", new OpenApiInfo
-                {
-                    Title = "Play Taiwan API",
-                    Version = "v1"
-                });
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Play Taiwan API",
+        Version = "v1"
+    });
 
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
-                    Name = "Authorization",
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer",
-                    BearerFormat = "JWT",
-                    In = ParameterLocation.Header,
-                    Description = "貼上 JWT Token，Swagger 會自動加入 Bearer 前綴。"
-                });
+    // ↓↓↓ 新增這 3 行 ↓↓↓
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
+    // ↑↑↑ 新增這 3 行 ↑↑↑
 
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-                {
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "貼上 JWT Token，Swagger 會自動加入 Bearer 前綴。"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
         {
             new OpenApiSecurityScheme
             {
@@ -201,8 +207,8 @@ namespace backend
             },
             Array.Empty<string>()
         }
-                });
-            });
+    });
+});
 
             services.AddMvc();
         }

@@ -8,6 +8,11 @@ using backend.ViewModels;
 
 namespace backend.Controllers
 {
+    /// <summary>
+    /// 徽章相關 API。
+    /// 對應頁面：首頁總覽（徽章數）、過往紀錄。
+    /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     // 徽章
@@ -23,6 +28,19 @@ namespace backend.Controllers
         }
 
         #region 取得我的所有徽章
+
+        /// <summary>
+        /// 取得目前探員已獲得的所有徽章。
+        /// </summary>
+        /// <remarks>
+        /// 對應「首頁－目前總覽」與「過往－收藏館」頁面的徽章清單。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Badge
+        /// </remarks>
+        /// <returns>目前探員已獲得的徽章清單。</returns>
+        // API：取得我的所有徽章（GetMyBadges）－回傳目前探員已獲得的徽章清單
         [HttpGet]
         [Route("")]
         // GET: api/Badge
@@ -42,6 +60,7 @@ namespace backend.Controllers
                 return NotFound(new ResultViewModel<List<BadgeResponse>> { isSuccess = false, message = e.Message.ToString(), Result = null });
             }
         }
+
         #endregion
     }
 }

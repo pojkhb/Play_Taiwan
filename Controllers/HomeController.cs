@@ -8,6 +8,11 @@ using backend.ViewModels;
 
 namespace backend.Controllers
 {
+    /// <summary>
+    /// 首頁相關 API。
+    /// 對應頁面：首頁。
+    /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     public class HomeController : ControllerBase
@@ -26,6 +31,18 @@ namespace backend.Controllers
 
         #region 首頁目前總覽
 
+        /// <summary>
+        /// 取得首頁目前總覽資訊。
+        /// </summary>
+        /// <remarks>
+        /// 對應「首頁」頁面的目前總覽卡片，包含已完成探索數、明信片、徽章、Vlog 等統計數字。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Home/Overview
+        /// </remarks>
+        /// <returns>首頁目前總覽的統計資訊。</returns>
+        // API：首頁目前總覽（Overview）－回傳已完成探索數、明信片、徽章、Vlog 等統計數字
         [Authorize]
         [HttpGet]
         [Route("Overview")]

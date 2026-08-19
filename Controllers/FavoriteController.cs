@@ -8,6 +8,11 @@ using backend.ViewModels;
 
 namespace backend.Controllers
 {
+    /// <summary>
+    /// 收藏相關 API。
+    /// 對應頁面：收藏。
+    /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     // 收藏
@@ -23,6 +28,19 @@ namespace backend.Controllers
         }
 
         #region 取得收藏清單
+
+        /// <summary>
+        /// 取得目前探員的收藏清單。
+        /// </summary>
+        /// <remarks>
+        /// 對應「收藏」頁面，回傳台灣古籍系列、山海寶島系列等已收藏項目。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Favorite
+        /// </remarks>
+        /// <returns>目前探員的收藏項目清單。</returns>
+        // API：取得收藏清單（GetFavorites）－回傳目前探員的收藏項目清單
         [HttpGet]
         [Route("")]
         // GET: api/Favorite
@@ -42,6 +60,7 @@ namespace backend.Controllers
                 return NotFound(new ResultViewModel<List<FavoriteItemResponse>> { isSuccess = false, message = e.Message.ToString(), Result = null });
             }
         }
+
         #endregion
     }
 }

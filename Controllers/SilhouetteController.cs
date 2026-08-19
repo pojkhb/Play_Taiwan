@@ -5,9 +5,15 @@ using Microsoft.Extensions.Logging;
 using backend.Models;
 using backend.Services;
 using backend.ViewModels;
+using System.IO;
 
 namespace backend.Controllers
 {
+    /// <summary>
+    /// 剪影圖片相關 API。
+    /// 對應頁面：明信片翻轉（隱藏版剪影明信片）。
+    /// </summary>
+
     [ApiController]
     [Route("api/[controller]")]
     public class SilhouetteController : ControllerBase
@@ -25,6 +31,18 @@ namespace backend.Controllers
 
         #region 取得剪影清單
 
+        /// <summary>
+        /// 取得所有剪影圖片清單。
+        /// </summary>
+        /// <remarks>
+        /// 對應隱藏版剪影明信片的來源素材清單。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Silhouette
+        /// </remarks>
+        /// <returns>剪影圖片清單。</returns>
+        // API：取得剪影清單（GetSilhouettes）－回傳所有剪影圖片清單
         [HttpGet]
         public IActionResult GetSilhouettes()
         {
@@ -56,6 +74,19 @@ namespace backend.Controllers
 
         #region 取得單一剪影
 
+        /// <summary>
+        /// 取得指定剪影圖片的詳細內容。
+        /// </summary>
+        /// <remarks>
+        /// 對應單張隱藏版剪影明信片的原始素材資訊。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Silhouette/{silhouette_id}
+        /// </remarks>
+        /// <param name="silhouette_id">剪影圖片代號。</param>
+        /// <returns>指定剪影圖片的詳細內容。</returns>
+        // API：取得單一剪影（GetSilhouette）－回傳指定剪影圖片的詳細內容
         [HttpGet("{silhouette_id}")]
         public IActionResult GetSilhouette(string silhouette_id)
         {
@@ -96,6 +127,20 @@ namespace backend.Controllers
 
         #region 產生亮度閾值剪影
 
+        /// <summary>
+        /// 依指定亮度閾值產生剪影圖片。
+        /// </summary>
+        /// <remarks>
+        /// 依 threshold 參數將原始圖片轉換為黑白剪影，讓明信片內容不會過早被辨識出來。
+        ///
+        /// Request 範例：
+        ///
+        ///     POST /api/Silhouette/{silhouette_id}/Generate?threshold=150
+        /// </remarks>
+        /// <param name="silhouette_id">剪影圖片代號。</param>
+        /// <param name="threshold">亮度閾值，預設為 150。</param>
+        /// <returns>產生後的剪影圖片網址。</returns>
+        // API：產生亮度閾值剪影（GenerateSilhouette）－依亮度閾值將圖片轉換成剪影並回傳圖片網址
         [HttpPost("{silhouette_id}/Generate")]
         public IActionResult GenerateSilhouette(
             string silhouette_id,

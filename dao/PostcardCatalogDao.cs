@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using MySqlConnector;
 using backend.Models;
+using backend.utils;
 
-namespace backend.Dao
+namespace backend.dao
 {
     /// <summary>明信片主檔 (md_postcard) 的資料存取物件。</summary>
     public class PostcardCatalogDao
     {
         private readonly string _connectionString;
 
-        public PostcardCatalogDao(IConfiguration configuration)
+        // 使用 IOptions<AppSettings> 注入，確保與 AuthDao 的連線字串一致
+        public PostcardCatalogDao(IOptions<AppSettings> appSettings)
         {
-            _connectionString = configuration.GetConnectionString("MySqlConnection");
+            _connectionString = appSettings.Value.mydb;
         }
 
         /// <summary>取得所有明信片主檔，可依系列分類篩選。</summary>
@@ -36,6 +38,7 @@ namespace backend.Dao
             using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
             using var cmd = new MySqlCommand(sql, conn);
+            
             if (!string.IsNullOrWhiteSpace(category))
             {
                 cmd.Parameters.AddWithValue("@category", category);
@@ -53,10 +56,10 @@ namespace backend.Dao
         public async Task<PostcardCatalog> GetByIdAsync(string postcardId)
         {
             const string sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
-                                         is_night_edition_default, category, sort_order, is_active,
-                                         created_at, updated_at
-                                  FROM md_postcard
-                                  WHERE postcard_id = @postcard_id";
+                                        is_night_edition_default, category, sort_order, is_active,
+                                        created_at, updated_at
+                                 FROM md_postcard
+                                 WHERE postcard_id = @postcard_id";
 
             using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -72,11 +75,11 @@ namespace backend.Dao
         {
             var list = new List<PostcardCatalog>();
             const string sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
-                                         is_night_edition_default, category, sort_order, is_active,
-                                         created_at, updated_at
-                                  FROM md_postcard
-                                  WHERE story_id = @story_id AND is_active = 1
-                                  ORDER BY sort_order";
+                                        is_night_edition_default, category, sort_order, is_active,
+                                        created_at, updated_at
+                                 FROM md_postcard
+                                 WHERE story_id = @story_id AND is_active = 1
+                                 ORDER BY sort_order";
 
             using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();

@@ -120,6 +120,14 @@ namespace backend
             services.AddScoped<Services.SilhouetteService>();
             services.AddScoped<dao.SilhouetteDao>();
             #endregion
+            #region S15-明信片主檔
+            services.AddScoped<Services.PostcardCatalogService>();
+            services.AddScoped<dao.PostcardCatalogDao>();
+            #endregion
+            #region S16-任務線索提示
+            services.AddScoped<Services.TaskHintService>();
+            services.AddScoped<dao.TaskHintDao>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

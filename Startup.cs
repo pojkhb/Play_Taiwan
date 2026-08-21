@@ -83,6 +83,7 @@ namespace backend
             #region S05-登入/探員帳號 (Auth)
             services.AddScoped<Services.AuthService>();
             services.AddScoped<dao.AuthDao>();
+            services.AddScoped<EmailService>();
             #endregion
             #region S06-首頁總覽
             services.AddScoped<Services.HomeService>();

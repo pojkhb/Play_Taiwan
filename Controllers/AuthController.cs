@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
 using backend.ViewModels;
+using System.Threading.Tasks;
 
 namespace backend.Controllers
 {
@@ -12,7 +13,6 @@ namespace backend.Controllers
     /// 登入與探員帳號管理 API。
     /// 對應頁面：登入、設定－探員帳號。
     /// </summary>
-
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
@@ -32,17 +32,17 @@ namespace backend.Controllers
         /// 探員登入。
         /// </summary>
         /// <remarks>
-        /// 使用探員代號與通行密碼進行登入。
+        /// 使用探員名稱(或信箱)與通行密碼進行登入。
         ///
         /// Request 範例：
         ///
         ///     POST /api/Auth/Login
         ///     {
-        ///       "ep_id": "EP001",
+        ///       "ep_name": "NoobTW",
         ///       "ep_pswd": "123456"
         ///     }
         /// </remarks>
-        /// <param name="req">登入資料，包含探員代號與通行密碼。</param>
+        /// <param name="req">登入資料，包含探員名稱與通行密碼。</param>
         /// <returns>登入結果，成功時回傳探員資訊與 JWT Token。</returns>
         // API：探員登入（Login）－驗證探員代號與密碼，成功後回傳 JWT Token
         [AllowAnonymous]
@@ -162,7 +162,7 @@ namespace backend.Controllers
         ///
         /// Request 範例：
         ///
-        ///     PUT /api/Auth/Profile
+        ///     POST /api/Auth/Profile
         ///     {
         ///       "ep_name": "NoobTW"
         ///     }
@@ -195,6 +195,75 @@ namespace backend.Controllers
                     message = e.Message.ToString(),
                     Result = null
                 });
+            }
+        }
+
+        #endregion
+
+        #region 註冊
+
+        /// <summary>
+        /// 探員註冊。
+        /// </summary>
+        /// <remarks>
+        /// 註冊新探員或商家帳號，並於背景發送驗證信至指定信箱。
+        /// </remarks>
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("Register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+        {
+            try
+            {
+                await _service.RegisterAsync(req);
+                
+                return Ok(new ResultViewModel<string>
+                {
+                    isSuccess = true,
+                    message = "註冊成功！驗證信已發送至您的信箱，請先完成驗證再登入。",
+                    Result = null
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message.ToString(),
+                    Result = null
+                });
+            }
+        }
+
+        #endregion
+
+        #region 信箱驗證
+
+        /// <summary>
+        /// 信箱驗證與啟用帳號。
+        /// </summary>
+        /// <remarks>
+        /// 供信箱內的驗證連結點擊使用。成功後會將帳號狀態改為已驗證並清空 Token。
+        /// </remarks>
+        /// <param name="token">信箱驗證專屬的 Token</param>
+        /// <returns>回傳驗證結果畫面的 HTML 內容</returns>
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("VerifyEmail")]
+        public IActionResult VerifyEmail([FromQuery] string token)
+        {
+            try
+            {
+                bool result = _service.VerifyEmail(token);
+                if (result)
+                {
+                    return Content("<h1>信箱驗證成功！請返回 APP 或網頁進行登入。</h1>", "text/html", System.Text.Encoding.UTF8);
+                }
+                return BadRequest("驗證失敗：無效的連結或信箱已驗證過。");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
             }
         }
 

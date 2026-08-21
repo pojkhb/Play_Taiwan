@@ -6,7 +6,7 @@ namespace backend.Models
     // ===================== 登入 / 帳號 =====================
     public class LoginRequest
     {
-        public string ep_id { get; set; }      // 探員代號
+        public string ep_name { get; set; }      // 探員代號
         public string ep_pswd { get; set; }    // 通行密碼
     }
 
@@ -18,10 +18,14 @@ namespace backend.Models
     }
     public class EpAccount
     {
-        public string ep_id { get; set; }      // 探員代號。
-        public string ep_name { get; set; }    // 探員顯示名稱。
-        public string ep_pswd { get; set; }    // 資料庫內儲存的 HMAC SHA256 密碼雜湊。
-        public bool is_active { get; set; }    // 帳號是否啟用。
+        public string ep_id { get; set; }           // 探員/商家代號 (UUID，系統自動產生)。
+        public string ep_name { get; set; }         // 探員/商家顯示名稱 (登入時可使用)。
+        public int account_type { get; set; }       // 帳號身分：1 = 遊客(Tourist)，2 = 商家(Merchant)。
+        public string email { get; set; }           // 電子信箱 (註冊與登入時使用)。
+        public string ep_pswd { get; set; }         // 資料庫內儲存的 HMAC SHA256 密碼雜湊。
+        public bool is_active { get; set; }         // 帳號總開關：是否啟用 (true=啟用, false=停用)。
+        public string email_token { get; set; }     // 信箱驗證專用的暫存 Token (驗證成功後清空)。
+        public bool is_email_verified { get; set; } // 信箱是否已通過驗證 (true=已驗證, false=未驗證)。
     }
 
     public class EpAccountUpdateRequest

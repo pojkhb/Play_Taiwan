@@ -13,6 +13,7 @@
     <PackageReference Include="Coravel" Version="4.0.5" />
     <PackageReference Include="Dapper" Version="2.1.28" />
     <PackageReference Include="FreeSpire.XLS" Version="12.2.0" />
+    <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="5.0.8">

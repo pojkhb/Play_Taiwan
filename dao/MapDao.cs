@@ -18,23 +18,34 @@ namespace backend.dao
 
         #region 取得地圖節點
 
+        /// <summary>
+        /// 取得指定劇本的全部地圖節點。
+        /// 節點解鎖狀態由 Service 依玩家 current_node_order 統一計算。
+        /// day_index 由資料庫回傳，前端負責切換第一日／第二日。
+        /// </summary>
+        /// <param name="storyId">劇本代號。</param>
+        /// <returns>劇本地圖節點清單。</returns>
         public List<MapNode> GetStoryNodes(string storyId)
         {
             const string sql = @"
-                SELECT
-                    n.node_id,
-                    n.node_order,
-                    COALESCE(p.place_name, n.node_title) AS location_name,
-                    p.latitude,
-                    p.longitude
-                FROM md_story_node n
-                LEFT JOIN md_place p
-                    ON n.place_id = p.place_id
-                WHERE n.story_id = @story_id
-                  AND n.is_active = 1
-                  AND (p.is_active = 1 OR p.place_id IS NULL)
-                ORDER BY n.node_order;
-            ";
+        SELECT
+            n.node_id,
+            n.node_order,
+            n.day_index,
+            n.fog_hint,
+            n.is_night_only,
+            COALESCE(p.place_name, n.node_title) AS location_name,
+            p.latitude,
+            p.longitude,
+            p.image_url
+        FROM md_story_node n
+        LEFT JOIN md_place p
+            ON n.place_id = p.place_id
+        WHERE n.story_id = @story_id
+          AND n.is_active = 1
+          AND (p.is_active = 1 OR p.place_id IS NULL)
+        ORDER BY n.day_index, n.node_order;
+    ";
 
             var result = new List<MapNode>();
 
@@ -53,6 +64,7 @@ namespace backend.dao
                 {
                     node_id = reader["node_id"].ToString(),
                     node_order = Convert.ToInt32(reader["node_order"]),
+                    day_index = Convert.ToInt32(reader["day_index"]), // 節點所屬天數
 
                     location_name = reader["location_name"] == DBNull.Value
                         ? ""
@@ -66,9 +78,18 @@ namespace backend.dao
                         ? 0
                         : Convert.ToDouble(reader["longitude"]),
 
-                    is_unlocked = false,
-                    is_night_only = false,
-                    fog_hint = null,
+                    is_unlocked = false, // 由 MapService.GetMap 依玩家進度覆寫
+                    is_night_only = Convert.ToBoolean(reader["is_night_only"]),
+
+                    fog_hint = reader["fog_hint"] == DBNull.Value
+                        ? "前方仍被迷霧籠罩，完成前一站任務後即可探索。"
+                        : reader["fog_hint"].ToString(),
+
+                    image_url = reader["image_url"] == DBNull.Value
+                        ? null
+                        : reader["image_url"].ToString(),
+
+                    silhouette_image_url = null, // 後續可串 md_silhouette
                     child_node_ids = new List<string>()
                 });
             }
@@ -119,20 +140,22 @@ namespace backend.dao
         public MapNode GetNodeLocation(string nodeId)
         {
             const string sql = @"
-                SELECT
-                    n.node_id,
-                    n.node_order,
-                    COALESCE(p.place_name, n.node_title) AS location_name,
-                    p.latitude,
-                    p.longitude
-                FROM md_story_node n
-                LEFT JOIN md_place p
-                    ON n.place_id = p.place_id
-                WHERE n.node_id = @node_id
-                  AND n.is_active = 1
-                  AND (p.is_active = 1 OR p.place_id IS NULL)
-                LIMIT 1;
-            ";
+    SELECT
+        n.node_id,
+        n.node_order,
+        n.day_index,
+        n.is_night_only,
+        COALESCE(p.place_name, n.node_title) AS location_name,
+        p.latitude,
+        p.longitude
+    FROM md_story_node n
+    LEFT JOIN md_place p
+        ON n.place_id = p.place_id
+    WHERE n.node_id = @node_id
+      AND n.is_active = 1
+      AND (p.is_active = 1 OR p.place_id IS NULL)
+    LIMIT 1;
+";
 
             using var connection = new MySqlConnection(_appSettings.mydb);
             using var command = new MySqlCommand(sql, connection);
@@ -152,6 +175,8 @@ namespace backend.dao
             {
                 node_id = reader["node_id"].ToString(),
                 node_order = Convert.ToInt32(reader["node_order"]),
+                day_index = Convert.ToInt32(reader["day_index"]),
+                is_night_only = Convert.ToBoolean(reader["is_night_only"]),
 
                 location_name = reader["location_name"] == DBNull.Value
                     ? ""
@@ -220,23 +245,33 @@ namespace backend.dao
 
         #region 取得節點詳情
 
+        /// <summary>
+        /// 取得指定節點的景點、NPC 劇情與對應任務資訊。
+        /// </summary>
+        /// <param name="nodeId">節點代號。</param>
+        /// <returns>節點詳細資料，包含 task_id，前端可接著導向答題頁。</returns>
         public NodeDetailResponse GetNodeDetail(string nodeId)
         {
             const string sql = @"
-                SELECT
-                    n.node_id,
-                    COALESCE(p.place_name, n.node_title) AS location_name,
-                    p.summary,
-                    p.introduction,
-                    p.open_time
-                FROM md_story_node n
-                LEFT JOIN md_place p
-                    ON n.place_id = p.place_id
-                WHERE n.node_id = @node_id
-                  AND n.is_active = 1
-                  AND (p.is_active = 1 OR p.place_id IS NULL)
-                LIMIT 1;
-            ";
+        SELECT
+            n.node_id,
+            COALESCE(p.place_name, n.node_title) AS location_name,
+            p.summary,
+            p.introduction,
+            p.open_time,
+            t.task_id
+        FROM md_story_node n
+        LEFT JOIN md_place p
+            ON n.place_id = p.place_id
+        LEFT JOIN md_task t
+            ON t.node_id = n.node_id
+            AND t.is_active = 1
+        WHERE n.node_id = @node_id
+          AND n.is_active = 1
+          AND (p.is_active = 1 OR p.place_id IS NULL)
+        ORDER BY t.difficulty_star, t.created_at
+        LIMIT 1;
+    ";
 
             using var connection = new MySqlConnection(_appSettings.mydb);
             using var command = new MySqlCommand(sql, connection);
@@ -272,6 +307,7 @@ namespace backend.dao
                     : reader["location_name"].ToString(),
 
                 npc_name = "旅遊引導員",
+
                 intro_story = introStory,
 
                 opening_hours = reader["open_time"] == DBNull.Value
@@ -279,7 +315,11 @@ namespace backend.dao
                     : reader["open_time"].ToString(),
 
                 nearby_food = new List<string>(),
-                task_id = null,
+
+                task_id = reader["task_id"] == DBNull.Value
+                    ? null
+                    : reader["task_id"].ToString(),
+
                 review_story_url = null
             };
         }
@@ -357,18 +397,49 @@ namespace backend.dao
 
         #region 取得明信片統計
 
-        public int GetUnlockedPostcardCount(
-            string epId,
-            string storyId)
+        /// <summary>
+        /// 取得玩家在指定劇本已收集的明信片數量。
+        /// </summary>
+        public int GetUnlockedPostcardCount(string epId, string storyId)
         {
-            // 尚未確認 ep_postcard 欄位，先回傳 0。
-            return 0;
+            const string sql = @"
+        SELECT COUNT(*)
+        FROM ep_postcard
+        WHERE ep_id = @ep_id
+          AND story_id = @story_id;
+    ";
+
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            using var command = new MySqlCommand(sql, connection);
+
+            command.Parameters.AddWithValue("@ep_id", epId);
+            command.Parameters.AddWithValue("@story_id", storyId);
+
+            connection.Open();
+
+            return Convert.ToInt32(command.ExecuteScalar());
         }
 
+        /// <summary>
+        /// 取得指定劇本可收集的明信片總數。
+        /// </summary>
         public int GetTotalPostcardCount(string storyId)
         {
-            // 尚未確認劇本與明信片資料關聯，先回傳 0。
-            return 0;
+            const string sql = @"
+        SELECT COUNT(*)
+        FROM md_postcard
+        WHERE story_id = @story_id
+          AND is_active = 1;
+    ";
+
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            using var command = new MySqlCommand(sql, connection);
+
+            command.Parameters.AddWithValue("@story_id", storyId);
+
+            connection.Open();
+
+            return Convert.ToInt32(command.ExecuteScalar());
         }
 
         #endregion

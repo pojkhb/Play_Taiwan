@@ -27,7 +27,7 @@ namespace backend.Services
             StoryGenerateRequest req
         )
         {
-            return _dao.GenerateOptions(req);
+            return _dao.GenerateStories(req);
         }
 
         public StoryDetailResponse GetDetail(string storyId)

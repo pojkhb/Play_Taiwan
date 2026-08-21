@@ -5,6 +5,7 @@ using backend.Models;
 using backend.utils;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace backend.dao
 {
@@ -112,14 +113,16 @@ namespace backend.dao
 
         #endregion
 
-        #region 劇本檔案館：取得劇本卡片
+        #region 劇本檔案館：依地區與偏好生成劇本選項清單（含路線預覽）
 
-        public List<StoryOptionResponse> GenerateOptions(
-            StoryGenerateRequest req
-        )
+        /// <summary>
+        /// 依地區(region_id 精準比對 或 region 名稱模糊比對)篩選劇本，
+        /// 再依偏好標籤比對數排序，符合偏好越多的劇本排越前面；同時附上每個劇本的路線預覽。
+        /// 取代原本的 GenerateOptions，整合地區篩選＋偏好排序＋路線預覽三項功能。
+        /// </summary>
+        public List<StoryOptionResponse> GenerateStories(StoryGenerateRequest req)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
-
             connection.Open();
 
             string sql = @"
@@ -149,80 +152,77 @@ namespace backend.dao
             ";
 
             using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@region_id", req?.region_id?.Trim() ?? "");
+            command.Parameters.AddWithValue("@region", req?.region?.Trim() ?? "");
 
-            command.Parameters.AddWithValue(
-                "@region_id",
-                req?.region_id?.Trim() ?? ""
-            );
+            var stories = new List<StoryOptionResponse>();
 
-            command.Parameters.AddWithValue(
-                "@region",
-                req?.region?.Trim() ?? ""
-            );
-
-            using var reader = command.ExecuteReader();
-
-            var result = new List<StoryOptionResponse>();
-
-            while (reader.Read())
+            using (var reader = command.ExecuteReader())
             {
-                string expectedBadgesJson =
-                    reader["expected_badges_json"] == DBNull.Value
+                while (reader.Read())
+                {
+                    string expectedBadgesJson = reader["expected_badges_json"] == DBNull.Value
                         ? "[]"
                         : reader["expected_badges_json"].ToString();
 
-                List<string> expectedBadges;
+                    List<string> expectedBadges;
+                    try
+                    {
+                        expectedBadges = JsonSerializer.Deserialize<List<string>>(expectedBadgesJson) ?? new List<string>();
+                    }
+                    catch
+                    {
+                        expectedBadges = new List<string>();
+                    }
 
-                try
-                {
-                    expectedBadges =
-                        JsonSerializer.Deserialize<List<string>>(
-                            expectedBadgesJson
-                        ) ?? new List<string>();
+                    stories.Add(new StoryOptionResponse
+                    {
+                        story_id = reader["story_id"].ToString(),
+                        title = reader["title"].ToString(),
+                        prologue = reader["prologue"] == DBNull.Value ? null : reader["prologue"].ToString(),
+                        category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
+                        transport = reader["transport"] == DBNull.Value ? null : reader["transport"].ToString(),
+                        expected_badges = expectedBadges,
+                        expected_postcards = Convert.ToInt32(reader["expected_postcards"]),
+                        region_id = reader["region_id"] == DBNull.Value ? null : reader["region_id"].ToString(),
+                        region = reader["region_name"] == DBNull.Value ? null : reader["region_name"].ToString()
+                    });
                 }
-                catch
-                {
-                    expectedBadges = new List<string>();
-                }
-
-                result.Add(new StoryOptionResponse
-                {
-                    story_id = reader["story_id"].ToString(),
-                    title = reader["title"].ToString(),
-
-                    prologue = reader["prologue"] == DBNull.Value
-                        ? null
-                        : reader["prologue"].ToString(),
-
-                    category = reader["category"] == DBNull.Value
-                        ? null
-                        : reader["category"].ToString(),
-
-                    transport = reader["transport"] == DBNull.Value
-                        ? null
-                        : reader["transport"].ToString(),
-
-                    expected_badges = expectedBadges,
-
-                    expected_postcards = Convert.ToInt32(
-                        reader["expected_postcards"]
-                    ),
-
-                    region_id = reader["region_id"] == DBNull.Value
-                        ? null
-                        : reader["region_id"].ToString(),
-
-                    region = reader["region_name"] == DBNull.Value
-                        ? null
-                        : reader["region_name"].ToString(),
-
-                    route_preview = GetRoutePreview(
-                        reader["story_id"].ToString()
-                    )
-                });
             }
 
-            return result;
+            if (stories.Count == 0) return stories; // 該地區還沒有劇本
+
+            // 補上每個劇本的路線預覽
+            foreach (var story in stories)
+            {
+                story.route_preview = GetRoutePreview(story.story_id);
+            }
+
+            // 依偏好標籤比對數排序：符合的偏好越多，排越前面；沒有勾選偏好時維持原本的 sort_order
+            if (req.preferences == null || req.preferences.Count == 0)
+            {
+                return stories;
+            }
+
+            var scored = new List<(StoryOptionResponse Story, int Score)>();
+            foreach (var story in stories)
+            {
+                int score = 0;
+                using var cmd = new MySqlCommand(
+                    "SELECT tag FROM md_story_tag WHERE story_id = @story_id", connection);
+                cmd.Parameters.AddWithValue("@story_id", story.story_id);
+                using var tagReader = cmd.ExecuteReader();
+                while (tagReader.Read())
+                {
+                    if (req.preferences.Contains(tagReader.GetString("tag")))
+                    {
+                        score++;
+                    }
+                }
+                scored.Add((story, score));
+            }
+
+            return scored.OrderByDescending(s => s.Score).Select(s => s.Story).ToList();
         }
 
         #endregion

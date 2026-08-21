@@ -20,6 +20,14 @@ namespace backend.Services
 
         #region 取得地圖
 
+        /// <summary>
+        /// 取得指定劇本的地圖資訊。
+        /// 後端依 ep_story_progress.current_node_order 判斷節點是否解鎖，
+        /// 前端依每個節點的 day_index 切換第一日／第二日地圖畫面。
+        /// </summary>
+        /// <param name="storyId">劇本代號。</param>
+        /// <param name="user">目前登入使用者 JWT Claims。</param>
+        /// <returns>地圖進度、節點、明信片統計與總天數。</returns>
         public MapResponse GetMap(
             string storyId,
             ClaimsPrincipal user)
@@ -38,43 +46,62 @@ namespace backend.Services
                 throw new KeyNotFoundException("此劇本沒有可用的地圖節點。");
             }
 
-            int currentNodeOrder =
-                _dao.GetCurrentNodeOrder(epId, storyId);
+            int currentNodeOrder = _dao.GetCurrentNodeOrder(epId, storyId);
 
             nodes = nodes
-                .OrderBy(x => x.node_order)
+                .OrderBy(x => x.day_index)
+                .ThenBy(x => x.node_order)
                 .ToList();
 
             foreach (MapNode node in nodes)
             {
+                // 第一個節點固定開放。
+                // 玩家完成第 N 節點後，開放第 N+1 節點。
                 node.is_unlocked =
                     node.node_order == 1 ||
                     node.node_order <= currentNodeOrder + 1;
 
-                node.fog_hint = node.is_unlocked
-                    ? null
-                    : "前方仍被迷霧籠罩，完成前一站任務後即可探索。";
+                // 已解鎖後不再顯示迷霧文字。
+                if (node.is_unlocked)
+                {
+                    node.fog_hint = null;
+                }
+                else if (string.IsNullOrWhiteSpace(node.fog_hint))
+                {
+                    node.fog_hint = "前方仍被迷霧籠罩，完成前一站任務後即可探索。";
+                }
 
                 node.child_node_ids ??= new List<string>();
             }
 
+            // 建立線性路線：第一站 -> 第二站 -> 第三站。
+            // 未來若有分支劇情，再改成資料表設定 child_node_ids。
             for (int i = 0; i < nodes.Count - 1; i++)
             {
                 nodes[i].child_node_ids.Add(nodes[i + 1].node_id);
             }
 
+            int totalDays = nodes.Max(x => x.day_index);
+
             return new MapResponse
             {
                 story_id = storyId,
+
                 unlocked_node_count = nodes.Count(x => x.is_unlocked),
                 total_node_count = nodes.Count,
+
                 postcard_unlocked_count =
                     _dao.GetUnlockedPostcardCount(epId, storyId),
+
                 postcard_total_count =
                     _dao.GetTotalPostcardCount(storyId),
+
                 nodes = nodes,
+
+                // 預設進入地圖先顯示第一日。
+                // 前端點第二日時，以 node.day_index == 2 過濾即可，不需要再打 API。
                 day_index = 1,
-                total_days = 1
+                total_days = totalDays
             };
         }
 

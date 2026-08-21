@@ -100,6 +100,12 @@ namespace backend
             #region S09-任務答題
             services.AddScoped<Services.TaskService>();
             services.AddScoped<dao.TaskDao>();
+            services.AddScoped<Services.ITaskVerificationService, Services.TaskVerificationService>();
+
+            services.AddSingleton<Services.IVisionApiClient, Services.FakeVisionApiClient>();
+            services.AddSingleton<Services.IPoseCompareClient, Services.FakePoseCompareClient>();
+            services.AddSingleton<Services.ISpeechToTextClient, Services.FakeSpeechToTextClient>();
+            services.AddSingleton<Services.IQrTokenStore, Services.InMemoryQrTokenStore>();
             #endregion
             #region S10-明信片
             services.AddScoped<Services.PostcardService>();

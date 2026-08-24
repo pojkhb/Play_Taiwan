@@ -56,7 +56,7 @@ namespace backend.Services
                 throw new Exception("此帳號已停用");
             }
 
-            // 💡 擋下尚未驗證信箱的帳號
+            // 💡 擋下尚未驗證信箱的帳號 (保留你的原始邏輯)
             if (!account.is_email_verified)
             {
                 throw new Exception("請先至信箱收取驗證信，驗證後才能登入");
@@ -103,14 +103,14 @@ namespace backend.Services
             // 2. 產生一組信箱驗證專用的 Token
             string emailToken = Guid.NewGuid().ToString("N");
 
-            // 3. 呼叫 DAO 寫入資料庫
+            // 3. 呼叫 DAO 寫入資料庫 (保留你的原始傳參)
             bool isSuccess = await _dao.RegisterAsync(req, emailToken);
             if (!isSuccess)
             {
                 throw new Exception("註冊失敗，該 Email 可能已被註冊過。");
             }
 
-            // 4. 準備並發送驗證信 (背景處理)
+            // 4. 準備並發送驗證信 (背景處理 - 保留你的 localhost:5501 網址)
             string verifyUrl = $"http://localhost:5501/api/Auth/VerifyEmail?token={emailToken}";
             string subject = "歡迎加入 Play Taiwan！你的探險即將開始";
             string htmlContent = $@"
@@ -146,12 +146,67 @@ namespace backend.Services
         }
         #endregion
 
+        #region 忘記密碼 (產生隨機密碼並寄信) - 【安全新增區塊】
+        public async Task ForgotPasswordAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) throw new Exception("請提供 Email");
+
+            var userEmail = _dao.GetEmailByAddress(email);
+            if (string.IsNullOrEmpty(userEmail)) throw new Exception("找不到此 Email 註冊的帳號");
+
+            string tempPassword = Guid.NewGuid().ToString("N").Substring(0, 8);
+            sha256Hash hashTool = new sha256Hash();
+            string newPasswordHash = hashTool.getSha256(tempPassword, _appSettings.hash_key);
+
+            _dao.UpdatePassword(email, newPasswordHash);
+
+            string subject = "Play Taiwan - 密碼重置通知";
+            string htmlContent = $@"
+                <div style='font-family: Arial; padding: 20px;'>
+                    <h2>你的密碼已重置</h2>
+                    <p>你收到這封信是因為你申請了重置密碼。</p>
+                    <p>你的新登入密碼為：<strong style='font-size:18px; color:#d9534f;'>{tempPassword}</strong></p>
+                    <p>請使用此密碼登入後，盡快前往「設定」修改為你熟悉的密碼。</p>
+                </div>";
+
+            _ = Task.Run(async () => 
+            {
+                try { await _emailService.SendEmailAsync(email, "探員", subject, htmlContent); } 
+                catch (Exception ex) { _logger.LogError($"密碼信寄送失敗: {ex.Message}"); }
+            });
+        }
+        #endregion
+
+       #region 修改密碼 (登入狀態下)
+        public void ChangePassword(string oldPassword, string newPassword)
+        {
+            if (string.IsNullOrWhiteSpace(oldPassword) || string.IsNullOrWhiteSpace(newPassword))
+                throw new Exception("密碼不能為空");
+
+            string ep_id = GetCurrentEpId();
+            
+            // 💡 修正點 1：改用新寫的 GetAccountById 來查詢
+            EpAccount account = _dao.GetAccountById(ep_id); 
+            
+            // 💡 修正點 2：加上 Null 防呆檢查，避免再次發生 Object reference 錯誤
+            if (account == null) throw new Exception("找不到當前登入的帳號資料，請重新登入");
+            
+            sha256Hash hashTool = new sha256Hash();
+            string oldHash = hashTool.getSha256(oldPassword, _appSettings.hash_key);
+            
+            if (oldHash != account.ep_pswd) throw new Exception("舊密碼輸入錯誤");
+
+            string newHash = hashTool.getSha256(newPassword, _appSettings.hash_key);
+            _dao.UpdatePassword(account.email, newHash);
+        }
+        #endregion
+
         /// <summary>
         /// 產生探員登入 JWT Token。
         /// </summary>
         private string GenerateJwtToken(EpAccount account)
         {
-            // 將數字 account_type 轉換為可識別的身分字串
+            // 將數字 account_type 轉換為可識別的身分字串 (保留你的原始邏輯)
             string roleStr = account.account_type == 2 ? "Merchant" : "Tourist";
 
             SymmetricSecurityKey securityKey = new SymmetricSecurityKey(

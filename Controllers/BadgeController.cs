@@ -1,21 +1,20 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using backend.Services;
-using backend.Models;
+using backend.dao; // 為了 BadgeResponse
 using backend.ViewModels;
 
 namespace backend.Controllers
 {
     /// <summary>
     /// 徽章相關 API。
-    /// 對應頁面：首頁總覽（徽章數）、過往紀錄。
+    /// 對應頁面：首頁總覽（徽章數）、過往紀錄、徽章圖鑑。
     /// </summary>
-
     [ApiController]
     [Route("api/[controller]")]
-    // 徽章
     public class BadgeController : ControllerBase
     {
         private readonly ILogger<BadgeController> _logger;
@@ -28,22 +27,9 @@ namespace backend.Controllers
         }
 
         #region 取得我的所有徽章
-
-        /// <summary>
-        /// 取得目前探員已獲得的所有徽章。
-        /// </summary>
-        /// <remarks>
-        /// 對應「首頁－目前總覽」與「過往－收藏館」頁面的徽章清單。
-        ///
-        /// Request 範例：
-        ///
-        ///     GET /api/Badge
-        /// </remarks>
-        /// <returns>目前探員已獲得的徽章清單。</returns>
-        // API：取得我的所有徽章（GetMyBadges）－回傳目前探員已獲得的徽章清單
+        [Authorize]
         [HttpGet]
         [Route("")]
-        // GET: api/Badge
         public IActionResult GetMyBadges()
         {
             try
@@ -60,7 +46,32 @@ namespace backend.Controllers
                 return NotFound(new ResultViewModel<List<BadgeResponse>> { isSuccess = false, message = e.Message.ToString(), Result = null });
             }
         }
+        #endregion
 
+        #region 取得徽章圖鑑狀態 (所有徽章與是否擁有)
+        /// <summary>
+        /// 取得系統所有徽章，並標示當前探員是否已擁有該徽章。
+        /// 適用於前端「成就館」頁面，未擁有的可顯示為灰階 (is_owned = false)。
+        /// </summary>
+        [Authorize]
+        [HttpGet]
+        [Route("Status")]
+        public IActionResult GetAllBadgeStatus()
+        {
+            try
+            {
+                return Ok(new ResultViewModel<List<BadgeResponse>>
+                {
+                    isSuccess = true,
+                    message = "查詢成功",
+                    Result = _service.GetAllBadgeStatus(),
+                });
+            }
+            catch (Exception e)
+            {
+                return NotFound(new ResultViewModel<List<BadgeResponse>> { isSuccess = false, message = e.Message.ToString(), Result = null });
+            }
+        }
         #endregion
     }
 }

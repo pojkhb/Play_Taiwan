@@ -268,5 +268,87 @@ namespace backend.Controllers
         }
 
         #endregion
+
+        // === 以下為新增的密碼功能 ===
+
+        #region 忘記密碼
+
+        public class ForgotPasswordRequest { public string Email { get; set; } }
+
+        /// <summary>
+        /// 忘記密碼。
+        /// </summary>
+        /// <remarks>
+        /// 自動產生隨機密碼並寄送至信箱。
+        /// </remarks>
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("ForgotPassword")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+        {
+            try
+            {
+                await _service.ForgotPasswordAsync(req.Email);
+                return Ok(new ResultViewModel<string>
+                {
+                    isSuccess = true,
+                    message = "新密碼已寄送至您的信箱",
+                    Result = null
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message.ToString(),
+                    Result = null
+                });
+            }
+        }
+
+        #endregion
+
+        #region 修改密碼
+
+        public class ChangePasswordRequest 
+        { 
+            public string OldPassword { get; set; } 
+            public string NewPassword { get; set; } 
+        }
+
+        /// <summary>
+        /// 修改密碼。
+        /// </summary>
+        /// <remarks>
+        /// 需在登入狀態下，並提供舊密碼驗證。
+        /// </remarks>
+        [Authorize]
+        [HttpPost]
+        [Route("ChangePassword")]
+        public IActionResult ChangePassword([FromBody] ChangePasswordRequest req)
+        {
+            try
+            {
+                _service.ChangePassword(req.OldPassword, req.NewPassword);
+                return Ok(new ResultViewModel<string>
+                {
+                    isSuccess = true,
+                    message = "密碼修改成功",
+                    Result = null
+                });
+            }
+            catch (Exception e)
+            {
+                return BadRequest(new ResultViewModel<string>
+                {
+                    isSuccess = false,
+                    message = e.Message.ToString(),
+                    Result = null
+                });
+            }
+        }
+
+        #endregion
     }
 }

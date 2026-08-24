@@ -41,5 +41,13 @@ namespace backend.Services
         {
             return _dao.GetDetail(req.story_id);
         }
+        #region AI 動態劇本寫入
+        
+        public string SaveAiGeneratedStory(string ep_id, string region_id, AiStoryResult aiResult)
+        {
+            return _dao.SaveAiGeneratedStory(ep_id, region_id, aiResult);
+        }
+        
+        #endregion
     }
 }

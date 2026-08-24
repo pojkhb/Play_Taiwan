@@ -135,6 +135,10 @@ namespace backend
             services.AddScoped<Services.TaskHintService>();
             services.AddScoped<dao.TaskHintDao>();
             #endregion
+            #region AI 非同步生成與任務追蹤
+            services.AddScoped<MediaJobDao>();
+            services.AddScoped<IVlogAiClient, MockVlogAiClient>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

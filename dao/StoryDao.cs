@@ -362,5 +362,82 @@ namespace backend.dao
         }
 
         #endregion
+        #region AI 動態劇本寫入資料庫
+        
+        /// <summary>
+        /// 將 AI 生成的劇本 JSON，正式寫入資料庫，變成可遊玩的劇本
+        /// </summary>
+        public string SaveAiGeneratedStory(string ep_id, string region_id, AiStoryResult aiResult)
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                // 1. 產生全新的劇本 ID
+                string newStoryId = "AI_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+                
+                string badgesJson = aiResult.expected_badges != null 
+                    ? System.Text.Json.JsonSerializer.Serialize(aiResult.expected_badges) 
+                    : "[]";
+
+                // 2. 寫入劇本主檔 (md_story)
+                string insertStorySql = @"
+                    INSERT INTO md_story (
+                        story_id, title, subtitle, prologue, synopsis, 
+                        region_id, is_active, category, transport, sort_order,
+                        expected_badges_json, expected_postcards
+                    )
+                    VALUES (
+                        @story_id, @title, @subtitle, @prologue, @synopsis, 
+                        @region_id, 1, 'AI專屬生成', '客製化交通', 99,
+                        @badges_json, @expected_postcards
+                    );
+                ";
+                
+                using (var cmd = new MySqlCommand(insertStorySql, connection, transaction))
+                {
+                    cmd.Parameters.AddWithValue("@story_id", newStoryId);
+                    cmd.Parameters.AddWithValue("@title", aiResult.title ?? "專屬客製化旅程");
+                    cmd.Parameters.AddWithValue("@subtitle", aiResult.subtitle ?? "");
+                    cmd.Parameters.AddWithValue("@prologue", aiResult.prologue ?? "");
+                    cmd.Parameters.AddWithValue("@synopsis", aiResult.synopsis ?? "");
+                    cmd.Parameters.AddWithValue("@region_id", region_id ?? "");
+                    cmd.Parameters.AddWithValue("@badges_json", badgesJson);
+                    cmd.Parameters.AddWithValue("@expected_postcards", aiResult.expected_postcards);
+                    cmd.ExecuteNonQuery();
+                }
+
+                // 3. 寫入劇本節點 (md_story_node)
+                if (aiResult.nodes != null && aiResult.nodes.Count > 0)
+                {
+                    string insertNodeSql = @"
+                        INSERT INTO md_story_node (node_id, story_id, place_id, node_title, node_order, is_active)
+                        VALUES (@node_id, @story_id, @place_id, @node_title, @node_order, 1);
+                    ";
+                    foreach (var node in aiResult.nodes)
+                    {
+                        using var cmdNode = new MySqlCommand(insertNodeSql, connection, transaction);
+                        cmdNode.Parameters.AddWithValue("@node_id", "N_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper());
+                        cmdNode.Parameters.AddWithValue("@story_id", newStoryId);
+                        cmdNode.Parameters.AddWithValue("@place_id", node.place_id ?? "");
+                        cmdNode.Parameters.AddWithValue("@node_title", node.node_title ?? "");
+                        cmdNode.Parameters.AddWithValue("@node_order", node.node_order);
+                        cmdNode.ExecuteNonQuery();
+                    }
+                }
+
+                transaction.Commit();
+                return newStoryId;
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                throw new Exception($"AI 劇本寫入資料庫失敗: {ex.Message}");
+            }
+        }
+        
+        #endregion
     }
 }

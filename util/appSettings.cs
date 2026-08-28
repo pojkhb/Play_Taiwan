@@ -18,4 +18,11 @@ namespace backend.utils
     public string background_color {get;set;}
     public string header {get;set;}
   }
+  public class Neo4jSettings
+{
+    public string Uri { get; set; }
+    public string User { get; set; }
+    public string Password { get; set; }
+    public string Database { get; set; }
+}
 }

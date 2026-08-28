@@ -331,14 +331,29 @@ namespace backend.Models
     // ===================== 過往 (History) =====================
     public class HistoryStoryItem
     {
+        /// <summary>劇本代號，對應 md_story.story_id，例如 story_tainan_001。</summary>
         public string story_id { get; set; }                    // 劇本代號
-        public string title { get; set; }                         // 劇本標題
-        public string synopsis { get; set; }                       // 劇本簡介
-        public DateTime completed_date { get; set; }                 // 完成日期
-        public string region { get; set; }                            // 所屬地區名稱
+
+        /// <summary>劇本標題。</summary>
+        public string title { get; set; }                        // 劇本標題
+
+        /// <summary>劇本簡介文字。</summary>
+        public string synopsis { get; set; }                      // 劇本簡介
+
+        /// <summary>此劇本完成的日期時間。</summary>
+        public DateTime completed_date { get; set; }               // 完成日期
+
+        /// <summary>劇本所屬地區名稱，例如「台南永康區」。</summary>
+        public string region { get; set; }                          // 所屬地區名稱
+
+        /// <summary>探索路線摘要，依序列出玩家走過的景點名稱。</summary>
         public List<string> route_summary { get; set; }              // 探索路線摘要(景點名稱清單)
-        public string vlog_id { get; set; }                             // 對應的 Vlog 代號
-        public string postcard_review_url { get; set; }                  // 明信片回顧連結
+
+        /// <summary>此劇本對應生成的 Vlog 代號，若尚未生成則為 null。</summary>
+        public string vlog_id { get; set; }                            // 對應的 Vlog 代號
+
+        /// <summary>明信片回顧頁面的連結，若無則為 null。</summary>
+        public string postcard_review_url { get; set; }                 // 明信片回顧連結
     }
 
     // ===================== 收藏 =====================

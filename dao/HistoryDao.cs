@@ -22,32 +22,88 @@ namespace backend.dao
         }
 
         #region 取得所有過往劇本
-        public List<HistoryStoryItem> GetHistoryList()
+        public List<HistoryStoryItem> GetHistoryList(string ep_id)
         {
-            // TODO: 資料表尚未建置，預計欄位:
-            // ep_story_progress(ep_id, story_id, started_at, completed_at)
-            return new List<HistoryStoryItem>
+            string sql = @"
+                SELECT
+                    p.story_id,
+                    s.title,
+                    s.synopsis,
+                    p.completed_at AS completed_date,
+                    r.region_name AS region,
+                    v.vlog_id
+                FROM ep_story_progress p
+                INNER JOIN md_story s ON p.story_id = s.story_id
+                LEFT JOIN md_region r ON s.region_id = r.region_id
+                LEFT JOIN ep_vlog v ON v.story_id = p.story_id AND v.ep_id = p.ep_id
+                WHERE p.ep_id = @ep_id
+                  AND p.progress_status = 'COMPLETED'
+                ORDER BY p.completed_at DESC;
+            ";
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            conn.Open();
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@ep_id", ep_id);
+
+            var result = new List<HistoryStoryItem>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                new HistoryStoryItem
+                result.Add(new HistoryStoryItem
                 {
-                    story_id = "MOCK-STORY-001",
-                    title = "府城儒生失落卷",
-                    synopsis = "尋著百年軌跡，找回失落記憶……",
-                    completed_date = new DateTime(2026, 8, 9),
-                    region = "台南永康區",
-                    route_summary = new List<string> { "臺南孔廟", "鎮生堂文學文史學院", "林百貨", "澎湖武廟", "看西街武廟", "大天后宮" },
-                    vlog_id = "MOCK-VLOG-001",
-                    postcard_review_url = null
-                }
-            };
+                    story_id = reader["story_id"].ToString(),
+                    title = reader["title"].ToString(),
+                    synopsis = reader["synopsis"] == DBNull.Value ? null : reader["synopsis"].ToString(),
+                    completed_date = reader["completed_date"] == DBNull.Value ? default : Convert.ToDateTime(reader["completed_date"]),
+                    region = reader["region"] == DBNull.Value ? null : reader["region"].ToString(),
+                    vlog_id = reader["vlog_id"] == DBNull.Value ? null : reader["vlog_id"].ToString()
+                });
+            }
+            return result;
         }
         #endregion
 
         #region 取得過往劇本詳情
-        public HistoryStoryItem GetHistoryDetail(string story_id)
+        public HistoryStoryItem GetHistoryDetail(string story_id, string ep_id)
         {
-            // TODO: SELECT * FROM ep_story_progress JOIN story ON ... WHERE story_id = @story_id
-            return GetHistoryList()[0];
+            string sql = @"
+                SELECT
+                    p.story_id,
+                    s.title,
+                    s.synopsis,
+                    p.completed_at AS completed_date,
+                    r.region_name AS region,
+                    v.vlog_id
+                FROM ep_story_progress p
+                INNER JOIN md_story s ON p.story_id = s.story_id
+                LEFT JOIN md_region r ON s.region_id = r.region_id
+                LEFT JOIN ep_vlog v ON v.story_id = p.story_id AND v.ep_id = p.ep_id
+                WHERE p.story_id = @story_id
+                  AND p.ep_id = @ep_id;
+            ";
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            conn.Open();
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@story_id", story_id);
+            cmd.Parameters.AddWithValue("@ep_id", ep_id);
+
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                throw new Exception("找不到此過往劇本：" + story_id);
+            }
+
+            return new HistoryStoryItem
+            {
+                story_id = reader["story_id"].ToString(),
+                title = reader["title"].ToString(),
+                synopsis = reader["synopsis"] == DBNull.Value ? null : reader["synopsis"].ToString(),
+                completed_date = reader["completed_date"] == DBNull.Value ? default : Convert.ToDateTime(reader["completed_date"]),
+                region = reader["region"] == DBNull.Value ? null : reader["region"].ToString(),
+                vlog_id = reader["vlog_id"] == DBNull.Value ? null : reader["vlog_id"].ToString()
+            };
         }
         #endregion
     }

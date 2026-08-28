@@ -7,20 +7,20 @@ namespace backend.Services
     public class HistoryService
     {
         private readonly HistoryDao _dao;
-        public HistoryService(HistoryDao dao) { _dao = dao; }
 
-        #region 取得所有過往劇本
-        public List<HistoryStoryItem> GetHistoryList()
+        public HistoryService(HistoryDao dao)
         {
-            return _dao.GetHistoryList();
+            _dao = dao;
         }
-        #endregion
 
-        #region 取得過往劇本詳情
-        public HistoryStoryItem GetHistoryDetail(string story_id)
+        public List<HistoryStoryItem> GetHistoryList(string ep_id)
         {
-            return _dao.GetHistoryDetail(story_id);
+            return _dao.GetHistoryList(ep_id);
         }
-        #endregion
+
+        public HistoryStoryItem GetHistoryDetail(string story_id, string ep_id)
+        {
+            return _dao.GetHistoryDetail(story_id, ep_id);
+        }
     }
 }

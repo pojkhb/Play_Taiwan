@@ -1,43 +1,40 @@
-using System;
 using System.Collections.Generic;
+using System.Linq;
 using backend.dao;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
+using backend.Models;
 
 namespace backend.Services
 {
     public class BadgeService
     {
         private readonly BadgeDao _dao;
-        private readonly HttpContext _ipContext;
 
-        public BadgeService(BadgeDao dao, IHttpContextAccessor httpContextAccessor)
+        public BadgeService(BadgeDao dao)
         {
             _dao = dao;
-            _ipContext = httpContextAccessor.HttpContext;
         }
 
-        private string GetCurrentEpId()
+        public List<BadgeSeriesGroup> GetBadgeCatalog(string ep_id)
         {
-            var epIdClaim = _ipContext?.User?.FindFirst("ep_id") ?? _ipContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
-            if (epIdClaim == null) throw new Exception("無法取得當前探員身分，請重新登入");
-            return epIdClaim.Value;
-        }
+            var flatList = _dao.GetAllBadgeStatus(ep_id);
 
-        #region 取得我的所有徽章
-        public List<BadgeResponse> GetMyBadges()
-        {
-            string ep_id = GetCurrentEpId();
-            return _dao.GetMyBadges(ep_id);
+            return flatList
+                .GroupBy(b => new { b.series_id, b.series_name })
+                .Select(g => new BadgeSeriesGroup
+                {
+                    series_id = g.Key.series_id,
+                    series_name = g.Key.series_name,
+                    badges = g.Select(b => new BadgeItem
+                    {
+                        badge_id = b.badge_id,
+                        badge_name = b.badge_name,
+                        description = b.description,
+                        image_url = b.image_url,
+                        is_owned = b.is_owned,
+                        obtained_at = b.obtained_at
+                    }).ToList()
+                })
+                .ToList();
         }
-        #endregion
-
-        #region 取得徽章圖鑑狀態
-        public List<BadgeResponse> GetAllBadgeStatus()
-        {
-            string ep_id = GetCurrentEpId();
-            return _dao.GetAllBadgeStatus(ep_id);
-        }
-        #endregion
     }
 }

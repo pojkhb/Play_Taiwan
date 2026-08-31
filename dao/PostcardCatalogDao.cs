@@ -8,18 +8,15 @@ using backend.utils;
 
 namespace backend.dao
 {
-    /// <summary>明信片主檔 (md_postcard) 的資料存取物件。</summary>
     public class PostcardCatalogDao
     {
         private readonly string _connectionString;
 
-        // 使用 IOptions<AppSettings> 注入，確保與 AuthDao 的連線字串一致
         public PostcardCatalogDao(IOptions<AppSettings> appSettings)
         {
             _connectionString = appSettings.Value.mydb;
         }
 
-        /// <summary>取得所有明信片主檔，可依系列分類篩選。</summary>
         public async Task<List<PostcardCatalog>> GetAllAsync(string category = null)
         {
             var list = new List<PostcardCatalog>();
@@ -38,7 +35,7 @@ namespace backend.dao
             using var conn = new MySqlConnection(_connectionString);
             await conn.OpenAsync();
             using var cmd = new MySqlCommand(sql, conn);
-            
+
             if (!string.IsNullOrWhiteSpace(category))
             {
                 cmd.Parameters.AddWithValue("@category", category);
@@ -52,7 +49,6 @@ namespace backend.dao
             return list;
         }
 
-        /// <summary>依明信片識別碼取得單一明信片主檔資料。</summary>
         public async Task<PostcardCatalog> GetByIdAsync(string postcardId)
         {
             const string sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
@@ -70,7 +66,6 @@ namespace backend.dao
             return await reader.ReadAsync() ? Map(reader) : null;
         }
 
-        /// <summary>取得指定劇本所擁有的所有明信片主檔。</summary>
         public async Task<List<PostcardCatalog>> GetByStoryIdAsync(string storyId)
         {
             var list = new List<PostcardCatalog>();
@@ -94,7 +89,6 @@ namespace backend.dao
             return list;
         }
 
-        /// <summary>新增明信片主檔。</summary>
         public async Task CreateAsync(PostcardCatalog entity)
         {
             const string sql = @"INSERT INTO md_postcard
@@ -111,7 +105,6 @@ namespace backend.dao
             await cmd.ExecuteNonQueryAsync();
         }
 
-        /// <summary>更新明信片主檔，回傳是否有資料被更新。</summary>
         public async Task<bool> UpdateAsync(PostcardCatalog entity)
         {
             const string sql = @"UPDATE md_postcard SET
@@ -134,7 +127,6 @@ namespace backend.dao
             return rows > 0;
         }
 
-        /// <summary>刪除明信片主檔，回傳是否有資料被刪除。</summary>
         public async Task<bool> DeleteAsync(string postcardId)
         {
             const string sql = "DELETE FROM md_postcard WHERE postcard_id = @postcard_id";

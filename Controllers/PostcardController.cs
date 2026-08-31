@@ -11,6 +11,7 @@ namespace backend.Controllers
     /// <summary>
     /// 明信片相關 API。
     /// 對應頁面：明信片翻轉、過往－明信片vlog、收藏。
+    /// [❌ 尚未完成]
     /// </summary>
 
     [ApiController]

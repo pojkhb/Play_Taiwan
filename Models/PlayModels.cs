@@ -15,6 +15,8 @@ namespace backend.Models
         public string token { get; set; }        // JWT 登入權杖
         public string ep_id { get; set; }        // 探員代號
         public string ep_name { get; set; }      // 帳號名稱 (可編輯)
+         public int account_type { get; set; }          // 原始數字：1=玩家，2=商家
+          public string account_type_name { get; set; }   // 轉換後文字：Tourist / 
     }
 
     public class EpAccount

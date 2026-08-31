@@ -11,6 +11,7 @@ namespace backend.Controllers
     /// <summary>
     /// 明信片主檔相關 API。
     /// 對應頁面：收藏館。負責「明信片長什麼樣子」，與紀錄探員實際獲得情況的 PostcardController 互補。
+    /// [❌ 尚未完成]
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]

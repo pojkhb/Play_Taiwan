@@ -122,7 +122,8 @@ namespace backend.Controllers
         ///         "vlog_id": "VLOG-001",
         ///         "postcard_review_url": null
         ///       }
-        ///     }
+        ///     }'
+        /// [❌ 尚未完成]
         /// </remarks>
         /// <param name="story_id">劇本代號，對應 md_story.story_id，例如 story_tainan_001（此劇本代號會延續傳到 /api/Postcard/Story/{story_id}）。</param>
         /// <returns>指定劇本的詳細內容，若探員尚未完成此劇本則回傳 404。</returns>

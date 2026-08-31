@@ -99,6 +99,7 @@ namespace backend.Controllers
         /// <param name="lat">目前緯度。</param>
         /// <param name="lng">目前經度。</param>
         /// <returns>解鎖成功後的節點詳情。</returns>
+        ///[❌]
         // API：GPS 確認抵達（Arrive）－驗證座標後解鎖指定節點
         [HttpPost("Node/{node_id}/Arrive")]
         public IActionResult Arrive(

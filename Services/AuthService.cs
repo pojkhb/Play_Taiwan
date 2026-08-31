@@ -18,12 +18,12 @@ namespace backend.Services
         private readonly AuthDao _dao;
         private readonly HttpContext _ipContext;
         private readonly AppSettings _appSettings;
-        private readonly EmailService _emailService; // 注入寄信服務
+        private readonly EmailService _emailService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
-            AuthDao dao, 
-            IHttpContextAccessor httpContextAccessor, 
+            AuthDao dao,
+            IHttpContextAccessor httpContextAccessor,
             IOptions<AppSettings> appSettings,
             EmailService emailService,
             ILogger<AuthService> logger)
@@ -56,7 +56,6 @@ namespace backend.Services
                 throw new Exception("此帳號已停用");
             }
 
-            // 💡 擋下尚未驗證信箱的帳號 (保留你的原始邏輯)
             if (!account.is_email_verified)
             {
                 throw new Exception("請先至信箱收取驗證信，驗證後才能登入");
@@ -80,7 +79,9 @@ namespace backend.Services
             {
                 token = token,
                 ep_id = account.ep_id,
-                ep_name = account.ep_name
+                ep_name = account.ep_name,
+                account_type = account.account_type,
+                account_type_name = GetAccountTypeName(account.account_type)
             };
         }
         #endregion
@@ -93,24 +94,19 @@ namespace backend.Services
                 throw new Exception("資料不完整，請提供 Email 與密碼");
             }
 
-            // 1. 統一密碼加密方式 (配合 Login 的 sha256Hash)
             sha256Hash hashTool = new sha256Hash();
             string passwordHash = hashTool.getSha256(req.Password, _appSettings.hash_key);
-            
-            // 將加密後的密碼放回 Request，交給 DAO 寫入
+
             req.Password = passwordHash;
 
-            // 2. 產生一組信箱驗證專用的 Token
             string emailToken = Guid.NewGuid().ToString("N");
 
-            // 3. 呼叫 DAO 寫入資料庫 (保留你的原始傳參)
             bool isSuccess = await _dao.RegisterAsync(req, emailToken);
             if (!isSuccess)
             {
                 throw new Exception("註冊失敗，該 Email 可能已被註冊過。");
             }
 
-            // 4. 準備並發送驗證信 (背景處理 - 保留你的 localhost:5501 網址)
             string verifyUrl = $"http://localhost:5501/api/Auth/VerifyEmail?token={emailToken}";
             string subject = "歡迎加入 Play Taiwan！你的探險即將開始";
             string htmlContent = $@"
@@ -124,13 +120,13 @@ namespace backend.Services
                     <p><strong>Play Taiwan 營運團隊</strong></p>
                 </div>";
 
-            _ = Task.Run(async () => 
+            _ = Task.Run(async () =>
             {
-                try 
+                try
                 {
                     await _emailService.SendEmailAsync(req.Email, req.Username, subject, htmlContent);
-                } 
-                catch (Exception ex) 
+                }
+                catch (Exception ex)
                 {
                     _logger.LogError($"[{req.Email}] 歡迎信寄送失敗: {ex.Message}");
                 }
@@ -146,7 +142,7 @@ namespace backend.Services
         }
         #endregion
 
-        #region 忘記密碼 (產生隨機密碼並寄信) - 【安全新增區塊】
+        #region 忘記密碼 (產生隨機密碼並寄信)
         public async Task ForgotPasswordAsync(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) throw new Exception("請提供 Email");
@@ -169,31 +165,29 @@ namespace backend.Services
                     <p>請使用此密碼登入後，盡快前往「設定」修改為你熟悉的密碼。</p>
                 </div>";
 
-            _ = Task.Run(async () => 
+            _ = Task.Run(async () =>
             {
-                try { await _emailService.SendEmailAsync(email, "探員", subject, htmlContent); } 
+                try { await _emailService.SendEmailAsync(email, "探員", subject, htmlContent); }
                 catch (Exception ex) { _logger.LogError($"密碼信寄送失敗: {ex.Message}"); }
             });
         }
         #endregion
 
-       #region 修改密碼 (登入狀態下)
+        #region 修改密碼 (登入狀態下)
         public void ChangePassword(string oldPassword, string newPassword)
         {
             if (string.IsNullOrWhiteSpace(oldPassword) || string.IsNullOrWhiteSpace(newPassword))
                 throw new Exception("密碼不能為空");
 
             string ep_id = GetCurrentEpId();
-            
-            // 💡 修正點 1：改用新寫的 GetAccountById 來查詢
-            EpAccount account = _dao.GetAccountById(ep_id); 
-            
-            // 💡 修正點 2：加上 Null 防呆檢查，避免再次發生 Object reference 錯誤
+
+            EpAccount account = _dao.GetAccountById(ep_id);
+
             if (account == null) throw new Exception("找不到當前登入的帳號資料，請重新登入");
-            
+
             sha256Hash hashTool = new sha256Hash();
             string oldHash = hashTool.getSha256(oldPassword, _appSettings.hash_key);
-            
+
             if (oldHash != account.ep_pswd) throw new Exception("舊密碼輸入錯誤");
 
             string newHash = hashTool.getSha256(newPassword, _appSettings.hash_key);
@@ -202,12 +196,21 @@ namespace backend.Services
         #endregion
 
         /// <summary>
+        /// 將資料庫存的數字帳號類型，轉換成前端好判斷的文字。
+        /// 1(或其他非2的值) = Tourist(一般探員)，2 = Merchant(商家)。
+        /// Login 產生 JWT 跟 GetProfile 查詢都共用這一份規則，避免兩處各寫一套邏輯。
+        /// </summary>
+        private string GetAccountTypeName(int accountType)
+        {
+            return accountType == 2 ? "Merchant" : "Tourist";
+        }
+
+        /// <summary>
         /// 產生探員登入 JWT Token。
         /// </summary>
         private string GenerateJwtToken(EpAccount account)
         {
-            // 將數字 account_type 轉換為可識別的身分字串 (保留你的原始邏輯)
-            string roleStr = account.account_type == 2 ? "Merchant" : "Tourist";
+            string roleStr = GetAccountTypeName(account.account_type);
 
             SymmetricSecurityKey securityKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_appSettings.jwt_secret)
@@ -224,7 +227,7 @@ namespace backend.Services
                 new Claim("ep_name", account.ep_name),
                 new Claim(ClaimTypes.NameIdentifier, account.ep_id),
                 new Claim(ClaimTypes.Name, account.ep_name),
-                new Claim(ClaimTypes.Role, roleStr) // 將身分寫入 JWT
+                new Claim(ClaimTypes.Role, roleStr)
             };
 
             JwtSecurityToken token = new JwtSecurityToken(
@@ -243,10 +246,8 @@ namespace backend.Services
         }
         #endregion
 
-        // === 以下為共用的私有方法，用來自動從 JWT 拿玩家代號 ===
         private string GetCurrentEpId()
         {
-            // 利用 HttpContext 解析當前攜帶 Token 的玩家 ep_id
             var epIdClaim = _ipContext?.User?.FindFirst("ep_id") ?? _ipContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
             if (epIdClaim == null) throw new Exception("無法取得當前探員身分，請重新登入");
             return epIdClaim.Value;
@@ -256,7 +257,10 @@ namespace backend.Services
         public LoginResponse GetProfile()
         {
             string ep_id = GetCurrentEpId();
-            return _dao.GetProfile(ep_id);
+            LoginResponse profile = _dao.GetProfile(ep_id);
+            if (profile == null) throw new Exception("找不到此探員帳號");
+            profile.account_type_name = GetAccountTypeName(profile.account_type);
+            return profile;
         }
         #endregion
 

@@ -32,7 +32,8 @@ namespace backend.Controllers
         /// 探員登入。
         /// </summary>
         /// <remarks>
-        /// 使用探員名稱(或信箱)與通行密碼進行登入。
+        /// 使用探員名稱(或信箱)與通行密碼進行登入，成功後同時回傳 account_type，
+        /// 供前端判斷登入後要導向探員頁面(1=Tourist)或商家後台(2=Merchant)。
         ///
         /// Request 範例：
         ///
@@ -41,10 +42,25 @@ namespace backend.Controllers
         ///       "ep_name": "NoobTW",
         ///       "ep_pswd": "123456"
         ///     }
+        ///
+        /// Response 範例：
+        ///
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "登入成功",
+        ///       "Result": {
+        ///         "token": "eyJhbGciOi...",
+        ///         "ep_id": "EP_19370FAD",
+        ///         "ep_name": "amy",
+        ///         "account_type": 1,
+        ///         "account_type_name": "Tourist"
+        ///       }
+        ///     }
         /// </remarks>
         /// <param name="req">登入資料，包含探員名稱與通行密碼。</param>
-        /// <returns>登入結果，成功時回傳探員資訊與 JWT Token。</returns>
-        // API：探員登入（Login）－驗證探員代號與密碼，成功後回傳 JWT Token
+        /// <returns>登入結果，成功時回傳探員資訊、帳號類型與 JWT Token。</returns>
+        // API：探員登入（Login）－驗證探員代號與密碼，成功後回傳 JWT Token 與帳號類型
+        // 比對雜湊密碼、檢查停用/信箱驗證狀態，成功回傳 JWT + account_type，可直接接。
         [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
@@ -84,6 +100,9 @@ namespace backend.Controllers
         /// </remarks>
         /// <returns>登出執行結果。</returns>
         // API：探員登出（Logout）－清除目前登入狀態
+        // [❌ 尚未完成]
+        // 已核對 AuthService.Logout()，內部目前只有一行 TODO 註解，什麼都沒做，只回傳成功訊息。
+        // 因為 JWT 是無狀態機制，舊 Token 在到期前依然有效，前端目前只能靠自己清掉本機存的 token 達到登出效果，
         [Authorize]
         [HttpPost]
         [Route("Logout")]
@@ -120,10 +139,31 @@ namespace backend.Controllers
         /// 取得目前登入探員的帳號資訊。
         /// </summary>
         /// <remarks>
-        /// 對應「設定－探員帳號」頁面。
+        /// 對應「設定－探員帳號」頁面，同時可用來判斷登入頁面要導向哪一種介面：
+        /// account_type_name = "Tourist" 表示一般探員，"Merchant" 表示商家帳號。
+        /// 需在 Header 帶登入取得的 JWT Token：Authorization: Bearer {token}。
+        ///
+        /// Request 範例：
+        ///
+        ///     GET /api/Auth/Profile
+        ///
+        /// Response 範例：
+        ///
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "查詢成功",
+        ///       "Result": {
+        ///         "token": null,
+        ///         "ep_id": "EP_19370FAD",
+        ///         "ep_name": "amy",
+        ///         "account_type": 1,
+        ///         "account_type_name": "Tourist"
+        ///       }
+        ///     }
         /// </remarks>
-        /// <returns>目前登入探員的代號與帳號名稱。</returns>
-        // API：查詢探員帳號資訊（Profile）－回傳目前登入探員的代號與名稱
+        /// <returns>目前登入探員的代號、名稱與帳號類型(account_type / account_type_name)。</returns>
+        // API：查詢探員帳號資訊（Profile）－回傳目前登入探員的代號、名稱與帳號類型
+        // account_type_name 透過共用的 GetAccountTypeName() 轉換，跟 Login 用同一套規則，資料一致。
         [Authorize]
         [HttpGet]
         [Route("Profile")]
@@ -208,6 +248,7 @@ namespace backend.Controllers
         /// <remarks>
         /// 註冊新探員或商家帳號，並於背景發送驗證信至指定信箱。
         /// </remarks>
+        // 並在背景寄送驗證信（失敗不會擋住註冊流程），可直接接。
         [AllowAnonymous]
         [HttpPost]
         [Route("Register")]
@@ -216,7 +257,7 @@ namespace backend.Controllers
             try
             {
                 await _service.RegisterAsync(req);
-                
+
                 return Ok(new ResultViewModel<string>
                 {
                     isSuccess = true,
@@ -269,8 +310,6 @@ namespace backend.Controllers
 
         #endregion
 
-        // === 以下為新增的密碼功能 ===
-
         #region 忘記密碼
 
         public class ForgotPasswordRequest { public string Email { get; set; } }
@@ -311,10 +350,10 @@ namespace backend.Controllers
 
         #region 修改密碼
 
-        public class ChangePasswordRequest 
-        { 
-            public string OldPassword { get; set; } 
-            public string NewPassword { get; set; } 
+        public class ChangePasswordRequest
+        {
+            public string OldPassword { get; set; }
+            public string NewPassword { get; set; }
         }
 
         /// <summary>

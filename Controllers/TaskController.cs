@@ -9,6 +9,7 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 任務答題相關 API。
+     /// [❌ 尚未完成]
     /// 對應頁面：答題、答對、答錯、提示、獎章、隱藏關卡。
     /// </summary>
     [ApiController]

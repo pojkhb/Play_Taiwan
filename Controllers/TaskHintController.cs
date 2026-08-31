@@ -9,6 +9,7 @@ namespace backend.Controllers
     /// <summary>
     /// 任務線索提示 API。
     /// 對應頁面：提示／答題。依玩家答錯次數提供兩階段提示。
+     /// [❌ 尚未完成]
     /// </summary>
 
     [ApiController]

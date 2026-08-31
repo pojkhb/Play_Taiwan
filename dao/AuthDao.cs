@@ -99,13 +99,14 @@ namespace backend.dao
         public LoginResponse GetProfile(string ep_id)
         {
             string sql = @"
-                SELECT
-                    ep_id,
-                    ep_name
-                FROM ep_account
-                WHERE ep_id = @ep_id
-                LIMIT 1;
-            ";
+        SELECT
+            ep_id,
+            ep_name,
+            account_type
+        FROM ep_account
+        WHERE ep_id = @ep_id
+        LIMIT 1;
+    ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
@@ -116,7 +117,8 @@ namespace backend.dao
                 {
                     token = null,
                     ep_id = account.ep_id,
-                    ep_name = account.ep_name
+                    ep_name = account.ep_name,
+                    account_type = account.account_type
                 };
             }
         }

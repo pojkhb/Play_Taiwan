@@ -119,10 +119,6 @@ namespace backend
             services.AddScoped<Services.HistoryService>();
             services.AddScoped<dao.HistoryDao>();
             #endregion
-            #region S13-收藏
-            services.AddScoped<Services.FavoriteService>();
-            services.AddScoped<dao.FavoriteDao>();
-            #endregion
             #region S14-剪影圖片
             services.AddScoped<Services.SilhouetteService>();
             services.AddScoped<dao.SilhouetteDao>();

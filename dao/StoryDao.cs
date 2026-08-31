@@ -64,30 +64,35 @@ namespace backend.dao
 
         #region 現在揪出發：取得地區清單
 
-        public List<StoryWheelSpinResponse> GetRegions(string mode)
+        public List<StoryWheelSpinResponse> GetRegions(string mode, string cityName)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
 
             connection.Open();
 
             string sql = @"
-                SELECT
-                    region_id,
-                    region_name,
-                    city_name,
-                    district_name
-                FROM md_region
-                WHERE is_active = 1
-                  AND (
-                        @mode <> 'NOW'
-                        OR is_now_departure = 1
-                  )
-                ORDER BY sort_order;
-            ";
+        SELECT
+            region_id,
+            region_name,
+            city_name,
+            district_name
+        FROM md_region
+        WHERE is_active = 1
+          AND (
+                @mode <> 'NOW'
+                OR is_now_departure = 1
+          )
+          AND (
+                @city_name = ''
+                OR REPLACE(city_name, '臺', '台') = REPLACE(@city_name, '臺', '台')
+          )
+        ORDER BY sort_order;
+    ";
 
             using var command = new MySqlCommand(sql, connection);
 
             command.Parameters.AddWithValue("@mode", mode ?? "");
+            command.Parameters.AddWithValue("@city_name", cityName ?? "");
 
             using var reader = command.ExecuteReader();
 
@@ -99,12 +104,8 @@ namespace backend.dao
                 {
                     region_id = reader["region_id"].ToString(),
                     region = reader["region_name"].ToString(),
-                    city_name = reader["city_name"] == DBNull.Value
-                        ? null
-                        : reader["city_name"].ToString(),
-                    district_name = reader["district_name"] == DBNull.Value
-                        ? null
-                        : reader["district_name"].ToString()
+                    city_name = reader["city_name"] == DBNull.Value ? null : reader["city_name"].ToString(),
+                    district_name = reader["district_name"] == DBNull.Value ? null : reader["district_name"].ToString()
                 });
             }
 
@@ -363,7 +364,7 @@ namespace backend.dao
 
         #endregion
         #region AI 動態劇本寫入資料庫
-        
+
         /// <summary>
         /// 將 AI 生成的劇本 JSON，正式寫入資料庫，變成可遊玩的劇本
         /// </summary>
@@ -377,9 +378,9 @@ namespace backend.dao
             {
                 // 1. 產生全新的劇本 ID
                 string newStoryId = "AI_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-                
-                string badgesJson = aiResult.expected_badges != null 
-                    ? System.Text.Json.JsonSerializer.Serialize(aiResult.expected_badges) 
+
+                string badgesJson = aiResult.expected_badges != null
+                    ? System.Text.Json.JsonSerializer.Serialize(aiResult.expected_badges)
                     : "[]";
 
                 // 2. 寫入劇本主檔 (md_story)
@@ -395,7 +396,7 @@ namespace backend.dao
                         @badges_json, @expected_postcards
                     );
                 ";
-                
+
                 using (var cmd = new MySqlCommand(insertStorySql, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@story_id", newStoryId);
@@ -437,7 +438,7 @@ namespace backend.dao
                 throw new Exception($"AI 劇本寫入資料庫失敗: {ex.Message}");
             }
         }
-        
+
         #endregion
     }
 }

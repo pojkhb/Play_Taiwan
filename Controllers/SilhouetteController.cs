@@ -12,6 +12,7 @@ namespace backend.Controllers
     /// <summary>
     /// 剪影圖片相關 API。
     /// 對應頁面：明信片翻轉（隱藏版剪影明信片）。
+     /// [❌ 尚未完成]
     /// </summary>
 
     [ApiController]

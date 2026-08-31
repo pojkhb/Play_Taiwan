@@ -82,7 +82,6 @@ namespace backend.Controllers
         }
 
         #endregion
-
         #region 現在揪出發：地區清單
 
         /// <summary>
@@ -93,17 +92,19 @@ namespace backend.Controllers
         ///
         /// Request 範例：
         ///
-        ///     GET /api/Story/Regions?mode=NOW
+        ///     GET /api/Story/Regions?mode=NOW&amp;city_name=臺中市
         /// </remarks>
         /// <param name="mode">查詢模式，預設為 NOW（目前定位）。</param>
+        /// <param name="city_name">城市名稱篩選，可留空表示不篩選城市（例如「臺中市」）。</param>
         /// <returns>可選擇的地區清單。</returns>
         // API：地區清單（Regions）－回傳可選擇的地區清單
         [Authorize]
         [HttpGet]
         [Route("Regions")]
-        // GET: api/Story/Regions?mode=NOW
+        // GET: api/Story/Regions?mode=NOW&city_name=臺中市
         public IActionResult Regions(
-            [FromQuery] string mode = "NOW"
+            [FromQuery] string mode = "NOW",
+            [FromQuery] string city_name = ""
         )
         {
             try
@@ -112,7 +113,7 @@ namespace backend.Controllers
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetRegions(mode)
+                    Result = _service.GetRegions(mode, city_name)
                 });
             }
             catch (Exception e)
@@ -294,6 +295,7 @@ namespace backend.Controllers
 
         /// <summary>
         /// 1. 送出客製化劇本需求，讓 Python AI 開始生成 (限制 1~2 小時行程，5~7 個節點)
+        /// [❌ 尚未完成]
         /// </summary>
         [Authorize]
         [HttpPost]
@@ -340,7 +342,7 @@ namespace backend.Controllers
                     job_type = "story_generation",
                     external_task_id = externalTaskId,
                     status = "Processing",
-                    result_url = req.region 
+                    result_url = req.region
                 };
                 await _jobDao.InsertJobAsync(newJob);
 
@@ -360,6 +362,7 @@ namespace backend.Controllers
 
         /// <summary>
         /// 2. 前端輪詢進度：若 Python 完成，C# 就把它存進資料庫，並回傳真正的 Story_ID
+         /// [❌ 尚未完成]
         /// </summary>
         [Authorize]
         [HttpGet]

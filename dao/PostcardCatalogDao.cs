@@ -140,6 +140,27 @@ namespace backend.dao
             return rows > 0;
         }
 
+      /// <summary>
+        /// 將生成的明信片綁定至玩家的收藏庫 (寫入 ep_postcard)
+        /// </summary>
+        public async Task BindPostcardToUserAsync(string epId, string postcardId)
+        {
+            // ★ 只寫入核心的 ep_id 與 postcard_id，避免資料庫找不到欄位而報錯
+            const string sql = @"INSERT INTO ep_postcard 
+                                 (ep_id, postcard_id)
+                                 VALUES 
+                                 (@ep_id, @postcard_id)";
+
+            using var conn = new MySqlConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = new MySqlCommand(sql, conn);
+            
+            cmd.Parameters.AddWithValue("@ep_id", epId);
+            cmd.Parameters.AddWithValue("@postcard_id", postcardId);
+
+            await cmd.ExecuteNonQueryAsync();
+        }
+
         private static void AddEntityParameters(MySqlCommand cmd, PostcardCatalog entity)
         {
             cmd.Parameters.AddWithValue("@postcard_id", entity.PostcardId);

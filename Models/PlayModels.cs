@@ -285,8 +285,10 @@ namespace backend.Models
 
     public class PostcardPrintResponse
     {
-        public string ibon_pickup_code { get; set; }     // iBON 取件編號
-        public string pdf_url { get; set; }                // 明信片列印用 PDF 網址
+        public string ibon_pickup_code { get; set; }    // 對應 pincode (取件碼)
+        public string pdf_url { get; set; }               // 原本的圖片網址
+        public string deadline { get; set; }              // ★ 新增：取件期限
+        public string qrcode_base64 { get; set; }         // ★ 新增：QRCode 的 Base64 字串
     }
 
     public class PostcardShareRequest
@@ -417,4 +419,5 @@ namespace backend.Models
         public string reward_badge_id { get; set; }               // 觸發後可能給予的徽章代號
         public string reward_postcard_id { get; set; }              // 觸發後可能給予的明信片代號
     }
+    
 }

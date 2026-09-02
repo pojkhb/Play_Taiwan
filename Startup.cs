@@ -80,6 +80,7 @@ namespace backend
             //             )
             //         };
             //     });
+            services.AddHttpClient();
             #region S05-登入/探員帳號 (Auth)
             services.AddScoped<Services.AuthService>();
             services.AddScoped<dao.AuthDao>();

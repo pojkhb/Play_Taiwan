@@ -1,190 +1,233 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
 using backend.ViewModels;
-using backend.dao; // 確保有引用 DAO 以使用 MediaJobDao
+using backend.dao;
 
 namespace backend.Controllers
 {
     /// <summary>
     /// 劇本產生相關 API。
-    /// 對應頁面：選擇、來點遊意思、選擇劇情、劇情觀看更多。
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    // 劇本產生
     public class StoryController : ControllerBase
     {
         private readonly ILogger<StoryController> _logger;
         private readonly StoryService _service;
         private readonly IVlogAiClient _aiClient;
         private readonly MediaJobDao _jobDao;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        // 💡 注入了 AI 客戶端與 Job DAO
         public StoryController(
             ILogger<StoryController> logger,
             StoryService service,
             IVlogAiClient aiClient,
-            MediaJobDao jobDao
+            MediaJobDao jobDao,
+            IHttpClientFactory httpClientFactory
         )
         {
             _logger = logger;
             _service = service;
             _aiClient = aiClient;
             _jobDao = jobDao;
+            _httpClientFactory = httpClientFactory;
         }
-
         #region 來點遊意思：轉盤抽取地區
 
         /// <summary>
-        /// 轉動命運轉盤，隨機抽取一個地區。
+        /// 轉動命運轉盤，隨機抽取一個確定有足夠景點的地區。
         /// </summary>
         /// <remarks>
-        /// 對應「來點遊意思」頁面的轉盤抽取功能。
-        ///
+        /// 轉動命運轉盤，透過 Neo4j 圖譜服務（/api/neo4j/cypher）查詢景點數量大於等於 5 的行政區並隨機抽出一筆，若失敗則退回關聯式資料庫抽取。
+        /// 
         /// Request 範例：
-        ///
+        /// 
         ///     POST /api/Story/Wheel/Spin
+        /// 
+        /// Response 範例：
+        /// 
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "抽取成功",
+        ///       "Result": {
+        ///         "region_id": null,
+        ///         "region": "臺南市中西區",
+        ///         "city_name": "臺南市",
+        ///         "district_name": "中西區"
+        ///       }
+        ///     }
         /// </remarks>
-        /// <returns>抽取到的地區資訊。</returns>
-        // API：轉盤抽取地區（SpinWheel）－隨機抽取一個地區
         [Authorize]
         [HttpPost]
         [Route("Wheel/Spin")]
-        // POST: api/Story/Wheel/Spin
-        public IActionResult SpinWheel()
+        public async Task<IActionResult> SpinWheel() 
         {
             try
             {
+                StoryWheelSpinResponse selectedRegion = null;
+                var client = _httpClientFactory.CreateClient();
+
+                // 💡 修正：透過 substring 從 address 提取前三碼（城市）與接下來三碼（鄉鎮區），並計算景點數 >= 5
+                var cypherRequest = new
+                {
+                    query = @"
+                        MATCH (a:Attraction) 
+                        WHERE a.address IS NOT NULL AND size(a.address) >= 6
+                        WITH substring(a.address, 0, 3) AS city, substring(a.address, 3, 3) AS town, a 
+                        WITH city, town, count(a) AS spot_count 
+                        WHERE spot_count >= 5 
+                        RETURN city, town
+                    ",
+                    parameters = new { }
+                };
+
+                var response = await client.PostAsJsonAsync("https://vlog.angelalala.com/api/neo4j/cypher", cypherRequest);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    using var document = JsonDocument.Parse(jsonString);
+                    var root = document.RootElement;
+                    
+                    if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array && dataProp.GetArrayLength() > 0)
+                    {
+                        var rnd = new Random();
+                        var randomIndex = rnd.Next(dataProp.GetArrayLength());
+                        var selectedNode = dataProp[randomIndex];
+
+                        string cityName = null;
+                        string townName = null;
+
+                        foreach (var prop in selectedNode.EnumerateObject())
+                        {
+                            string propName = prop.Name.ToLower();
+                            if (propName.Contains("city"))
+                            {
+                                cityName = prop.Value.GetString();
+                            }
+                            else if (propName.Contains("town") || propName.Contains("district"))
+                            {
+                                townName = prop.Value.GetString();
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(cityName))
+                        {
+                            selectedRegion = new StoryWheelSpinResponse
+                            {
+                                region_id = null,
+                                region = $"{cityName}{townName ?? ""}",
+                                city_name = cityName,
+                                district_name = townName ?? ""
+                            };
+                        }
+                    }
+                }
+
+                // 若 Neo4j 查詢結果解析失敗或無資料，退回關聯式資料庫降級備案
+                if (selectedRegion == null || string.IsNullOrEmpty(selectedRegion.city_name))
+                {
+                    _logger.LogWarning("[SpinWheel] Neo4j 解析無果，啟動 MySQL 降級備案");
+                    selectedRegion = _service.WheelSpin();
+                }
+
                 return Ok(new ResultViewModel<StoryWheelSpinResponse>
                 {
                     isSuccess = true,
-                    message = "抽取成功",
-                    Result = _service.WheelSpin()
+                    message = "抽取成功 (來自 Neo4j 圖譜)",
+                    Result = selectedRegion
                 });
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "轉盤抽取地區失敗");
-
-                return StatusCode(500, new ResultViewModel<StoryWheelSpinResponse>
+                _logger.LogError(e, "轉盤抽取地區發生例外，強制走降級備案");
+                var fallbackRegion = _service.WheelSpin();
+                return Ok(new ResultViewModel<StoryWheelSpinResponse>
                 {
-                    isSuccess = false,
-                    message = e.Message,
-                    Result = null
+                    isSuccess = true,
+                    message = "抽取成功 (例外降級)",
+                    Result = fallbackRegion
                 });
             }
         }
 
         #endregion
+
         #region 現在揪出發：地區清單
 
         /// <summary>
         /// 取得可選擇的地區清單。
         /// </summary>
         /// <remarks>
-        /// 對應「選擇」頁面「現在揪出發」輸入地區時的可選清單。
-        ///
+        /// 取得可選擇的地區清單，對應「選擇」頁面「現在揪出發」輸入地區時的可選清單。
+        /// 
         /// Request 範例：
-        ///
-        ///     GET /api/Story/Regions?mode=NOW&amp;city_name=臺中市
+        /// 
+        ///     GET /api/Story/Regions?mode=NOW&amp;city_name=臺南市
+        /// 
+        /// Response 範例：
+        /// 
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "查詢成功",
+        ///       "Result": [
+        ///         {
+        ///           "region_id": "R001",
+        ///           "region": "台南安平",
+        ///           "city_name": "臺南市",
+        ///           "district_name": "安平區"
+        ///         }
+        ///       ]
+        ///     }
         /// </remarks>
-        /// <param name="mode">查詢模式，預設為 NOW（目前定位）。</param>
-        /// <param name="city_name">城市名稱篩選，可留空表示不篩選城市（例如「臺中市」）。</param>
-        /// <returns>可選擇的地區清單。</returns>
-        // API：地區清單（Regions）－回傳可選擇的地區清單
         [Authorize]
         [HttpGet]
         [Route("Regions")]
-        // GET: api/Story/Regions?mode=NOW&city_name=臺中市
-        public IActionResult Regions(
-            [FromQuery] string mode = "NOW",
-            [FromQuery] string city_name = ""
-        )
+        public IActionResult Regions([FromQuery] string mode = "NOW", [FromQuery] string city_name = "")
         {
             try
             {
-                return Ok(new ResultViewModel<List<StoryWheelSpinResponse>>
-                {
-                    isSuccess = true,
-                    message = "查詢成功",
-                    Result = _service.GetRegions(mode, city_name)
-                });
+                return Ok(new ResultViewModel<List<StoryWheelSpinResponse>> { isSuccess = true, message = "查詢成功", Result = _service.GetRegions(mode, city_name) });
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "查詢地區清單失敗");
-
-                return StatusCode(
-                    500,
-                    new ResultViewModel<List<StoryWheelSpinResponse>>
-                    {
-                        isSuccess = false,
-                        message = e.Message,
-                        Result = null
-                    }
-                );
+                return StatusCode(500, new ResultViewModel<List<StoryWheelSpinResponse>> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-
         #endregion
 
         #region 產生劇本選項
-
         /// <summary>
-        /// 依地區與偏好產生可選擇的劇本選項清單。
+        /// 【❌ 尚未完成 / 暫不使用】分享明信片至社群平台。
         /// </summary>
         /// <remarks>
-        /// 對應「選擇劇情」頁面的「劇本檔案館」列表。
-        ///
-        /// Request 範例：
-        ///
-        ///     POST /api/Story/Generate
-        ///     {
-        ///       "region": "台南市"
-        ///     }
+        /// 對應「明信片翻轉」頁面的「分享」按鈕。
         /// </remarks>
-        /// <param name="req">產生劇本選項的請求資料，包含地區等條件。</param>
-        /// <returns>符合條件的劇本選項清單。</returns>
-        // API：產生劇本選項（Generate）－依地區與偏好回傳可選擇的劇本清單
         [Authorize]
         [HttpPost]
         [Route("Generate")]
-        // POST: api/Story/Generate
-        public IActionResult Generate(
-            [FromBody] StoryGenerateRequest req
-        )
+        public IActionResult Generate([FromBody] StoryGenerateRequest req)
         {
             try
             {
-                return Ok(new ResultViewModel<List<StoryOptionResponse>>
-                {
-                    isSuccess = true,
-                    message = "產生成功",
-                    Result = _service.GenerateOptions(req)
-                });
+                return Ok(new ResultViewModel<List<StoryOptionResponse>> { isSuccess = true, message = "產生成功", Result = _service.GenerateOptions(req) });
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "產生劇本選項失敗");
-
-                return StatusCode(
-                    500,
-                    new ResultViewModel<List<StoryOptionResponse>>
-                    {
-                        isSuccess = false,
-                        message = e.Message,
-                        Result = null
-                    }
-                );
+                return StatusCode(500, new ResultViewModel<List<StoryOptionResponse>> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-
         #endregion
 
         #region 劇情觀看更多
@@ -193,43 +236,39 @@ namespace backend.Controllers
         /// 取得指定劇本的詳細內容。
         /// </summary>
         /// <remarks>
-        /// 對應「劇情觀看更多」頁面，顯示劇本前傳與探索總覽。
-        ///
+        /// 取得指定劇本的詳細內容，對應「劇情觀看更多」頁面，顯示劇本前傳與探索總覽。
+        /// 
         /// Request 範例：
-        ///
-        ///     GET /api/Story/{story_id}/Detail
+        /// 
+        ///     GET /api/Story/AI_A1B2C3D4/Detail
+        /// 
+        /// Response 範例：
+        /// 
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "查詢成功",
+        ///       "Result": {
+        ///         "story_id": "AI_A1B2C3D4",
+        ///         "title": "台南的秘密花園",
+        ///         "preface": "在台南中西區，傳統工藝老師傅阿吉伯邀請我們..."
+        ///       }
+        ///     }
         /// </remarks>
-        /// <param name="story_id">劇本代號。</param>
-        /// <returns>劇本詳細內容。</returns>
-        // API：劇情觀看更多（Detail）－回傳指定劇本的前傳與探索總覽
         [Authorize]
         [HttpGet]
         [Route("{story_id}/Detail")]
-        // GET: api/Story/{story_id}/Detail
         public IActionResult Detail(string story_id)
         {
             try
             {
-                return Ok(new ResultViewModel<StoryDetailResponse>
-                {
-                    isSuccess = true,
-                    message = "查詢成功",
-                    Result = _service.GetDetail(story_id)
-                });
+                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = _service.GetDetail(story_id) });
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "查詢劇本詳情失敗");
-
-                return StatusCode(500, new ResultViewModel<StoryDetailResponse>
-                {
-                    isSuccess = false,
-                    message = e.Message,
-                    Result = null
-                });
+                return StatusCode(500, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-
         #endregion
 
         #region 確認選卷
@@ -238,66 +277,82 @@ namespace backend.Controllers
         /// 確認選擇指定劇本卷。
         /// </summary>
         /// <remarks>
-        /// 對應「劇情觀看更多」頁面的「確認此卷」按鈕，確認後即進入探索地圖。
-        ///
+        /// 確認選擇指定劇本卷，對應「劇情觀看更多」頁面的「確認此卷」按鈕，確認後即進入探索地圖。
+        /// 
         /// Request 範例：
-        ///
+        /// 
         ///     POST /api/Story/Confirm
         ///     {
-        ///       "story_id": "S001"
+        ///       "story_id": "AI_A1B2C3D4"
+        ///     }
+        /// 
+        /// Response 範例：
+        /// 
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "確認選卷成功，即將進入探索地圖",
+        ///       "Result": {
+        ///         "story_id": "AI_A1B2C3D4",
+        ///         "title": "台南的秘密花園"
+        ///       }
         ///     }
         /// </remarks>
-        /// <param name="req">確認選卷的請求資料。</param>
-        /// <returns>確認後的劇本與節點資訊。</returns>
-        // API：確認選卷（Confirm）－確認選擇劇本卷並回傳劇本與節點資訊
         [Authorize]
         [HttpPost]
         [Route("Confirm")]
-        // POST: api/Story/Confirm
-        public IActionResult Confirm(
-            [FromBody] StoryConfirmRequest req
-        )
+        public IActionResult Confirm([FromBody] StoryConfirmRequest req)
         {
             try
             {
-                // 目前只回傳劇本與節點資訊
-                // 之後再補 ep_story_progress 寫入資料庫
-                StoryDetailResponse detail =
-                    _service.ConfirmStory(req);
-
-                return Ok(new ResultViewModel<StoryDetailResponse>
-                {
-                    isSuccess = true,
-                    message = "確認選卷成功，即將進入探索地圖",
-                    Result = detail
-                });
+                StoryDetailResponse detail = _service.ConfirmStory(req);
+                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "確認選卷失敗");
-
-                return StatusCode(500, new ResultViewModel<StoryDetailResponse>
-                {
-                    isSuccess = false,
-                    message = e.Message,
-                    Result = null
-                });
+                return StatusCode(500, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-
         #endregion
 
         // =========================================================
-        // 以下為新增的 AI 專屬非同步生成劇本 API
+        // AI 專屬非同步生成劇本 API
         // =========================================================
 
         #region AI 專屬劇本生成 (非同步 Job 機制)
 
         /// <summary>
-        /// 1. 送出客製化劇本需求，讓 Python AI 開始生成 (限制 1~2 小時行程，5~7 個節點)
-        /// [❌ 尚未完成]
+        /// 送出客製化劇本需求，讓 Python AI 開始生成。
         /// </summary>
-        [Authorize]
+        /// <remarks>
+        /// 營運人員/玩家輸入條件，AI 會自動挑選符合的景點、排定動線，並生成完整的實境解謎劇本企劃書。
+        /// 對應 Python API 規格書的第 9 點 (`/api/admin/generate_script_blueprint`)。
+        /// 
+        /// Request 範例：
+        /// 
+        ///     POST /api/Story/GenerateAi
+        ///     {
+        ///       "city_name": "臺南市",
+        ///       "town_name": "中西區",
+        ///       "traveler_count": 2,
+        ///       "preferences": ["科幻", "歷史懸疑"],
+        ///       "transportation": ["步行", "公車"],
+        ///       "node_count": 4,
+        ///       "is_night": false
+        ///     }
+        /// 
+        /// Response 範例：
+        /// 
+        ///     {
+        ///       "isSuccess": true,
+        ///       "message": "AI 正在努力為您撰寫專屬劇本，請稍候...",
+        ///       "Result": {
+        ///         "jobId": "f67bee6e-d03f-...",
+        ///         "status": "Processing"
+        ///       }
+        ///     }
+        /// </remarks>
+      [Authorize]
         [HttpPost]
         [Route("GenerateAi")]
         public async Task<IActionResult> GenerateAiStory([FromBody] StoryGenerateRequest req)
@@ -307,140 +362,83 @@ namespace backend.Controllers
                 string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(epId)) return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
-                /* 這裡已經完全改用你的 req.party_size, req.region, req.preferences, req.transport */
-                string customPrompt = $@"
-                    你是一個專業的實境解謎遊戲設計師。
-                    請為 {req.party_size} 位玩家，在「{req.region}」設計一個大約 1~2 小時的解謎劇本。
-                    玩家的偏好是：{(req.preferences != null ? string.Join("、", req.preferences) : "無特定偏好")}。
-                    交通方式為：{(req.transport != null ? string.Join("、", req.transport) : "不拘")}。
-                    請務必確保行程順暢，景點與景點之間的距離合理，節點數量嚴格控制在 5 到 7 個，並且回傳我指定的 JSON 格式。
-                ";
+                // 1. 兼容新舊欄位抓取
+                string targetCity = !string.IsNullOrEmpty(req.city_name) ? req.city_name : (req.region ?? "臺南市");
+                string targetTown = !string.IsNullOrEmpty(req.town_name) ? req.town_name : "中西區";
+                int pSize = req.traveler_count > 0 ? req.traveler_count : (req.party_size > 0 ? req.party_size : 2);
+                int nCount = req.node_count > 0 ? req.node_count : 4;
+                var prefs = req.preferences ?? new List<string>();
+                var trans = req.transportation ?? req.transport ?? new List<string>();
+                string fullRegion = $"{targetCity}{targetTown}";
 
+                // 2. 組裝要傳給 Python 的 Payload
                 var payloadToPython = new
                 {
-                    region = req.region,
-                    player_count = req.party_size,
-                    preferences = req.preferences,
-                    transport = req.transport,
-                    system_prompt = customPrompt
+                    city_name = targetCity,
+                    town_name = targetTown,
+                    traveler_count = pSize,
+                    preferences = prefs,
+                    transportation = trans,
+                    node_count = nCount,
+                    is_night = req.is_night
                 };
 
-                var jsonContent = new System.Net.Http.StringContent(System.Text.Json.JsonSerializer.Serialize(payloadToPython), System.Text.Encoding.UTF8, "application/json");
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromMinutes(2); // 拉長逾時時間等待 AI 運算
 
-                /* 向 Python AI 服務請求生成，拿到遠端 Task ID */
-                string externalTaskId = await _aiClient.GenerateStoryAsync(jsonContent);
+                var jsonContent = new StringContent(JsonSerializer.Serialize(payloadToPython), System.Text.Encoding.UTF8, "application/json");
 
-                if (string.IsNullOrEmpty(externalTaskId))
-                    throw new Exception("AI 服務未回傳有效的 Task ID");
+                // 3. 打擊 Python 服務並等待完整結果回傳
+                var response = await client.PostAsync("https://vlog.angelalala.com/api/admin/generate_script_blueprint", jsonContent);
 
-                /* 在本地建立任務追蹤，把玩家選擇的 region 暫存在 job 的 result_url 欄位裡 */
-                string localJobId = Guid.NewGuid().ToString();
-                var newJob = new MediaJobModel
+                if (!response.IsSuccessStatusCode)
                 {
-                    job_id = localJobId,
-                    owner_id = epId,
-                    job_type = "story_generation",
-                    external_task_id = externalTaskId,
-                    status = "Processing",
-                    result_url = req.region
-                };
-                await _jobDao.InsertJobAsync(newJob);
+                    string errContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"外部 AI 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
+                }
 
+                string responseString = await response.Content.ReadAsStringAsync();
+                
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                
+                // 4. 直接反序列化為 AiStoryResult
+                AiStoryResult aiResult = null;
+                try
+                {
+                    aiResult = JsonSerializer.Deserialize<AiStoryResult>(responseString, options);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"反序列化失敗: {ex.Message}。原始回應：{responseString}");
+                }
+
+                if (aiResult == null || aiResult.Data == null)
+                {
+                    throw new Exception($"AI 服務回傳的劇本內容為空。原始回應：{responseString}");
+                }
+
+                // 5. 立即寫入 MySQL 資料庫
+                string newStoryId = _service.SaveAiGeneratedStory(epId, fullRegion, aiResult);
+
+                // 6. 直接回傳成功與新的 story_id
                 return Ok(new ResultViewModel<object>
                 {
                     isSuccess = true,
-                    message = "AI 正在努力為您撰寫專屬劇本，請稍候...",
-                    Result = new { jobId = localJobId, status = "Processing" }
+                    message = "專屬劇本生成完畢！",
+                    Result = new 
+                    { 
+                        status = "Completed", 
+                        story_id = newStoryId,
+                        title = aiResult.Data.Title
+                    }
                 });
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "觸發 AI 生成失敗");
+                _logger.LogError(e, "同步生成 AI 劇本失敗");
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-
-        /// <summary>
-        /// 2. 前端輪詢進度：若 Python 完成，C# 就把它存進資料庫，並回傳真正的 Story_ID
-         /// [❌ 尚未完成]
-        /// </summary>
-        [Authorize]
-        [HttpGet]
-        [Route("GenerateAiStatus/{jobId}")]
-        public async Task<IActionResult> GetAiStoryStatus(string jobId)
-        {
-            try
-            {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                var job = await _jobDao.GetJobAsync(jobId);
-                if (job == null) return NotFound(new ResultViewModel<string> { isSuccess = false, message = "找不到此任務" });
-
-                // 如果已經完成了，直接回傳之前存好的 story_id
-                if (job.status == "Completed")
-                {
-                    return Ok(new ResultViewModel<object>
-                    {
-                        isSuccess = true,
-                        message = "劇本生成完畢！",
-                        Result = new { status = "Completed", story_id = job.result_url }
-                    });
-                }
-
-                // 如果還在處理中，去問 Python 好了沒
-                if (job.status == "Processing")
-                {
-                    var remoteStatus = await _aiClient.CheckStatusAsync(job.external_task_id);
-
-                    if (remoteStatus.status == "completed" || remoteStatus.status == "done")
-                    {
-                        // 1. 將 Python 傳回來的 JSON 反序列化成我們的 C# Model
-                        var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                        AiStoryResult aiResult = System.Text.Json.JsonSerializer.Deserialize<AiStoryResult>(remoteStatus.result_path, options);
-
-                        // 2. 拿出之前暫存的地區名稱
-                        string regionName = job.result_url;
-
-                        // 3. 把 AI 生出來的劇本，正式寫進 MySQL
-                        string newStoryId = _service.SaveAiGeneratedStory(epId, regionName, aiResult);
-
-                        // 4. 更新 Job 狀態，並把 result_url 替換成真實的 Story ID
-                        await _jobDao.UpdateJobStatusAsync(jobId, "Completed", newStoryId);
-
-                        return Ok(new ResultViewModel<object>
-                        {
-                            isSuccess = true,
-                            message = "劇本生成完畢！",
-                            Result = new { status = "Completed", story_id = newStoryId }
-                        });
-                    }
-                    else if (remoteStatus.status == "failed")
-                    {
-                        await _jobDao.UpdateJobStatusAsync(jobId, "Failed", null);
-                        return Ok(new ResultViewModel<object>
-                        {
-                            isSuccess = true,
-                            message = "AI 生成失敗，請重新嘗試",
-                            Result = new { status = "Failed" }
-                        });
-                    }
-                }
-
-                // 依然還在處理中
-                return Ok(new ResultViewModel<object>
-                {
-                    isSuccess = true,
-                    message = "生成中...",
-                    Result = new { status = "Processing" }
-                });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "查詢 AI 生成狀態失敗");
-                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-
-        #endregion
+     #endregion
     }
 }

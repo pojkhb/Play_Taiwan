@@ -57,13 +57,19 @@ namespace backend.Models
     // ===================== 劇本 / 選擇模式 =====================
     public class StoryGenerateRequest
     {
-        public string mode { get; set; }                 // 選擇模式(例如 隨機轉盤/指定地區)
-        public string region_id { get; set; }            // 地區代號(來自轉盤結果)
-        public string region { get; set; }                 // 地區名稱
-        public bool use_geo { get; set; }                  // 是否使用目前定位
-        public int party_size { get; set; }                 // 旅程人數
-        public List<string> preferences { get; set; }      // 旅遊偏好標籤清單(可複選)
-        public List<string> transport { get; set; }         // 交通方式清單(可複選) ← 新
+        public string city_name { get; set; }
+        public string town_name { get; set; }
+        public int traveler_count { get; set; }
+        public List<string> preferences { get; set; }
+        public List<string> transportation { get; set; }
+        public int node_count { get; set; }
+        public bool is_night { get; set; }
+
+        // 為了相容你可能還在用的舊欄位，保留選填對應
+        public string region { get; set; }
+        public string region_id { get; set; }
+        public int party_size { get; set; }
+        public List<string> transport { get; set; }
     }
 
     public class StoryWheelSpinResponse
@@ -98,15 +104,6 @@ namespace backend.Models
     public class StoryConfirmRequest
     {
         public string story_id { get; set; }   // 欲確認開始的劇本代號
-    }
-
-    public class StoryDetailResponse
-    {
-        public string story_id { get; set; }                                  // 劇本代號
-        public string title { get; set; }                                      // 劇本標題
-        public string subtitle { get; set; }                                    // 劇本副標題
-        public string synopsis { get; set; }                                     // 劇本完整簡介
-        public List<StoryOptionResponse.RouteNode> route_nodes { get; set; }   // 劇本節點路線清單
     }
 
     // ===================== 地圖 / 探索進度 =====================

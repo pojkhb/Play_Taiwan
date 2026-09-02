@@ -196,8 +196,7 @@ namespace backend.Services
             form.Add(fileContent, "file", "test_postcard.png");
             
             // ★ 動態讀取 appsettings.json 中的 ibon 微服務網址 (預設回退到 10.10.0.174)
-            var ibonApiUrl = _configuration["IbonPrinterSettings:ApiUrl"] ?? "http://10.10.0.174:9000/upload"; 
-            
+            var ibonApiUrl = _configuration["IbonPrinterSettings:ApiUrl"] ?? "https://python-api.kajdslfjads.uk/upload";
             var response = await httpClient.PostAsync(ibonApiUrl, form);
 
             if (!response.IsSuccessStatusCode)

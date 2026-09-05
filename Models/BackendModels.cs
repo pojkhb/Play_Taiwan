@@ -11,6 +11,7 @@ namespace backend.Models
         public string spot_name { get; set; } /* 景點名稱 (例如：台北101) */
         public string user_prompt { get; set; } /* 使用者輸入的提示詞 (例如：復古水墨風) */
         public string story_id { get; set; } /* 額外傳遞的劇本代號，方便後端寫入 DB 時關聯 */
+        public bool is_night_edition { get; set; }
     }
 
     /* 解析外部 vlog.angelalala.com 回傳的 JSON 結構 */

@@ -41,6 +41,7 @@ namespace backend.Controllers
             _jobDao = jobDao;
             _httpClientFactory = httpClientFactory;
         }
+
         #region 來點遊意思：轉盤抽取地區
 
         /// <summary>
@@ -316,10 +317,10 @@ namespace backend.Controllers
         #endregion
 
         // =========================================================
-        // AI 專屬非同步生成劇本 API
+        // AI 專屬同步生成劇本 API
         // =========================================================
 
-        #region AI 專屬劇本生成 (非同步 Job 機制)
+        #region AI 專屬劇本生成
 
         /// <summary>
         /// 送出客製化劇本需求，讓 Python AI 開始生成。
@@ -338,21 +339,25 @@ namespace backend.Controllers
         ///       "preferences": ["科幻", "歷史懸疑"],
         ///       "transportation": ["步行", "公車"],
         ///       "node_count": 4,
-        ///       "is_night": false
+        ///       "is_night": false,
+        ///       "story_count": 3
         ///     }
         /// 
         /// Response 範例：
         /// 
         ///     {
         ///       "isSuccess": true,
-        ///       "message": "AI 正在努力為您撰寫專屬劇本，請稍候...",
+        ///       "message": "專屬劇本生成完畢！",
         ///       "Result": {
-        ///         "jobId": "f67bee6e-d03f-...",
-        ///         "status": "Processing"
+        ///         "status": "Completed",
+        ///         "stories": [
+        ///             { "story_id": "AI_A1B2C3D4", "title": "生成出的劇本標題1" },
+        ///             { "story_id": "AI_E5F6G7H8", "title": "生成出的劇本標題2" }
+        ///         ]
         ///       }
         ///     }
         /// </remarks>
-      [Authorize]
+        [Authorize]
         [HttpPost]
         [Route("GenerateAi")]
         public async Task<IActionResult> GenerateAiStory([FromBody] StoryGenerateRequest req)
@@ -362,13 +367,14 @@ namespace backend.Controllers
                 string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(epId)) return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
-                // 1. 兼容新舊欄位抓取
-                string targetCity = !string.IsNullOrEmpty(req.city_name) ? req.city_name : (req.region ?? "臺南市");
+                // 1. 整理傳入參數 (已清理多餘欄位，並加上 story_count)
+                string targetCity = !string.IsNullOrEmpty(req.city_name) ? req.city_name : "臺南市";
                 string targetTown = !string.IsNullOrEmpty(req.town_name) ? req.town_name : "中西區";
-                int pSize = req.traveler_count > 0 ? req.traveler_count : (req.party_size > 0 ? req.party_size : 2);
+                int pSize = req.traveler_count > 0 ? req.traveler_count : 2;
                 int nCount = req.node_count > 0 ? req.node_count : 4;
+                int sCount = req.story_count > 0 ? req.story_count : 1; // 預設生成1個，根據傳入值決定
                 var prefs = req.preferences ?? new List<string>();
-                var trans = req.transportation ?? req.transport ?? new List<string>();
+                var trans = req.transportation ?? new List<string>();
                 string fullRegion = $"{targetCity}{targetTown}";
 
                 // 2. 組裝要傳給 Python 的 Payload
@@ -380,7 +386,8 @@ namespace backend.Controllers
                     preferences = prefs,
                     transportation = trans,
                     node_count = nCount,
-                    is_night = req.is_night
+                    is_night = req.is_night,
+                    story_count = sCount // 新增：傳遞要生成的劇本數量
                 };
 
                 var client = _httpClientFactory.CreateClient();
@@ -417,10 +424,10 @@ namespace backend.Controllers
                     throw new Exception($"AI 服務回傳的劇本內容為空。原始回應：{responseString}");
                 }
 
-                // 5. 立即寫入 MySQL 資料庫
-                string newStoryId = _service.SaveAiGeneratedStory(epId, fullRegion, aiResult);
+                // 🌟 5. 立即寫入 MySQL 資料庫 (這裡已經改成呼叫支援多筆寫入的 SaveAiGeneratedStories)
+                var savedStories = _service.SaveAiGeneratedStories(epId, fullRegion, aiResult);
 
-                // 6. 直接回傳成功與新的 story_id
+                // 🌟 6. 回傳成功與「所有」新生成的劇本清單給前端
                 return Ok(new ResultViewModel<object>
                 {
                     isSuccess = true,
@@ -428,8 +435,7 @@ namespace backend.Controllers
                     Result = new 
                     { 
                         status = "Completed", 
-                        story_id = newStoryId,
-                        title = aiResult.Data.Title
+                        stories = savedStories // 這會是一個陣列，例如 [{story_id: "...", title: "..."}]
                     }
                 });
             }
@@ -439,6 +445,6 @@ namespace backend.Controllers
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-     #endregion
+        #endregion
     }
 }

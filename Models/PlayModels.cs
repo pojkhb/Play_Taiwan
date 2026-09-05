@@ -56,21 +56,18 @@ namespace backend.Models
 
     // ===================== 劇本 / 選擇模式 =====================
     public class StoryGenerateRequest
-    {
-        public string city_name { get; set; }
-        public string town_name { get; set; }
-        public int traveler_count { get; set; }
-        public List<string> preferences { get; set; }
-        public List<string> transportation { get; set; }
-        public int node_count { get; set; }
-        public bool is_night { get; set; }
-
-        // 為了相容你可能還在用的舊欄位，保留選填對應
-        public string region { get; set; }
-        public string region_id { get; set; }
-        public int party_size { get; set; }
-        public List<string> transport { get; set; }
-    }
+{
+    public string city_name { get; set; }
+    public string town_name { get; set; }
+    public int traveler_count { get; set; }
+    public List<string> preferences { get; set; }
+    public List<string> transportation { get; set; }
+    public int node_count { get; set; }
+    public bool is_night { get; set; }
+    
+    // 新增：要求 AI 生成的劇本數量
+    public int story_count { get; set; } 
+}
 
     public class StoryWheelSpinResponse
     {

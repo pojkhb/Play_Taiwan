@@ -37,10 +37,11 @@ namespace backend.Services
         {
             return _dao.GetDetail(req.story_id);
         }
-        
-        public string SaveAiGeneratedStory(string ep_id, string region_id, AiStoryResult aiResult)
+
+        public List<Dictionary<string, string>> SaveAiGeneratedStories(string ep_id, string region_id, AiStoryResult aiResult)
         {
-            return _dao.SaveAiGeneratedStory(ep_id, region_id, aiResult);
+            // 呼叫 DAO 層處理多筆寫入，並將結果回傳給 Controller
+            return _dao.SaveAiGeneratedStories(ep_id, region_id, aiResult);
         }
     }
 }

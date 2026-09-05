@@ -1,3 +1,4 @@
+// 檔案路徑：System\Controllers\PostcardCatalogController.cs
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,6 +11,22 @@ using backend.Models;
 
 namespace backend.Controllers
 {
+    /// <summary>
+    /// 供前端透過 story_id 執行列印或分享的專屬請求模型
+    /// </summary>
+    public class StoryActionRequest
+    {
+        /// <summary>劇本的唯一識別碼</summary>
+        public string story_id { get; set; }
+        
+    }
+    // 給分享用的
+    public class StoryShareRequest
+    {
+        public string story_id { get; set; }
+        public string platform { get; set; }
+    }
+
     /// <summary>
     /// 明信片主檔相關 API。
     /// 對應頁面：收藏館。負責「明信片長什麼樣子」，與紀錄探員實際獲得情況的 PostcardController 互補。
@@ -33,7 +50,7 @@ namespace backend.Controllers
         /// 呼叫外部服務生成 AI 明信片並存入資料庫。
         /// </summary>
         /// <remarks>
-        /// 接收前端上傳的圖片與提示詞，轉發至 vlog.angelalala.com 生成 AI 明信片，取得下載網址後，自動將資料寫入 `md_postcard` 資料表。
+        /// 接收前端上傳的圖片與提示詞，轉發至 vlog.angelalala.com 生成 AI 明信片，並由後端轉換為 Base64 圖片編碼，自動將資料寫入 `md_postcard` 資料表。
         /// 
         /// **⚠️ 請求格式注意**：
         /// 必須使用 `multipart/form-data`，不能使用一般的 JSON。
@@ -50,15 +67,16 @@ namespace backend.Controllers
         ///   "isSuccess": true,
         ///   "message": "AI 明信片生成且儲存成功",
         ///   "Result": {
-        ///     "postcardId": "d1863bc6",
+        ///     "postcardId": "ai_d1863bc6",
         ///     "storyId": "story_001",
         ///     "postcardName": "台北101 專屬明信片",
         ///     "summary": "晨曦的秘密花園，夕陽的城市堡壘...",
-        ///     "imageUrl": "[https://vlog.angelalala.com/api/download/ai_postcard_d1863bc6.png](https://vlog.angelalala.com/api/download/ai_postcard_d1863bc6.png)",
+        ///     "imageUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...", 
         ///     "category": "AI Generate"
         ///   }
         /// }
         /// ```
+        /// *(註：因後端已改為直接將 Base64 存入 DB，前端不需再抓取此處的 imageUrl，請直接使用 Story/{story_id}/Image API 顯示圖片)*
         /// </remarks>
         [HttpPost]
         [Route("GenerateAi")]
@@ -101,21 +119,59 @@ namespace backend.Controllers
 
         #endregion
 
+        #region 擴充功能 4：用 Story_Id 直接顯示圖片 API (解決 Base64 過長問題)
+
+        /// <summary>
+        /// 將該劇本最新的一張明信片，解碼為真實圖片檔案回傳。
+        /// </summary>
+        /// <remarks>
+        /// 因同一個 story_id 可能會生成多次明信片，此 API 會自動抓取「最新建立」的那一張圖片。
+        /// 前端不需處理 Base64，直接將此 API 當作 HTML 圖片網址使用：
+        /// 
+        /// `&lt;img src="https://你的後端網址/api/PostcardCatalog/Story/{story_id}/Image" /&gt;`
+        /// </remarks>
+        [HttpGet]
+        [Route("Story/{storyId}/Image")]
+        [AllowAnonymous] // 必須開放匿名，因為前端 <img> 標籤發送請求時無法夾帶 Token
+        public async Task<IActionResult> GetImageByStoryId(string storyId)
+        {
+            try
+            {
+                // Service 會自動幫我們找這個劇本最新的一張，並轉回二進位位元組 (byte[])
+                byte[] imageBytes = await _service.GetImageBytesByStoryAsync(storyId);
+                
+                if (imageBytes == null)
+                {
+                    return NotFound("找不到該劇本的圖片");
+                }
+
+                // 關鍵：用 File() 回傳二進位資料，並指定 Content-Type，瀏覽器就會完美把它當成圖片渲染
+                return File(imageBytes, "image/png");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"讀取劇本 {storyId} 明信片圖片時發生錯誤");
+                return StatusCode(500, "無法載入圖片");
+            }
+        }
+
+        #endregion
+
         #region 擴充功能 2：請求 ibon 列印
 
         /// <summary>
-        /// 送出明信片至 ibon 列印，取得取件碼。
+        /// 透過 story_id 送出明信片至 ibon 列印，取得取件碼。
         /// </summary>
         /// <remarks>
-        /// 傳入明信片 ID，後端會撈取對應的圖片網址，並透過本機背景執行的 Python 微服務 (`127.0.0.1:9000`) 爬蟲上傳至 ibon，最後回傳真實的 10 碼取件碼。
+        /// 傳入劇本 ID (story_id)，後端會自動撈取該劇本「最新的一張」圖片的 Base64 編碼，
+        /// 並透過本機背景執行的 Python 微服務 (`127.0.0.1:9000`) 爬蟲上傳至 ibon，最後回傳真實的 10 碼取件碼。
         /// 
         /// **Request 範例**：
         /// ```json
         /// {
-        ///   "postcard_id": "d1863bc6"
+        ///   "story_id": "story_001"
         /// }
         /// ```
-        /// *(註：若為了開發測試，`postcard_id` 也支援直接傳入 `https://...` 圖片網址，系統會自動跳過 DB 查詢直接送印)*
         /// 
         /// **Response 範例**：
         /// ```json
@@ -124,18 +180,25 @@ namespace backend.Controllers
         ///   "message": "已成功取得 ibon 取件碼",
         ///   "Result": {
         ///     "ibon_pickup_code": "1234567890",
-        ///     "pdf_url": "[https://vlog.angelalala.com/api/download/ai_postcard_d1863bc6.png](https://vlog.angelalala.com/api/download/ai_postcard_d1863bc6.png)"
+        ///     "pdf_url": "Base64 Image Data",
+        ///     "deadline": "2024-12-31 23:59:59",
+        ///     "qrcode_base64": "..."
         ///   }
         /// }
         /// ```
         /// </remarks>
         [HttpPost]
         [Route("Print")]
-        public async Task<IActionResult> PrintIbon([FromBody] PostcardPrintRequest request)
+        public async Task<IActionResult> PrintIbon([FromBody] StoryActionRequest request)
         {
+            if (string.IsNullOrEmpty(request.story_id))
+            {
+                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供劇本 ID (story_id)" });
+            }
+
             try
             {
-                var printResponse = await _service.PrintToIbonAsync(request);
+                var printResponse = await _service.PrintToIbonByStoryAsync(request.story_id);
                 
                 return Ok(new ResultViewModel<PostcardPrintResponse>
                 {
@@ -161,7 +224,7 @@ namespace backend.Controllers
         #region 擴充功能 3：紀錄社群分享
 
         /// <summary>
-        /// 紀錄使用者已將明信片分享至社群平台。
+        /// 紀錄使用者已將該劇本的明信片分享至社群平台。
         /// </summary>
         /// <remarks>
         /// **技術說明**：實際將圖片貼上 IG 或 FB 的動作，必須由前端呼叫原生的 Share Intent 完成。此 API 僅提供前端在「完成分享動作後」呼叫，供後端紀錄分享次數或發放獎勵。
@@ -169,7 +232,7 @@ namespace backend.Controllers
         /// **Request 範例**：
         /// ```json
         /// {
-        ///   "postcard_id": "d1863bc6",
+        ///   "story_id": "story_001",
         ///   "platform": "IG"
         /// }
         /// ```
@@ -185,9 +248,14 @@ namespace backend.Controllers
         /// </remarks>
         [HttpPost]
         [Route("Share")]
-        public IActionResult RecordShare([FromBody] PostcardShareRequest request)
+        public IActionResult RecordShare([FromBody] StoryShareRequest request)
         {
-            _logger.LogInformation($"探員將明信片 {request.postcard_id} 分享至 {request.platform}");
+            if (string.IsNullOrEmpty(request.story_id))
+            {
+                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供劇本 ID (story_id)" });
+            }
+
+            _logger.LogInformation($"探員將劇本 {request.story_id} 的明信片分享至 {request.platform}");
 
             return Ok(new ResultViewModel<string>
             {
@@ -229,7 +297,7 @@ namespace backend.Controllers
 
         #region 依識別碼取得單一明信片主檔
         /// <summary>
-        /// 依明信片識別碼取得單一明信片主檔資料。
+        /// 依明信片識別碼 (postcard_id) 取得單一明信片主檔資料。
         /// </summary>
         [HttpGet]
         [Route("{id}")]
@@ -249,9 +317,9 @@ namespace backend.Controllers
         }
         #endregion
 
-        #region 依劇本取得明信片主檔
+        #region 依劇本取得明信片主檔清單
         /// <summary>
-        /// 取得指定劇本所擁有的所有明信片主檔。
+        /// 取得指定劇本 (story_id) 所擁有的「所有」明信片主檔。
         /// </summary>
         [HttpGet]
         [Route("by-story/{storyId}")]

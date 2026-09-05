@@ -1,3 +1,4 @@
+// 檔案路徑：System\Services\PostcardCatalogService.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,7 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration; // ★ 引入設定檔命名空間
+using Microsoft.Extensions.Configuration;
 using backend.dao;
 using backend.Models;
 using backend.ViewModels;
@@ -16,9 +17,8 @@ namespace backend.Services
     public class PostcardCatalogService
     {
         private readonly PostcardCatalogDao _dao;
-        private readonly IConfiguration _configuration; // ★ 宣告設定檔變數
+        private readonly IConfiguration _configuration;
 
-        // ★ 透過建構子注入 IConfiguration
         public PostcardCatalogService(PostcardCatalogDao dao, IConfiguration configuration)
         {
             _dao = dao;
@@ -99,9 +99,9 @@ namespace backend.Services
 
         #region AI 生成明信片
         /// <summary>
-        /// 1. 呼叫外部 API (vlog.angelalala) 生成明信片
-        /// 2. 統一產生整齊的 PostcardId 格式
-        /// 3. 將回傳結果存入 MySQL
+        /// 1. 呼叫外部 API 生成明信片
+        /// 2. 將回傳的下載網址，轉化為 Base64 圖片編碼
+        /// 3. 將 Base64 存入 MySQL，讓前端後續可直接抓取代碼顯示，免除下載困擾
         /// </summary>
         public async Task<Models.PostcardCatalog> GenerateAiPostcardAsync(AiPostcardGenerateRequest request, string epId)
         {
@@ -136,7 +136,10 @@ namespace backend.Services
                 throw new Exception("外部 API 生成失敗或未回傳 download_url");
             }
 
-            // 統一 ID 格式：強制轉換為 "ai_" + 8碼乾淨亂數，保持資料庫整潔
+            // 🌟🌟 關鍵修改：立刻從網址下載圖片，並打包成 Base64 底層編碼 🌟🌟
+            var imageBytes = await client.GetByteArrayAsync(aiResult.DownloadUrl);
+            string base64ImageCode = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+
             string unifiedPostcardId = "ai_" + Guid.NewGuid().ToString("N").Substring(0, 8);
 
             // 3. 寫入自己的資料庫
@@ -146,8 +149,11 @@ namespace backend.Services
                 StoryId = request.story_id ?? "Custom_AI", 
                 PostcardName = $"{request.spot_name} 專屬明信片",
                 Summary = aiResult.PostcardIntroduction,
-                ImageUrl = aiResult.DownloadUrl, 
-                IsNightEditionDefault = false,
+                
+                // ★ 這裡存進去的是 Base64 代碼，而非外部網址
+                ImageUrl = base64ImageCode, 
+                
+                IsNightEditionDefault = request.is_night_edition,
                 Category = "AI Generate",
                 SortOrder = 1,
                 IsActive = true
@@ -155,47 +161,66 @@ namespace backend.Services
 
             await _dao.CreateAsync(newEntity);
 
-            // 4. 將生成的明信片綁定給該名探員 (寫入 ep_postcard)
+            // 4. 將生成的明信片綁定給該名探員
             await _dao.BindPostcardToUserAsync(epId, newEntity.PostcardId);
 
             return newEntity;
         }
         #endregion
 
-        #region ibon 列印
+        #region 🌟 取出該劇本最新的一張實體圖片位元組 (供 Controller 顯示用)
         /// <summary>
-        /// 處理 ibon 列印請求 (實際呼叫 Python 微服務 API)
+        /// 透過 story_id 撈出該劇本中「最新建立」的一張明信片，並將其 Base64 解析為實體位元組回傳。
         /// </summary>
-        public async Task<PostcardPrintResponse> PrintToIbonAsync(PostcardPrintRequest request)
+        public async Task<byte[]> GetImageBytesByStoryAsync(string storyId)
         {
-            string targetImageUrl = "";
+            // 抓出這個劇本下的「所有」明信片
+            var postcards = await _dao.GetByStoryIdAsync(storyId);
+            if (postcards == null || postcards.Count == 0) return null;
 
-            if (request.postcard_id.StartsWith("http://") || request.postcard_id.StartsWith("https://"))
+            // 💡 關鍵邏輯：因為同一個 story_id 可能被反覆生成多次明信片，在此我們抓取「最新建立」的那張
+            var latestPostcard = postcards.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
+
+            if (string.IsNullOrEmpty(latestPostcard.ImageUrl)) return null;
+
+            // 判斷資料庫存的是否為 Base64 編碼
+            if (latestPostcard.ImageUrl.StartsWith("data:image"))
             {
-                targetImageUrl = request.postcard_id;
+                // 把 "data:image/png;base64," 之後的純代碼切出來解碼成位元組
+                var base64Data = latestPostcard.ImageUrl.Substring(latestPostcard.ImageUrl.IndexOf(",") + 1);
+                return Convert.FromBase64String(base64Data);
             }
             else
             {
-                var postcard = await _dao.GetByIdAsync(request.postcard_id);
-                if (postcard == null) throw new Exception("查無此明信片");
-                if (string.IsNullOrEmpty(postcard.ImageUrl)) throw new Exception("此明信片無圖片網址，無法列印");
-                
-                targetImageUrl = postcard.ImageUrl;
+                // 為了相容以前舊資料庫存的外部網址
+                using var client = new HttpClient();
+                return await client.GetByteArrayAsync(latestPostcard.ImageUrl);
             }
+        }
+        #endregion
+
+        #region ibon 列印 (改為透過 Story_Id)
+        /// <summary>
+        /// 透過 story_id 找到最新的明信片，解析 Base64 並轉換為圖片發送給 ibon 微服務。
+        /// </summary>
+        public async Task<PostcardPrintResponse> PrintToIbonByStoryAsync(string storyId)
+        {
+            if (string.IsNullOrEmpty(storyId)) 
+                throw new Exception("請提供劇本 ID");
+
+            // 直接呼叫我們寫好的取圖邏輯，保證拿到最新的一張
+            byte[] imageBytes = await GetImageBytesByStoryAsync(storyId);
+            
+            if (imageBytes == null) 
+                throw new Exception("查無此劇本的明信片圖片內容，無法列印");
 
             using var httpClient = new HttpClient();
-
-            // 1. 從網址下載圖片
-            var imageBytes = await httpClient.GetByteArrayAsync(targetImageUrl);
-
-            // 2. 將圖片傳送至微服務 API
             using var form = new MultipartFormDataContent();
-            var fileContent = new ByteArrayContent(imageBytes);
             
+            var fileContent = new ByteArrayContent(imageBytes);
             fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
             form.Add(fileContent, "file", "test_postcard.png");
             
-            // ★ 動態讀取 appsettings.json 中的 ibon 微服務網址 (預設回退到 10.10.0.174)
             var ibonApiUrl = _configuration["IbonPrinterSettings:ApiUrl"] ?? "https://python-api.kajdslfjads.uk/upload";
             var response = await httpClient.PostAsync(ibonApiUrl, form);
 
@@ -205,31 +230,21 @@ namespace backend.Services
                 throw new Exception($"上傳至 ibon 失敗，狀態碼: {response.StatusCode}，錯誤內容: {errorMsg}");
             }
 
-            // 3. 解析 Python API 回傳的 JSON (pincode, deadline, qrcode_base64)
             var responseString = await response.Content.ReadAsStringAsync();
             
-            string pinCode = "";
-            string deadline = "";
-            string qrCodeBase64 = "";
-            
+            string pinCode = "", deadline = "", qrCodeBase64 = "";
             using (var jsonDoc = JsonDocument.Parse(responseString))
             {
                 var root = jsonDoc.RootElement;
-                
-                if (root.TryGetProperty("pincode", out var pin))
-                    pinCode = pin.GetString();
-
-                if (root.TryGetProperty("deadline", out var dl))
-                    deadline = dl.GetString();
-
-                if (root.TryGetProperty("qrcode_base64", out var qr))
-                    qrCodeBase64 = qr.GetString();
+                if (root.TryGetProperty("pincode", out var pin)) pinCode = pin.GetString();
+                if (root.TryGetProperty("deadline", out var dl)) deadline = dl.GetString();
+                if (root.TryGetProperty("qrcode_base64", out var qr)) qrCodeBase64 = qr.GetString();
             }
 
             return new PostcardPrintResponse
             {
                 ibon_pickup_code = pinCode, 
-                pdf_url = targetImageUrl,       
+                pdf_url = "Base64 Image Data", // 因底層已轉換為 Base64，不再回傳實體網址
                 deadline = deadline,            
                 qrcode_base64 = qrCodeBase64    
             };

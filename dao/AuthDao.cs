@@ -50,8 +50,10 @@ namespace backend.dao
         {
             string epId = "EP_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
             string sql = @"
-        INSERT INTO ep_account (ep_id, ep_name, account_type, email, ep_pswd, email_token, is_email_verified) 
-        VALUES (@epId, @ep_name, @account_type, @email, @passwordHash, @emailToken, 0)";
+        INSERT INTO ep_account 
+        (ep_id, ep_name, account_type, email, ep_pswd, email_token, is_email_verified, birthday, age, gender) 
+        VALUES 
+        (@epId, @ep_name, @account_type, @email, @passwordHash, @emailToken, 0, @birthday, @age, @gender)";
 
             try
             {
@@ -62,10 +64,14 @@ namespace backend.dao
                     {
                         epId = epId,
                         ep_name = req.Username,
-                        account_type = req.ResolvedAccountType == 2 ? 2 : 1, // 改用 ResolvedAccountType，不再直接用 req.AccountType
+                        account_type = req.ResolvedAccountType == 2 ? 2 : 1,
                         email = req.Email,
                         passwordHash = req.Password,
-                        emailToken = emailToken
+                        emailToken = emailToken,
+                        // 🌟 對應傳入新欄位參數
+                        birthday = req.Birthday,
+                        age = req.Age,
+                        gender = req.Gender
                     });
                     return rows > 0;
                 }

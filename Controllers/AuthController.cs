@@ -1,3 +1,4 @@
+// 檔案路徑：System\Controllers\AuthController.cs
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
@@ -35,36 +36,34 @@ namespace backend.Controllers
         /// 使用探員名稱(或信箱)與通行密碼進行登入，成功後同時回傳 account_type，
         /// 供前端判斷登入後要導向探員頁面(1=Tourist)或商家後台(2=Merchant)。
         ///
-        /// Request 範例：
+        /// **Request 範例**：
+        /// ```json
+        /// {
+        ///   "ep_name": "NoobTW",
+        ///   "ep_pswd": "123456"
+        /// }
+        /// ```
         ///
-        ///     POST /api/Auth/Login
-        ///     {
-        ///       "ep_name": "NoobTW",
-        ///       "ep_pswd": "123456"
-        ///     }
-        ///
-        /// Response 範例：
-        ///
-        ///     {
-        ///       "isSuccess": true,
-        ///       "message": "登入成功",
-        ///       "Result": {
-        ///         "token": "eyJhbGciOi...",
-        ///         "ep_id": "EP_19370FAD",
-        ///         "ep_name": "amy",
-        ///         "account_type": 1,
-        ///         "account_type_name": "Tourist"
-        ///       }
-        ///     }
+        /// **Response 範例**：
+        /// ```json
+        /// {
+        ///   "isSuccess": true,
+        ///   "message": "登入成功",
+        ///   "Result": {
+        ///     "token": "eyJhbGciOi...",
+        ///     "ep_id": "EP_19370FAD",
+        ///     "ep_name": "amy",
+        ///     "account_type": 1,
+        ///     "account_type_name": "Tourist"
+        ///   }
+        /// }
+        /// ```
         /// </remarks>
         /// <param name="req">登入資料，包含探員名稱與通行密碼。</param>
         /// <returns>登入結果，成功時回傳探員資訊、帳號類型與 JWT Token。</returns>
-        // API：探員登入（Login）－驗證探員代號與密碼，成功後回傳 JWT Token 與帳號類型
-        // 比對雜湊密碼、檢查停用/信箱驗證狀態，成功回傳 JWT + account_type，可直接接。
         [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
-        // POST: api/Auth/Login
         public IActionResult Login([FromBody] LoginRequest req)
         {
             try
@@ -99,14 +98,9 @@ namespace backend.Controllers
         /// 可在此 API 一併撤銷 Token。
         /// </remarks>
         /// <returns>登出執行結果。</returns>
-        // API：探員登出（Logout）－清除目前登入狀態
-        // [❌ 尚未完成]
-        // 已核對 AuthService.Logout()，內部目前只有一行 TODO 註解，什麼都沒做，只回傳成功訊息。
-        // 因為 JWT 是無狀態機制，舊 Token 在到期前依然有效，前端目前只能靠自己清掉本機存的 token 達到登出效果，
         [Authorize]
         [HttpPost]
         [Route("Logout")]
-        // POST: api/Auth/Logout
         public IActionResult Logout()
         {
             try
@@ -143,31 +137,30 @@ namespace backend.Controllers
         /// account_type_name = "Tourist" 表示一般探員，"Merchant" 表示商家帳號。
         /// 需在 Header 帶登入取得的 JWT Token：Authorization: Bearer {token}。
         ///
-        /// Request 範例：
+        /// **Request 範例**：
+        /// ```json
+        /// GET /api/Auth/Profile
+        /// ```
         ///
-        ///     GET /api/Auth/Profile
-        ///
-        /// Response 範例：
-        ///
-        ///     {
-        ///       "isSuccess": true,
-        ///       "message": "查詢成功",
-        ///       "Result": {
-        ///         "token": null,
-        ///         "ep_id": "EP_19370FAD",
-        ///         "ep_name": "amy",
-        ///         "account_type": 1,
-        ///         "account_type_name": "Tourist"
-        ///       }
-        ///     }
+        /// **Response 範例**：
+        /// ```json
+        /// {
+        ///   "isSuccess": true,
+        ///   "message": "查詢成功",
+        ///   "Result": {
+        ///     "token": null,
+        ///     "ep_id": "EP_19370FAD",
+        ///     "ep_name": "amy",
+        ///     "account_type": 1,
+        ///     "account_type_name": "Tourist"
+        ///   }
+        /// }
+        /// ```
         /// </remarks>
-        /// <returns>目前登入探員的代號、名稱與帳號類型(account_type / account_type_name)。</returns>
-        // API：查詢探員帳號資訊（Profile）－回傳目前登入探員的代號、名稱與帳號類型
-        // account_type_name 透過共用的 GetAccountTypeName() 轉換，跟 Login 用同一套規則，資料一致。
+        /// <returns>目前登入探員的代號、名稱與帳號類型。</returns>
         [Authorize]
         [HttpGet]
         [Route("Profile")]
-        // GET: api/Auth/Profile
         public IActionResult Profile()
         {
             try
@@ -200,20 +193,18 @@ namespace backend.Controllers
         /// <remarks>
         /// 對應「設定－探員帳號」頁面的名稱編輯功能。
         ///
-        /// Request 範例：
-        ///
-        ///     POST /api/Auth/Profile
-        ///     {
-        ///       "ep_name": "NoobTW"
-        ///     }
+        /// **Request 範例**：
+        /// ```json
+        /// {
+        ///   "ep_name": "NoobTW"
+        /// }
+        /// ```
         /// </remarks>
         /// <param name="req">欲更新的探員帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
-        // API：更新探員帳號名稱（UpdateProfile）－修改目前登入探員的顯示名稱
         [Authorize]
         [HttpPost]
         [Route("Profile")]
-        // POST: api/Auth/Profile
         public IActionResult UpdateProfile([FromBody] EpAccountUpdateRequest req)
         {
             try
@@ -246,9 +237,21 @@ namespace backend.Controllers
         /// 探員註冊。
         /// </summary>
         /// <remarks>
-        /// 註冊新探員或商家帳號，並於背景發送驗證信至指定信箱。
+        /// 註冊新探員或商家帳號（支援填入生日、年紀、性別），並於背景發送驗證信至指定信箱。
+        ///
+        /// **Request 範例**：
+        /// ```json
+        /// {
+        ///   "Username": "NoobTW",
+        ///   "Email": "test@example.com",
+        ///   "Password": "password123",
+        ///   "Birthday": "2005-01-24",
+        ///   "Age": 21,
+        ///   "Gender": "Male",
+        ///   "AccountType": 1
+        /// }
+        /// ```
         /// </remarks>
-        // 並在背景寄送驗證信（失敗不會擋住註冊流程），可直接接。
         [AllowAnonymous]
         [HttpPost]
         [Route("Register")]

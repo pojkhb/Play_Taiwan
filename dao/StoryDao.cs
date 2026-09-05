@@ -212,7 +212,7 @@ namespace backend.dao
 
         #endregion
 
-        #region 劇本詳情
+        #region 劇本詳情 (包含對應景點名稱輸出)
 
         public StoryDetailResponse GetDetail(string storyId)
         {
@@ -261,34 +261,18 @@ namespace backend.dao
             };
             storyReader.Close();
 
-            string npcSql = @"
-                SELECT npc_name, npc_title 
-                FROM md_npc 
-                ORDER BY created_at DESC 
-                LIMIT 1;
-            ";
-            using var npcCmd = new MySqlCommand(npcSql, connection);
-            using var npcReader = npcCmd.ExecuteReader();
-            if (npcReader.Read())
-            {
-                result.npc = new NpcDetail
-                {
-                    name = npcReader["npc_name"].ToString(),
-                    role = npcReader["npc_title"].ToString()
-                };
-            }
-            npcReader.Close();
-
+            // 🌟 修正點：透過 JOIN 確保能精準抓到對應的景點名稱 (place_name)
             string nodeSql = @"
                 SELECT
-                    node_id,
-                    node_order,
-                    node_title,
-                    fog_hint
-                FROM md_story_node
-                WHERE story_id = @story_id
-                  AND is_active = 1
-                ORDER BY node_order;
+                    n.node_id,
+                    n.node_order,
+                    COALESCE(p.place_name, n.node_title) AS place_name,
+                    n.fog_hint
+                FROM md_story_node n
+                LEFT JOIN md_place p ON n.place_id = p.place_id
+                WHERE n.story_id = @story_id
+                  AND n.is_active = 1
+                ORDER BY n.node_order;
             ";
 
             using var nodeCommand = new MySqlCommand(nodeSql, connection);
@@ -298,13 +282,13 @@ namespace backend.dao
             while (nodeReader.Read())
             {
                 int order = Convert.ToInt32(nodeReader["node_order"]);
-                string placeName = nodeReader["node_title"].ToString();
+                string placeName = nodeReader["place_name"].ToString(); // 這裡現在會正確對應到真實景點名稱
                 string taskDesc = nodeReader["fog_hint"] == DBNull.Value ? "" : nodeReader["fog_hint"].ToString();
 
                 result.nodes.Add(new NodeDetail
                 {
                     order = order,
-                    place_name = placeName,
+                    place_name = placeName, // 確實輸出景點
                     task_description = taskDesc,
                     opening_dialogue = ""
                 });

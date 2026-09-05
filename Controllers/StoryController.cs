@@ -42,127 +42,71 @@ namespace backend.Controllers
             _httpClientFactory = httpClientFactory;
         }
 
-        #region 來點遊意思：轉盤抽取地區
+        #region 文字轉劇本 (spin)
+
+        public class SpinScriptRequest
+        {
+            /// <summary>前端傳入的自訂文字或提示</summary>
+            public string input_text { get; set; }
+        }
 
         /// <summary>
-        /// 轉動命運轉盤，隨機抽取一個確定有足夠景點的地區。
+        /// 接收前端傳入的文字，透過 AI 生成專屬劇本。
         /// </summary>
         /// <remarks>
-        /// 轉動命運轉盤，透過 Neo4j 圖譜服務（/api/neo4j/cypher）查詢景點數量大於等於 5 的行政區並隨機抽出一筆，若失敗則退回關聯式資料庫抽取。
+        /// 對應 spin 轉盤或文字輸入功能，讓使用者輸入文字後由 AI 轉化為實境解謎劇本。
         /// 
-        /// Request 範例：
+        /// **Request 範例**：
         /// 
-        ///     POST /api/Story/Wheel/Spin
+        ///     POST /api/Story/spin
+        ///     {
+        ///       "input_text": "我想在台北101發生一場神祕的相遇..."
+        ///     }
         /// 
-        /// Response 範例：
+        /// **Response 範例**：
         /// 
         ///     {
         ///       "isSuccess": true,
-        ///       "message": "抽取成功",
+        ///       "message": "劇本生成成功",
         ///       "Result": {
-        ///         "region_id": null,
-        ///         "region": "臺南市中西區",
-        ///         "city_name": "臺南市",
-        ///         "district_name": "中西區"
+        ///         "story_id": "AI_12345678",
+        ///         "title": "雲端上的神祕交會"
         ///       }
         ///     }
         /// </remarks>
         [Authorize]
         [HttpPost]
-        [Route("Wheel/Spin")]
-        public async Task<IActionResult> SpinWheel() 
+        [Route("spin")]
+        public async Task<IActionResult> SpinScript([FromBody] SpinScriptRequest req)
         {
             try
             {
-                StoryWheelSpinResponse selectedRegion = null;
-                var client = _httpClientFactory.CreateClient();
-
-                // 💡 修正：透過 substring 從 address 提取前三碼（城市）與接下來三碼（鄉鎮區），並計算景點數 >= 5
-                var cypherRequest = new
+                if (req == null || string.IsNullOrWhiteSpace(req.input_text))
                 {
-                    query = @"
-                        MATCH (a:Attraction) 
-                        WHERE a.address IS NOT NULL AND size(a.address) >= 6
-                        WITH substring(a.address, 0, 3) AS city, substring(a.address, 3, 3) AS town, a 
-                        WITH city, town, count(a) AS spot_count 
-                        WHERE spot_count >= 5 
-                        RETURN city, town
-                    ",
-                    parameters = new { }
-                };
-
-                var response = await client.PostAsJsonAsync("https://vlog.angelalala.com/api/neo4j/cypher", cypherRequest);
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    var jsonString = await response.Content.ReadAsStringAsync();
-                    using var document = JsonDocument.Parse(jsonString);
-                    var root = document.RootElement;
-                    
-                    if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Array && dataProp.GetArrayLength() > 0)
-                    {
-                        var rnd = new Random();
-                        var randomIndex = rnd.Next(dataProp.GetArrayLength());
-                        var selectedNode = dataProp[randomIndex];
-
-                        string cityName = null;
-                        string townName = null;
-
-                        foreach (var prop in selectedNode.EnumerateObject())
-                        {
-                            string propName = prop.Name.ToLower();
-                            if (propName.Contains("city"))
-                            {
-                                cityName = prop.Value.GetString();
-                            }
-                            else if (propName.Contains("town") || propName.Contains("district"))
-                            {
-                                townName = prop.Value.GetString();
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(cityName))
-                        {
-                            selectedRegion = new StoryWheelSpinResponse
-                            {
-                                region_id = null,
-                                region = $"{cityName}{townName ?? ""}",
-                                city_name = cityName,
-                                district_name = townName ?? ""
-                            };
-                        }
-                    }
+                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供輸入文字 (input_text)" });
                 }
 
-                // 若 Neo4j 查詢結果解析失敗或無資料，退回關聯式資料庫降級備案
-                if (selectedRegion == null || string.IsNullOrEmpty(selectedRegion.city_name))
-                {
-                    _logger.LogWarning("[SpinWheel] Neo4j 解析無果，啟動 MySQL 降級備案");
-                    selectedRegion = _service.WheelSpin();
-                }
+                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(epId)) return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
-                return Ok(new ResultViewModel<StoryWheelSpinResponse>
+                // 呼叫 Service 處理將文字傳給 AI 並寫入資料庫的邏輯
+                var generatedStory = await _service.GenerateScriptFromTextAsync(epId, req.input_text);
+
+                return Ok(new ResultViewModel<object>
                 {
                     isSuccess = true,
-                    message = "抽取成功 (來自 Neo4j 圖譜)",
-                    Result = selectedRegion
+                    message = "劇本生成成功",
+                    Result = generatedStory
                 });
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "轉盤抽取地區發生例外，強制走降級備案");
-                var fallbackRegion = _service.WheelSpin();
-                return Ok(new ResultViewModel<StoryWheelSpinResponse>
-                {
-                    isSuccess = true,
-                    message = "抽取成功 (例外降級)",
-                    Result = fallbackRegion
-                });
+                _logger.LogError(e, "文字生成劇本 (spin) 失敗");
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
         }
 
         #endregion
-
         #region 現在揪出發：地區清單
 
         /// <summary>

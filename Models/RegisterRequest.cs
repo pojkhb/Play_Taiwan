@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-
+using System;
 namespace backend.Models
 {
     public class RegisterRequest
@@ -15,6 +15,9 @@ namespace backend.Models
         // 相容 snake_case 寫法：前端傳 { "account_type": 2 } 會對到這裡（跟你專案其他 API 命名習慣一致）
         [JsonPropertyName("account_type")]
         public int? account_type { get; set; }
+        public DateTime? Birthday { get; set; } // 生日 (例如 "2005-01-24")
+        public int? Age { get; set; }          // 年紀
+        public string Gender { get; set; }      // 性別 (例如 "Male", "Female", "其他")
 
         /// <summary>
         /// 真正要拿去用的帳號類型：不管前端傳哪一種命名都能正確抓到值，

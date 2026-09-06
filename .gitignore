@@ -40,3 +40,6 @@ appsettings.*.local.json
 .env
 .env.*
 !.env.example
+appsettings.json
+openapi_full.json
+openapi.json

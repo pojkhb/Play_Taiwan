@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
@@ -26,38 +28,26 @@ namespace backend.Controllers
             _service = service;
         }
 
-        #region 取得任務詳情
+        #region 取得任務
 
-        /// <summary>
-        /// 取得指定任務的詳細內容。
-        /// </summary>
-        /// <remarks>
-        /// 對應「答題」頁面，顯示題目與選項內容。
-        ///
-        /// Request 範例：
-        ///
-        ///     GET /api/Task/{task_id}
-        /// </remarks>
-        /// <param name="task_id">任務代號。</param>
-        /// <returns>任務詳細內容，包含題目與選項。</returns>
-        // API：取得任務詳情（GetTask）－回傳指定任務的題目與選項內容
-        [HttpGet]
-        [Route("{task_id}")]
-        // GET: api/Task/{task_id}
-        public IActionResult GetTask(string task_id)
+            [HttpPost]
+            [Route("List")]
+        // GET: api/Task/List
+        public async Task<IActionResult> GetTask([FromBody] TaskListReq req)
         {
             try
             {
-                return Ok(new ResultViewModel<TaskDetailResponse>
+                var tasks = await _service.GetTask(req);
+                return Ok(new ResultViewModel<List<TaskDetailResponse>>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetTaskDetail(task_id),
+                    Result = tasks,
                 });
             }
             catch (Exception e)
             {
-                return NotFound(new ResultViewModel<TaskDetailResponse> { isSuccess = false, message = e.Message.ToString(), Result = null });
+                return NotFound(new ResultViewModel<List<TaskDetailResponse>> { isSuccess = false, message = e.Message.ToString(), Result = null });
             }
         }
 
@@ -90,6 +80,12 @@ namespace backend.Controllers
         {
             try
             {
+                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(epId))
+                    return Unauthorized(new ResultViewModel<TaskAnswerResponse> { isSuccess = false, message = "無法取得探員身分，請重新登入" });
+
+                req.ep_id = epId;
+
                 return Ok(new ResultViewModel<TaskAnswerResponse>
                 {
                     isSuccess = true,

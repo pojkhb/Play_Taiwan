@@ -99,9 +99,11 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             #endregion
             #region S09-任務答題
+            services.AddHttpClient<Services.Neo4jService>();
             services.AddScoped<Services.TaskService>();
             services.AddScoped<dao.TaskDao>();
             services.AddScoped<Services.ITaskVerificationService, Services.TaskVerificationService>();
+            services.AddScoped<Services.TaskGenerationService>();
 
             services.AddSingleton<Services.IVisionApiClient, Services.FakeVisionApiClient>();
             services.AddSingleton<Services.IPoseCompareClient, Services.FakePoseCompareClient>();

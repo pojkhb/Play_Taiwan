@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Linq;
 using backend.Models;
 using backend.utils;
+using backend.ViewModels;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
-using System.Linq;
 
 namespace backend.dao
 {
@@ -19,7 +20,6 @@ namespace backend.dao
         }
 
         #region 來點遊意思：轉盤地區
-
         public StoryWheelSpinResponse WheelSpin()
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
@@ -54,11 +54,9 @@ namespace backend.dao
                 district_name = reader["district_name"] == DBNull.Value ? null : reader["district_name"].ToString()
             };
         }
-
         #endregion
 
         #region 現在揪出發：取得地區清單
-
         public List<StoryWheelSpinResponse> GetRegions(string mode, string cityName)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
@@ -103,17 +101,14 @@ namespace backend.dao
 
             return result;
         }
-
         #endregion
 
         #region 劇本檔案館：依地區與偏好生成劇本選項清單
-
         public List<StoryOptionResponse> GenerateStories(StoryGenerateRequest req)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
 
-            // 💡 修正處 1：拿掉舊的 region_id 判斷，直接用字串模糊比對 region_name
             string sql = @"
                 SELECT
                     s.story_id,
@@ -137,8 +132,6 @@ namespace backend.dao
             ";
 
             using var command = new MySqlCommand(sql, connection);
-            
-            // 💡 修正處 2：把城市和鄉鎮組合起來搜尋 (例如 "臺南市中西區")
             string searchRegion = $"{req?.city_name}{req?.town_name}".Trim();
             command.Parameters.AddWithValue("@region", searchRegion);
 
@@ -193,8 +186,7 @@ namespace backend.dao
             foreach (var story in stories)
             {
                 int score = 0;
-                using var cmd = new MySqlCommand(
-                    "SELECT tag FROM md_story_tag WHERE story_id = @story_id", connection);
+                using var cmd = new MySqlCommand("SELECT tag FROM md_story_tag WHERE story_id = @story_id", connection);
                 cmd.Parameters.AddWithValue("@story_id", story.story_id);
                 using var tagReader = cmd.ExecuteReader();
                 while (tagReader.Read())
@@ -209,11 +201,9 @@ namespace backend.dao
 
             return scored.OrderByDescending(s => s.Score).Select(s => s.Story).ToList();
         }
-
         #endregion
 
         #region 劇本詳情 (包含對應景點名稱輸出)
-
         public StoryDetailResponse GetDetail(string storyId)
         {
             if (string.IsNullOrWhiteSpace(storyId))
@@ -238,7 +228,6 @@ namespace backend.dao
 
             using var storyCommand = new MySqlCommand(storySql, connection);
             storyCommand.Parameters.AddWithValue("@story_id", storyId);
-
             using var storyReader = storyCommand.ExecuteReader();
 
             if (!storyReader.Read())
@@ -261,15 +250,20 @@ namespace backend.dao
             };
             storyReader.Close();
 
-            // 🌟 修正點：透過 JOIN 確保能精準抓到對應的景點名稱 (place_name)
+            // 🌟 修正點：用 n.npc_id 去 JOIN NPC，並且拉出 3 個新文字欄位
             string nodeSql = @"
                 SELECT
                     n.node_id,
                     n.node_order,
                     COALESCE(p.place_name, n.node_title) AS place_name,
-                    n.fog_hint
+                    n.fog_hint,
+                    n.location_codename,
+                    n.opening_text,
+                    n.success_text,
+                    npc.npc_name
                 FROM md_story_node n
                 LEFT JOIN md_place p ON n.place_id = p.place_id
+                LEFT JOIN md_npc npc ON n.npc_id = npc.npc_id
                 WHERE n.story_id = @story_id
                   AND n.is_active = 1
                 ORDER BY n.node_order;
@@ -282,15 +276,19 @@ namespace backend.dao
             while (nodeReader.Read())
             {
                 int order = Convert.ToInt32(nodeReader["node_order"]);
-                string placeName = nodeReader["place_name"].ToString(); // 這裡現在會正確對應到真實景點名稱
+                string placeName = nodeReader["place_name"].ToString();
                 string taskDesc = nodeReader["fog_hint"] == DBNull.Value ? "" : nodeReader["fog_hint"].ToString();
 
                 result.nodes.Add(new NodeDetail
                 {
                     order = order,
-                    place_name = placeName, // 確實輸出景點
+                    place_name = placeName,
                     task_description = taskDesc,
-                    opening_dialogue = ""
+                    // 👈 完美綁定前端要的欄位給 ViewModel
+                    location_codename = nodeReader["location_codename"]?.ToString() ?? "",
+                    opening = nodeReader["opening_text"]?.ToString() ?? "",
+                    success = nodeReader["success_text"]?.ToString() ?? "",
+                    npc_name = nodeReader["npc_name"]?.ToString() ?? ""
                 });
 
                 result.route_nodes.Add(
@@ -305,11 +303,9 @@ namespace backend.dao
 
             return result;
         }
-
         #endregion
 
         #region 劇本卡片路線預覽
-
         private List<string> GetRoutePreview(string storyId)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
@@ -338,11 +334,9 @@ namespace backend.dao
 
             return result;
         }
-
         #endregion
 
-        #region AI 動態劇本寫入資料庫 
-
+        #region AI 動態劇本寫入資料庫
         public List<Dictionary<string, string>> SaveAiGeneratedStories(string ep_id, string region_id, AiStoryResult aiResult)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
@@ -357,14 +351,12 @@ namespace backend.dao
                 }
                 
                 var savedStories = new List<Dictionary<string, string>>();
-
-                // 💡 修正處 3：因為你的 aiResult.Data 是單一物件，所以先拿掉 foreach 迴圈，直接使用它
                 var scriptData = aiResult.Data;
 
                 string newStoryId = "AI_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
                 string newNpcId = "NPC_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
 
-                // --- 1. 寫入主劇本 ---
+                // 1. 寫入主劇本 (拿掉 npc_id，因為它是存放在節點裡面的)
                 string insertStorySql = @"
                     INSERT INTO md_story (
                         story_id, title, subtitle, prologue, synopsis, 
@@ -390,7 +382,7 @@ namespace backend.dao
                     cmd.ExecuteNonQuery();
                 }
 
-                // --- 2. 寫入 NPC ---
+                // 2. 寫入 NPC
                 if (scriptData.Npc != null)
                 {
                     string insertNpcSql = @"
@@ -411,15 +403,17 @@ namespace backend.dao
                     }
                 }
 
-                // --- 3. 寫入節點 (Nodes) ---
+                // 3. 寫入節點 (補上 npc_id 以及三個新文字欄位)
                 if (scriptData.Nodes != null && scriptData.Nodes.Count > 0)
                 {
                     string insertNodeSql = @"
                         INSERT INTO md_story_node (
-                            node_id, story_id, node_order, node_title, fog_hint, is_active, day_index
+                            node_id, story_id, node_order, node_title, fog_hint, is_active, day_index,
+                            location_codename, opening_text, success_text, npc_id
                         )
                         VALUES (
-                            @node_id, @story_id, @node_order, @node_title, @fog_hint, 1, 1
+                            @node_id, @story_id, @node_order, @node_title, @fog_hint, 1, 1,
+                            @location_codename, @opening_text, @success_text, @npc_id
                         );
                     ";
                     
@@ -428,6 +422,9 @@ namespace backend.dao
                         string placeName = "探索節點";
                         int nodeOrder = 1;
                         string taskDesc = "";
+                        string locCodeName = "";
+                        string opening = "";
+                        string success = "";
 
                         try
                         {
@@ -440,6 +437,15 @@ namespace backend.dao
 
                             var descProp = type.GetProperty("TaskDescription") ?? type.GetProperty("task_description");
                             if (descProp != null) taskDesc = descProp.GetValue(node)?.ToString() ?? "";
+
+                            var codeProp = type.GetProperty("LocationCodename") ?? type.GetProperty("location_codename");
+                            if (codeProp != null) locCodeName = codeProp.GetValue(node)?.ToString() ?? "";
+
+                            var openProp = type.GetProperty("Opening") ?? type.GetProperty("opening");
+                            if (openProp != null) opening = openProp.GetValue(node)?.ToString() ?? "";
+
+                            var succProp = type.GetProperty("Success") ?? type.GetProperty("success");
+                            if (succProp != null) success = succProp.GetValue(node)?.ToString() ?? "";
                         }
                         catch { /* 容錯防呆 */ }
 
@@ -450,12 +456,18 @@ namespace backend.dao
                             cmdNode.Parameters.AddWithValue("@node_order", nodeOrder);
                             cmdNode.Parameters.AddWithValue("@node_title", placeName);
                             cmdNode.Parameters.AddWithValue("@fog_hint", string.IsNullOrEmpty(taskDesc) ? (object)DBNull.Value : (taskDesc.Length > 255 ? taskDesc.Substring(0, 255) : taskDesc));
+                            cmdNode.Parameters.AddWithValue("@location_codename", locCodeName);
+                            cmdNode.Parameters.AddWithValue("@opening_text", opening);
+                            cmdNode.Parameters.AddWithValue("@success_text", success);
+                            
+                            // 🌟 將上面建立的 newNpcId 綁定到這個節點上
+                            cmdNode.Parameters.AddWithValue("@npc_id", newNpcId); 
+
                             cmdNode.ExecuteNonQuery();
                         }
                     }
                 }
 
-                // 將這筆成功儲存的劇本存入 List，一併回傳給前端
                 savedStories.Add(new Dictionary<string, string>
                 {
                     { "story_id", newStoryId },
@@ -463,7 +475,7 @@ namespace backend.dao
                 });
 
                 transaction.Commit();
-                return savedStories; // 回傳清單，裡面只有這一筆資料
+                return savedStories;
             }
             catch (Exception ex)
             {

@@ -105,5 +105,9 @@ namespace backend.Models
         public string place_name { get; set; }
         public string task_description { get; set; }
         public string opening_dialogue { get; set; } // 已去名字的乾淨對話
+        public string location_codename { get; set; }
+    public string opening { get; set; }
+    public string success { get; set; }
+    public string npc_name { get; set; }
     }
 }

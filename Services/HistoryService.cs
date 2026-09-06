@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using backend.dao;
 using backend.Models;
+using backend.ViewModels;
 
 namespace backend.Services
 {

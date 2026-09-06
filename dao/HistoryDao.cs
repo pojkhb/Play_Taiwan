@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using backend.utils;
 using backend.Models;
+using backend.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
@@ -64,7 +65,7 @@ namespace backend.dao
         }
         #endregion
 
-        #region 取得過往劇本詳情
+        #region 取得過往劇本詳情 (包含景點清單)
         public HistoryStoryItem GetHistoryDetail(string story_id, string ep_id)
         {
             string sql = @"
@@ -95,15 +96,38 @@ namespace backend.dao
                 throw new Exception("找不到此過往劇本：" + story_id);
             }
 
-            return new HistoryStoryItem
+            var resultItem = new HistoryStoryItem
             {
                 story_id = reader["story_id"].ToString(),
                 title = reader["title"].ToString(),
                 synopsis = reader["synopsis"] == DBNull.Value ? null : reader["synopsis"].ToString(),
                 completed_date = reader["completed_date"] == DBNull.Value ? default : Convert.ToDateTime(reader["completed_date"]),
                 region = reader["region"] == DBNull.Value ? null : reader["region"].ToString(),
-                vlog_id = reader["vlog_id"] == DBNull.Value ? null : reader["vlog_id"].ToString()
+                vlog_id = reader["vlog_id"] == DBNull.Value ? null : reader["vlog_id"].ToString(),
+                spots = new List<string>() // 👈 實例化景點清單
             };
+            
+            reader.Close(); // 🌟 關閉目前的 reader，準備查詢景點
+
+            // 🌟 第二段查詢：去節點表把對應劇本的景點名稱都撈出來
+            string spotSql = @"
+                SELECT COALESCE(p.place_name, n.node_title) AS place_name
+                FROM md_story_node n
+                LEFT JOIN md_place p ON n.place_id = p.place_id
+                WHERE n.story_id = @story_id
+                ORDER BY n.node_order;
+            ";
+            
+            using var spotCmd = new MySqlCommand(spotSql, conn);
+            spotCmd.Parameters.AddWithValue("@story_id", story_id);
+            using var spotReader = spotCmd.ExecuteReader();
+            
+            while (spotReader.Read())
+            {
+                resultItem.spots.Add(spotReader["place_name"].ToString());
+            }
+
+            return resultItem;
         }
         #endregion
     }

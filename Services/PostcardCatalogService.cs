@@ -250,5 +250,71 @@ namespace backend.Services
             };
         }
         #endregion
+        #region ibon 列印 (改為透過 Postcard_Id)
+        /// <summary>
+        /// 透過 postcard_id 找到指定的明信片，解析 Base64 並轉換為圖片發送給 ibon 微服務。
+        /// </summary>
+        public async Task<PostcardPrintResponse> PrintToIbonByPostcardIdAsync(string postcardId)
+        {
+            if (string.IsNullOrEmpty(postcardId)) 
+                throw new Exception("請提供明信片 ID");
+
+            // 1. 🌟 直接從資料庫撈取這張「特定的」明信片
+            var postcard = await _dao.GetByIdAsync(postcardId);
+            if (postcard == null || string.IsNullOrEmpty(postcard.ImageUrl)) 
+                throw new Exception($"查無此明信片 (ID: {postcardId}) 的圖片內容，無法列印");
+
+            // 2. 解析 Base64 轉換為實體位元組
+            byte[] imageBytes;
+            if (postcard.ImageUrl.StartsWith("data:image"))
+            {
+                var base64Data = postcard.ImageUrl.Substring(postcard.ImageUrl.IndexOf(",") + 1);
+                imageBytes = Convert.FromBase64String(base64Data);
+            }
+            else
+            {
+                // 相容舊的網址格式
+                using var client = new HttpClient();
+                imageBytes = await client.GetByteArrayAsync(postcard.ImageUrl);
+            }
+
+            // 3. 傳送給 ibon 微服務
+            using var httpClient = new HttpClient();
+            using var form = new MultipartFormDataContent();
+            
+            var fileContent = new ByteArrayContent(imageBytes);
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
+            form.Add(fileContent, "file", "test_postcard.png");
+            
+            // 💡 預設備用網址改成指向本機的 Python 服務
+            var ibonApiUrl = _configuration["IbonPrinterSettings:ApiUrl"] ?? "http://127.0.0.1:9000/upload";
+            var response = await httpClient.PostAsync(ibonApiUrl, form);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                throw new Exception($"上傳至 ibon 失敗，狀態碼: {response.StatusCode}，錯誤內容: {errorMsg}");
+            }
+
+            var responseString = await response.Content.ReadAsStringAsync();
+            
+            string pinCode = "", deadline = "", qrCodeBase64 = "";
+            using (var jsonDoc = JsonDocument.Parse(responseString))
+            {
+                var root = jsonDoc.RootElement;
+                if (root.TryGetProperty("pincode", out var pin)) pinCode = pin.GetString();
+                if (root.TryGetProperty("deadline", out var dl)) deadline = dl.GetString();
+                if (root.TryGetProperty("qrcode_base64", out var qr)) qrCodeBase64 = qr.GetString();
+            }
+
+            return new PostcardPrintResponse
+            {
+                ibon_pickup_code = pinCode, 
+                pdf_url = "Base64 Image Data", 
+                deadline = deadline,            
+                qrcode_base64 = qrCodeBase64    
+            };
+        }
+        #endregion
     }
 }

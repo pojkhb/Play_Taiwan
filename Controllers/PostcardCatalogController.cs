@@ -20,6 +20,11 @@ namespace backend.Controllers
         public string story_id { get; set; }
         
     }
+    public class PrintPostcardRequest
+    {
+        /// <summary>明信片的唯一識別碼 (例如: ai_f676ec15)</summary>
+        public string postcard_id { get; set; }
+    }
     // 給分享用的
     public class StoryShareRequest
     {
@@ -189,16 +194,17 @@ namespace backend.Controllers
         /// </remarks>
         [HttpPost]
         [Route("Print")]
-        public async Task<IActionResult> PrintIbon([FromBody] StoryActionRequest request)
+        public async Task<IActionResult> PrintIbon([FromBody] PrintPostcardRequest request) // 👈 參數改成新的 Request
         {
-            if (string.IsNullOrEmpty(request.story_id))
+            if (string.IsNullOrEmpty(request.postcard_id))
             {
-                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供劇本 ID (story_id)" });
+                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供明信片 ID (postcard_id)" });
             }
 
             try
             {
-                var printResponse = await _service.PrintToIbonByStoryAsync(request.story_id);
+                // 👈 呼叫 Service 新的方法
+                var printResponse = await _service.PrintToIbonByPostcardIdAsync(request.postcard_id); 
                 
                 return Ok(new ResultViewModel<PostcardPrintResponse>
                 {

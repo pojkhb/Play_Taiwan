@@ -352,6 +352,7 @@ namespace backend.Models
 
         /// <summary>明信片回顧頁面的連結，若無則為 null。</summary>
         public string postcard_review_url { get; set; }                 // 明信片回顧連結
+        public List<string> spots { get; set; }
     }
 
     // ===================== 收藏 =====================

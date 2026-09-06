@@ -1,3 +1,4 @@
+// 檔案路徑：System\dao\SilhouetteDao.cs
 using System;
 using System.Collections.Generic;
 using backend.Models;
@@ -16,8 +17,6 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
-        #region 取得剪影清單
-
         public List<Silhouette> GetSilhouettes()
         {
             const string sql = @"
@@ -35,41 +34,26 @@ namespace backend.dao
             ";
 
             var result = new List<Silhouette>();
-
             using var connection = new MySqlConnection(_appSettings.mydb);
             using var command = new MySqlCommand(sql, connection);
-
             connection.Open();
 
             using var reader = command.ExecuteReader();
-
             while (reader.Read())
             {
                 result.Add(new Silhouette
                 {
                     silhouette_id = reader["silhouette_id"].ToString(),
                     name = reader["name"].ToString(),
-                    image_url = reader["image_url"].ToString(),
-
-                    city = reader["city"] == DBNull.Value
-                        ? null
-                        : reader["city"].ToString(),
-
-                    category = reader["category"] == DBNull.Value
-                        ? null
-                        : reader["category"].ToString(),
-
+                    image_url = reader["image_url"] == DBNull.Value ? null : reader["image_url"].ToString(),
+                    city = reader["city"] == DBNull.Value ? null : reader["city"].ToString(),
+                    category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
                     is_active = Convert.ToBoolean(reader["is_active"]),
                     sort_order = Convert.ToInt32(reader["sort_order"])
                 });
             }
-
             return result;
         }
-
-        #endregion
-
-        #region 取得单一剪影
 
         public Silhouette GetSilhouetteById(string silhouetteId)
         {
@@ -90,37 +74,22 @@ namespace backend.dao
 
             using var connection = new MySqlConnection(_appSettings.mydb);
             using var command = new MySqlCommand(sql, connection);
-
             command.Parameters.AddWithValue("@silhouette_id", silhouetteId);
-
             connection.Open();
 
             using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
-            {
-                return null;
-            }
+            if (!reader.Read()) return null;
 
             return new Silhouette
             {
                 silhouette_id = reader["silhouette_id"].ToString(),
                 name = reader["name"].ToString(),
-                image_url = reader["image_url"].ToString(),
-
-                city = reader["city"] == DBNull.Value
-                    ? null
-                    : reader["city"].ToString(),
-
-                category = reader["category"] == DBNull.Value
-                    ? null
-                    : reader["category"].ToString(),
-
+                image_url = reader["image_url"] == DBNull.Value ? null : reader["image_url"].ToString(),
+                city = reader["city"] == DBNull.Value ? null : reader["city"].ToString(),
+                category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
                 is_active = Convert.ToBoolean(reader["is_active"]),
                 sort_order = Convert.ToInt32(reader["sort_order"])
             };
         }
-
-        #endregion
     }
 }

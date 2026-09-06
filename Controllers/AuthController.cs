@@ -237,7 +237,7 @@ namespace backend.Controllers
         /// 探員註冊。
         /// </summary>
         /// <remarks>
-        /// 註冊新探員或商家帳號（支援填入生日、年紀、性別），並於背景發送驗證信至指定信箱。
+        /// 註冊新探員或商家帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱。
         ///
         /// **Request 範例**：
         /// ```json
@@ -246,7 +246,6 @@ namespace backend.Controllers
         ///   "Email": "test@example.com",
         ///   "Password": "password123",
         ///   "Birthday": "2005-01-24",
-        ///   "Age": 21,
         ///   "Gender": "Male",
         ///   "AccountType": 1
         /// }

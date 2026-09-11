@@ -137,6 +137,11 @@ namespace backend
             #region AI 非同步生成與任務追蹤
             services.AddScoped<MediaJobDao>();
             services.AddScoped<IVlogAiClient, MockVlogAiClient>();
+
+            // AI 任務生成 API（對應 AI_Task_API_Spec.md）
+            // 開發/測試時使用 MockAiTaskClient（不呼叫實際 AI 服務）
+            // 正式上線後改為 services.AddScoped<IAiTaskClient, AiTaskClient>();
+            services.AddScoped<IAiTaskClient, MockAiTaskClient>();
             #endregion
             #region S08-地圖/節點/導航
             services.AddScoped<Services.MapService>();

@@ -27,6 +27,7 @@ namespace backend.dao
         #region 查詢任務地點
 
         /// <summary>
+        /// <summary>
         /// 依 task_id 查詢任務地點，關聯 md_task 表。
         /// </summary>
         public async Task<Location> GetPlaceLocation(string node_id)
@@ -483,6 +484,69 @@ namespace backend.dao
 
         #endregion
 
+        #region 劇本內容查詢（供 AI 生成使用）
+
+        /// <summary>
+        /// 組合 AI 任務生成所需的景點劇本內容（story_content）。
+        /// 取自三個資料表：
+        ///   - md_story.prologue：劇本前導故事
+        ///   - md_story_node.fog_hint：節點迷霧提示
+        ///   - md_place.introduction：景點詳細介紹
+        /// 三欄位皆可為 NULL，僅取有值的部分組合成段落回傳。
+        /// </summary>
+        /// <param name="node_id">節點代號（md_story_node.node_id）</param>
+        /// <returns>組合後的景點劇本說明文字，供 AiTaskRequest.story_content 使用</returns>
+        public string GetStoryContent(string node_id)
+        {
+            Hashtable param = new()
+            {
+                { "@node_id", new MySQLParameter(node_id, MySqlDbType.VarChar) }
+            };
+
+            string sql = @"
+                SELECT
+                    s.prologue       AS story_prologue,
+                    n.fog_hint       AS node_fog_hint,
+                    p.introduction   AS place_introduction,
+                    p.place_name     AS place_name
+                FROM md_story_node n
+                INNER JOIN md_story s ON s.story_id = n.story_id
+                LEFT  JOIN md_place p ON p.place_id  = n.place_id
+                WHERE n.node_id = @node_id
+                LIMIT 1";
+
+            var rows = mysql_connect.GetDataList<StoryContentRow>(sql, param);
+            if (rows == null || rows.Count == 0)
+                return string.Empty;
+
+            var r = rows[0];
+            var parts = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(r.place_name))
+                parts.Add($"【景點】{r.place_name}");
+
+            if (!string.IsNullOrWhiteSpace(r.place_introduction))
+                parts.Add($"【景點介紹】{r.place_introduction}");
+
+            if (!string.IsNullOrWhiteSpace(r.story_prologue))
+                parts.Add($"【劇本背景】{r.story_prologue}");
+
+            if (!string.IsNullOrWhiteSpace(r.node_fog_hint))
+                parts.Add($"【節點線索】{r.node_fog_hint}");
+
+            return string.Join("\n\n", parts);
+        }
+
+        private class StoryContentRow
+        {
+            public string story_prologue    { get; set; }
+            public string node_fog_hint     { get; set; }
+            public string place_introduction { get; set; }
+            public string place_name        { get; set; }
+        }
+
+        #endregion
+
         #region 任務類型查詢
 
         /// <summary>
@@ -496,9 +560,10 @@ namespace backend.dao
             };
 
             string sql = @"
-                SELECT pt.type_id, pt.place_category, t.type_name
+                SELECT pt.type_id, p.category AS place_category, t.type_name
                 FROM md_place_type pt
                 INNER JOIN md_type t ON t.type_id = pt.type_id
+                LEFT JOIN md_place p ON p.place_id = pt.place_id
                 WHERE pt.place_id = @place_id";
 
             return mysql_connect.GetDataList<PlaceTypeInfo>(sql, param) ?? new List<PlaceTypeInfo>();

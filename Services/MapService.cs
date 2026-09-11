@@ -1,12 +1,11 @@
+// 檔案路徑：System\Services\MapService.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 namespace backend.Services
 {
@@ -15,10 +14,12 @@ namespace backend.Services
         private const double UnlockRadiusMeters = 50.0;
 
         private readonly MapDao _dao;
+        private readonly GeocodingService _geocodingService;
 
-        public MapService(MapDao dao)
+        public MapService(MapDao dao, GeocodingService geocodingService)
         {
             _dao = dao;
+            _geocodingService = geocodingService;
         }
 
         #region 取得地圖
@@ -310,6 +311,9 @@ namespace backend.Services
 
         #region 回報定位
 
+        /// <summary>
+        /// 接收前端回報的 GPS 座標，透過共用的 GeocodingService 反向地理編碼為縣市／鄉鎮區。
+        /// </summary>
         public async Task<LocationResponse> ReportLocationAsync(LocationRequest req)
         {
             if (req == null)
@@ -323,7 +327,7 @@ namespace backend.Services
             }
 
             var (cityName, districtName) =
-                await ResolveTaiwanAreaAsync(req.lat, req.lng);
+                await _geocodingService.ResolveTaiwanAreaAsync(req.lat, req.lng);
 
             return new LocationResponse
             {
@@ -337,41 +341,5 @@ namespace backend.Services
         }
 
         #endregion
-
-        private async Task<(string city, string district)> ResolveTaiwanAreaAsync(double lat, double lng)
-        {
-            string url =
-                "https://nominatim.openstreetmap.org/reverse" +
-                $"?format=json&lat={lat}&lon={lng}&accept-language=zh-TW";
-
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.UserAgent.ParseAdd(
-                "PlayTaiwan/1.0 (local-dev)");
-
-            string json = await http.GetStringAsync(url);
-            JObject root = JObject.Parse(json);
-            JToken address = root["address"];
-
-            if (address == null)
-            {
-                return (null, null);
-            }
-
-            // 縣市：直轄市/市/縣
-            string city =
-                address.Value<string>("city") ??
-                address.Value<string>("county") ??
-                address.Value<string>("state");
-
-            // 區／鄉／鎮
-            string district =
-                address.Value<string>("suburb") ??
-                address.Value<string>("city_district") ??
-                address.Value<string>("town") ??
-                address.Value<string>("municipality") ??
-                address.Value<string>("village");
-
-            return (city, district);
-        }
     }
 }

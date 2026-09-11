@@ -138,6 +138,12 @@ namespace backend
             services.AddScoped<MediaJobDao>();
             services.AddScoped<IVlogAiClient, MockVlogAiClient>();
             #endregion
+            #region S08-地圖/節點/導航
+            services.AddScoped<Services.MapService>();
+            services.AddScoped<dao.MapDao>();
+            services.AddScoped<Services.GeocodingService>();
+            #endregion
+
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

@@ -29,4 +29,11 @@ namespace backend.Models
         [JsonPropertyName("spot_count")]
         public int SpotCount { get; set; }
     }
+     public class NearbyAttractionNode
+    {
+        public string name { get; set; }
+        public double lat { get; set; }
+        public double lon { get; set; }
+        public double distance_m { get; set; }
+    }
 }

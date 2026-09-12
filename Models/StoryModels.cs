@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using backend.ViewModels;
 
 namespace backend.Models
 {
@@ -166,5 +167,22 @@ public class ScriptBlueprintSimple
     public string npc_dialogue { get; set; }
     public string task_mission { get; set; }
     public List<string> preparation_tips { get; set; }
+}
+public class GenerateScriptBlueprintByTextResponse
+{
+    public string status { get; set; }
+    public ParsedIntent parsed_intent { get; set; }
+    public ScriptBlueprintData data { get; set; }
+}
+
+public class ParsedIntent
+{
+    public string city_name { get; set; }
+    public string town_name { get; set; }
+    public int traveler_count { get; set; }
+    public List<string> preferences { get; set; }
+    public List<string> transportation { get; set; }
+    public int node_count { get; set; }
+    public bool is_night { get; set; }
 }
 }

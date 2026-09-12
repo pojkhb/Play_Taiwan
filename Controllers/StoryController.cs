@@ -555,5 +555,98 @@ namespace backend.Controllers
             }
         }
         #endregion
+        #region 自然語言生成劇本（遊你說了算）
+public class GenerateByTextRequest
+{
+    /// <summary>使用者輸入的一句話描述，例如「想來一趟美食之旅」</summary>
+    public string user_prompt { get; set; }
+}
+
+/// <summary>
+/// 接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件，
+/// 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。
+/// </summary>
+/// <remarks>
+/// 跟 GenerateByLocation 的差異：GenerateByLocation 需要前端明確帶城市/行政區/偏好等結構化參數；
+/// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
+///
+/// **Request 範例**：
+/// ```json
+/// {
+///   "user_prompt": "我們想要兩個人去臺南安平區來趟深度文學解謎之旅，大約走四個站點"
+/// }
+/// ```
+/// </remarks>
+[Authorize]
+[HttpPost]
+[Route("GenerateByText")]
+public async Task<IActionResult> GenerateByText([FromBody] GenerateByTextRequest req)
+{
+    try
+    {
+        string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(epId))
+            return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
+
+        if (string.IsNullOrWhiteSpace(req?.user_prompt))
+            return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
+
+        var payload = new { user_prompt = req.user_prompt };
+
+        var client = _httpClientFactory.CreateClient();
+        client.Timeout = TimeSpan.FromMinutes(10);
+
+        var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PostAsync("https://vlog.angelalala.com/api/api/admin/generate_script_blueprint_by_text", jsonContent);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errContent = await response.Content.ReadAsStringAsync();
+            throw new Exception($"外部 AI 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
+        }
+
+        string responseString = await response.Content.ReadAsStringAsync();
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+        GenerateScriptBlueprintByTextResponse aiResult;
+        try
+        {
+            aiResult = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(responseString, options);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"反序列化失敗: {ex.Message}");
+        }
+
+        if (aiResult?.data == null)
+            throw new Exception("AI 服務回傳的劇本內容為空");
+
+        string cityName = aiResult.parsed_intent?.city_name ?? "";
+        string townName = aiResult.parsed_intent?.town_name ?? "";
+        string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
+
+        string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
+
+        return Ok(new ResultViewModel<object>
+        {
+            isSuccess = true,
+            message = "劇本生成成功",
+            Result = new
+            {
+                story_id = newStoryId,
+                detected_city = cityName,
+                detected_town = townName,
+                parsed_intent = aiResult.parsed_intent,
+                data = aiResult.data
+            }
+        });
+    }
+    catch (Exception e)
+    {
+        _logger.LogError(e, "自然語言生成劇本失敗");
+        return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+    }
+}
+#endregion
     }
 }

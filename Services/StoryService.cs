@@ -44,11 +44,6 @@ namespace backend.Services
             return _dao.GetDetail(req.story_id);
         }
 
-        public List<Dictionary<string, string>> SaveAiGeneratedStories(string ep_id, string region_id, AiStoryResult aiResult)
-        {
-            return _dao.SaveAiGeneratedStories(ep_id, region_id, aiResult);
-        }
-
         #region GPS 定位生成劇本 相關方法
 
         public ScriptBlueprintData GetFullDetail(string storyId)
@@ -94,6 +89,18 @@ namespace backend.Services
 
             var result = await _neo4jService.ExecuteCypherAsync<List<NearbyAttractionNode>>(cypherQuery, parameters);
             return result ?? new List<NearbyAttractionNode>();
+        }
+
+        #endregion
+
+        #region Agent 即時推薦（/spin 用）
+
+        /// <summary>
+        /// 依城市/行政區名稱，將城市/行政區轉為經緯度，並將 Agent 推薦結果存進 md_agent_recommendation。
+        /// </summary>
+        public string SaveAgentRecommendation(string epId, string cityName, string townName, double lat, double lng, AgentOrchestrateResponse result)
+        {
+            return _dao.SaveAgentRecommendation(epId, cityName, townName, lat, lng, result);
         }
 
         #endregion

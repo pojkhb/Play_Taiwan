@@ -110,4 +110,61 @@ namespace backend.Models
     public string success { get; set; }
     public string npc_name { get; set; }
     }
+    public class AgentOrchestrateRequest
+{
+    public string user_voice_transcript { get; set; }
+    public string emotion_label { get; set; }
+    public double user_lat { get; set; }
+    public double user_lon { get; set; }
+}
+
+public class AgentOrchestrateResponse
+{
+    public Phase1Perception phase_1_perception { get; set; }
+    public Phase2Cognition phase_2_cognition { get; set; }
+    public Phase3GraphRag phase_3_graph_rag { get; set; }
+    public Phase4ActionAndTools phase_4_action_and_tools { get; set; }
+    public string phase_5_next_step { get; set; }
+}
+
+public class Phase1Perception
+{
+    public string voice_input { get; set; }
+    public string emotion_detected { get; set; }
+}
+
+public class Phase2Cognition
+{
+    public string agent_thought_process { get; set; }
+    public List<string> extracted_tags { get; set; }
+}
+
+public class Phase3GraphRag
+{
+    public RecommendedSpot recommended_spot { get; set; }
+}
+
+public class RecommendedSpot
+{
+    public string name { get; set; }
+    public string address { get; set; }
+    public string description { get; set; }
+    public List<string> tags { get; set; }
+    public double distance_m { get; set; }
+}
+
+public class Phase4ActionAndTools
+{
+    public ScriptBlueprintSimple script_blueprint { get; set; }
+    public string tool_1_calendar_sync { get; set; }
+    public string tool_2_social_share { get; set; }
+}
+
+public class ScriptBlueprintSimple
+{
+    public string theme_title { get; set; }
+    public string npc_dialogue { get; set; }
+    public string task_mission { get; set; }
+    public List<string> preparation_tips { get; set; }
+}
 }

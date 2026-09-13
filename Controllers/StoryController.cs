@@ -12,6 +12,7 @@ using backend.Models;
 using backend.ViewModels;
 
 
+
 namespace backend.Controllers
 {
     /// <summary>
@@ -28,6 +29,7 @@ namespace backend.Controllers
         private readonly GeocodingService _geocodingService;
 
 
+
         public StoryController(
             ILogger<StoryController> logger,
             StoryService service,
@@ -41,21 +43,26 @@ namespace backend.Controllers
         }
 
 
+
         #region 文字轉劇本 (spin) — 改用 /api/agent/orchestrate
         public class SpinScriptRequest
         {
             /// <summary>使用者語音/文字輸入內容</summary>
             public string input_text { get; set; }
 
+
             /// <summary>情緒標籤，例如「疲憊」、「興奮」，不帶時預設為「平靜」</summary>
             public string emotion_label { get; set; }
+
 
             /// <summary>前端傳入的城市名稱，例如「臺中市」</summary>
             public string city_name { get; set; }
 
+
             /// <summary>前端傳入的行政區名稱，例如「北區」</summary>
             public string town_name { get; set; }
         }
+
 
 
         /// <summary>
@@ -76,21 +83,6 @@ namespace backend.Controllers
         ///   "town_name": "北區"
         /// }
         /// ```
-        ///
-        /// **Response 範例**：
-        /// ```json
-        /// {
-        ///   "isSuccess": true,
-        ///   "message": "推薦生成成功",
-        ///   "Result": {
-        ///     "recommendation_id": "REC_3F2A9C1B",
-        ///     "agent_result": {
-        ///       "phase_3_graph_rag": { "recommended_spot": { "name": "一中商圈" } },
-        ///       "phase_4_action_and_tools": { "script_blueprint": { "theme_title": "霓霓的秘密料理之謎" } }
-        ///     }
-        ///   }
-        /// }
-        /// ```
         /// </remarks>
         [Authorize]
         [HttpPost]
@@ -104,12 +96,15 @@ namespace backend.Controllers
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供輸入文字 (input_text)" });
                 }
 
+
                 string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(epId))
                     return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
+
                 if (string.IsNullOrWhiteSpace(req.city_name))
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供城市名稱 (city_name)" });
+
 
                 // 城市 + 行政區 → 經緯度（正向地理編碼，沿用既有的 GeocodingService）
                 var geoResult = await _geocodingService.SearchPlaceCoordinatesAsync(req.town_name ?? "", req.city_name);
@@ -122,6 +117,7 @@ namespace backend.Controllers
                     });
                 }
 
+
                 var payloadToAgent = new AgentOrchestrateRequest
                 {
                     user_voice_transcript = req.input_text,
@@ -130,11 +126,14 @@ namespace backend.Controllers
                     user_lon = geoResult.lng.Value
                 };
 
+
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromMinutes(3);
 
+
                 var jsonContent = new StringContent(JsonSerializer.Serialize(payloadToAgent), System.Text.Encoding.UTF8, "application/json");
                 var response = await client.PostAsync("https://vlog.angelalala.com/api/agent/orchestrate", jsonContent);
+
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -142,15 +141,19 @@ namespace backend.Controllers
                     throw new Exception($"外部 AI Agent 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
                 }
 
+
                 string responseString = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var agentResult = JsonSerializer.Deserialize<AgentOrchestrateResponse>(responseString, options);
 
+
                 if (agentResult == null)
                     throw new Exception("AI Agent 服務回傳的內容為空");
 
+
                 string recommendationId = _service.SaveAgentRecommendation(
                     epId, req.city_name, req.town_name ?? "", geoResult.lat.Value, geoResult.lng.Value, agentResult);
+
 
                 return Ok(new ResultViewModel<object>
                 {
@@ -172,94 +175,7 @@ namespace backend.Controllers
         #endregion
 
 
-        #region Neo4j 抓取當地景點 API
-        /// <summary>
-        /// 透過 Neo4j 取得指定地區的景點名稱清單（依關鍵字模糊比對名稱/城市/地區）。
-        /// </summary>
-        /// <remarks>
-        /// 資料來源：Neo4j 開放資料（全台灣景點），不需先生成劇本，隨時可查。
-        /// 不帶 city_name 時，只會隨機回傳前 10 筆景點名稱。
-        ///
-        /// **Request 範例**：
-        ///
-        ///     GET /api/Story/Attractions?city_name=台南
-        /// </remarks>
-        [Authorize]
-        [HttpGet]
-        [Route("Attractions")]
-        public async Task<IActionResult> GetAttractions([FromQuery] string city_name = "")
-        {
-            try
-            {
-                var client = _httpClientFactory.CreateClient();
 
-                string cypherQuery;
-                object parameters;
-
-                if (string.IsNullOrEmpty(city_name))
-                {
-                    cypherQuery = "MATCH (a:Attraction) RETURN a.name LIMIT 10";
-                    parameters = new { };
-                }
-                else
-                {
-                    cypherQuery = @"
-                        MATCH (a:Attraction) 
-                        WHERE a.name CONTAINS $keyword 
-                           OR a.city CONTAINS $keyword 
-                           OR a.region CONTAINS $keyword 
-                        RETURN a.name 
-                        LIMIT 15;
-                    ";
-                    parameters = new { keyword = city_name };
-                }
-
-                var payloadToNeo4j = new
-                {
-                    query = cypherQuery,
-                    parameters = parameters
-                };
-
-                var jsonContent = new StringContent(JsonSerializer.Serialize(payloadToNeo4j), System.Text.Encoding.UTF8, "application/json");
-                var response = await client.PostAsync("https://vlog.angelalala.com/api/neo4j/cypher", jsonContent);
-
-                if (!response.IsSuccessStatusCode)
-                    throw new Exception("呼叫 Neo4j API 失敗");
-
-                string responseString = await response.Content.ReadAsStringAsync();
-
-                using var doc = JsonDocument.Parse(responseString);
-                var root = doc.RootElement;
-                var attractionNames = new List<string>();
-
-                if (root.TryGetProperty("data", out var dataElement) && dataElement.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var item in dataElement.EnumerateArray())
-                    {
-                        if (item.TryGetProperty("a.name", out var nameElement))
-                        {
-                            string name = nameElement.GetString();
-                            if (!string.IsNullOrEmpty(name))
-                            {
-                                attractionNames.Add(name);
-                            }
-                        }
-                    }
-                }
-
-                return Ok(new ResultViewModel<List<string>>
-                {
-                    isSuccess = true,
-                    message = "查詢景點成功",
-                    Result = attractionNames
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new ResultViewModel<object> { isSuccess = false, message = ex.Message, Result = null });
-            }
-        }
-        #endregion
 
 
         #region Neo4j 附近景點查詢（依 GPS 座標與半徑）
@@ -294,14 +210,17 @@ namespace backend.Controllers
         #endregion
 
 
+
         #region GPS 定位生成劇本 — 改成前端傳城市/行政區，後端自行轉經緯度
         public class StoryGenerateByLocationRequest
         {
             /// <summary>前端傳入的城市名稱，例如「臺南市」</summary>
             public string city_name { get; set; }
 
-            /// <summary>前端傳入的行政區名稱，例如「中西區」</summary>
+
+            /// <summary>前端傳入的行政區名稱，例如「中西區」（必填，外部 AI 服務需要明確行政區才能定位生成劇本）</summary>
             public string town_name { get; set; }
+
 
             public int traveler_count { get; set; }
             public List<string> preferences { get; set; }
@@ -312,6 +231,7 @@ namespace backend.Controllers
         }
 
 
+
         /// <summary>
         /// 依前端傳入的城市/行政區名稱，後端先轉換為經緯度（供回應與未來地圖使用），
         /// 再打 AI 服務生成劇本，並完整回傳與外部 API 100% 相同結構的劇本內容。支援 story_count 一次生成多份。
@@ -320,6 +240,9 @@ namespace backend.Controllers
         /// 跟舊版差異：舊版是前端傳 GPS 座標、後端反向地理編碼查出城市/行政區；
         /// 現在改成前端直接傳城市/行政區、後端正向地理編碼轉出經緯度，省去一次反查、也更準確。
         /// 節點座標查詢策略維持不變：優先比對 Neo4j 真實景點資料，查無結果才退回 Nominatim。
+        ///
+        /// city_name、town_name 皆為必填：外部 AI 服務需要明確的行政區才能定位生成劇本，
+        /// 只給城市會導致外部服務回應「找不到 地點資料」的錯誤，故在此提早擋下，回傳 400。
         ///
         /// **Request 範例**：
         /// ```json
@@ -346,20 +269,29 @@ namespace backend.Controllers
                 if (string.IsNullOrEmpty(epId))
                     return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
+
                 if (string.IsNullOrWhiteSpace(req.city_name))
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供城市名稱 (city_name)" });
 
+                if (string.IsNullOrWhiteSpace(req.town_name))
+                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供行政區名稱 (town_name)，僅有城市無法生成劇本" });
+
+
                 string cityName = req.city_name;
-                string townName = req.town_name ?? "";
+                string townName = req.town_name;
+
 
                 // 城市 + 行政區 → 經緯度（正向地理編碼，取代原本的反向地理編碼）
                 var geoResult = await _geocodingService.SearchPlaceCoordinatesAsync(townName, cityName);
                 double lat = geoResult.lat ?? 0;
                 double lng = geoResult.lng ?? 0;
 
+
                 string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
 
+
                 int storyCount = req.story_count > 0 ? req.story_count : 1;
+
 
                 var payloadToPython = new
                 {
@@ -372,16 +304,20 @@ namespace backend.Controllers
                     is_night = req.is_night
                 };
 
+
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromMinutes(10);
 
+
                 string jsonPayload = JsonSerializer.Serialize(payloadToPython);
                 var allResults = new List<object>();
+
 
                 for (int i = 0; i < storyCount; i++)
                 {
                     var jsonContent = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
                     var response = await client.PostAsync("https://vlog.angelalala.com/api/admin/generate_script_blueprint", jsonContent);
+
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -389,8 +325,10 @@ namespace backend.Controllers
                         throw new Exception($"外部 AI 服務回應錯誤 (第 {i + 1} 份): {errContent}");
                     }
 
+
                     string responseString = await response.Content.ReadAsStringAsync();
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
 
                     ScriptBlueprintApiResponse aiResult;
                     try
@@ -402,13 +340,16 @@ namespace backend.Controllers
                         throw new Exception($"反序列化失敗 (第 {i + 1} 份): {ex.Message}");
                     }
 
+
                     if (aiResult?.data == null)
                     {
                         _logger.LogWarning($"第 {i + 1} 份 AI 劇本回傳內容為空，已跳過此份");
                         continue;
                     }
 
+
                     string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
+
 
                     allResults.Add(new
                     {
@@ -417,6 +358,7 @@ namespace backend.Controllers
                         data = aiResult.data
                     });
                 }
+
 
                 return Ok(new ResultViewModel<object>
                 {
@@ -439,6 +381,7 @@ namespace backend.Controllers
             }
         }
         #endregion
+
 
 
         #region GPS 附近地點查詢（依距離排序，MySQL md_place 版本）
@@ -473,6 +416,7 @@ namespace backend.Controllers
         #endregion
 
 
+
         #region 劇情觀看更多 (Detail)
         /// <summary>
         /// 取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）。
@@ -498,6 +442,7 @@ namespace backend.Controllers
             }
         }
         #endregion
+
 
 
         #region 完整劇本詳情（欄位對照 AI 原始格式，不遺失任何欄位）
@@ -528,9 +473,11 @@ namespace backend.Controllers
         #endregion
 
 
-        #region 確認選卷
+
+        #region 確認選卷 / 劇本進行狀態（is_playing）
         /// <summary>
-        /// 玩家確認選擇指定的劇本卷，準備進入探索地圖。
+        /// 玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1），
+        /// 並自動把其他劇本重置為未進行（假設同一時間只允許一份劇本進行中）。
         /// </summary>
         /// <remarks>
         /// **Request 範例**：
@@ -554,99 +501,177 @@ namespace backend.Controllers
                 return StatusCode(500, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-        #endregion
-        #region 自然語言生成劇本（遊你說了算）
-public class GenerateByTextRequest
-{
-    /// <summary>使用者輸入的一句話描述，例如「想來一趟美食之旅」</summary>
-    public string user_prompt { get; set; }
-}
 
-/// <summary>
-/// 接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件，
-/// 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。
-/// </summary>
-/// <remarks>
-/// 跟 GenerateByLocation 的差異：GenerateByLocation 需要前端明確帶城市/行政區/偏好等結構化參數；
-/// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
-///
-/// **Request 範例**：
-/// ```json
-/// {
-///   "user_prompt": "我們想要兩個人去臺南安平區來趟深度文學解謎之旅，大約走四個站點"
-/// }
-/// ```
-/// </remarks>
-[Authorize]
-[HttpPost]
-[Route("GenerateByText")]
-public async Task<IActionResult> GenerateByText([FromBody] GenerateByTextRequest req)
-{
-    try
-    {
-        string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(epId))
-            return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
 
-        if (string.IsNullOrWhiteSpace(req?.user_prompt))
-            return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
-
-        var payload = new { user_prompt = req.user_prompt };
-
-        var client = _httpClientFactory.CreateClient();
-        client.Timeout = TimeSpan.FromMinutes(10);
-
-        var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
-        var response = await client.PostAsync("https://vlog.angelalala.com/api/api/admin/generate_script_blueprint_by_text", jsonContent);
-
-        if (!response.IsSuccessStatusCode)
+        /// <summary>
+        /// 玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行（is_playing = 0）。
+        /// </summary>
+        /// <remarks>
+        /// **Request 範例**：
+        /// ```json
+        /// { "story_id": "AI_3F2A9C1B" }
+        /// ```
+        /// </remarks>
+        [Authorize]
+        [HttpPost]
+        [Route("EndStory")]
+        public IActionResult EndStory([FromBody] StoryConfirmRequest req)
         {
-            string errContent = await response.Content.ReadAsStringAsync();
-            throw new Exception($"外部 AI 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
-        }
-
-        string responseString = await response.Content.ReadAsStringAsync();
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-        GenerateScriptBlueprintByTextResponse aiResult;
-        try
-        {
-            aiResult = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(responseString, options);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception($"反序列化失敗: {ex.Message}");
-        }
-
-        if (aiResult?.data == null)
-            throw new Exception("AI 服務回傳的劇本內容為空");
-
-        string cityName = aiResult.parsed_intent?.city_name ?? "";
-        string townName = aiResult.parsed_intent?.town_name ?? "";
-        string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
-
-        string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
-
-        return Ok(new ResultViewModel<object>
-        {
-            isSuccess = true,
-            message = "劇本生成成功",
-            Result = new
+            try
             {
-                story_id = newStoryId,
-                detected_city = cityName,
-                detected_town = townName,
-                parsed_intent = aiResult.parsed_intent,
-                data = aiResult.data
+                bool result = _service.EndStory(req.story_id);
+                return Ok(new ResultViewModel<string>
+                {
+                    isSuccess = result,
+                    message = result ? "已結束此劇本的進行狀態" : $"找不到 story_id = {req.story_id} 的劇本",
+                    Result = req.story_id
+                });
             }
-        });
-    }
-    catch (Exception e)
-    {
-        _logger.LogError(e, "自然語言生成劇本失敗");
-        return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-    }
-}
-#endregion
+            catch (Exception e)
+            {
+                _logger.LogError(e, "結束劇本進行狀態失敗");
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+
+
+        /// <summary>
+        /// 查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆）。
+        /// </summary>
+        /// <remarks>
+        /// **Request 範例**：
+        ///
+        ///     GET /api/Story/CurrentPlaying
+        /// </remarks>
+        [Authorize]
+        [HttpGet]
+        [Route("CurrentPlaying")]
+        public IActionResult GetCurrentPlaying()
+        {
+            try
+            {
+                var story = _service.GetCurrentPlayingStory();
+                return Ok(new ResultViewModel<object>
+                {
+                    isSuccess = true,
+                    message = story == null ? "目前沒有進行中的劇本" : "取得成功",
+                    Result = story
+                });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "查詢進行中劇本失敗");
+                return StatusCode(500, new ResultViewModel<object> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+        #endregion
+
+
+
+        #region 自然語言生成劇本（遊你說了算）
+        public class GenerateByTextRequest
+        {
+            /// <summary>使用者輸入的一句話描述，例如「想來一趟美食之旅」</summary>
+            public string user_prompt { get; set; }
+        }
+
+
+        /// <summary>
+        /// 接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件，
+        /// 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。
+        /// </summary>
+        /// <remarks>
+        /// 跟 GenerateByLocation 的差異：GenerateByLocation 需要前端明確帶城市/行政區/偏好等結構化參數；
+        /// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
+        ///
+        /// **Request 範例**：
+        /// ```json
+        /// {
+        ///   "user_prompt": "我們想要兩個人去臺南安平區來趟深度文學解謎之旅，大約走四個站點"
+        /// }
+        /// ```
+        /// </remarks>
+        [Authorize]
+        [HttpPost]
+        [Route("GenerateByText")]
+        public async Task<IActionResult> GenerateByText([FromBody] GenerateByTextRequest req)
+        {
+            try
+            {
+                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(epId))
+                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
+
+
+                if (string.IsNullOrWhiteSpace(req?.user_prompt))
+                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
+
+
+                var payload = new { user_prompt = req.user_prompt };
+
+
+                var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromMinutes(10);
+
+
+                var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+                var response = await client.PostAsync("https://vlog.angelalala.com/api/api/admin/generate_script_blueprint_by_text", jsonContent);
+
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string errContent = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"外部 AI 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
+                }
+
+
+                string responseString = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+
+
+                GenerateScriptBlueprintByTextResponse aiResult;
+                try
+                {
+                    aiResult = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(responseString, options);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"反序列化失敗: {ex.Message}");
+                }
+
+
+                if (aiResult?.data == null)
+                    throw new Exception("AI 服務回傳的劇本內容為空");
+
+
+                string cityName = aiResult.parsed_intent?.city_name ?? "";
+                string townName = aiResult.parsed_intent?.town_name ?? "";
+                string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
+
+
+                string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
+
+
+                return Ok(new ResultViewModel<object>
+                {
+                    isSuccess = true,
+                    message = "劇本生成成功",
+                    Result = new
+                    {
+                        story_id = newStoryId,
+                        detected_city = cityName,
+                        detected_town = townName,
+                        parsed_intent = aiResult.parsed_intent,
+                        data = aiResult.data
+                    }
+                });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "自然語言生成劇本失敗");
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+        #endregion
     }
 }

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
 
 
+
 namespace backend.dao
 {
     public class StoryDao
@@ -18,6 +19,7 @@ namespace backend.dao
         private readonly AppSettings _appSettings;
         private readonly backend.Services.GeocodingService _geocodingService;
         private readonly backend.Services.Neo4jService _neo4jService;
+
 
 
         public StoryDao(
@@ -31,11 +33,13 @@ namespace backend.dao
         }
 
 
+
         #region 來點遊意思：轉盤地區
         public StoryWheelSpinResponse WheelSpin()
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT
@@ -50,13 +54,16 @@ namespace backend.dao
                 LIMIT 1;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             using var reader = command.ExecuteReader();
+
 
             if (!reader.Read())
             {
                 throw new Exception("目前沒有可用的轉盤地區資料。");
             }
+
 
             return new StoryWheelSpinResponse
             {
@@ -69,11 +76,13 @@ namespace backend.dao
         #endregion
 
 
+
         #region 現在揪出發：取得地區清單
         public List<StoryWheelSpinResponse> GetRegions(string mode, string cityName)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT
@@ -94,12 +103,15 @@ namespace backend.dao
                 ORDER BY sort_order;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@mode", mode ?? "");
             command.Parameters.AddWithValue("@city_name", cityName ?? "");
 
+
             using var reader = command.ExecuteReader();
             var result = new List<StoryWheelSpinResponse>();
+
 
             while (reader.Read())
             {
@@ -112,9 +124,11 @@ namespace backend.dao
                 });
             }
 
+
             return result;
         }
         #endregion
+
 
 
         #region 劇本檔案館：依地區與偏好生成劇本選項清單
@@ -122,6 +136,7 @@ namespace backend.dao
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT
@@ -145,11 +160,14 @@ namespace backend.dao
                 ORDER BY s.sort_order, s.created_at;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             string searchRegion = $"{req?.city_name}{req?.town_name}".Trim();
             command.Parameters.AddWithValue("@region", searchRegion);
 
+
             var stories = new List<StoryOptionResponse>();
+
 
             using (var reader = command.ExecuteReader())
             {
@@ -158,6 +176,7 @@ namespace backend.dao
                     string expectedBadgesJson = reader["expected_badges_json"] == DBNull.Value
                         ? "[]"
                         : reader["expected_badges_json"].ToString();
+
 
                     List<string> expectedBadges;
                     try
@@ -168,6 +187,7 @@ namespace backend.dao
                     {
                         expectedBadges = new List<string>();
                     }
+
 
                     stories.Add(new StoryOptionResponse
                     {
@@ -184,17 +204,21 @@ namespace backend.dao
                 }
             }
 
+
             if (stories.Count == 0) return stories;
+
 
             foreach (var story in stories)
             {
                 story.route_preview = GetRoutePreview(story.story_id);
             }
 
+
             if (req.preferences == null || req.preferences.Count == 0)
             {
                 return stories;
             }
+
 
             var scored = new List<(StoryOptionResponse Story, int Score)>();
             foreach (var story in stories)
@@ -213,9 +237,11 @@ namespace backend.dao
                 scored.Add((story, score));
             }
 
+
             return scored.OrderByDescending(s => s.Score).Select(s => s.Story).ToList();
         }
         #endregion
+
 
 
         #region 劇本詳情 (包含對應景點名稱輸出)
@@ -226,8 +252,10 @@ namespace backend.dao
                 throw new Exception("story_id 不可為空白。");
             }
 
+
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string storySql = @"
                 SELECT
@@ -241,17 +269,21 @@ namespace backend.dao
                   AND is_active = 1;
             ";
 
+
             using var storyCommand = new MySqlCommand(storySql, connection);
             storyCommand.Parameters.AddWithValue("@story_id", storyId);
             using var storyReader = storyCommand.ExecuteReader();
+
 
             if (!storyReader.Read())
             {
                 throw new Exception("找不到此劇本：" + storyId);
             }
 
+
             string prologue = storyReader["prologue"] == DBNull.Value ? "" : storyReader["prologue"].ToString();
             string synopsis = storyReader["synopsis"] == DBNull.Value ? "" : storyReader["synopsis"].ToString();
+
 
             var result = new StoryDetailResponse
             {
@@ -264,6 +296,7 @@ namespace backend.dao
                 route_nodes = new List<StoryOptionResponse.RouteNode>()
             };
             storyReader.Close();
+
 
             string nodeSql = @"
                 SELECT
@@ -283,15 +316,18 @@ namespace backend.dao
                 ORDER BY n.node_order;
             ";
 
+
             using var nodeCommand = new MySqlCommand(nodeSql, connection);
             nodeCommand.Parameters.AddWithValue("@story_id", storyId);
             using var nodeReader = nodeCommand.ExecuteReader();
+
 
             while (nodeReader.Read())
             {
                 int order = Convert.ToInt32(nodeReader["node_order"]);
                 string placeName = nodeReader["place_name"].ToString();
                 string taskDesc = nodeReader["fog_hint"] == DBNull.Value ? "" : nodeReader["fog_hint"].ToString();
+
 
                 result.nodes.Add(new NodeDetail
                 {
@@ -304,6 +340,7 @@ namespace backend.dao
                     npc_name = nodeReader["npc_name"]?.ToString() ?? ""
                 });
 
+
                 result.route_nodes.Add(
                     new StoryOptionResponse.RouteNode
                     {
@@ -314,9 +351,11 @@ namespace backend.dao
                 );
             }
 
+
             return result;
         }
         #endregion
+
 
 
         #region 劇本卡片路線預覽
@@ -324,6 +363,7 @@ namespace backend.dao
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT
@@ -336,29 +376,33 @@ namespace backend.dao
                 ORDER BY n.node_order;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@story_id", storyId);
             using var reader = command.ExecuteReader();
             var result = new List<string>();
+
 
             while (reader.Read())
             {
                 result.Add(reader["location_name"].ToString());
             }
 
+
             return result;
         }
         #endregion
 
 
-        #region GPS 定位生成：完整儲存 AI 劇本藍圖（欄位不遺失版，並補上地圖座標）
+
+        // === 新增區塊：正在遊玩中狀態管理 ===
+        #region 劇本進行狀態（is_playing）
+
         /// <summary>
-        /// 完整儲存 AI 回傳的劇本藍圖，包含 task_type、node_title、is_night_mode 等欄位，
-        /// 並且為每個節點的地點名稱查詢實際經緯度、建立對應的 md_place 記錄，
-        /// 讓地圖頁面（MapController/MapDao）能正確顯示節點位置。
-        /// 座標查詢策略：優先比對 Neo4j 真實景點資料（準確），查無結果才退回 Nominatim（可能不準）。
+        /// 玩家按下確定，把指定劇本標記為進行中。假設同一時間只允許一個劇本進行中，
+        /// 會先把其他劇本重置為 0，再把指定的劇本設為 1。
         /// </summary>
-        public async Task<string> SaveFullAiGeneratedStory(string epId, string regionId, string cityName, ScriptBlueprintData data)
+        public bool SetStoryPlaying(string storyId)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
@@ -366,10 +410,91 @@ namespace backend.dao
 
             try
             {
+                using (var resetCmd = new MySqlCommand(
+                    "UPDATE md_story SET is_playing = 0, updated_at = NOW() WHERE is_playing = 1",
+                    connection, transaction))
+                {
+                    resetCmd.ExecuteNonQuery();
+                }
+
+                using var cmd = new MySqlCommand(
+                    "UPDATE md_story SET is_playing = 1, updated_at = NOW() WHERE story_id = @story_id AND is_active = 1",
+                    connection, transaction);
+                cmd.Parameters.AddWithValue("@story_id", storyId);
+                int affected = cmd.ExecuteNonQuery();
+
+                transaction.Commit();
+                return affected > 0;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行。
+        /// </summary>
+        public bool ClearStoryPlaying(string storyId)
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            connection.Open();
+
+            using var cmd = new MySqlCommand(
+                "UPDATE md_story SET is_playing = 0, updated_at = NOW() WHERE story_id = @story_id",
+                connection);
+            cmd.Parameters.AddWithValue("@story_id", storyId);
+            int affected = cmd.ExecuteNonQuery();
+            return affected > 0;
+        }
+
+        /// <summary>
+        /// 查詢目前正在進行中的劇本。
+        /// </summary>
+        public object GetCurrentPlayingStory()
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            connection.Open();
+
+            using var cmd = new MySqlCommand(
+                "SELECT story_id, title, subtitle, category FROM md_story WHERE is_playing = 1 LIMIT 1",
+                connection);
+            using var reader = cmd.ExecuteReader();
+
+            if (reader.Read())
+            {
+                return new
+                {
+                    story_id = reader["story_id"].ToString(),
+                    title = reader["title"].ToString(),
+                    subtitle = reader["subtitle"] == DBNull.Value ? "" : reader["subtitle"].ToString(),
+                    category = reader["category"] == DBNull.Value ? "" : reader["category"].ToString()
+                };
+            }
+            return null;
+        }
+
+        #endregion
+
+
+
+        #region GPS 定位生成：完整儲存 AI 劇本藍圖（欄位不遺失版，並補上地圖座標）
+        public async Task<string> SaveFullAiGeneratedStory(string epId, string regionId, string cityName, ScriptBlueprintData data)
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+
+            try
+            {
                 if (data == null) throw new Exception("AI 回傳的劇本資料為空！");
+
 
                 string newStoryId = "AI_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
                 string newNpcId = "NPC_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+
 
                 string insertStorySql = @"
                     INSERT INTO md_story (
@@ -384,6 +509,7 @@ namespace backend.dao
                     );
                 ";
 
+
                 using (var cmd = new MySqlCommand(insertStorySql, connection, transaction))
                 {
                     cmd.Parameters.AddWithValue("@story_id", newStoryId);
@@ -396,6 +522,7 @@ namespace backend.dao
                     cmd.Parameters.AddWithValue("@is_night_mode", data.is_night_mode);
                     cmd.ExecuteNonQuery();
                 }
+
 
                 if (data.npc != null)
                 {
@@ -415,6 +542,7 @@ namespace backend.dao
                     cmdNpc.ExecuteNonQuery();
                 }
 
+
                 if (data.nodes != null)
                 {
                     string insertPlaceSql = @"
@@ -424,6 +552,7 @@ namespace backend.dao
                             @place_id, @place_name, @region_id, @latitude, @longitude, 1
                         );
                     ";
+
 
                     string insertNodeSql = @"
                         INSERT INTO md_story_node (
@@ -438,12 +567,14 @@ namespace backend.dao
                         );
                     ";
 
+
                     foreach (var node in data.nodes)
                     {
                         // 座標查詢策略：先查 Neo4j 真實景點資料（準確），查無結果才退回 Nominatim
                         var neo4jMatch = await _neo4jService.FindAttractionCoordinatesAsync(node.place_name);
                         double? lat = neo4jMatch.lat;
                         double? lng = neo4jMatch.lon;
+
 
                         if (!lat.HasValue || !lng.HasValue)
                         {
@@ -452,7 +583,9 @@ namespace backend.dao
                             lng = geoResult.lng;
                         }
 
+
                         string newPlaceId = "P_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+
 
                         using (var cmdPlace = new MySqlCommand(insertPlaceSql, connection, transaction))
                         {
@@ -463,6 +596,7 @@ namespace backend.dao
                             cmdPlace.Parameters.AddWithValue("@longitude", lng.HasValue ? (object)lng.Value : DBNull.Value);
                             cmdPlace.ExecuteNonQuery();
                         }
+
 
                         using (var cmdNode = new MySqlCommand(insertNodeSql, connection, transaction))
                         {
@@ -485,6 +619,7 @@ namespace backend.dao
                     }
                 }
 
+
                 transaction.Commit();
                 return newStoryId;
             }
@@ -496,6 +631,7 @@ namespace backend.dao
         }
 
 
+
         /// <summary>
         /// 依 story_id 完整讀出劇本，欄位結構與 AI 原始藍圖 100% 對應，不遺失 task_type / node_title / is_night_mode。
         /// </summary>
@@ -504,14 +640,17 @@ namespace backend.dao
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
 
+
             string storySql = @"
                 SELECT title, prologue, synopsis, is_night_mode
                 FROM md_story
                 WHERE story_id = @story_id AND is_active = 1;
             ";
 
+
             var result = new ScriptBlueprintData { nodes = new List<ScriptBlueprintNode>() };
             string npcId = null;
+
 
             using (var storyCmd = new MySqlCommand(storySql, connection))
             {
@@ -519,11 +658,13 @@ namespace backend.dao
                 using var reader = storyCmd.ExecuteReader();
                 if (!reader.Read()) throw new Exception("找不到此劇本：" + storyId);
 
+
                 result.title = reader["title"].ToString();
                 result.preface = reader["prologue"] == DBNull.Value ? "" : reader["prologue"].ToString();
                 result.synopsis = reader["synopsis"] == DBNull.Value ? "" : reader["synopsis"].ToString();
                 result.is_night_mode = Convert.ToBoolean(reader["is_night_mode"]);
             }
+
 
             string nodeSql = @"
                 SELECT node_order, place_name_text, location_codename, node_title, task_type, fog_hint,
@@ -533,6 +674,7 @@ namespace backend.dao
                 ORDER BY node_order;
             ";
 
+
             using (var nodeCmd = new MySqlCommand(nodeSql, connection))
             {
                 nodeCmd.Parameters.AddWithValue("@story_id", storyId);
@@ -540,6 +682,7 @@ namespace backend.dao
                 while (reader.Read())
                 {
                     if (npcId == null && reader["npc_id"] != DBNull.Value) npcId = reader["npc_id"].ToString();
+
 
                     result.nodes.Add(new ScriptBlueprintNode
                     {
@@ -558,6 +701,7 @@ namespace backend.dao
                 }
             }
 
+
             if (npcId != null)
             {
                 string npcSql = "SELECT npc_name, npc_title, introduction FROM md_npc WHERE npc_id = @npc_id";
@@ -575,9 +719,11 @@ namespace backend.dao
                 }
             }
 
+
             return result;
         }
         #endregion
+
 
 
         #region GPS 附近地點查詢（依實際距離排序，供劇本節點使用）
@@ -585,6 +731,7 @@ namespace backend.dao
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT
@@ -603,13 +750,16 @@ namespace backend.dao
                 ORDER BY distance_km ASC;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@lat", lat);
             command.Parameters.AddWithValue("@lng", lng);
             command.Parameters.AddWithValue("@radius_km", radiusKm);
 
+
             using var reader = command.ExecuteReader();
             var result = new List<NearbyPlaceDistanceResponse>();
+
 
             while (reader.Read())
             {
@@ -622,9 +772,11 @@ namespace backend.dao
                 });
             }
 
+
             return result;
         }
         #endregion
+
 
 
         #region 依城市/鄉鎮名稱模糊比對，找出對應的 region_id
@@ -632,6 +784,7 @@ namespace backend.dao
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
+
 
             string sql = @"
                 SELECT region_id
@@ -645,9 +798,11 @@ namespace backend.dao
                 LIMIT 1;
             ";
 
+
             using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@city_name", cityName ?? "");
             command.Parameters.AddWithValue("@town_name", townName ?? "");
+
 
             var resultObj = command.ExecuteScalar();
             return resultObj?.ToString();
@@ -655,17 +810,16 @@ namespace backend.dao
         #endregion
 
 
+
         #region Agent 即時推薦（/spin 用，存進 md_agent_recommendation）
-        /// <summary>
-        /// 將 /api/agent/orchestrate 回傳的單一地點推薦與任務，完整存進 md_agent_recommendation。
-        /// 陣列欄位（tags、extracted_tags、preparation_tips）以 JSON 字串儲存。
-        /// </summary>
         public string SaveAgentRecommendation(string epId, string cityName, string townName, double lat, double lng, AgentOrchestrateResponse result)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
 
+
             string newId = "REC_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
+
 
             string sql = @"
                 INSERT INTO md_agent_recommendation (
@@ -683,8 +837,10 @@ namespace backend.dao
                 );
             ";
 
+
             var spot = result.phase_3_graph_rag?.recommended_spot;
             var blueprint = result.phase_4_action_and_tools?.script_blueprint;
+
 
             using var cmd = new MySqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@recommendation_id", newId);
@@ -710,6 +866,7 @@ namespace backend.dao
             cmd.Parameters.AddWithValue("@social_share_url", result.phase_4_action_and_tools?.tool_2_social_share ?? "");
             cmd.Parameters.AddWithValue("@next_step", result.phase_5_next_step ?? "");
             cmd.ExecuteNonQuery();
+
 
             return newId;
         }

@@ -185,4 +185,8 @@ public class ParsedIntent
     public int node_count { get; set; }
     public bool is_night { get; set; }
 }
+public class ConfirmStoryRequest
+{
+    public string story_id { get; set; }
+}
 }

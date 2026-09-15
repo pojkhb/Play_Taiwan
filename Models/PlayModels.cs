@@ -184,7 +184,23 @@ namespace backend.Models
         public string node_id { get; set; } // 欲進行任務的節點代號
         public float gps_lon { get; set; } // 玩家目前經度
         public float gps_lat { get; set; } // 玩家目前緯度
-        public int player_count { get; set; } // 遊玩人數
+        // player_count 已移除：任務生成改在劇本生成（POST api/Story/GenerateAi）時就決定，
+        // 這裡純讀取 md_task，人數不影響查詢結果。
+
+        // 協作解謎型（type_id=5）專用：標示這是隊伍中的第幾位玩家（1 或 2），
+        // 後端會依此回傳對應角色的線索文字。其他題型忽略此欄位，未帶值視為 1。
+        public int player_index { get; set; } = 1;
+    }
+
+    /// <summary>
+    /// 測試用：手動觸發任務生成的請求。
+    /// 正式流程的任務生成是在 POST api/Story/GenerateAi 劇本存檔後自動執行。
+    /// </summary>
+    public class TaskGenerateReq
+    {
+        public string story_id { get; set; }     // 為整份劇本的所有節點生成
+        public string node_id { get; set; }      // 有值時只針對此節點生成（優先於 story_id）
+        public int player_count { get; set; }    // 遊玩人數，未給預設 2
     }
 
     public class SearchNeo4jReq
@@ -205,10 +221,18 @@ namespace backend.Models
         public int type_id { get; set; }
         public string task_type { get; set; }
         
-        public string task_describe { get; set; } // AI 生成的任務描述
-        
+        public string task_describe { get; set; } // AI 生成的任務描述（協作解謎型時，已依 player_index 換成對應角色的線索）
+
         public List<TaskOption> options { get; set; } // 選擇題選項
         public List<string> media_urls { get; set; } // 使用者上傳圖片/影片
+
+        // 協作解謎型（type_id=5）專用欄位，僅供後端內部換算 task_describe 用，不回傳給前端。
+        [JsonIgnore]
+        public string task_describe_b { get; set; } // 玩家 B 看到的線索文字
+
+        // 文字問答類題型（跨關集結型/協作解謎型）的正確答案，供 SubmitAnswer 核對，不回傳給前端。
+        [JsonIgnore]
+        public string correct_answer { get; set; }
     }
 
     public class TaskOption
@@ -223,7 +247,11 @@ namespace backend.Models
     public class TaskAnswerRequest
     {
         public int task_id { get; set; }                           // 任務代號 (md_task.task_id)
-        
+
+        public float gps_lon { get; set; }                         // 玩家提交當下的經度（位置驗證用）
+
+        public float gps_lat { get; set; }                         // 玩家提交當下的緯度（位置驗證用）
+
         public string selected_option_key { get; set; }            // 選擇題型 (A/B/C)
         
         public string text_answer { get; set; }                    // 文字問答型

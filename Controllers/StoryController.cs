@@ -1,6 +1,7 @@
 // 檔案路徑：System\Controllers\StoryController.cs
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Net.Http;
 using System.Text.Json;
@@ -27,19 +28,20 @@ namespace backend.Controllers
         private readonly StoryService _service;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly GeocodingService _geocodingService;
-
-
+        private readonly TaskGenerationService _taskGeneration;
 
         public StoryController(
             ILogger<StoryController> logger,
             StoryService service,
             IHttpClientFactory httpClientFactory,
-            GeocodingService geocodingService)
+            GeocodingService geocodingService,
+            TaskGenerationService taskGeneration)
         {
             _logger = logger;
             _service = service;
             _httpClientFactory = httpClientFactory;
             _geocodingService = geocodingService;
+            _taskGeneration = taskGeneration;
         }
 
 
@@ -311,6 +313,7 @@ namespace backend.Controllers
 
                 string jsonPayload = JsonSerializer.Serialize(payloadToPython);
                 var allResults = new List<object>();
+                var newStoryIds = new List<string>();
 
 
                 for (int i = 0; i < storyCount; i++)
@@ -349,6 +352,7 @@ namespace backend.Controllers
 
 
                     string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
+                    newStoryIds.Add(newStoryId);
 
 
                     allResults.Add(new
@@ -359,6 +363,10 @@ namespace backend.Controllers
                     });
                 }
 
+                // 劇本存檔後，接著為所有節點生成任務並寫入 md_task。
+                // 此方法內部已容錯，不會丟例外，任務生成失敗不影響劇本生成結果。
+                int taskPlayerCount = req.traveler_count > 0 ? req.traveler_count : 2;
+                await _taskGeneration.GenerateTasksForStoriesAsync(newStoryIds, taskPlayerCount);
 
                 return Ok(new ResultViewModel<object>
                 {

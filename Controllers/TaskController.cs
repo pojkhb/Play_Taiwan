@@ -21,11 +21,16 @@ namespace backend.Controllers
     {
         private readonly ILogger<TaskController> _logger;
         private readonly TaskService _service;
+        private readonly TaskGenerationService _taskGeneration;
 
-        public TaskController(ILogger<TaskController> logger, TaskService service)
+        public TaskController(
+            ILogger<TaskController> logger,
+            TaskService service,
+            TaskGenerationService taskGeneration)
         {
             _logger = logger;
             _service = service;
+            _taskGeneration = taskGeneration;
         }
 
         #region 取得任務
@@ -53,30 +58,58 @@ namespace backend.Controllers
 
         #endregion
 
+        #region 手動生成任務（測試用）
+
+        [HttpPost]
+        [Route("Generate")]
+        // POST: api/Task/Generate
+        // 測試用：不經過劇本生成流程，直接對指定 story_id 或 node_id 產生任務並寫入 md_task。
+        // 正式流程是在 POST api/Story/GenerateAi 劇本存檔後自動觸發。
+        public async Task<IActionResult> GenerateTasks([FromBody] TaskGenerateReq req)
+        {
+            int playerCount = req.player_count > 0 ? req.player_count : 2;
+
+            var tasks = !string.IsNullOrWhiteSpace(req.node_id)
+                ? await _taskGeneration.GenerateTasksForNodeAsync(req.node_id, playerCount)
+                : await _taskGeneration.GenerateTasksForStoryAsync(req.story_id, playerCount);
+
+            return Ok(new ResultViewModel<List<TaskDetailResponse>>
+            {
+                isSuccess = true,
+                message = $"共生成 {tasks.Count} 筆任務",
+                Result = tasks
+            });
+        }
+
+        #endregion
+
         #region 送出答案
 
         /// <summary>
         /// 送出任務答案並取得答題結果。
         /// </summary>
         /// <remarks>
-        /// 對應「答對」與「答錯」頁面，依任務類型自動分發到對應的驗證邏輯
-        /// （文化問答/拍照打卡/短片演繹/採訪蒐證/計數推理/跨關集結/GPS區域定位/QR Code）。
+        /// 提交前會先驗證玩家目前 GPS 位置是否在任務地點附近（與 List 共用同一套位置驗證），
+        /// 通過後才依任務類型自動分發到對應的驗證邏輯
+        /// （文化問答/拍照打卡/短片演繹/採訪蒐證/計數推理/跨關集結/QR Code）。
         ///
         /// Request 範例：
         ///
         ///     POST /api/Task/Answer
         ///     {
-        ///       "task_id": "task_confucius_001",
+        ///       "task_id": 1,
+        ///       "gps_lat": 22.997,
+        ///       "gps_lon": 120.20239,
         ///       "selected_option_key": "A"
         ///     }
         /// </remarks>
-        /// <param name="req">答題請求資料，依任務類型帶入對應欄位。</param>
+        /// <param name="req">答題請求資料，需帶入目前 GPS 位置，並依任務類型帶入對應欄位。</param>
         /// <returns>答題結果，包含是否正確與後續資訊。</returns>
         // API：送出答案（Answer）－依任務類型驗證答案並回傳結果
         [HttpPost]
         [Route("Answer")]
         // POST: api/Task/Answer
-        public IActionResult Answer([FromBody] TaskAnswerRequest req)
+        public async Task<IActionResult> Answer([FromBody] TaskAnswerRequest req)
         {
             try
             {
@@ -90,7 +123,7 @@ namespace backend.Controllers
                 {
                     isSuccess = true,
                     message = "送出成功",
-                    Result = _service.SubmitAnswer(req),
+                    Result = await _service.SubmitAnswer(req),
                 });
             }
             catch (Exception e)

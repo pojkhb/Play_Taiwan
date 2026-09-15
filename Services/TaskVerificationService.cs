@@ -15,8 +15,7 @@ namespace backend.Services
         {
             return task.type_id switch
             {
-                1 => VerifyGpsAreaPositioning(task, req),          
-                2 => VerifyCrossLevelRally(task, req),             
+                2 => VerifyCrossLevelRally(task, req),
                 3 => VerifyCreativePhoto(task, req),               
                 4 => VerifyLocalFood(task, req),                   
                 5 => VerifyCoopPuzzle(task, req),                  
@@ -30,12 +29,6 @@ namespace backend.Services
         }
 
         #region 各題型專屬驗證邏輯
-
-        // 1: GPS 區域定位型 (純打卡)
-        private TaskAnswerResponse VerifyGpsAreaPositioning(TaskDetailResponse task, TaskAnswerRequest req)
-        {
-            return Success(task, "定位打卡成功！");
-        }
 
         // 2: 跨關集結型 (需輸入文字答案)
         private TaskAnswerResponse VerifyCrossLevelRally(TaskDetailResponse task, TaskAnswerRequest req)
@@ -64,13 +57,24 @@ namespace backend.Services
             return Success(task, "美食紀錄成功！");
         }
 
-        // 5: 協作解謎型 (需輸入文字答案)
+        // 5: 協作解謎型 (雙人分別看到不同線索，任一人輸入雙方合力推出的共同答案)
         private TaskAnswerResponse VerifyCoopPuzzle(TaskDetailResponse task, TaskAnswerRequest req)
         {
             if (string.IsNullOrEmpty(req.text_answer))
                 return Fail("請輸入您們的共同解答！");
 
-            return Success(task, "解答正確，團隊合作無間！");
+            // 沒有 correct_answer（AI 生成失敗或舊資料）時退回只檢查有沒有填寫，避免完全卡關。
+            if (string.IsNullOrEmpty(task.correct_answer))
+                return Success(task, "解答正確，團隊合作無間！");
+
+            bool isMatch = string.Equals(
+                req.text_answer.Trim(),
+                task.correct_answer.Trim(),
+                StringComparison.OrdinalIgnoreCase);
+
+            return isMatch
+                ? Success(task, "解答正確，團隊合作無間！")
+                : Fail("答案不對，再跟隊友討論看看！");
         }
 
         // 6: 文化問答型 (選擇題)

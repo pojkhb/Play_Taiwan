@@ -58,6 +58,10 @@ namespace backend.Models
         [JsonPropertyName("place_name")]
         public string PlaceName { get; set; }
 
+        // 景點在 Neo4j 的全域唯一識別碼，寫入 md_story_node.place_id 供任務生成 (TaskGenerationService) 使用
+        [JsonPropertyName("spot_uuid")]
+        public string SpotUuid { get; set; }
+
         [JsonPropertyName("task_type")]
         public string TaskType { get; set; }
 

@@ -98,20 +98,44 @@ namespace backend.Services
         public bool is_correct { get; set; }
     }
 
+    /// <summary>
+    /// generate/coop API 的 Response（協作解謎型：類型 5）。
+    /// 由兩位玩家在各自裝置上看到不同線索，需口頭交流合力推出同一組答案。
+    /// </summary>
+    public class AiTaskCoopResponse
+    {
+        public bool success { get; set; }
+
+        /// <summary>玩家 A（player_index=1）看到的線索文字</summary>
+        public string task_describe_a { get; set; }
+
+        /// <summary>玩家 B（player_index=2）看到的線索文字</summary>
+        public string task_describe_b { get; set; }
+
+        /// <summary>
+        /// 雙方交流後應推得的最終答案（格式固定，如純數字或單一詞語），
+        /// 不會出現在任一段線索文字中，僅供後端核對玩家提交的 text_answer。
+        /// </summary>
+        public string correct_answer { get; set; }
+
+        public string error_code { get; set; }
+        public string message { get; set; }
+    }
+
     // =====================================================================
     // IAiTaskClient - 介面定義
     // =====================================================================
 
     /// <summary>
     /// 定義呼叫 AI 任務生成服務的介面。
-    /// 對應 AI_Task_API_Spec.md 的兩支 API。
+    /// 對應 AI_Task_API_Spec.md 的三支 API。
     /// </summary>
     public interface IAiTaskClient
     {
         /// <summary>
         /// 呼叫無選項型任務描述生成 API。
         /// 適用題型：跨關集結型(2)、創意攝影型(3)、地方美食型(4)、
-        ///           協作解謎型(5)、景點猜猜樂(7)、e人訪談型(8)。
+        ///           景點猜猜樂(7)、e人訪談型(8)。
         /// POST /api/task/generate/description
         /// </summary>
         Task<AiTaskDescriptionResponse> GenerateDescriptionAsync(AiTaskRequest request);
@@ -122,6 +146,13 @@ namespace backend.Services
         /// POST /api/task/generate/choice
         /// </summary>
         Task<AiTaskChoiceResponse> GenerateChoiceAsync(AiTaskRequest request);
+
+        /// <summary>
+        /// 呼叫協作解謎型任務生成 API，一次生成兩位玩家各自的線索與共同的最終答案。
+        /// 適用題型：協作解謎型(5)。
+        /// POST /api/task/generate/coop
+        /// </summary>
+        Task<AiTaskCoopResponse> GenerateCoopAsync(AiTaskRequest request);
     }
 
     // =====================================================================
@@ -174,6 +205,22 @@ namespace backend.Services
 
             return await response.Content.ReadFromJsonAsync<AiTaskChoiceResponse>();
         }
+
+        public async Task<AiTaskCoopResponse> GenerateCoopAsync(AiTaskRequest request)
+        {
+            string url = $"{_baseUrl}/api/task/generate/coop";
+            var content = new StringContent(
+                JsonSerializer.Serialize(request),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            var response = await _httpClient.PostAsync(url, content);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"呼叫 AI 協作解謎生成 API 失敗，HTTP {(int)response.StatusCode}");
+
+            return await response.Content.ReadFromJsonAsync<AiTaskCoopResponse>();
+        }
     }
 
     // =====================================================================
@@ -212,6 +259,19 @@ namespace backend.Services
                     new AiTaskChoiceOption { option_key = "C", option_text = "[Mock] 錯誤選項 C",  is_correct = false },
                     new AiTaskChoiceOption { option_key = "D", option_text = "[Mock] 錯誤選項 D",  is_correct = false }
                 }
+            };
+        }
+
+        public async Task<AiTaskCoopResponse> GenerateCoopAsync(AiTaskRequest request)
+        {
+            await Task.Delay(300); // 模擬網路延遲
+
+            return new AiTaskCoopResponse
+            {
+                success = true,
+                task_describe_a = $"[Mock AI] ({request.task_type}) 玩家A線索：這是根據「{request.place_uid}」景點生成的假線索前半段。",
+                task_describe_b = $"[Mock AI] ({request.task_type}) 玩家B線索：這是根據「{request.place_uid}」景點生成的假線索後半段。",
+                correct_answer = "1234"
             };
         }
     }

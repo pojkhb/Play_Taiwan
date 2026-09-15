@@ -43,3 +43,4 @@ appsettings.*.local.json
 appsettings.json
 openapi_full.json
 openapi.json
+prompt/

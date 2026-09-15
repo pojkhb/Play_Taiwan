@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Server.IIS;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,6 +82,14 @@ namespace backend
             //         };
             //     });
             services.AddHttpClient();
+
+            // 若以 IIS in-process 模式代管，Kestrel 的 [RequestSizeLimit] 不會生效，
+            // 需另外調高 IIS 的請求大小上限，跟 UploadController 的 MaxUploadBytes 對齊（200MB）。
+            services.Configure<IISServerOptions>(options =>
+            {
+                options.MaxRequestBodySize = 200 * 1024 * 1024;
+            });
+
             #region S05-登入/探員帳號 (Auth)
             services.AddScoped<Services.AuthService>();
             services.AddScoped<dao.AuthDao>();
@@ -139,6 +148,13 @@ namespace backend
             services.AddScoped<IVlogAiClient, MockVlogAiClient>();
 
             // AI 任務生成 API（對應 AI_Task_API_Spec.md）
+            // AiTaskClient 需要注入 HttpClient，先在這裡註冊好逾時設定（規格書建議 30 秒），
+            // 之後正式串接時只需把下面 MockAiTaskClient 改成 AiTaskClient 這一行即可，不會再卡 DI 解析失敗。
+            services.AddHttpClient<Services.AiTaskClient>(client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
+
             // 開發/測試時使用 MockAiTaskClient（不呼叫實際 AI 服務）
             // 正式上線後改為 services.AddScoped<IAiTaskClient, AiTaskClient>();
             services.AddScoped<IAiTaskClient, MockAiTaskClient>();

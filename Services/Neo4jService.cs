@@ -98,29 +98,38 @@ namespace backend.Services
 
 
         /// <summary>
-        /// 依景點名稱（模糊比對）查詢 Neo4j 裡真實、準確的經緯度。
-        /// 用於 AI 生成劇本節點時，優先用這個真實資料源，避免 Nominatim 誤配到錯誤縣市的座標。
-        /// 查無結果時回傳 (null, null)。
+        /// 依景點名稱（模糊比對）查詢 Neo4j 裡真實、準確的經緯度，並一併帶回該景點的 uid。
+        /// 用於 AI 生成劇本節點時，優先用這個真實資料源，避免 Nominatim 誤配到錯誤縣市的座標；
+        /// 找到 uid 時，呼叫端應該把它存成 md_story_node.place_id，這樣任務生成（md_place_type／
+        /// Neo4j 圖片查詢）才能正確關聯到這個景點——只有座標沒有 uid 的話，任務系統會完全查不到這個節點。
+        /// 查無結果時三個欄位皆回傳 null。
         /// </summary>
-        public async Task<(double? lat, double? lon)> FindAttractionCoordinatesAsync(string placeName)
+        public async Task<(double? lat, double? lon, string uid)> FindAttractionCoordinatesAsync(string placeName)
         {
-            if (string.IsNullOrWhiteSpace(placeName)) return (null, null);
+            if (string.IsNullOrWhiteSpace(placeName)) return (null, null, null);
 
             string cypherQuery = @"
                 MATCH (a:Attraction)
                 WHERE a.name CONTAINS $keyword AND a.lat IS NOT NULL AND a.lon IS NOT NULL
-                RETURN a.lat AS lat, a.lon AS lon
+                RETURN a.lat AS lat, a.lon AS lon, a.uid AS uid
                 LIMIT 1
             ";
 
-            var result = await ExecuteCypherAsync<List<NearbyAttractionNode>>(cypherQuery, new { keyword = placeName });
+            var result = await ExecuteCypherAsync<List<AttractionMatchRow>>(cypherQuery, new { keyword = placeName });
 
             if (result != null && result.Count > 0)
             {
-                return (result[0].lat, result[0].lon);
+                return (result[0].lat, result[0].lon, result[0].uid);
             }
 
-            return (null, null);
+            return (null, null, null);
+        }
+
+        private class AttractionMatchRow
+        {
+            public double? lat { get; set; }
+            public double? lon { get; set; }
+            public string uid { get; set; }
         }
     }
 }

@@ -26,14 +26,8 @@ namespace backend.ViewModels
     /// </summary>
     public class VisitorVlogPreviewRequest
     {
-        /// <summary>玩家遊玩過的景點清單。必填，至少一筆。</summary>
-        public List<SpotHistoryItem> spot_history { get; set; }
-
-        /// <summary>總遊玩時長，選填（預設："2.5小時"）。</summary>
-        public string player_play_time { get; set; }
-
-        /// <summary>達成的總任務目標說明，選填（預設："完成解謎與尋寶任務"）。</summary>
-        public string game_tasks_completed { get; set; }
+       /// <summary>玩家剛完成的劇本 ID。必填。</summary>
+    public string story_id { get; set; }
     }
 
     public class VisitorVlogPreviewApiResponse
@@ -68,20 +62,14 @@ namespace backend.ViewModels
     /// </summary>
     public class VisitorVlogCreateFinalRequest
     {
-        /// <summary>經使用者確認或微調後的最終旁白文字。必填。</summary>
-        public string final_script { get; set; }
+          /// <summary>經使用者確認或微調後的最終旁白文字。必填。</summary>
+    public string final_script { get; set; }
 
-        /// <summary>玩家實拍或產出的照片，後端會即時打包成 zip 再送出。必填，至少一張。</summary>
-        public List<IFormFile> images { get; set; }
+    /// <summary>此次 Vlog 關聯的劇本 ID。必填（用來抓照片、寫入 ep_vlog.story_id）。</summary>
+    public string story_id { get; set; }
 
-        /// <summary>指定哪張圖片對應哪個地點時間的中繼資料 JSON 字串。選填。</summary>
-        public string spot_meta_json { get; set; }
-
-        /// <summary>
-        /// 此次 Vlog 關聯的劇本 ID，選填。對應 ep_vlog.story_id。
-        /// 前端需在輪詢 Status 時把這個值一併帶回，才能在完成時正確寫入。
-        /// </summary>
-        public string story_id { get; set; }
+    /// <summary>選填：圖片對應地點時間的中繼資料 JSON 字串。</summary>
+    public string spot_meta_json { get; set; }
     }
 
     #endregion

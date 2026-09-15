@@ -148,7 +148,8 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             services.AddScoped<Services.GeocodingService>();
             #endregion
-
+            services.AddScoped<VisitorVlogService>();
+            services.AddScoped<VisitorVlogDao>();
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

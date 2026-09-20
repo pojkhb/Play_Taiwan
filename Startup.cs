@@ -5,8 +5,10 @@ using System.Text;
 // using backend.Middleware;
 // using backend.Middleware.jwt;
 using backend.Services;
+using backend.Services.Neo4j;
 using backend.dao;
 using backend.utils;
+using Neo4j.Driver;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -166,6 +168,43 @@ namespace backend
             #endregion
             services.AddScoped<VisitorVlogService>();
             services.AddScoped<VisitorVlogDao>();
+
+            #region S17-商家資料維護 + NFC（play_taiwan_db_v4：auth/store/coupon/nfc_coupon/user_coupon/store_question/question_option）
+            services.Configure<Neo4jSettings>(Configuration.GetSection("Neo4jSettings"));
+
+            // Neo4j:Mode = Local（本地測試 Driver）/ Remote（正式對外 /api/neo4j/cypher）
+            // 上層 PlaceVersionChainService 只依賴 INeo4jGatewayService，切換這裡即可，不用改業務邏輯。
+            bool useRemoteNeo4j = Configuration["Neo4j:Mode"] == "Remote";
+            if (useRemoteNeo4j)
+            {
+                services.AddHttpClient<RemoteNeo4jApiGatewayService>(client =>
+                {
+                    client.Timeout = TimeSpan.FromSeconds(30);
+                });
+                services.AddScoped<INeo4jGatewayService>(sp => sp.GetRequiredService<RemoteNeo4jApiGatewayService>());
+            }
+            else
+            {
+                services.AddSingleton<IDriver>(sp =>
+                {
+                    Neo4jSettings config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Neo4jSettings>>().Value;
+                    return GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.User, config.Password));
+                });
+                services.AddScoped<INeo4jGatewayService, LocalNeo4jDriverGatewayService>();
+            }
+
+            services.AddScoped<PlaceVersionChainService>();
+            services.AddScoped<ICurrentActorProvider, RequestActorProvider>();
+
+            services.AddScoped<Services.MerchantAccountService>();
+            services.AddScoped<dao.MerchantAccountDao>();
+            services.AddScoped<Services.MerchantCouponService>();
+            services.AddScoped<dao.MerchantCouponDao>();
+            services.AddScoped<Services.MerchantNfcService>();
+            services.AddScoped<dao.MerchantNfcDao>();
+            services.AddScoped<Services.MerchantQuestionService>();
+            services.AddScoped<dao.MerchantQuestionDao>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();
@@ -262,12 +301,13 @@ namespace backend
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            // 集中式例外處理放在最外層：包住包含 DeveloperExceptionPage 在內的所有後續中介軟體，
+            // 讓 API 不管在哪個環境，未攔截例外都統一回傳 ResultViewModel JSON，
+            // 不會在本機開發時被 DeveloperExceptionPage 攔走、變成整頁 HTML 除錯畫面。
+            app.UseMiddleware<backend.Middleware.ExceptionHandlingMiddleware>();
+
             app.UseCors();
             app.UseStaticFiles();
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {

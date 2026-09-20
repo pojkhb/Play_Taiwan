@@ -83,33 +83,33 @@ namespace backend.dao
 
             return new HomeOverviewResponse
             {
-                completed_story_count =
+                ho_completed_story =
                     Convert.ToInt32(reader["completed_story_count"]),
 
-                postcard_count =
+                ho_postcard_count =
                     Convert.ToInt32(reader["postcard_count"]),
 
-                badge_count =
+                ho_badge_count =
                     Convert.ToInt32(reader["badge_count"]),
 
-                vlog_count =
+                ho_vlog_count =
                     Convert.ToInt32(reader["vlog_count"]),
 
-                recent_cards = new List<HomeCardItem>
+                ho_recent_cards = new List<HomeCardItem>
                 {
                     new HomeCardItem
                     {
-                        card_id = "start_explore",
-                        card_type = "START_EXPLORE",
-                        title = "出發探險",
-                        image_url = null
+                        hc_id = 0,
+                        hc_type = "START_EXPLORE",
+                        hc_title = "出發探險",
+                        hc_image = null
                     },
                     new HomeCardItem
                     {
-                        card_id = "travel_history",
-                        card_type = "TRAVEL_HISTORY",
-                        title = "過往旅途",
-                        image_url = null
+                        hc_id = 1,
+                        hc_type = "TRAVEL_HISTORY",
+                        hc_title = "過往旅途",
+                        hc_image = null
                     }
                 }
             };

@@ -298,12 +298,94 @@ namespace backend.Controllers
             try
             {
                 _service.VerifyEmail(token);
-                return Content("<h1>信箱驗證成功！請返回 APP 或網頁進行登入。</h1>", "text/html", System.Text.Encoding.UTF8);
+                string html = BuildVerifyResultPage(
+                    success: true,
+                    title: "信箱驗證成功！",
+                    message: "你的帳號已成功啟用，請返回 APP 或網頁進行登入。");
+                return Content(html, "text/html", System.Text.Encoding.UTF8);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                string html = BuildVerifyResultPage(
+                    success: false,
+                    title: "驗證失敗",
+                    message: ex.Message);
+                return Content(html, "text/html", System.Text.Encoding.UTF8);
             }
+        }
+
+        private static string BuildVerifyResultPage(bool success, string title, string message)
+        {
+            string accentColor = success ? "#28a745" : "#dc3545";
+            string icon = success
+                ? "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#28a745'/><path d='M7 12.5L10.2 15.7L17 8.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"
+                : "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#dc3545'/><path d='M8 8L16 16M16 8L8 16' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+
+            return $@"
+<!DOCTYPE html>
+<html lang='zh-Hant'>
+<head>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1.0' />
+<title>{title} - Play Taiwan</title>
+<style>
+    body {{
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f0fdf4 0%, #e8f5e9 100%);
+        font-family: 'Segoe UI', 'Microsoft JhengHei', Arial, sans-serif;
+    }}
+    .card {{
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 48px 40px;
+        max-width: 420px;
+        width: 90%;
+        text-align: center;
+    }}
+    .icon {{
+        margin-bottom: 20px;
+    }}
+    h1 {{
+        margin: 0 0 12px;
+        font-size: 24px;
+        color: #1a1a1a;
+    }}
+    p {{
+        margin: 0;
+        font-size: 15px;
+        color: #555;
+        line-height: 1.6;
+    }}
+    .brand {{
+        margin-top: 32px;
+        font-size: 13px;
+        color: #aaa;
+        letter-spacing: 0.5px;
+    }}
+    .accent-bar {{
+        height: 4px;
+        width: 48px;
+        margin: 20px auto 0;
+        border-radius: 2px;
+        background-color: {accentColor};
+    }}
+</style>
+</head>
+<body>
+    <div class='card'>
+        <div class='icon'>{icon}</div>
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <div class='accent-bar'></div>
+        <div class='brand'>PLAY TAIWAN</div>
+    </div>
+</body>
+</html>";
         }
 
         #endregion

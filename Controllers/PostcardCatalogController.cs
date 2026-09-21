@@ -8,28 +8,15 @@ using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.ViewModels;
 using backend.Models;
+using backend.utils;
 
 
 namespace backend.Controllers
 {
-    public class StoryActionRequest
-    {
-        public string story_id { get; set; }
-    }
-    public class PrintPostcardRequest
-    {
-        public string postcard_id { get; set; }
-    }
-    public class StoryShareRequest
-    {
-        public string story_id { get; set; }
-        public string platform { get; set; }
-    }
-
-
     /// <summary>
-    /// 明信片主檔相關 API。
-    /// 對應頁面：收藏館。負責「明信片長什麼樣子」，與紀錄探員實際獲得情況的 PostcardController 互補。
+    /// 明信片相關 API。
+    /// 對應頁面：收藏館。新資料庫已把主檔與擁有紀錄合併成 postcard 一張表，
+    /// 因此這裡回傳的就是「目前登入者自己的明信片」。
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -94,13 +81,6 @@ namespace backend.Controllers
         [Authorize]
         public async Task<IActionResult> GenerateAi([FromForm] AiPostcardGenerateRequest request)
         {
-            var epId = User.FindFirst("ep_id")?.Value ?? User.Identity?.Name;
-            if (string.IsNullOrEmpty(epId))
-            {
-                return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證探員身分，請重新登入" });
-            }
-
-
             if (request.user_image == null || request.user_image.Length == 0)
             {
                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供圖片檔案" });
@@ -109,7 +89,7 @@ namespace backend.Controllers
 
             try
             {
-                var resultEntity = await _service.GenerateAiPostcardAsync(request, epId);
+                var resultEntity = await _service.GenerateAiPostcardAsync(request, User.GetAuId());
                 return Ok(new ResultViewModel<PostcardCatalog>
                 {
                     isSuccess = true,
@@ -161,7 +141,7 @@ namespace backend.Controllers
         [Route("Print")]
         public async Task<IActionResult> PrintIbon([FromBody] PrintPostcardRequest request)
         {
-            if (string.IsNullOrEmpty(request.postcard_id))
+            if (request.postcard_id <= 0)
             {
                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供明信片 ID (postcard_id)" });
             }
@@ -217,7 +197,7 @@ namespace backend.Controllers
         [Route("Share")]
         public IActionResult RecordShare([FromBody] StoryShareRequest request)
         {
-            if (string.IsNullOrEmpty(request.story_id))
+            if (request.story_id <= 0)
             {
                 return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供劇本 ID (story_id)" });
             }
@@ -278,13 +258,14 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        [Authorize]
         [HttpGet]
         [Route("")]
-        public async Task<IActionResult> GetAll([FromQuery] string category = null)
+        public async Task<IActionResult> GetAll()
         {
             try
             {
-                var result = await _service.GetAllAsync(category);
+                var result = await _service.GetAllAsync(User.GetAuId());
                 return Ok(new ResultViewModel<List<PostcardCatalogResponse>> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -335,8 +316,8 @@ namespace backend.Controllers
         /// ```
         /// </remarks>
         [HttpGet]
-        [Route("{id}")]
-        public async Task<IActionResult> GetById(string id)
+        [Route("{id:int}")]
+        public async Task<IActionResult> GetById(int id)
         {
             try
             {
@@ -385,13 +366,14 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        [Authorize]
         [HttpGet]
-        [Route("by-story/{storyId}")]
-        public async Task<IActionResult> GetByStoryId(string storyId)
+        [Route("by-story/{storyId:int}")]
+        public async Task<IActionResult> GetByStoryId(int storyId)
         {
             try
             {
-                var result = await _service.GetByStoryIdAsync(storyId);
+                var result = await _service.GetByStoryIdAsync(storyId, User.GetAuId());
                 return Ok(new ResultViewModel<List<PostcardCatalogResponse>> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -410,7 +392,7 @@ namespace backend.Controllers
         /// 刪除明信片主檔。
         /// </summary>
         /// <remarks>
-        /// 依 postcard_id 從 `md_postcard` 刪除該筆資料。此操作為實體刪除，無法復原。
+        /// 依 postcard_id 從 `postcard` 刪除該筆資料，只能刪自己的明信片。此操作為實體刪除，無法復原。
         /// 
         /// **Request 範例**：
         /// ```
@@ -426,13 +408,14 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        [Authorize]
         [HttpPost]
-        [Route("{id}/Delete")]
-        public async Task<IActionResult> Delete(string id)
+        [Route("{id:int}/Delete")]
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {
-                var success = await _service.DeleteAsync(id);
+                var success = await _service.DeleteAsync(id, User.GetAuId());
                 if (!success) return NotFound(new ResultViewModel<bool> { isSuccess = false, message = "查無此資料", Result = false });
                 return Ok(new ResultViewModel<bool> { isSuccess = true, message = "刪除成功", Result = true });
             }
@@ -470,9 +453,9 @@ namespace backend.Controllers
         /// 查無資料時回傳 404 純文字：`找不到該明信片的圖片`
         /// </remarks>
         [HttpGet]
-        [Route("{id}/image")]
+        [Route("{id:int}/image")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetImageById(string id)
+        public async Task<IActionResult> GetImageById(int id)
         {
             try
             {

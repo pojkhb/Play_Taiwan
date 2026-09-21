@@ -1,3 +1,4 @@
+// 檔案路徑：System\Services\BadgeService.cs
 using System.Collections.Generic;
 using System.Linq;
 using backend.dao;
@@ -14,27 +15,28 @@ namespace backend.Services
             _dao = dao;
         }
 
-        public List<BadgeSeriesGroup> GetBadgeCatalog(string ep_id)
+        #region 取得徽章圖鑑（依 b_fication 分類分組）
+        public List<BadgeSeriesGroup> GetBadgeCatalog(int auId)
         {
-            var flatList = _dao.GetAllBadgeStatus(ep_id);
+            List<BadgeResponse> rows = _dao.GetAllBadgeStatus(auId);
 
-            return flatList
-                .GroupBy(b => new { b.series_id, b.series_name })
+            return rows
+                .GroupBy(b => b.b_fication)
                 .Select(g => new BadgeSeriesGroup
                 {
-                    series_id = g.Key.series_id,
-                    series_name = g.Key.series_name,
+                    series_name = g.Key,
                     badges = g.Select(b => new BadgeItem
                     {
-                        badge_id = b.badge_id,
-                        badge_name = b.badge_name,
-                        description = b.description,
-                        image_url = b.image_url,
+                        b_id = b.b_id,
+                        b_name = b.b_name,
+                        b_thing = b.b_thing,
+                        b_image = b.b_image,
                         is_owned = b.is_owned,
                         obtained_at = b.obtained_at
                     }).ToList()
                 })
                 .ToList();
         }
+        #endregion
     }
 }

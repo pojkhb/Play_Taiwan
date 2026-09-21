@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
+using backend.utils;
 
 namespace backend.Services
 {
@@ -26,22 +27,17 @@ namespace backend.Services
 
         /// <summary>
         /// 取得指定劇本的地圖資訊。
-        /// 後端依 ep_story_progress.current_node_order 判斷節點是否解鎖，
-        /// 前端依每個節點的 day_index 切換第一日／第二日地圖畫面。
+        /// 後端依 story_session.ss_current 判斷節點是否解鎖。
+        /// 新資料表沒有 day_index，目前所有節點都歸在第一日。
         /// </summary>
-        /// <param name="storyId">劇本代號。</param>
+        /// <param name="storyId">劇本代號，對應 story.s_id。</param>
         /// <param name="user">目前登入使用者 JWT Claims。</param>
         /// <returns>地圖進度、節點、明信片統計與總天數。</returns>
         public MapResponse GetMap(
-            string storyId,
+            int storyId,
             ClaimsPrincipal user)
         {
-            if (string.IsNullOrWhiteSpace(storyId))
-            {
-                throw new ArgumentException("story_id 不可為空白。");
-            }
-
-            string epId = GetCurrentEpId(user);
+            int auId = user.GetAuId();
 
             List<MapNode> nodes = _dao.GetStoryNodes(storyId);
 
@@ -50,7 +46,7 @@ namespace backend.Services
                 throw new KeyNotFoundException("此劇本沒有可用的地圖節點。");
             }
 
-            int currentNodeOrder = _dao.GetCurrentNodeOrder(epId, storyId);
+            int currentNodeOrder = _dao.GetCurrentNodeOrder(auId, storyId);
 
             nodes = nodes
                 .OrderBy(x => x.day_index)
@@ -75,7 +71,7 @@ namespace backend.Services
                     node.fog_hint = "前方仍被迷霧籠罩，完成前一站任務後即可探索。";
                 }
 
-                node.child_node_ids ??= new List<string>();
+                node.child_node_ids ??= new List<int>();
             }
 
             // 建立線性路線：第一站 -> 第二站 -> 第三站。
@@ -95,7 +91,7 @@ namespace backend.Services
                 total_node_count = nodes.Count,
 
                 postcard_unlocked_count =
-                    _dao.GetUnlockedPostcardCount(epId, storyId),
+                    _dao.GetUnlockedPostcardCount(auId, storyId),
 
                 postcard_total_count =
                     _dao.GetTotalPostcardCount(storyId),
@@ -114,17 +110,12 @@ namespace backend.Services
         #region GPS 確認抵達
 
         public NodeDetailResponse ArriveNode(
-            string nodeId,
+            int nodeId,
             double userLat,
             double userLng,
             ClaimsPrincipal user)
         {
-            if (string.IsNullOrWhiteSpace(nodeId))
-            {
-                throw new ArgumentException("node_id 不可為空白。");
-            }
-
-            string epId = GetCurrentEpId(user);
+            int auId = user.GetAuId();
 
             MapNode node = _dao.GetNodeLocation(nodeId);
 
@@ -151,7 +142,7 @@ namespace backend.Services
                     + $"需在 {UnlockRadiusMeters} 公尺內。");
             }
 
-            _dao.UnlockNode(epId, nodeId);
+            _dao.UnlockNode(auId, nodeId);
 
             return GetNodeDetail(nodeId);
         }
@@ -160,13 +151,8 @@ namespace backend.Services
 
         #region 取得節點詳情
 
-        public NodeDetailResponse GetNodeDetail(string nodeId)
+        public NodeDetailResponse GetNodeDetail(int nodeId)
         {
-            if (string.IsNullOrWhiteSpace(nodeId))
-            {
-                throw new ArgumentException("node_id 不可為空白。");
-            }
-
             NodeDetailResponse result = _dao.GetNodeDetail(nodeId);
 
             if (result == null)
@@ -183,13 +169,8 @@ namespace backend.Services
 
         #region NPC 隨機互動
 
-        public NpcInteractionResponse GetNpcInteraction(string nodeId)
+        public NpcInteractionResponse GetNpcInteraction(int nodeId)
         {
-            if (string.IsNullOrWhiteSpace(nodeId))
-            {
-                throw new ArgumentException("node_id 不可為空白。");
-            }
-
             NpcInteractionResponse result =
                 _dao.GetRandomNpcInteraction(nodeId);
 
@@ -211,7 +192,7 @@ namespace backend.Services
 
         public NavigationResponse GetNavigation(NavigationRequest req)
         {
-            if (req == null || string.IsNullOrWhiteSpace(req.node_id))
+            if (req == null || req.node_id <= 0)
             {
                 throw new ArgumentException("node_id 不可為空白。");
             }
@@ -240,41 +221,15 @@ namespace backend.Services
         #region 周邊好去
 
         public List<NearbyPlaceResponse> GetNearbyPlaces(
-            string storyId,
+            int storyId,
             string category)
         {
-            if (string.IsNullOrWhiteSpace(storyId))
-            {
-                throw new ArgumentException("story_id 不可為空白。");
-            }
-
             return _dao.GetNearbyPlaces(storyId, category ?? "");
         }
 
         #endregion
 
         #region 私有邏輯
-
-        private string GetCurrentEpId(ClaimsPrincipal user)
-        {
-            if (user?.Identity?.IsAuthenticated != true)
-            {
-                throw new UnauthorizedAccessException("請先登入後再使用地圖功能。");
-            }
-
-            string epId =
-                user.FindFirst("ep_id")?.Value ??
-                user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
-                user.FindFirst("sub")?.Value;
-
-            if (string.IsNullOrWhiteSpace(epId))
-            {
-                throw new UnauthorizedAccessException(
-                    "JWT 中沒有 ep_id、NameIdentifier 或 sub Claim。");
-            }
-
-            return epId;
-        }
 
         private double CalculateDistanceMeters(
             double lat1,

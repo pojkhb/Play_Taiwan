@@ -1,9 +1,11 @@
-using System;
+// 檔案路徑：System\dao\HomeDao.cs
+// 對應新資料表 `story_session`、`postcard`、`au_badge`、`au_vlog`，
+// 取代舊的 ep_story_progress / ep_postcard / ep_badge / ep_vlog。
 using System.Collections.Generic;
-using System.Security.Claims;
-using backend.Models;
+using System.Linq;
+using Dapper;
 using backend.utils;
-using Microsoft.AspNetCore.Http;
+using backend.Models;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
 
@@ -12,109 +14,59 @@ namespace backend.dao
     public class HomeDao
     {
         private readonly AppSettings _appSettings;
-        private readonly HttpContext _ipContext;
 
-        public HomeDao(
-            IOptions<AppSettings> appSettings,
-            IHttpContextAccessor httpContextAccessor
-        )
+        public HomeDao(IOptions<AppSettings> appSettings)
         {
             _appSettings = appSettings.Value;
-            _ipContext = httpContextAccessor.HttpContext;
         }
 
         #region 首頁目前總覽
-
-        public HomeOverviewResponse GetOverview()
+        public HomeOverviewResponse GetOverview(int auId)
         {
-            string epId =
-                _ipContext?.User?.FindFirst("ep_id")?.Value
-                ?? _ipContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrWhiteSpace(epId))
-            {
-                throw new UnauthorizedAccessException(
-                    "無法取得目前登入的探員資料，請重新登入。"
-                );
-            }
-
-            using var connection = new MySqlConnection(_appSettings.mydb);
-
-            connection.Open();
-
-            string sql = @"
+            string countSql = @"
                 SELECT
-                    (
-                        SELECT COUNT(*)
-                        FROM ep_story_progress
-                        WHERE ep_id = @ep_id
-                          AND progress_status = 'COMPLETED'
-                    ) AS completed_story_count,
-
-                    (
-                        SELECT COUNT(*)
-                        FROM ep_postcard
-                        WHERE ep_id = @ep_id
-                    ) AS postcard_count,
-
-                    (
-                        SELECT COUNT(*)
-                        FROM ep_badge
-                        WHERE ep_id = @ep_id
-                    ) AS badge_count,
-
-                    (
-                        SELECT COUNT(*)
-                        FROM ep_vlog
-                        WHERE ep_id = @ep_id
-                    ) AS vlog_count;
+                    (SELECT COUNT(*) FROM story_session
+                      WHERE au_id = @auId AND ss_status = 'completed')      AS ho_completed_story,
+                    (SELECT COUNT(*) FROM postcard  WHERE au_id = @auId)     AS ho_postcard_count,
+                    (SELECT COUNT(*) FROM au_badge  WHERE au_id = @auId)     AS ho_badge_count,
+                    (SELECT COUNT(*) FROM au_vlog
+                      WHERE au_id = @auId AND av_vlog_status = 3)            AS ho_vlog_count;
             ";
 
-            using var command = new MySqlCommand(sql, connection);
+            // 最近的劇本/明信片/VLOG 混合排序，取最新 10 筆當首頁卡片。
+            string cardSql = @"
+                SELECT hc_id, hc_type, hc_title, hc_image FROM (
+                    SELECT s.s_id   AS hc_id, 'story'    AS hc_type,
+                           s.story_title AS hc_title, NULL AS hc_image,
+                           s.updated_at  AS sort_at
+                      FROM story s
+                     WHERE s.au_id = @auId
+                    UNION ALL
+                    SELECT p.p_id, 'postcard', p.p_name, p.p_imag_url, p.created_at
+                      FROM postcard p
+                     WHERE p.au_id = @auId
+                    UNION ALL
+                    SELECT v.av_id, 'vlog', v.av_title, v.av_thumbnail, v.created_at
+                      FROM au_vlog v
+                     WHERE v.au_id = @auId AND v.av_vlog_status = 3
+                ) AS recent
+                ORDER BY recent.sort_at DESC
+                LIMIT 10;
+            ";
 
-            command.Parameters.AddWithValue("@ep_id", epId);
-
-            using var reader = command.ExecuteReader();
-
-            if (!reader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                throw new Exception("無法讀取首頁總覽資料。");
+                conn.Open();
+
+                HomeOverviewResponse overview =
+                    conn.QueryFirst<HomeOverviewResponse>(countSql, new { auId });
+
+                overview.ho_recent_cards =
+                    conn.Query<HomeCardItem>(cardSql, new { auId }).ToList();
+
+                return overview;
             }
-
-            return new HomeOverviewResponse
-            {
-                completed_story_count =
-                    Convert.ToInt32(reader["completed_story_count"]),
-
-                postcard_count =
-                    Convert.ToInt32(reader["postcard_count"]),
-
-                badge_count =
-                    Convert.ToInt32(reader["badge_count"]),
-
-                vlog_count =
-                    Convert.ToInt32(reader["vlog_count"]),
-
-                recent_cards = new List<HomeCardItem>
-                {
-                    new HomeCardItem
-                    {
-                        card_id = "start_explore",
-                        card_type = "START_EXPLORE",
-                        title = "出發探險",
-                        image_url = null
-                    },
-                    new HomeCardItem
-                    {
-                        card_id = "travel_history",
-                        card_type = "TRAVEL_HISTORY",
-                        title = "過往旅途",
-                        image_url = null
-                    }
-                }
-            };
         }
-
         #endregion
     }
 }

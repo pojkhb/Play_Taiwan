@@ -1,34 +1,20 @@
+// 檔案路徑：System\ViewModels\PostcardCatalogViewModels.cs
+// 對應新資料表 `postcard`（md_postcard + ep_postcard 已合併）。
 using System;
 
 namespace backend.ViewModels
 {
-    /// <summary>明信片主檔回應內容。</summary>
+    /// <summary>明信片回應內容。</summary>
     public class PostcardCatalogResponse
     {
-        public string PostcardId { get; set; }
-        public string StoryId { get; set; }
-        public string PostcardName { get; set; }
-        public string Summary { get; set; }
-        public string ImageUrl { get; set; }
-        public bool IsNightEditionDefault { get; set; }
-        public string Category { get; set; }
-        public int SortOrder { get; set; }
-        public bool IsActive { get; set; }
+        public int PostcardId { get; set; }            // postcard.p_id
+        public int? StoryId { get; set; }                // postcard.s_id
+        public int? NodeId { get; set; }                   // postcard.sn_id
+        public string PostcardName { get; set; }             // postcard.p_name
+        public string Summary { get; set; }                    // postcard.p_summary
+        public string ImageUrl { get; set; }                     // postcard.p_imag_url
+        public bool IsNightEdition { get; set; }                   // postcard.is_night：1=是、2=否
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
-    }
-
-    /// <summary>新增/更新明信片主檔的請求內容。</summary>
-    public class PostcardCatalogRequest
-    {
-        public string PostcardId { get; set; }
-        public string StoryId { get; set; }
-        public string PostcardName { get; set; }
-        public string Summary { get; set; }
-        public string ImageUrl { get; set; }
-        public bool IsNightEditionDefault { get; set; }
-        public string Category { get; set; }
-        public int SortOrder { get; set; }
-        public bool IsActive { get; set; }
     }
 }

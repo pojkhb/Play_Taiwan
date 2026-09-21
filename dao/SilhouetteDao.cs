@@ -1,6 +1,8 @@
 // 檔案路徑：System\dao\SilhouetteDao.cs
-using System;
+// 對應新資料表 `silhouette`，取代舊的 md_silhouette。
 using System.Collections.Generic;
+using System.Linq;
+using Dapper;
 using backend.Models;
 using backend.utils;
 using Microsoft.Extensions.Options;
@@ -17,79 +19,49 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
+        // 新表沒有 is_active / sort_order 欄位，改以名稱排序。
+        private const string SelectColumns = @"
+            si_id,
+            si_name,
+            si_type,
+            si_silhouette_image,
+            si_image_url,
+            si_hint
+        ";
+
+        #region 取得全部剪影
         public List<Silhouette> GetSilhouettes()
         {
-            const string sql = @"
-                SELECT
-                    silhouette_id,
-                    name,
-                    image_url,
-                    city,
-                    category,
-                    is_active,
-                    sort_order
-                FROM md_silhouette
-                WHERE is_active = 1
-                ORDER BY sort_order, name;
+            string sql = $@"
+                SELECT {SelectColumns}
+                FROM silhouette
+                ORDER BY si_type, si_name;
             ";
 
-            var result = new List<Silhouette>();
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            using var command = new MySqlCommand(sql, connection);
-            connection.Open();
-
-            using var reader = command.ExecuteReader();
-            while (reader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                result.Add(new Silhouette
-                {
-                    silhouette_id = reader["silhouette_id"].ToString(),
-                    name = reader["name"].ToString(),
-                    image_url = reader["image_url"] == DBNull.Value ? null : reader["image_url"].ToString(),
-                    city = reader["city"] == DBNull.Value ? null : reader["city"].ToString(),
-                    category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
-                    is_active = Convert.ToBoolean(reader["is_active"]),
-                    sort_order = Convert.ToInt32(reader["sort_order"])
-                });
+                conn.Open();
+                return conn.Query<Silhouette>(sql).ToList();
             }
-            return result;
         }
+        #endregion
 
-        public Silhouette GetSilhouetteById(string silhouetteId)
+        #region 依代號取得單一剪影
+        public Silhouette GetSilhouetteById(int siId)
         {
-            const string sql = @"
-                SELECT
-                    silhouette_id,
-                    name,
-                    image_url,
-                    city,
-                    category,
-                    is_active,
-                    sort_order
-                FROM md_silhouette
-                WHERE silhouette_id = @silhouette_id
-                  AND is_active = 1
+            string sql = $@"
+                SELECT {SelectColumns}
+                FROM silhouette
+                WHERE si_id = @siId
                 LIMIT 1;
             ";
 
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@silhouette_id", silhouetteId);
-            connection.Open();
-
-            using var reader = command.ExecuteReader();
-            if (!reader.Read()) return null;
-
-            return new Silhouette
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                silhouette_id = reader["silhouette_id"].ToString(),
-                name = reader["name"].ToString(),
-                image_url = reader["image_url"] == DBNull.Value ? null : reader["image_url"].ToString(),
-                city = reader["city"] == DBNull.Value ? null : reader["city"].ToString(),
-                category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
-                is_active = Convert.ToBoolean(reader["is_active"]),
-                sort_order = Convert.ToInt32(reader["sort_order"])
-            };
+                conn.Open();
+                return conn.QueryFirstOrDefault<Silhouette>(sql, new { siId });
+            }
         }
+        #endregion
     }
 }

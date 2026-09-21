@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.utils;
 using backend.ViewModels;
 
 namespace backend.Controllers
@@ -46,14 +47,11 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value
-                    ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
                 return Ok(new ResultViewModel<List<BadgeSeriesGroup>>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetBadgeCatalog(epId),
+                    Result = _service.GetBadgeCatalog(User.GetAuId()),
                 });
             }
             catch (Exception e)

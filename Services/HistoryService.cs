@@ -1,7 +1,7 @@
+// 檔案路徑：System\Services\HistoryService.cs
 using System.Collections.Generic;
 using backend.dao;
 using backend.Models;
-using backend.ViewModels;
 
 namespace backend.Services
 {
@@ -14,14 +14,18 @@ namespace backend.Services
             _dao = dao;
         }
 
-        public List<HistoryStoryItem> GetHistoryList(string ep_id)
+        #region 取得所有過往劇本
+        public List<HistoryStoryItem> GetHistoryList(int auId)
         {
-            return _dao.GetHistoryList(ep_id);
+            return _dao.GetHistoryList(auId);
         }
+        #endregion
 
-        public HistoryStoryItem GetHistoryDetail(string story_id, string ep_id)
+        #region 取得過往劇本詳情
+        public HistoryStoryItem GetHistoryDetail(int storyId, int auId)
         {
-            return _dao.GetHistoryDetail(story_id, ep_id);
+            return _dao.GetHistoryDetail(storyId, auId);
         }
+        #endregion
     }
 }

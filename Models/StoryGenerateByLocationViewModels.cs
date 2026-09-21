@@ -24,7 +24,7 @@ namespace backend.ViewModels
     /// </summary>
     public class NearbyPlaceDistanceResponse
     {
-        public string place_id { get; set; }
+        public int place_id { get; set; }
         public string place_name { get; set; }
         public string location_codename { get; set; }
         public double distance_km { get; set; }

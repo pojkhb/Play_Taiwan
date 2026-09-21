@@ -45,13 +45,12 @@ namespace backend.Controllers
         ///   "message": "查詢成功",
         ///   "Result": [
         ///     {
-        ///       "silhouette_id": "SIL_001",
-        ///       "name": "台北101剪影",
-        ///       "image_url": "data:image/png;base64,...",
-        ///       "city": "臺北市",
-        ///       "category": "地標",
-        ///       "is_active": true,
-        ///       "sort_order": 1
+        ///       "si_id": 1,
+        ///       "si_name": "台北101剪影",
+        ///       "si_type": "地標",
+        ///       "si_silhouette_image": "https://.../silhouette.png",
+        ///       "si_image_url": "data:image/png;base64,...",
+        ///       "si_hint": "城市裡最高的那根針"
         ///     }
         ///   ]
         /// }
@@ -148,9 +147,9 @@ namespace backend.Controllers
         /// `&lt;img src="https://你的後端網址/api/Silhouette/{silhouette_id}/Image" /&gt;`
         /// </remarks>
         [HttpGet]
-        [Route("{silhouette_id}/Image")]
+        [Route("{silhouette_id:int}/Image")]
         [AllowAnonymous]
-        public IActionResult GetSilhouetteImage(string silhouette_id)
+        public IActionResult GetSilhouetteImage(int silhouette_id)
         {
             try
             {

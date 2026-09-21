@@ -10,7 +10,8 @@ namespace backend.Models
         public IFormFile user_image { get; set; } /* 必須使用 IFormFile 接收前端上傳的圖片檔案 */
         public string spot_name { get; set; } /* 景點名稱 (例如：台北101) */
         public string user_prompt { get; set; } /* 使用者輸入的提示詞 (例如：復古水墨風) */
-        public string story_id { get; set; } /* 額外傳遞的劇本代號，方便後端寫入 DB 時關聯 */
+        public int? story_id { get; set; } /* 額外傳遞的劇本代號 story.s_id，方便後端寫入 DB 時關聯 */
+        public int? node_id { get; set; } /* 取得明信片的劇本節點 story_node.sn_id */
         public bool is_night_edition { get; set; }
     }
 

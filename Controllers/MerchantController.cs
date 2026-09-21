@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.utils;
 using backend.ViewModels;
 
 namespace backend.Controllers
@@ -65,11 +66,7 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId)) 
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
-
-                _service.UpdateStoreName(epId, req.store_name);
+                _service.UpdateStoreName(User.GetAuId(), req.store_name);
 
                 return Ok(new ResultViewModel<string>
                 {
@@ -120,11 +117,7 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId)) 
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
-
-                var files = _service.GetMerchantFiles(epId);
+                var files = _service.GetMerchantFiles(User.GetAuId());
 
                 return Ok(new ResultViewModel<object>
                 {
@@ -176,17 +169,13 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId)) 
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
-
-                string vlogId = await _service.CreateVlogTaskAsync(epId, req);
+                int mmId = _service.CreateVlogTask(User.GetAuId(), req);
 
                 return Ok(new ResultViewModel<object>
                 {
                     isSuccess = true,
                     message = "影音生成任務已啟動",
-                    Result = new { vlog_id = vlogId }
+                    Result = new { mm_id = mmId }
                 });
             }
             catch (Exception e)
@@ -224,15 +213,15 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
-        /// <param name="vlog_id">影音檔案的唯一識別碼 (vlog_id)。</param>
+        /// <param name="mm_id">商家影音的唯一識別碼，對應 merchant_media.mm_id。</param>
         /// <returns>Reels 影音播放連結、推薦配文與標籤陣列。</returns>
         [HttpGet]
-        [Route("VlogResult/{vlog_id}")]
-        public IActionResult GetVlogResult(string vlog_id)
+        [Route("VlogResult/{mm_id:int}")]
+        public IActionResult GetVlogResult(int mm_id)
         {
             try
             {
-                var result = _service.GetVlogResult(vlog_id);
+                var result = _service.GetVlogResult(mm_id, User.GetAuId());
 
                 return Ok(new ResultViewModel<object>
                 {

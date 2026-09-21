@@ -26,8 +26,8 @@ namespace backend.ViewModels
     /// </summary>
     public class VisitorVlogPreviewRequest
     {
-       /// <summary>玩家剛完成的劇本 ID。必填。</summary>
-    public string story_id { get; set; }
+       /// <summary>玩家剛完成的劇本 ID，對應 story.s_id。必填。</summary>
+    public int story_id { get; set; }
     }
 
     public class VisitorVlogPreviewApiResponse
@@ -65,8 +65,8 @@ namespace backend.ViewModels
           /// <summary>經使用者確認或微調後的最終旁白文字。必填。</summary>
     public string final_script { get; set; }
 
-    /// <summary>此次 Vlog 關聯的劇本 ID。必填（用來抓照片、寫入 ep_vlog.story_id）。</summary>
-    public string story_id { get; set; }
+    /// <summary>此次 Vlog 關聯的劇本 ID，對應 story.s_id。必填（用來抓照片、寫入 au_vlog.s_id）。</summary>
+    public int story_id { get; set; }
 
     /// <summary>選填：圖片對應地點時間的中繼資料 JSON 字串。</summary>
     public string spot_meta_json { get; set; }
@@ -74,17 +74,19 @@ namespace backend.ViewModels
 
     #endregion
 
-    #region 探員 Vlog 完成紀錄（對應 ep_vlog 表）
+    #region 遊客 Vlog 完成紀錄（對應 au_vlog 表）
 
-    /// <summary>探員的 Vlog 完成紀錄，欄位對應資料庫 ep_vlog 表實際結構。</summary>
+    /// <summary>遊客的 Vlog 完成紀錄，欄位對應資料表 au_vlog。</summary>
     public class EpVlog
     {
-        public string EpId { get; set; }
-        public string VlogId { get; set; }
-        public string StoryId { get; set; }
-        public string VideoUrl { get; set; }
-        public string ThumbnailUrl { get; set; }
-        public System.DateTime CompletedAt { get; set; }
+        public int av_id { get; set; }
+        public int au_id { get; set; }
+        public int? s_id { get; set; }
+        public string av_video_url { get; set; }
+        public string av_thumbnail { get; set; }
+        /// <summary>1=待處理、2=處理中、3=已完成、4=失敗。</summary>
+        public int av_vlog_status { get; set; }
+        public System.DateTime updated_at { get; set; }
     }
 
     #endregion

@@ -1,72 +1,64 @@
 // 檔案路徑：System\dao\VlogDao.cs
-using System;
+// 對應新資料表 `merchant_media`，取代舊的 ep_vlog（商家端用法）。
+// 外部 AI 服務的 task_id 存在 mm_task_id，狀態用 mm_status（1=草稿、2=處理中、3=已完成、4=失敗），
+// 因此不再需要舊的 media_generation_job 來追蹤進度。
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.Extensions.Options;
-using MySqlConnector;
-using backend.ViewModels;
+using MySql.Data.MySqlClient;
+using backend.Models;
 using backend.utils;
 
 namespace backend.dao
 {
-    /// <summary>
-    /// 探員 Vlog 完成紀錄 (ep_vlog) 資料存取層。
-    /// 對應實際表結構：ep_vlog_id(PK,自增) / ep_id / vlog_id / story_id / video_url / thumbnail_url / completed_at。
-    /// 因為 completed_at 為 not null，此表只在影片「真正合成完成」時才寫入一筆，不記錄處理中狀態。
-    /// </summary>
+    /// <summary>商家 Vlog 合成任務的資料存取層。</summary>
     public class VlogDao
     {
-        private readonly string _connectionString;
+        private readonly AppSettings _appSettings;
 
         public VlogDao(IOptions<AppSettings> appSettings)
         {
-            _connectionString = appSettings.Value.mydb;
+            _appSettings = appSettings.Value;
         }
 
-        /// <summary>依 vlog_id（即外部 API 的 task_id）查詢是否已經寫入過完成紀錄，避免輪詢重複寫入。</summary>
-        public async Task<EpVlog> GetByVlogIdAsync(string vlogId)
+        #region 依外部任務 ID 查詢，避免輪詢時重複寫入
+        public async Task<MerchantMedia> GetByTaskIdAsync(string taskId)
         {
-            const string sql = @"SELECT ep_id, vlog_id, story_id, video_url, thumbnail_url, completed_at
-                                  FROM ep_vlog
-                                  WHERE vlog_id = @vlog_id";
+            string sql = @"
+                SELECT mm_id, au_id, mm_task_id, mm_title, mm_video_url,
+                       mm_thumbnail, mm_status, created_at, updated_at
+                FROM merchant_media
+                WHERE mm_task_id = @taskId
+                LIMIT 1;
+            ";
 
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@vlog_id", vlogId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (!await reader.ReadAsync()) return null;
-
-            return new EpVlog
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                EpId = reader.GetString("ep_id"),
-                VlogId = reader.GetString("vlog_id"),
-                StoryId = reader.IsDBNull(reader.GetOrdinal("story_id")) ? null : reader.GetString("story_id"),
-                VideoUrl = reader.IsDBNull(reader.GetOrdinal("video_url")) ? null : reader.GetString("video_url"),
-                ThumbnailUrl = reader.IsDBNull(reader.GetOrdinal("thumbnail_url")) ? null : reader.GetString("thumbnail_url"),
-                CompletedAt = reader.GetDateTime("completed_at")
-            };
+                await conn.OpenAsync();
+                return await conn.QueryFirstOrDefaultAsync<MerchantMedia>(sql, new { taskId });
+            }
         }
+        #endregion
 
-        /// <summary>
-        /// 影片合成完成後，寫入一筆完成紀錄，綁定給該探員與（選填的）劇本。
-        /// </summary>
-        public async Task CreateCompletedRecordAsync(string epId, string vlogId, string storyId, string videoUrl, string thumbnailUrl)
+        #region 影片合成完成後寫入完成紀錄
+        public async Task<int> CreateCompletedRecordAsync(
+            int auId, string taskId, string videoUrl, string thumbnailUrl)
         {
-            const string sql = @"INSERT INTO ep_vlog
-                                  (ep_id, vlog_id, story_id, video_url, thumbnail_url, completed_at)
-                                  VALUES
-                                  (@ep_id, @vlog_id, @story_id, @video_url, @thumbnail_url, NOW())";
+            string sql = @"
+                INSERT INTO merchant_media
+                    (au_id, mm_task_id, mm_video_url, mm_thumbnail, mm_status)
+                VALUES
+                    (@auId, @taskId, @videoUrl, @thumbnailUrl, 3);
+                SELECT LAST_INSERT_ID();
+            ";
 
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@vlog_id", vlogId);
-            cmd.Parameters.AddWithValue("@story_id", (object)storyId ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@video_url", (object)videoUrl ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@thumbnail_url", (object)thumbnailUrl ?? DBNull.Value);
-            await cmd.ExecuteNonQueryAsync();
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+                return await conn.ExecuteScalarAsync<int>(
+                    sql, new { auId, taskId, videoUrl, thumbnailUrl });
+            }
         }
+        #endregion
     }
 }

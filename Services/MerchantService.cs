@@ -1,6 +1,7 @@
+// 檔案路徑：System\Services\MerchantService.cs
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using backend.dao;
+using backend.Models;
 using backend.ViewModels;
 
 namespace backend.Services
@@ -14,25 +15,32 @@ namespace backend.Services
             _dao = dao;
         }
 
-        public void UpdateStoreName(string epId, string storeName)
+        #region 修改店家名稱
+        public void UpdateStoreName(int auId, string storeName)
         {
-            _dao.UpdateStoreName(epId, storeName);
+            _dao.UpdateStoreName(auId, storeName);
         }
+        #endregion
 
-        public List<Dictionary<string, object>> GetMerchantFiles(string epId)
+        #region 已生成的影音檔案
+        public List<MerchantFileItem> GetMerchantFiles(int auId)
         {
-            return _dao.GetMerchantFiles(epId);
+            return _dao.GetMerchantFiles(auId);
         }
+        #endregion
 
-        public async Task<string> CreateVlogTaskAsync(string epId, GenerateVlogRequest req)
+        #region 建立商家影音專案
+        public int CreateVlogTask(int auId, GenerateVlogRequest req)
         {
-            // 修正這裡：呼叫 Dao 中的 CreateVlogTask
-            return _dao.CreateVlogTask(epId, req);
+            return _dao.CreateVlogTask(auId, req);
         }
+        #endregion
 
-        public Dictionary<string, object> GetVlogResult(string vlogId)
+        #region 取得最後生成畫面
+        public MerchantVlogResult GetVlogResult(int mmId, int auId)
         {
-            return _dao.GetVlogResult(vlogId);
+            return _dao.GetVlogResult(mmId, auId);
         }
+        #endregion
     }
 }

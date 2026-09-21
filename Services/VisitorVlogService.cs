@@ -25,9 +25,9 @@ namespace backend.Services
 
         #region 1. 生成旁白草稿預覽（自動組遊玩時長 + 景點清單）
 
-        public async Task<VisitorVlogPreviewApiResponse> GetPreviewAsync(string epId, VisitorVlogPreviewRequest request)
+        public async Task<VisitorVlogPreviewApiResponse> GetPreviewAsync(int auId, VisitorVlogPreviewRequest request)
         {
-            var (playTime, spots) = await _dao.GetPlayResultAsync(epId, request.story_id);
+            var (playTime, spots) = await _dao.GetPlayResultAsync(auId, request.story_id);
 
             if (spots.Count == 0)
                 throw new Exception($"找不到 story_id={request.story_id} 的遊玩紀錄，請確認任務已完成");
@@ -60,11 +60,11 @@ namespace backend.Services
 
         #region 2. 送出正式合成任務（依 story_id 自動抓素材、打包成 zip 再送出）
 
-        public async Task<VlogCreateFinalApiResponse> CreateFinalVlogAsync(string epId, VisitorVlogCreateFinalRequest request)
+        public async Task<VlogCreateFinalApiResponse> CreateFinalVlogAsync(int auId, VisitorVlogCreateFinalRequest request)
         {
-            var mediaUrls = await _dao.GetTaskMediaUrlsAsync(epId, request.story_id);
+            var mediaUrls = await _dao.GetTaskMediaUrlsAsync(auId, request.story_id);
             if (mediaUrls.Count == 0)
-                throw new Exception($"找不到 story_id={request.story_id} 對應的素材，請確認 md_task_media 是否已建立資料");
+                throw new Exception($"找不到 story_id={request.story_id} 對應的素材，請確認 record_media 是否已建立資料");
 
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(3);
@@ -129,9 +129,9 @@ namespace backend.Services
 
         #endregion
 
-        #region 3. 輪詢任務狀態，完成時寫入 ep_vlog
+        #region 3. 輪詢任務狀態，完成時寫入 au_vlog
 
-        public async Task<VlogTaskStatusApiResponse> CheckStatusAsync(string taskId, string epId, string storyId)
+        public async Task<VlogTaskStatusApiResponse> CheckStatusAsync(string taskId, int auId, int storyId)
         {
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(30);
@@ -150,7 +150,7 @@ namespace backend.Services
 
             if (result != null && !string.IsNullOrWhiteSpace(result.download_url))
             {
-                await _dao.SaveVlogAsync(epId, result.task_id, storyId, result.download_url);
+                await _dao.SaveVlogAsync(auId, storyId, result.download_url);
             }
 
             return result;

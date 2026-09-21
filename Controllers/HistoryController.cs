@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.utils;
 using backend.ViewModels;
 
 namespace backend.Controllers
@@ -24,14 +25,6 @@ namespace backend.Controllers
         {
             _logger = logger;
             _service = service;
-        }
-
-        // 從目前登入的 JWT Token 取得探員代號(ep_id)
-        private string GetCurrentEpId()
-        {
-            var epIdClaim = User.FindFirst("ep_id") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-            if (epIdClaim == null) throw new Exception("無法取得當前探員身分，請重新登入");
-            return epIdClaim.Value;
         }
 
         #region 取得所有過往劇本
@@ -71,12 +64,11 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = GetCurrentEpId();
                 return Ok(new ResultViewModel<List<HistoryStoryItem>>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetHistoryList(epId)
+                    Result = _service.GetHistoryList(User.GetAuId())
                 });
             }
             catch (Exception e)
@@ -119,20 +111,19 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
-        /// <param name="story_id">劇本代號，對應 md_story.story_id</param>
+        /// <param name="story_id">劇本代號，對應 story.s_id</param>
         [Authorize]
         [HttpGet]
-        [Route("{story_id}")]
-        public IActionResult GetHistoryDetail(string story_id)
+        [Route("{story_id:int}")]
+        public IActionResult GetHistoryDetail(int story_id)
         {
             try
             {
-                string epId = GetCurrentEpId();
                 return Ok(new ResultViewModel<HistoryStoryItem>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetHistoryDetail(story_id, epId)
+                    Result = _service.GetHistoryDetail(story_id, User.GetAuId())
                 });
             }
             catch (Exception e)

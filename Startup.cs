@@ -166,6 +166,15 @@ namespace backend
             #endregion
             services.AddScoped<VisitorVlogService>();
             services.AddScoped<VisitorVlogDao>();
+
+            #region S13-商家後台 / 商家影音
+            // 這四個原本沒註冊，導致 MerchantController 與 MerchantVlogController
+            // 每次請求都在 DI 解析時就失敗。
+            services.AddScoped<Services.MerchantService>();
+            services.AddScoped<dao.MerchantDao>();
+            services.AddScoped<Services.MerchantVlogService>();
+            services.AddScoped<dao.VlogDao>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

@@ -1,9 +1,12 @@
 // 檔案路徑：System\dao\PostcardCatalogDao.cs
-using System;
+// 對應新資料表 `postcard`，取代舊的 md_postcard(主檔) + ep_postcard(擁有者)。
+// 兩張表已合併，au_id 直接在 postcard 上，因此不再需要額外的「綁定給使用者」動作。
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Dapper;
 using Microsoft.Extensions.Options;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using backend.Models;
 using backend.utils;
 
@@ -11,166 +14,106 @@ namespace backend.dao
 {
     public class PostcardCatalogDao
     {
-        private readonly string _connectionString;
+        private readonly AppSettings _appSettings;
 
         public PostcardCatalogDao(IOptions<AppSettings> appSettings)
         {
-            _connectionString = appSettings.Value.mydb;
+            _appSettings = appSettings.Value;
         }
 
-        public async Task<List<PostcardCatalog>> GetAllAsync(string category = null)
-        {
-            var list = new List<PostcardCatalog>();
-            var sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
-                               is_night_edition_default, category, sort_order, is_active,
-                               created_at, updated_at
-                        FROM md_postcard
-                        WHERE is_active = 1";
+        private const string SelectColumns = @"
+            p_id, au_id, s_id, sn_id, p_name, p_summary, p_imag_url,
+            is_night, created_at, updated_at
+        ";
 
-            if (!string.IsNullOrWhiteSpace(category))
+        #region 取得使用者的所有明信片
+        public async Task<List<PostcardCatalog>> GetAllAsync(int auId)
+        {
+            string sql = $@"
+                SELECT {SelectColumns}
+                FROM postcard
+                WHERE au_id = @auId
+                ORDER BY created_at DESC;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                sql += " AND category = @category";
+                await conn.OpenAsync();
+                return (await conn.QueryAsync<PostcardCatalog>(sql, new { auId })).ToList();
             }
-            sql += " ORDER BY sort_order";
+        }
+        #endregion
 
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
+        #region 依明信片代號取得單張
+        public async Task<PostcardCatalog> GetByIdAsync(int postcardId)
+        {
+            string sql = $@"
+                SELECT {SelectColumns}
+                FROM postcard
+                WHERE p_id = @postcardId
+                LIMIT 1;
+            ";
 
-            if (!string.IsNullOrWhiteSpace(category))
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                cmd.Parameters.AddWithValue("@category", category);
+                await conn.OpenAsync();
+                return await conn.QueryFirstOrDefaultAsync<PostcardCatalog>(sql, new { postcardId });
             }
+        }
+        #endregion
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+        #region 取得某劇本底下的明信片
+        public async Task<List<PostcardCatalog>> GetByStoryIdAsync(int storyId, int auId)
+        {
+            string sql = $@"
+                SELECT {SelectColumns}
+                FROM postcard
+                WHERE s_id = @storyId AND au_id = @auId
+                ORDER BY created_at;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                list.Add(Map(reader));
+                await conn.OpenAsync();
+                return (await conn.QueryAsync<PostcardCatalog>(sql, new { storyId, auId })).ToList();
             }
-            return list;
         }
+        #endregion
 
-        public async Task<PostcardCatalog> GetByIdAsync(string postcardId)
+        #region 新增明信片（AI 生成後寫入）
+        /// <summary>寫入後回傳資料庫自動產生的 p_id。</summary>
+        public async Task<int> CreateAsync(PostcardCatalog entity)
         {
-            const string sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
-                                        is_night_edition_default, category, sort_order, is_active,
-                                        created_at, updated_at
-                                 FROM md_postcard
-                                 WHERE postcard_id = @postcard_id";
+            string sql = @"
+                INSERT INTO postcard
+                    (au_id, s_id, sn_id, p_name, p_summary, p_imag_url, is_night)
+                VALUES
+                    (@au_id, @s_id, @sn_id, @p_name, @p_summary, @p_imag_url, @is_night);
+                SELECT LAST_INSERT_ID();
+            ";
 
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@postcard_id", postcardId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await reader.ReadAsync() ? Map(reader) : null;
-        }
-
-        public async Task<List<PostcardCatalog>> GetByStoryIdAsync(string storyId)
-        {
-            var list = new List<PostcardCatalog>();
-            const string sql = @"SELECT postcard_id, story_id, postcard_name, summary, image_url,
-                                        is_night_edition_default, category, sort_order, is_active,
-                                        created_at, updated_at
-                                 FROM md_postcard
-                                 WHERE story_id = @story_id AND is_active = 1
-                                 ORDER BY sort_order";
-
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@story_id", storyId);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                list.Add(Map(reader));
+                await conn.OpenAsync();
+                return await conn.ExecuteScalarAsync<int>(sql, entity);
             }
-            return list;
         }
+        #endregion
 
-        /// <summary>
-        /// 新增明信片主檔。目前唯一呼叫來源是 GenerateAiPostcardAsync（AI 生成明信片時寫入）。
-        /// </summary>
-        public async Task CreateAsync(PostcardCatalog entity)
+        #region 刪除明信片
+        public async Task<bool> DeleteAsync(int postcardId, int auId)
         {
-            const string sql = @"INSERT INTO md_postcard
-                                  (postcard_id, story_id, postcard_name, summary, image_url,
-                                   is_night_edition_default, category, sort_order, is_active)
-                                  VALUES
-                                  (@postcard_id, @story_id, @postcard_name, @summary, @image_url,
-                                   @is_night_edition_default, @category, @sort_order, @is_active)";
+            string sql = @"
+                DELETE FROM postcard
+                WHERE p_id = @postcardId AND au_id = @auId;
+            ";
 
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            AddEntityParameters(cmd, entity);
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        public async Task<bool> DeleteAsync(string postcardId)
-        {
-            const string sql = "DELETE FROM md_postcard WHERE postcard_id = @postcard_id";
-
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@postcard_id", postcardId);
-
-            var rows = await cmd.ExecuteNonQueryAsync();
-            return rows > 0;
-        }
-
-        /// <summary>
-        /// 將生成的明信片綁定至玩家的收藏庫 (寫入 ep_postcard)
-        /// </summary>
-        public async Task BindPostcardToUserAsync(string epId, string postcardId)
-        {
-            const string sql = @"INSERT INTO ep_postcard 
-                                 (ep_id, postcard_id)
-                                 VALUES 
-                                 (@ep_id, @postcard_id)";
-
-            using var conn = new MySqlConnection(_connectionString);
-            await conn.OpenAsync();
-            using var cmd = new MySqlCommand(sql, conn);
-
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@postcard_id", postcardId);
-
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        private static void AddEntityParameters(MySqlCommand cmd, PostcardCatalog entity)
-        {
-            cmd.Parameters.AddWithValue("@postcard_id", entity.PostcardId);
-            cmd.Parameters.AddWithValue("@story_id", entity.StoryId);
-            cmd.Parameters.AddWithValue("@postcard_name", entity.PostcardName);
-            cmd.Parameters.AddWithValue("@summary", entity.Summary);
-            cmd.Parameters.AddWithValue("@image_url", entity.ImageUrl);
-            cmd.Parameters.AddWithValue("@is_night_edition_default", entity.IsNightEditionDefault);
-            cmd.Parameters.AddWithValue("@category", entity.Category);
-            cmd.Parameters.AddWithValue("@sort_order", entity.SortOrder);
-            cmd.Parameters.AddWithValue("@is_active", entity.IsActive);
-        }
-
-        private static PostcardCatalog Map(MySqlDataReader reader)
-        {
-            return new PostcardCatalog
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                PostcardId = reader.GetString("postcard_id"),
-                StoryId = reader.IsDBNull(reader.GetOrdinal("story_id")) ? null : reader.GetString("story_id"),
-                PostcardName = reader.GetString("postcard_name"),
-                Summary = reader.IsDBNull(reader.GetOrdinal("summary")) ? null : reader.GetString("summary"),
-                ImageUrl = reader.IsDBNull(reader.GetOrdinal("image_url")) ? null : reader.GetString("image_url"),
-                IsNightEditionDefault = reader.GetBoolean("is_night_edition_default"),
-                Category = reader.IsDBNull(reader.GetOrdinal("category")) ? null : reader.GetString("category"),
-                SortOrder = reader.GetInt32("sort_order"),
-                IsActive = reader.GetBoolean("is_active"),
-                CreatedAt = reader.GetDateTime("created_at"),
-                UpdatedAt = reader.GetDateTime("updated_at")
-            };
+                await conn.OpenAsync();
+                return await conn.ExecuteAsync(sql, new { postcardId, auId }) > 0;
+            }
         }
+        #endregion
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Linq;
 using System.Threading.Tasks;
+using Dapper;
 using backend.Models;
 using backend.utils;
 using backend.ViewModels;
@@ -134,615 +135,486 @@ namespace backend.dao
         #region 劇本檔案館：依地區與偏好生成劇本選項清單
         public List<StoryOptionResponse> GenerateStories(StoryGenerateRequest req)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
+            // 新資料庫沒有地區主表，改用 story 自己的 city_name / district_name 比對。
             string sql = @"
                 SELECT
-                    s.story_id,
-                    s.title,
-                    s.prologue,
-                    s.category,
-                    s.transport,
-                    s.expected_badges_json,
-                    s.expected_postcards,
-                    s.region_id,
-                    r.region_name
-                FROM md_story s
-                LEFT JOIN md_region r
-                    ON s.region_id = r.region_id
+                    s.s_id            AS story_id,
+                    s.story_title     AS title,
+                    s.story_prologue  AS prologue,
+                    s.sd_transport    AS transport,
+                    s.story_badge     AS badge_raw,
+                    COALESCE(s.story_postcards, 0) AS expected_postcards,
+                    CONCAT(COALESCE(s.city_name, ''), COALESCE(s.district_name, '')) AS region
+                FROM story s
                 WHERE s.is_active = 1
-                  AND (
-                        @region = ''
-                        OR r.region_name LIKE CONCAT('%', @region, '%')
-                  )
-                ORDER BY s.sort_order, s.created_at;
+                  AND (@region = ''
+                       OR CONCAT(COALESCE(s.city_name, ''), COALESCE(s.district_name, '')) LIKE CONCAT('%', @region, '%'))
+                ORDER BY s.created_at;
             ";
 
-
-            using var command = new MySqlCommand(sql, connection);
             string searchRegion = $"{req?.city_name}{req?.town_name}".Trim();
-            command.Parameters.AddWithValue("@region", searchRegion);
 
-
-            var stories = new List<StoryOptionResponse>();
-
-
-            using (var reader = command.ExecuteReader())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                while (reader.Read())
+                conn.Open();
+
+                List<StoryOptionResponse> stories = conn.Query(sql, new { region = searchRegion })
+                    .Select(r => new StoryOptionResponse
+                    {
+                        story_id = (int)r.story_id,
+                        title = r.title as string,
+                        prologue = r.prologue as string,
+                        category = null,
+                        transport = r.transport as string,
+                        expected_badges = ParseBadgeList(r.badge_raw as string),
+                        expected_postcards = (int)r.expected_postcards,
+                        region_id = null,
+                        region = r.region as string
+                    })
+                    .ToList();
+
+                if (stories.Count == 0) return stories;
+
+                foreach (StoryOptionResponse story in stories)
                 {
-                    string expectedBadgesJson = reader["expected_badges_json"] == DBNull.Value
-                        ? "[]"
-                        : reader["expected_badges_json"].ToString();
+                    story.route_preview = GetRoutePreview(conn, story.story_id);
+                }
 
+                if (req?.preferences == null || req.preferences.Count == 0)
+                {
+                    return stories;
+                }
 
-                    List<string> expectedBadges;
-                    try
+                // 依 story_tag 與使用者偏好的重疊數量排序，重疊越多排越前面。
+                string tagSql = "SELECT s_tag FROM story_tag WHERE s_id = @storyId;";
+
+                return stories
+                    .Select(story => new
                     {
-                        expectedBadges = JsonSerializer.Deserialize<List<string>>(expectedBadgesJson) ?? new List<string>();
-                    }
-                    catch
-                    {
-                        expectedBadges = new List<string>();
-                    }
+                        Story = story,
+                        Score = conn.Query<string>(tagSql, new { storyId = story.story_id })
+                                    .Count(tag => req.preferences.Contains(tag))
+                    })
+                    .OrderByDescending(x => x.Score)
+                    .Select(x => x.Story)
+                    .ToList();
+            }
+        }
 
+        /// <summary>story.story_badge 是純文字欄位，同時容許 JSON 陣列與逗號分隔兩種格式。</summary>
+        private static List<string> ParseBadgeList(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return new List<string>();
 
-                    stories.Add(new StoryOptionResponse
-                    {
-                        story_id = reader["story_id"].ToString(),
-                        title = reader["title"].ToString(),
-                        prologue = reader["prologue"] == DBNull.Value ? null : reader["prologue"].ToString(),
-                        category = reader["category"] == DBNull.Value ? null : reader["category"].ToString(),
-                        transport = reader["transport"] == DBNull.Value ? null : reader["transport"].ToString(),
-                        expected_badges = expectedBadges,
-                        expected_postcards = Convert.ToInt32(reader["expected_postcards"]),
-                        region_id = reader["region_id"] == DBNull.Value ? null : reader["region_id"].ToString(),
-                        region = reader["region_name"] == DBNull.Value ? null : reader["region_name"].ToString()
-                    });
+            if (raw.TrimStart().StartsWith("["))
+            {
+                try
+                {
+                    return JsonSerializer.Deserialize<List<string>>(raw) ?? new List<string>();
+                }
+                catch
+                {
+                    // 不是合法 JSON 就退回逗號分隔處理
                 }
             }
 
-
-            if (stories.Count == 0) return stories;
-
-
-            foreach (var story in stories)
-            {
-                story.route_preview = GetRoutePreview(story.story_id);
-            }
-
-
-            if (req.preferences == null || req.preferences.Count == 0)
-            {
-                return stories;
-            }
-
-
-            var scored = new List<(StoryOptionResponse Story, int Score)>();
-            foreach (var story in stories)
-            {
-                int score = 0;
-                using var cmd = new MySqlCommand("SELECT tag FROM md_story_tag WHERE story_id = @story_id", connection);
-                cmd.Parameters.AddWithValue("@story_id", story.story_id);
-                using var tagReader = cmd.ExecuteReader();
-                while (tagReader.Read())
-                {
-                    if (req.preferences.Contains(tagReader.GetString("tag")))
-                    {
-                        score++;
-                    }
-                }
-                scored.Add((story, score));
-            }
-
-
-            return scored.OrderByDescending(s => s.Score).Select(s => s.Story).ToList();
+            return raw.Split(',')
+                .Select(x => x.Trim())
+                .Where(x => x.Length > 0)
+                .ToList();
         }
         #endregion
 
 
 
-        #region 劇本詳情 (包含對應景點名稱輸出)
-        public StoryDetailResponse GetDetail(string storyId)
+        #region 劇本詳情 (包含對應節點輸出)
+        public StoryDetailResponse GetDetail(int storyId)
         {
-            if (string.IsNullOrWhiteSpace(storyId))
-            {
-                throw new Exception("story_id 不可為空白。");
-            }
-
-
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
             string storySql = @"
-                SELECT
-                    story_id,
-                    title,
-                    subtitle,
-                    prologue,
-                    synopsis
-                FROM md_story
-                WHERE story_id = @story_id
-                  AND is_active = 1;
+                SELECT s_id, story_title, story_prologue, story_synopsis
+                FROM story
+                WHERE s_id = @storyId AND is_active = 1;
             ";
 
-
-            using var storyCommand = new MySqlCommand(storySql, connection);
-            storyCommand.Parameters.AddWithValue("@story_id", storyId);
-            using var storyReader = storyCommand.ExecuteReader();
-
-
-            if (!storyReader.Read())
-            {
-                throw new Exception("找不到此劇本：" + storyId);
-            }
-
-
-            string prologue = storyReader["prologue"] == DBNull.Value ? "" : storyReader["prologue"].ToString();
-            string synopsis = storyReader["synopsis"] == DBNull.Value ? "" : storyReader["synopsis"].ToString();
-
-
-            var result = new StoryDetailResponse
-            {
-                story_id = storyReader["story_id"].ToString(),
-                title = storyReader["title"].ToString(),
-                subtitle = storyReader["subtitle"] == DBNull.Value ? "" : storyReader["subtitle"].ToString(),
-                preface = string.IsNullOrEmpty(prologue) ? synopsis : prologue,
-                synopsis = synopsis,
-                nodes = new List<NodeDetail>(),
-                route_nodes = new List<StoryOptionResponse.RouteNode>()
-            };
-            storyReader.Close();
-
-
+            // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
             string nodeSql = @"
                 SELECT
-                    n.node_id,
-                    n.node_order,
-                    COALESCE(p.place_name, n.node_title) AS place_name,
-                    n.fog_hint,
-                    n.location_codename,
-                    n.opening_text,
-                    n.success_text,
-                    npc.npc_name
-                FROM md_story_node n
-                LEFT JOIN md_place p ON n.place_id = p.place_id
-                LEFT JOIN md_npc npc ON n.npc_id = npc.npc_id
-                WHERE n.story_id = @story_id
-                  AND n.is_active = 1
-                ORDER BY n.node_order;
+                    sn_id, sn_order, sn_title, sn_hint,
+                    location_codename, sn_opening_text, sn_success_text
+                FROM story_node
+                WHERE s_id = @storyId
+                ORDER BY sn_order;
             ";
 
-
-            using var nodeCommand = new MySqlCommand(nodeSql, connection);
-            nodeCommand.Parameters.AddWithValue("@story_id", storyId);
-            using var nodeReader = nodeCommand.ExecuteReader();
-
-
-            while (nodeReader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                int order = Convert.ToInt32(nodeReader["node_order"]);
-                string placeName = nodeReader["place_name"].ToString();
-                string taskDesc = nodeReader["fog_hint"] == DBNull.Value ? "" : nodeReader["fog_hint"].ToString();
+                conn.Open();
 
+                var story = conn.QueryFirstOrDefault(storySql, new { storyId });
 
-                result.nodes.Add(new NodeDetail
+                if (story == null)
                 {
-                    order = order,
-                    place_name = placeName,
-                    task_description = taskDesc,
-                    location_codename = nodeReader["location_codename"]?.ToString() ?? "",
-                    opening = nodeReader["opening_text"]?.ToString() ?? "",
-                    success = nodeReader["success_text"]?.ToString() ?? "",
-                    npc_name = nodeReader["npc_name"]?.ToString() ?? ""
-                });
+                    throw new Exception("找不到此劇本：" + storyId);
+                }
 
+                string prologue = (story.story_prologue as string) ?? "";
+                string synopsis = (story.story_synopsis as string) ?? "";
 
-                result.route_nodes.Add(
-                    new StoryOptionResponse.RouteNode
+                var result = new StoryDetailResponse
+                {
+                    story_id = (int)story.s_id,
+                    title = story.story_title as string,
+                    subtitle = "",
+                    preface = string.IsNullOrEmpty(prologue) ? synopsis : prologue,
+                    synopsis = synopsis,
+                    nodes = new List<NodeDetail>(),
+                    route_nodes = new List<StoryOptionResponse.RouteNode>()
+                };
+
+                foreach (var node in conn.Query(nodeSql, new { storyId }))
+                {
+                    int order = (int)node.sn_order;
+                    string title = (node.sn_title as string) ?? "";
+
+                    result.nodes.Add(new NodeDetail
                     {
-                        node_id = nodeReader["node_id"].ToString(),
-                        location_name = placeName,
+                        order = order,
+                        place_name = title,
+                        task_description = (node.sn_hint as string) ?? "",
+                        location_codename = (node.location_codename as string) ?? "",
+                        opening = (node.sn_opening_text as string) ?? "",
+                        success = (node.sn_success_text as string) ?? "",
+                        npc_name = ""
+                    });
+
+                    result.route_nodes.Add(new StoryOptionResponse.RouteNode
+                    {
+                        node_id = (int)node.sn_id,
+                        location_name = title,
                         node_order = order
-                    }
-                );
+                    });
+                }
+
+                return result;
             }
-
-
-            return result;
         }
         #endregion
 
 
 
         #region 劇本卡片路線預覽
-        private List<string> GetRoutePreview(string storyId)
+        private static List<string> GetRoutePreview(MySqlConnection conn, int storyId)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
             string sql = @"
-                SELECT
-                    COALESCE(p.place_name, n.node_title) AS location_name
-                FROM md_story_node n
-                LEFT JOIN md_place p
-                    ON n.place_id = p.place_id
-                WHERE n.story_id = @story_id
-                  AND n.is_active = 1
-                ORDER BY n.node_order;
+                SELECT sn_title
+                FROM story_node
+                WHERE s_id = @storyId
+                ORDER BY sn_order;
             ";
 
-
-            using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@story_id", storyId);
-            using var reader = command.ExecuteReader();
-            var result = new List<string>();
-
-
-            while (reader.Read())
-            {
-                result.Add(reader["location_name"].ToString());
-            }
-
-
-            return result;
+            return conn.Query<string>(sql, new { storyId }).ToList();
         }
         #endregion
 
 
 
-        // === 新增區塊：正在遊玩中狀態管理 ===
-        #region 劇本進行狀態（is_playing）
+        #region 劇本進行狀態
+        // 新資料表 story 沒有 is_playing 欄位，進行中狀態改記在 story_session.ss_status。
 
         /// <summary>
-        /// 玩家按下確定，把指定劇本標記為進行中。假設同一時間只允許一個劇本進行中，
-        /// 會先把其他劇本重置為 0，再把指定的劇本設為 1。
+        /// 玩家按下確定，把指定劇本標記為進行中。同一時間只允許一個劇本進行中，
+        /// 會先把該使用者其他進行中的場次改為 paused，再建立/更新這一場。
         /// </summary>
-        public bool SetStoryPlaying(string storyId)
+        public bool SetStoryPlaying(int auId, int storyId)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-            using var transaction = connection.BeginTransaction();
+            string pauseOthersSql = @"
+                UPDATE story_session
+                SET ss_status = 'paused'
+                WHERE au_id = @auId AND s_id <> @storyId AND ss_status = 'in_progress';
+            ";
 
-            try
+            string updateSql = @"
+                UPDATE story_session
+                SET ss_status = 'in_progress', last_played_at = NOW()
+                WHERE au_id = @auId AND s_id = @storyId;
+            ";
+
+            string insertSql = @"
+                INSERT INTO story_session (au_id, s_id, ss_current, ss_status, started_at, last_played_at)
+                SELECT @auId, s.s_id, 0, 'in_progress', NOW(), NOW()
+                FROM story s
+                WHERE s.s_id = @storyId AND s.is_active = 1;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                using (var resetCmd = new MySqlCommand(
-                    "UPDATE md_story SET is_playing = 0, updated_at = NOW() WHERE is_playing = 1",
-                    connection, transaction))
+                conn.Open();
+                using (var transaction = conn.BeginTransaction())
                 {
-                    resetCmd.ExecuteNonQuery();
-                }
-
-                using var cmd = new MySqlCommand(
-                    "UPDATE md_story SET is_playing = 1, updated_at = NOW() WHERE story_id = @story_id AND is_active = 1",
-                    connection, transaction);
-                cmd.Parameters.AddWithValue("@story_id", storyId);
-                int affected = cmd.ExecuteNonQuery();
-
-                transaction.Commit();
-                return affected > 0;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// 玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行。
-        /// </summary>
-        public bool ClearStoryPlaying(string storyId)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-            using var cmd = new MySqlCommand(
-                "UPDATE md_story SET is_playing = 0, updated_at = NOW() WHERE story_id = @story_id",
-                connection);
-            cmd.Parameters.AddWithValue("@story_id", storyId);
-            int affected = cmd.ExecuteNonQuery();
-            return affected > 0;
-        }
-
-        /// <summary>
-        /// 查詢目前正在進行中的劇本。
-        /// </summary>
-        public object GetCurrentPlayingStory()
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-            using var cmd = new MySqlCommand(
-                "SELECT story_id, title, subtitle, category FROM md_story WHERE is_playing = 1 LIMIT 1",
-                connection);
-            using var reader = cmd.ExecuteReader();
-
-            if (reader.Read())
-            {
-                return new
-                {
-                    story_id = reader["story_id"].ToString(),
-                    title = reader["title"].ToString(),
-                    subtitle = reader["subtitle"] == DBNull.Value ? "" : reader["subtitle"].ToString(),
-                    category = reader["category"] == DBNull.Value ? "" : reader["category"].ToString()
-                };
-            }
-            return null;
-        }
-
-        #endregion
-
-
-
-        #region GPS 定位生成：完整儲存 AI 劇本藍圖（欄位不遺失版，並補上地圖座標）
-        public async Task<string> SaveFullAiGeneratedStory(string epId, string regionId, string cityName, ScriptBlueprintData data)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-            using var transaction = connection.BeginTransaction();
-
-
-            try
-            {
-                if (data == null) throw new Exception("AI 回傳的劇本資料為空！");
-
-
-                string newStoryId = "AI_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-                string newNpcId = "NPC_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-
-
-                string insertStorySql = @"
-                    INSERT INTO md_story (
-                        story_id, title, subtitle, prologue, synopsis,
-                        region_id, is_active, category, transport, sort_order,
-                        expected_badges_json, expected_postcards, is_night_mode
-                    )
-                    VALUES (
-                        @story_id, @title, @subtitle, @prologue, @synopsis,
-                        @region_id, 1, 'AI專屬生成', '客製化交通', 99,
-                        '[]', @expected_postcards, @is_night_mode
-                    );
-                ";
-
-
-                using (var cmd = new MySqlCommand(insertStorySql, connection, transaction))
-                {
-                    cmd.Parameters.AddWithValue("@story_id", newStoryId);
-                    cmd.Parameters.AddWithValue("@title", data.title ?? "專屬客製化旅程");
-                    cmd.Parameters.AddWithValue("@subtitle", "AI 智能生成劇本");
-                    cmd.Parameters.AddWithValue("@prologue", data.preface ?? "");
-                    cmd.Parameters.AddWithValue("@synopsis", data.synopsis ?? "");
-                    cmd.Parameters.AddWithValue("@region_id", regionId ?? "");
-                    cmd.Parameters.AddWithValue("@expected_postcards", data.nodes?.Count ?? 0);
-                    cmd.Parameters.AddWithValue("@is_night_mode", data.is_night_mode);
-                    cmd.ExecuteNonQuery();
-                }
-
-
-                if (data.npc != null)
-                {
-                    string insertNpcSql = @"
-                        INSERT INTO md_npc (
-                            npc_id, npc_name, npc_title, introduction, default_dialogue, default_emotion, is_active
-                        ) VALUES (
-                            @npc_id, @name, @title, @intro, @dialogue, 'normal', 1
-                        );
-                    ";
-                    using var cmdNpc = new MySqlCommand(insertNpcSql, connection, transaction);
-                    cmdNpc.Parameters.AddWithValue("@npc_id", newNpcId);
-                    cmdNpc.Parameters.AddWithValue("@name", data.npc.name ?? "導覽嚮導");
-                    cmdNpc.Parameters.AddWithValue("@title", data.npc.role ?? "神秘指引者");
-                    cmdNpc.Parameters.AddWithValue("@intro", data.npc.intro ?? "");
-                    cmdNpc.Parameters.AddWithValue("@dialogue", $"你好，我是{data.npc.name}。{data.npc.intro}");
-                    cmdNpc.ExecuteNonQuery();
-                }
-
-
-                if (data.nodes != null)
-                {
-                    // 新增（一般）：地點是 Nominatim 地理編碼推算出來的合成地點，place_id 是本地自建的 P_ 編號，每筆都不會重複。
-                    string insertPlaceSql = @"
-                        INSERT INTO md_place (
-                            place_id, place_name, region_id, latitude, longitude, is_active
-                        ) VALUES (
-                            @place_id, @place_name, @region_id, @latitude, @longitude, 1
-                        );
-                    ";
-
-                    // Upsert（Neo4j 有比對到景點時使用）：place_id 是該景點在 Neo4j 的 uid，
-                    // 同一個真實景點很可能被不同劇本重複選中，用 ON DUPLICATE KEY UPDATE 避免撞 PK。
-                    string upsertPlaceSql = @"
-                        INSERT INTO md_place (
-                            place_id, place_name, region_id, latitude, longitude, is_active
-                        ) VALUES (
-                            @place_id, @place_name, @region_id, @latitude, @longitude, 1
-                        )
-                        ON DUPLICATE KEY UPDATE
-                            place_name = VALUES(place_name),
-                            latitude   = VALUES(latitude),
-                            longitude  = VALUES(longitude);
-                    ";
-
-                    string insertNodeSql = @"
-                        INSERT INTO md_story_node (
-                            node_id, story_id, node_order, node_title, fog_hint, is_active, day_index,
-                            location_codename, opening_text, success_text, npc_id,
-                            place_name_text, task_type, place_id
-                        )
-                        VALUES (
-                            @node_id, @story_id, @node_order, @node_title, @fog_hint, 1, 1,
-                            @location_codename, @opening_text, @success_text, @npc_id,
-                            @place_name_text, @task_type, @place_id
-                        );
-                    ";
-
-
-                    foreach (var node in data.nodes)
+                    try
                     {
-                        // 座標查詢策略：先查 Neo4j 真實景點資料（準確，且會帶回 uid），查無結果才退回 Nominatim
-                        var neo4jMatch = await _neo4jService.FindAttractionCoordinatesAsync(node.place_name);
-                        double? lat = neo4jMatch.lat;
-                        double? lng = neo4jMatch.lon;
-                        string neo4jUid = neo4jMatch.uid;
+                        conn.Execute(pauseOthersSql, new { auId, storyId }, transaction);
 
-
-                        if (!lat.HasValue || !lng.HasValue)
+                        int affected = conn.Execute(updateSql, new { auId, storyId }, transaction);
+                        if (affected == 0)
                         {
-                            var geoResult = await _geocodingService.SearchPlaceCoordinatesAsync(node.place_name, cityName);
-                            lat = geoResult.lat;
-                            lng = geoResult.lng;
+                            affected = conn.Execute(insertSql, new { auId, storyId }, transaction);
                         }
 
-
-                        // 有比對到 Neo4j 景點時，place_id 直接用該景點的 uid——任務生成（md_place_type
-                        // 查詢、Neo4j 圖片抓取）都是靠這個 uid 關聯，用本地合成的 P_ 編號會讓任務系統
-                        // 完全找不到這個景點。查無 Neo4j 資料（只能用 Nominatim 地理編碼）才退回合成編號，
-                        // 這種節點之後任務生成會找不到 md_place_type 設定而略過，屬於既有的容錯行為。
-                        bool matchedRealPlace = !string.IsNullOrWhiteSpace(neo4jUid);
-                        string resolvedPlaceId = matchedRealPlace
-                            ? neo4jUid
-                            : "P_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-
-
-                        using (var cmdPlace = new MySqlCommand(matchedRealPlace ? upsertPlaceSql : insertPlaceSql, connection, transaction))
-                        {
-                            cmdPlace.Parameters.AddWithValue("@place_id", resolvedPlaceId);
-                            cmdPlace.Parameters.AddWithValue("@place_name", node.place_name ?? "");
-                            cmdPlace.Parameters.AddWithValue("@region_id", regionId ?? "");
-                            cmdPlace.Parameters.AddWithValue("@latitude", lat.HasValue ? (object)lat.Value : DBNull.Value);
-                            cmdPlace.Parameters.AddWithValue("@longitude", lng.HasValue ? (object)lng.Value : DBNull.Value);
-                            cmdPlace.ExecuteNonQuery();
-                        }
-
-
-                        using (var cmdNode = new MySqlCommand(insertNodeSql, connection, transaction))
-                        {
-                            cmdNode.Parameters.AddWithValue("@node_id", "N_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper());
-                            cmdNode.Parameters.AddWithValue("@story_id", newStoryId);
-                            cmdNode.Parameters.AddWithValue("@node_order", node.node_order);
-                            cmdNode.Parameters.AddWithValue("@node_title", node.node_title ?? "");
-                            cmdNode.Parameters.AddWithValue("@fog_hint",
-                                string.IsNullOrEmpty(node.task_description) ? (object)DBNull.Value
-                                : (node.task_description.Length > 255 ? node.task_description.Substring(0, 255) : node.task_description));
-                            cmdNode.Parameters.AddWithValue("@location_codename", node.location_codename ?? "");
-                            cmdNode.Parameters.AddWithValue("@opening_text", node.dialogues?.opening ?? "");
-                            cmdNode.Parameters.AddWithValue("@success_text", node.dialogues?.success ?? "");
-                            cmdNode.Parameters.AddWithValue("@npc_id", newNpcId);
-                            cmdNode.Parameters.AddWithValue("@place_name_text", node.place_name ?? "");
-                            cmdNode.Parameters.AddWithValue("@task_type", node.task_type ?? "");
-                            cmdNode.Parameters.AddWithValue("@place_id", resolvedPlaceId);
-                            cmdNode.ExecuteNonQuery();
-                        }
+                        transaction.Commit();
+                        return affected > 0;
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
                     }
                 }
-
-
-                transaction.Commit();
-                return newStoryId;
-            }
-            catch (Exception ex)
-            {
-                transaction.Rollback();
-                throw new Exception($"AI 劇本完整寫入資料庫失敗: {ex.Message}");
             }
         }
 
+        /// <summary>
+        /// 玩家結束劇本時呼叫，把該場次標記為完成（首頁與過往紀錄都以 completed 統計）。
+        /// </summary>
+        public bool ClearStoryPlaying(int auId, int storyId)
+        {
+            string sql = @"
+                UPDATE story_session
+                SET ss_status = 'completed', completed_at = NOW()
+                WHERE au_id = @auId AND s_id = @storyId;
+            ";
 
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.Execute(sql, new { auId, storyId }) > 0;
+            }
+        }
+
+        /// <summary>查詢該使用者目前正在進行中的劇本。</summary>
+        public object GetCurrentPlayingStory(int auId)
+        {
+            string sql = @"
+                SELECT s.s_id AS story_id, s.story_title AS title, ss.ss_current AS current_order
+                FROM story_session ss
+                INNER JOIN story s ON s.s_id = ss.s_id
+                WHERE ss.au_id = @auId AND ss.ss_status = 'in_progress'
+                ORDER BY ss.last_played_at DESC
+                LIMIT 1;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+
+                var row = conn.QueryFirstOrDefault(sql, new { auId });
+
+                if (row == null) return null;
+
+                return new
+                {
+                    story_id = (int)row.story_id,
+                    title = (row.title as string) ?? "",
+                    current_order = (int)row.current_order
+                };
+            }
+        }
+        #endregion
+
+
+
+        #region GPS 定位生成：完整儲存 AI 劇本藍圖
+        /// <summary>
+        /// 把 AI 產生的劇本藍圖寫進 story + story_node。
+        /// 與舊版的兩點差異：
+        /// 1. 新資料庫沒有 NPC 主表，NPC 名稱／介紹無處可存，只能放棄（story.npc_id 留 null）。
+        /// 2. place 的主鍵是 int 自增，沒辦法再用 Neo4j uid 當主鍵。
+        ///    節點仍然把 Neo4j uid 寫進 story_node.place_id（任務生成靠這個關聯），
+        ///    另外把景點名稱與座標補進 place 表，避免地理資訊整個遺失。
+        /// </summary>
+        public async Task<int> SaveFullAiGeneratedStory(
+            int auId, string cityName, string districtName, ScriptBlueprintData data)
+        {
+            if (data == null) throw new Exception("AI 回傳的劇本資料為空！");
+
+            string insertStorySql = @"
+                INSERT INTO story (
+                    au_id, city_name, district_name, sd_transport,
+                    story_title, story_prologue, story_synopsis,
+                    story_badge, story_postcards, is_active, is_night_mode
+                ) VALUES (
+                    @auId, @cityName, @districtName, '客製化交通',
+                    @title, @prologue, @synopsis,
+                    '', @expectedPostcards, 1, @isNightMode
+                );
+                SELECT LAST_INSERT_ID();
+            ";
+
+            string insertNodeSql = @"
+                INSERT INTO story_node (
+                    s_id, place_id, sn_order, sn_title, sn_hint,
+                    is_hidden, is_night_only, is_active,
+                    location_codename, sn_opening_text, sn_success_text, sn_task_type
+                ) VALUES (
+                    @storyId, @placeId, @order, @title, @hint,
+                    2, 2, 2,
+                    @codename, @opening, @success, @taskType
+                );
+            ";
+
+            // place 沒有 UNIQUE 欄位可做 upsert，先用名稱查，查不到才新增。
+            string findPlaceSql = "SELECT p_id FROM place WHERE p_name = @name LIMIT 1;";
+            string insertPlaceSql = @"
+                INSERT INTO place (region_id, p_name, p_latitude, p_longitude)
+                VALUES (@regionId, @name, @lat, @lng);
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        int newStoryId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
+                        {
+                            auId,
+                            cityName = cityName ?? "",
+                            districtName = districtName ?? "",
+                            title = data.title ?? "專屬客製化旅程",
+                            prologue = data.preface ?? "",
+                            synopsis = data.synopsis ?? "",
+                            expectedPostcards = data.nodes?.Count ?? 0,
+                            isNightMode = data.is_night_mode ? 1 : 2
+                        }, transaction);
+
+                        foreach (var node in data.nodes ?? new List<ScriptBlueprintNode>())
+                        {
+                            // 座標先查 Neo4j 真實景點（準確且會回傳 uid），查不到才退回 Nominatim 地理編碼。
+                            var neo4jMatch = await _neo4jService.FindAttractionCoordinatesAsync(node.place_name);
+                            double? lat = neo4jMatch.lat;
+                            double? lng = neo4jMatch.lon;
+                            string neo4jUid = neo4jMatch.uid;
+
+                            if (!lat.HasValue || !lng.HasValue)
+                            {
+                                var geoResult = await _geocodingService.SearchPlaceCoordinatesAsync(node.place_name, cityName);
+                                lat = geoResult.lat;
+                                lng = geoResult.lng;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(node.place_name))
+                            {
+                                int? existingPlaceId = await conn.ExecuteScalarAsync<int?>(
+                                    findPlaceSql, new { name = node.place_name }, transaction);
+
+                                if (existingPlaceId == null)
+                                {
+                                    await conn.ExecuteAsync(insertPlaceSql, new
+                                    {
+                                        regionId = neo4jUid,
+                                        name = node.place_name,
+                                        lat,
+                                        lng
+                                    }, transaction);
+                                }
+                            }
+
+                            string hint = node.task_description;
+                            if (!string.IsNullOrEmpty(hint) && hint.Length > 255)
+                            {
+                                hint = hint.Substring(0, 255);
+                            }
+
+                            await conn.ExecuteAsync(insertNodeSql, new
+                            {
+                                storyId = newStoryId,
+                                placeId = neo4jUid,
+                                order = node.node_order,
+                                title = node.node_title ?? node.place_name ?? "",
+                                hint,
+                                codename = node.location_codename ?? "",
+                                opening = node.dialogues?.opening ?? "",
+                                success = node.dialogues?.success ?? "",
+                                taskType = node.task_type ?? ""
+                            }, transaction);
+                        }
+
+                        transaction.Commit();
+                        return newStoryId;
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw new Exception($"AI 劇本完整寫入資料庫失敗: {ex.Message}");
+                    }
+                }
+            }
+        }
 
         /// <summary>
-        /// 依 story_id 完整讀出劇本，欄位結構與 AI 原始藍圖 100% 對應，不遺失 task_type / node_title / is_night_mode。
+        /// 依 s_id 完整讀出劇本，結構與 AI 原始藍圖對應。
+        /// NPC 區塊因為新資料庫沒有 NPC 主表，固定為 null。
         /// </summary>
-        public ScriptBlueprintData GetFullDetail(string storyId)
+        public ScriptBlueprintData GetFullDetail(int storyId)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
             string storySql = @"
-                SELECT title, prologue, synopsis, is_night_mode
-                FROM md_story
-                WHERE story_id = @story_id AND is_active = 1;
+                SELECT story_title, story_prologue, story_synopsis, is_night_mode
+                FROM story
+                WHERE s_id = @storyId AND is_active = 1;
             ";
-
-
-            var result = new ScriptBlueprintData { nodes = new List<ScriptBlueprintNode>() };
-            string npcId = null;
-
-
-            using (var storyCmd = new MySqlCommand(storySql, connection))
-            {
-                storyCmd.Parameters.AddWithValue("@story_id", storyId);
-                using var reader = storyCmd.ExecuteReader();
-                if (!reader.Read()) throw new Exception("找不到此劇本：" + storyId);
-
-
-                result.title = reader["title"].ToString();
-                result.preface = reader["prologue"] == DBNull.Value ? "" : reader["prologue"].ToString();
-                result.synopsis = reader["synopsis"] == DBNull.Value ? "" : reader["synopsis"].ToString();
-                result.is_night_mode = Convert.ToBoolean(reader["is_night_mode"]);
-            }
-
 
             string nodeSql = @"
-                SELECT node_order, place_name_text, location_codename, node_title, task_type, fog_hint,
-                       opening_text, success_text, npc_id
-                FROM md_story_node
-                WHERE story_id = @story_id AND is_active = 1
-                ORDER BY node_order;
+                SELECT sn_order, sn_title, location_codename, sn_task_type,
+                       sn_hint, sn_opening_text, sn_success_text
+                FROM story_node
+                WHERE s_id = @storyId
+                ORDER BY sn_order;
             ";
 
-
-            using (var nodeCmd = new MySqlCommand(nodeSql, connection))
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                nodeCmd.Parameters.AddWithValue("@story_id", storyId);
-                using var reader = nodeCmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    if (npcId == null && reader["npc_id"] != DBNull.Value) npcId = reader["npc_id"].ToString();
+                conn.Open();
 
+                var story = conn.QueryFirstOrDefault(storySql, new { storyId });
+
+                if (story == null)
+                {
+                    throw new Exception("找不到此劇本：" + storyId);
+                }
+
+                var result = new ScriptBlueprintData
+                {
+                    title = story.story_title as string,
+                    preface = (story.story_prologue as string) ?? "",
+                    synopsis = (story.story_synopsis as string) ?? "",
+                    is_night_mode = Convert.ToInt32(story.is_night_mode) == 1,
+                    npc = null,
+                    nodes = new List<ScriptBlueprintNode>()
+                };
+
+                foreach (var node in conn.Query(nodeSql, new { storyId }))
+                {
+                    string title = (node.sn_title as string) ?? "";
 
                     result.nodes.Add(new ScriptBlueprintNode
                     {
-                        node_order = Convert.ToInt32(reader["node_order"]),
-                        place_name = reader["place_name_text"] == DBNull.Value ? "" : reader["place_name_text"].ToString(),
-                        location_codename = reader["location_codename"] == DBNull.Value ? "" : reader["location_codename"].ToString(),
-                        node_title = reader["node_title"] == DBNull.Value ? "" : reader["node_title"].ToString(),
-                        task_type = reader["task_type"] == DBNull.Value ? "" : reader["task_type"].ToString(),
-                        task_description = reader["fog_hint"] == DBNull.Value ? "" : reader["fog_hint"].ToString(),
+                        node_order = (int)node.sn_order,
+                        place_name = title,
+                        location_codename = (node.location_codename as string) ?? "",
+                        node_title = title,
+                        task_type = (node.sn_task_type as string) ?? "",
+                        task_description = (node.sn_hint as string) ?? "",
                         dialogues = new ScriptBlueprintDialogues
                         {
-                            opening = reader["opening_text"] == DBNull.Value ? "" : reader["opening_text"].ToString(),
-                            success = reader["success_text"] == DBNull.Value ? "" : reader["success_text"].ToString()
+                            opening = (node.sn_opening_text as string) ?? "",
+                            success = (node.sn_success_text as string) ?? ""
                         }
                     });
                 }
+
+                return result;
             }
-
-
-            if (npcId != null)
-            {
-                string npcSql = "SELECT npc_name, npc_title, introduction FROM md_npc WHERE npc_id = @npc_id";
-                using var npcCmd = new MySqlCommand(npcSql, connection);
-                npcCmd.Parameters.AddWithValue("@npc_id", npcId);
-                using var npcReader = npcCmd.ExecuteReader();
-                if (npcReader.Read())
-                {
-                    result.npc = new ScriptBlueprintNpc
-                    {
-                        name = npcReader["npc_name"].ToString(),
-                        role = npcReader["npc_title"] == DBNull.Value ? "" : npcReader["npc_title"].ToString(),
-                        intro = npcReader["introduction"] == DBNull.Value ? "" : npcReader["introduction"].ToString()
-                    };
-                }
-            }
-
-
-            return result;
         }
         #endregion
 
@@ -751,51 +623,37 @@ namespace backend.dao
         #region GPS 附近地點查詢（依實際距離排序，供劇本節點使用）
         public List<NearbyPlaceDistanceResponse> GetNearbyPlacesByDistance(double lat, double lng, double radiusKm)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
+            // place 沒有 is_active 欄位，改為只要有座標就納入計算。
             string sql = @"
                 SELECT
-                    place_id,
-                    place_name,
+                    p_id   AS place_id,
+                    p_name AS place_name,
                     (
                         6371 * ACOS(
-                            COS(RADIANS(@lat)) * COS(RADIANS(latitude)) *
-                            COS(RADIANS(longitude) - RADIANS(@lng)) +
-                            SIN(RADIANS(@lat)) * SIN(RADIANS(latitude))
+                            COS(RADIANS(@lat)) * COS(RADIANS(p_latitude)) *
+                            COS(RADIANS(p_longitude) - RADIANS(@lng)) +
+                            SIN(RADIANS(@lat)) * SIN(RADIANS(p_latitude))
                         )
                     ) AS distance_km
-                FROM md_place
-                WHERE is_active = 1
-                HAVING distance_km <= @radius_km
-                ORDER BY distance_km ASC;
+                FROM place
+                WHERE p_latitude IS NOT NULL AND p_longitude IS NOT NULL
+                HAVING distance_km <= @radiusKm
+                ORDER BY distance_km;
             ";
 
-
-            using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@lat", lat);
-            command.Parameters.AddWithValue("@lng", lng);
-            command.Parameters.AddWithValue("@radius_km", radiusKm);
-
-
-            using var reader = command.ExecuteReader();
-            var result = new List<NearbyPlaceDistanceResponse>();
-
-
-            while (reader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                result.Add(new NearbyPlaceDistanceResponse
-                {
-                    place_id = reader["place_id"].ToString(),
-                    place_name = reader["place_name"].ToString(),
-                    location_codename = "",
-                    distance_km = Convert.ToDouble(reader["distance_km"])
-                });
+                conn.Open();
+
+                return conn.Query<NearbyPlaceDistanceResponse>(
+                        sql, new { lat, lng, radiusKm })
+                    .Select(x =>
+                    {
+                        x.location_codename = "";
+                        return x;
+                    })
+                    .ToList();
             }
-
-
-            return result;
         }
         #endregion
 

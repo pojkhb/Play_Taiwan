@@ -40,19 +40,19 @@ namespace backend.Services
         }
 
 
-        public StoryDetailResponse GetDetail(string storyId)
+        public StoryDetailResponse GetDetail(int storyId)
         {
             return _dao.GetDetail(storyId);
         }
 
 
         // === 變更重點：原本只讀不寫，現在會把該劇本標記為「正在遊玩中」 ===
-        public StoryDetailResponse ConfirmStory(StoryConfirmRequest req)
+        public StoryDetailResponse ConfirmStory(int auId, StoryConfirmRequest req)
         {
-            if (req == null || string.IsNullOrWhiteSpace(req.story_id))
+            if (req == null || req.story_id <= 0)
                 throw new Exception("請提供 story_id");
 
-            bool success = _dao.SetStoryPlaying(req.story_id);
+            bool success = _dao.SetStoryPlaying(auId, req.story_id);
             if (!success)
                 throw new Exception($"找不到 story_id = {req.story_id} 的劇本");
 
@@ -60,33 +60,33 @@ namespace backend.Services
         }
 
         // === 新增：玩家結束/退出劇本時呼叫 ===
-        public bool EndStory(string storyId)
+        public bool EndStory(int auId, int storyId)
         {
-            if (string.IsNullOrWhiteSpace(storyId))
+            if (storyId <= 0)
                 throw new Exception("請提供 story_id");
 
-            return _dao.ClearStoryPlaying(storyId);
+            return _dao.ClearStoryPlaying(auId, storyId);
         }
 
         // === 新增：查目前哪個劇本正在進行中 ===
-        public object GetCurrentPlayingStory()
+        public object GetCurrentPlayingStory(int auId)
         {
-            return _dao.GetCurrentPlayingStory();
+            return _dao.GetCurrentPlayingStory(auId);
         }
 
 
         #region GPS 定位生成劇本 相關方法
 
 
-        public ScriptBlueprintData GetFullDetail(string storyId)
+        public ScriptBlueprintData GetFullDetail(int storyId)
         {
             return _dao.GetFullDetail(storyId);
         }
 
 
-        public async Task<string> SaveFullAiGeneratedStory(string epId, string regionId, string cityName, ScriptBlueprintData data)
+        public async Task<int> SaveFullAiGeneratedStory(int auId, string cityName, string districtName, ScriptBlueprintData data)
         {
-            return await _dao.SaveFullAiGeneratedStory(epId, regionId, cityName, data);
+            return await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
         }
 
 

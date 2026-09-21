@@ -86,7 +86,7 @@ namespace backend.Models
     // ==========================================
     public class StoryDetailResponse
     {
-       public string story_id { get; set; }
+       public int story_id { get; set; }
         public string title { get; set; }
         public string preface { get; set; }   // 畫面 2：前傳
         public string synopsis { get; set; }  // 畫面 1：內文簡介
@@ -191,6 +191,6 @@ public class ParsedIntent
 }
 public class ConfirmStoryRequest
 {
-    public string story_id { get; set; }
+    public int story_id { get; set; }
 }
 }

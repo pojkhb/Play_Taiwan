@@ -1,8 +1,12 @@
 // 檔案路徑：System\dao\VisitorVlogDao.cs
+// 對應新資料表 `user_task_record` + `task` + `story_node` + `record_media` + `au_vlog`，
+// 取代舊的 ep_task_record / md_story_node / md_task_media / ep_vlog。
+// 注意：user_task_record 沒有 story_id / node_id，必須 JOIN task 才能篩出某個劇本的作答紀錄。
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using backend.Models;
+using Dapper;
 using backend.ViewModels;
 using backend.utils;
 using Microsoft.Extensions.Options;
@@ -19,121 +23,122 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
+        #region 取得遊玩結果（時長 + 景點清單）
         /// <summary>
-        /// 依 ep_id + story_id，從 ep_task_record 算出實際遊玩時長，
-        /// 並 JOIN md_story_node / md_place 組出玩家走過的景點清單（依完成時間排序）。
-        /// ⚠️ 欄位名稱（task_id、completed_at、created_at、place_id、codename）需依實際 schema 核對。
+        /// 依 au_id + story_id 從 user_task_record 算出實際遊玩時長，
+        /// 並 JOIN story_node 組出玩家走過的景點清單（依作答時間排序）。
+        /// 新表只有 answered_at 一個時間欄位，時長取最早與最晚作答時間的差。
         /// </summary>
-        public async Task<(string playTime, List<SpotHistoryItem> spots)> GetPlayResultAsync(string epId, string storyId)
+        public async Task<(string playTime, List<SpotHistoryItem> spots)> GetPlayResultAsync(int auId, int storyId)
         {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            await connection.OpenAsync();
-
             string timeSql = @"
-        SELECT MIN(created_at) AS start_time, MAX(completed_at) AS end_time
-        FROM ep_task_record
-        WHERE ep_id = @ep_id AND story_id = @story_id;
-    ";
-
-            DateTime? startTime = null, endTime = null;
-            using (var cmd = new MySqlCommand(timeSql, connection))
-            {
-                cmd.Parameters.AddWithValue("@ep_id", epId);
-                cmd.Parameters.AddWithValue("@story_id", storyId);
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
-                {
-                    if (!reader.IsDBNull(0)) startTime = reader.GetDateTime(0);
-                    if (!reader.IsDBNull(1)) endTime = reader.GetDateTime(1);
-                }
-            }
-
-            string playTime = "2.5小時";
-            if (startTime.HasValue && endTime.HasValue && endTime > startTime)
-            {
-                var span = endTime.Value - startTime.Value;
-                playTime = span.TotalHours >= 1
-                    ? $"{span.TotalHours:0.0}小時"
-                    : $"{span.TotalMinutes:0}分鐘";
-            }
-
-            string spotSql = @"
-        SELECT sn.place_name_text, sn.location_codename, tr.completed_at
-        FROM ep_task_record tr
-        INNER JOIN md_story_node sn ON tr.node_id = sn.node_id
-        WHERE tr.ep_id = @ep_id AND tr.story_id = @story_id
-        ORDER BY tr.completed_at ASC;
-    ";
-
-            var spots = new List<SpotHistoryItem>();
-            using (var cmd = new MySqlCommand(spotSql, connection))
-            {
-                cmd.Parameters.AddWithValue("@ep_id", epId);
-                cmd.Parameters.AddWithValue("@story_id", storyId);
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    spots.Add(new SpotHistoryItem
-                    {
-                        spot_name = reader.IsDBNull(0) ? "未知景點" : reader.GetString(0),
-                        location_codename = reader.IsDBNull(1) ? null : reader.GetString(1),
-                        visit_time = reader.IsDBNull(2) ? null : reader.GetDateTime(2).ToString("yyyy-MM-dd HH:mm")
-                    });
-                }
-            }
-
-            return (playTime, spots);
-        }
-
-        /// <summary>
-        /// 依 story_id 撈出這個劇本所有任務節點對應的素材網址（md_task_media）。
-        /// </summary>
-        public async Task<List<string>> GetTaskMediaUrlsAsync(string epId, string storyId)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            await connection.OpenAsync();
-
-            string sql = @"
-        SELECT DISTINCT tm.media_url
-        FROM ep_task_record tr
-        INNER JOIN md_task_media tm ON tr.task_id = tm.task_id
-        WHERE tr.ep_id = @ep_id AND tr.story_id = @story_id;
-    ";
-
-            var urls = new List<string>();
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@story_id", storyId);
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                if (!reader.IsDBNull(0)) urls.Add(reader.GetString(0));
-            }
-            return urls;
-        }
-
-        /// <summary>
-        /// 對應 ep_vlog 表：ep_id、vlog_id、story_id、video_url、thumbnail_url、completed_at。
-        /// </summary>
-        public async Task SaveVlogAsync(string epId, string vlogId, string storyId, string videoUrl)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            await connection.OpenAsync();
-
-            string sql = @"
-                INSERT INTO ep_vlog (ep_id, vlog_id, story_id, video_url, thumbnail_url, completed_at)
-                VALUES (@ep_id, @vlog_id, @story_id, @video_url, NULL, NOW())
-                ON DUPLICATE KEY UPDATE
-                    video_url = @video_url,
-                    completed_at = NOW();
+                SELECT MIN(utr.answered_at) AS start_time,
+                       MAX(utr.answered_at) AS end_time
+                FROM user_task_record utr
+                INNER JOIN task t ON t.task_id = utr.task_id
+                WHERE utr.au_id = @auId AND t.story_id = @storyId;
             ";
 
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@vlog_id", vlogId);
-            cmd.Parameters.AddWithValue("@story_id", storyId ?? "");
-            cmd.Parameters.AddWithValue("@video_url", videoUrl);
-            await cmd.ExecuteNonQueryAsync();
+            string spotSql = @"
+                SELECT sn.sn_title              AS spot_name,
+                       sn.location_codename     AS location_codename,
+                       MIN(utr.answered_at)     AS visit_at
+                FROM user_task_record utr
+                INNER JOIN task t        ON t.task_id = utr.task_id
+                INNER JOIN story_node sn ON sn.sn_id = t.node_id
+                WHERE utr.au_id = @auId AND t.story_id = @storyId
+                GROUP BY sn.sn_id, sn.sn_title, sn.location_codename
+                ORDER BY visit_at;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+
+                var range = await conn.QueryFirstOrDefaultAsync<(DateTime? start_time, DateTime? end_time)>(
+                    timeSql, new { auId, storyId });
+
+                string playTime = FormatPlayTime(range.start_time, range.end_time);
+
+                var spots = (await conn.QueryAsync<(string spot_name, string location_codename, DateTime? visit_at)>(
+                        spotSql, new { auId, storyId }))
+                    .Select(r => new SpotHistoryItem
+                    {
+                        spot_name = string.IsNullOrWhiteSpace(r.spot_name) ? "未知景點" : r.spot_name,
+                        location_codename = r.location_codename,
+                        visit_time = r.visit_at?.ToString("yyyy-MM-dd HH:mm")
+                    })
+                    .ToList();
+
+                return (playTime, spots);
+            }
         }
+
+        private static string FormatPlayTime(DateTime? startTime, DateTime? endTime)
+        {
+            if (!startTime.HasValue || !endTime.HasValue || endTime <= startTime)
+            {
+                return "2.5小時";
+            }
+
+            TimeSpan span = endTime.Value - startTime.Value;
+            return span.TotalHours >= 1
+                ? $"{span.TotalHours:0.0}小時"
+                : $"{span.TotalMinutes:0}分鐘";
+        }
+        #endregion
+
+        #region 取得該劇本的所有任務素材網址
+        public async Task<List<string>> GetTaskMediaUrlsAsync(int auId, int storyId)
+        {
+            string sql = @"
+                SELECT DISTINCT rm.media_url
+                FROM user_task_record utr
+                INNER JOIN task t          ON t.task_id = utr.task_id
+                INNER JOIN record_media rm ON rm.record_id = utr.record_id
+                WHERE utr.au_id = @auId
+                  AND t.story_id = @storyId
+                  AND rm.media_url IS NOT NULL;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+                return (await conn.QueryAsync<string>(sql, new { auId, storyId })).ToList();
+            }
+        }
+        #endregion
+
+        #region 寫入 / 更新遊客 VLOG
+        /// <summary>
+        /// 寫入 au_vlog。新表沒有外部 task_id 欄位，
+        /// 因此以「同一位使用者的同一個劇本只有一支 VLOG」為準做更新或新增。
+        /// av_vlog_status：1=待處理、2=處理中、3=已完成、4=失敗。
+        /// </summary>
+        public async Task SaveVlogAsync(int auId, int storyId, string videoUrl)
+        {
+            string updateSql = @"
+                UPDATE au_vlog
+                SET av_video_url = @videoUrl, av_vlog_status = 3
+                WHERE au_id = @auId AND s_id = @storyId;
+            ";
+
+            string insertSql = @"
+                INSERT INTO au_vlog (au_id, s_id, av_video_url, av_vlog_status)
+                VALUES (@auId, @storyId, @videoUrl, 3);
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+
+                int rows = await conn.ExecuteAsync(updateSql, new { auId, storyId, videoUrl });
+                if (rows == 0)
+                {
+                    await conn.ExecuteAsync(insertSql, new { auId, storyId, videoUrl });
+                }
+            }
+        }
+        #endregion
     }
 }

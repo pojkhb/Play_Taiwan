@@ -46,8 +46,8 @@ namespace backend.Controllers
         /// <param name="story_id">劇本代號。</param>
         /// <returns>地圖節點與探索進度資訊。</returns>
         // API：取得地圖（GetMap）－回傳指定劇本的地圖節點與探索進度
-        [HttpGet("{story_id}")]
-        public IActionResult GetMap(string story_id)
+        [HttpGet("{story_id:int}")]
+        public IActionResult GetMap(int story_id)
         {
             try
             {
@@ -102,9 +102,9 @@ namespace backend.Controllers
         /// <returns>解鎖成功後的節點詳情。</returns>
         ///[❌]
         // API：GPS 確認抵達（Arrive）－驗證座標後解鎖指定節點
-        [HttpPost("Node/{node_id}/Arrive")]
+        [HttpPost("Node/{node_id:int}/Arrive")]
         public IActionResult Arrive(
-            string node_id,
+            int node_id,
             [FromQuery] double lat,
             [FromQuery] double lng)
         {
@@ -168,8 +168,8 @@ namespace backend.Controllers
         /// <param name="node_id">節點代號。</param>
         /// <returns>節點詳細內容。</returns>
         // API：取得節點詳情（GetNode）－回傳指定節點的詳細內容
-        [HttpGet("Node/{node_id}")]
-        public IActionResult GetNode(string node_id)
+        [HttpGet("Node/{node_id:int}")]
+        public IActionResult GetNode(int node_id)
         {
             try
             {
@@ -213,8 +213,8 @@ namespace backend.Controllers
         /// <param name="node_id">節點代號。</param>
         /// <returns>NPC 互動內容。</returns>
         // API：NPC 隨機互動（Interact）－回傳指定節點的 NPC 對話內容
-        [HttpGet("Node/{node_id}/Interact")]
-        public IActionResult Interact(string node_id)
+        [HttpGet("Node/{node_id:int}/Interact")]
+        public IActionResult Interact(int node_id)
         {
             try
             {
@@ -255,7 +255,7 @@ namespace backend.Controllers
         ///
         ///     POST /api/Map/Navigate
         ///     {
-        ///       "node_id": "N001"
+        ///       "node_id": 1
         ///     }
         /// </remarks>
         /// <param name="req">導航請求，包含目標節點代號。</param>
@@ -307,9 +307,9 @@ namespace backend.Controllers
         /// <param name="category">分類篩選條件（如：飲食、其他）。</param>
         /// <returns>周邊推薦地點清單。</returns>
         // API：周邊好去（Nearby）－回傳指定劇本周邊依分類篩選的推薦地點
-        [HttpGet("{story_id}/Nearby")]
+        [HttpGet("{story_id:int}/Nearby")]
         public IActionResult Nearby(
-            string story_id,
+            int story_id,
             [FromQuery] string category)
         {
             try

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.utils;
 using backend.ViewModels;
 
 
@@ -99,9 +100,7 @@ namespace backend.Controllers
                 }
 
 
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId))
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
+                int auId = User.GetAuId();
 
 
                 if (string.IsNullOrWhiteSpace(req.city_name))
@@ -154,7 +153,7 @@ namespace backend.Controllers
 
 
                 string recommendationId = _service.SaveAgentRecommendation(
-                    epId, req.city_name, req.town_name ?? "", geoResult.lat.Value, geoResult.lng.Value, agentResult);
+                    auId.ToString(), req.city_name, req.town_name ?? "", geoResult.lat.Value, geoResult.lng.Value, agentResult);
 
 
                 return Ok(new ResultViewModel<object>
@@ -267,9 +266,7 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId))
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
+                int auId = User.GetAuId();
 
 
                 if (string.IsNullOrWhiteSpace(req.city_name))
@@ -351,8 +348,9 @@ namespace backend.Controllers
                     }
 
 
-                    string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
-                    newStoryIds.Add(newStoryId);
+                    int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
+                    // TaskGenerationService 仍吃字串型別的 story_id，這裡先轉字串保持相容。
+                    newStoryIds.Add(newStoryId.ToString());
 
 
                     allResults.Add(new
@@ -436,8 +434,8 @@ namespace backend.Controllers
         /// </remarks>
         [Authorize]
         [HttpGet]
-        [Route("{story_id}/Detail")]
-        public IActionResult Detail(string story_id)
+        [Route("{story_id:int}/Detail")]
+        public IActionResult Detail(int story_id)
         {
             try
             {
@@ -464,8 +462,8 @@ namespace backend.Controllers
         /// </remarks>
         [Authorize]
         [HttpGet]
-        [Route("{story_id}/FullDetail")]
-        public IActionResult FullDetail(string story_id)
+        [Route("{story_id:int}/FullDetail")]
+        public IActionResult FullDetail(int story_id)
         {
             try
             {
@@ -500,7 +498,7 @@ namespace backend.Controllers
         {
             try
             {
-                StoryDetailResponse detail = _service.ConfirmStory(req);
+                StoryDetailResponse detail = _service.ConfirmStory(User.GetAuId(), req);
                 return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
             catch (Exception e)
@@ -527,12 +525,12 @@ namespace backend.Controllers
         {
             try
             {
-                bool result = _service.EndStory(req.story_id);
+                bool result = _service.EndStory(User.GetAuId(), req.story_id);
                 return Ok(new ResultViewModel<string>
                 {
                     isSuccess = result,
                     message = result ? "已結束此劇本的進行狀態" : $"找不到 story_id = {req.story_id} 的劇本",
-                    Result = req.story_id
+                    Result = req.story_id.ToString()
                 });
             }
             catch (Exception e)
@@ -558,7 +556,7 @@ namespace backend.Controllers
         {
             try
             {
-                var story = _service.GetCurrentPlayingStory();
+                var story = _service.GetCurrentPlayingStory(User.GetAuId());
                 return Ok(new ResultViewModel<object>
                 {
                     isSuccess = true,
@@ -606,9 +604,7 @@ namespace backend.Controllers
         {
             try
             {
-                string epId = User.FindFirst("ep_id")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(epId))
-                    return Unauthorized(new ResultViewModel<string> { isSuccess = false, message = "無法驗證身分" });
+                int auId = User.GetAuId();
 
 
                 if (string.IsNullOrWhiteSpace(req?.user_prompt))
@@ -657,7 +653,7 @@ namespace backend.Controllers
                 string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
 
 
-                string newStoryId = await _service.SaveFullAiGeneratedStory(epId, regionId, cityName, aiResult.data);
+                int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
 
 
                 return Ok(new ResultViewModel<object>

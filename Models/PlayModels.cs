@@ -6,7 +6,7 @@ namespace backend.Models
 {
     public class NpcInteractionResponse
     {
-        public string node_id { get; set; }               // 節點代號
+        public int node_id { get; set; }                  // 節點代號，對應 story_node.sn_id
 
         // 景點資訊
         public string location_name { get; set; }          // 景點名稱

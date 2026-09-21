@@ -1,8 +1,28 @@
+// 檔案路徑：System\Models\Postcard\PostcardModels.cs
+// 對應新資料表 `postcard`。
+// 舊的 md_postcard(主檔) + ep_postcard(擁有者) 在新資料庫已合併成這一張表，
+// 每一列就是「某位使用者擁有的一張明信片」，所以 au_id 直接在本表上。
 using System;
 
 namespace backend.Models
 {
-    // ===================== 明信片 (對應資料表 postcard) =====================
+    /// <summary>使用者的明信片，對應資料表 `postcard` 的一列。</summary>
+    public class PostcardCatalog
+    {
+        public int p_id { get; set; }                  // 明信片流水號
+        public int au_id { get; set; }                   // 擁有者，對應 auth.au_id
+        public int? s_id { get; set; }                     // 對應劇本 story.s_id
+        public int? sn_id { get; set; }                      // 取得時完成的節點 story_node.sn_id
+        public string p_name { get; set; }                     // 明信片名稱
+        public string p_summary { get; set; }                    // 明信片簡介
+        public string p_imag_url { get; set; }                     // AI service 圖片網址
+        /// <summary>是否為夜間模式：1=是、2=否（注意不是 0/1）。</summary>
+        public int is_night { get; set; }
+        public DateTime created_at { get; set; }
+        public DateTime updated_at { get; set; }
+    }
+
+    // ===================== 明信片 =====================
     public class PostcardResponse
     {
         public string postcard_id { get; set; }        // 明信片代號
@@ -32,5 +52,18 @@ namespace backend.Models
     {
         public string postcard_id { get; set; }   // 欲分享的明信片代號
         public string platform { get; set; }        // 分享平台，例如 IG
+    }
+
+    /// <summary>ibon 列印請求，對應 PostcardCatalogController 的 Print。</summary>
+    public class PrintPostcardRequest
+    {
+        public int postcard_id { get; set; }   // 欲列印的明信片 postcard.p_id
+    }
+
+    /// <summary>社群分享紀錄請求，對應 PostcardCatalogController 的 Share。</summary>
+    public class StoryShareRequest
+    {
+        public int story_id { get; set; }      // 劇本 story.s_id
+        public string platform { get; set; }     // 分享平台，例如 IG
     }
 }

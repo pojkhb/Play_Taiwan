@@ -1,7 +1,12 @@
-using System;
+// 檔案路徑：System\dao\MerchantDao.cs
+// 對應新資料表 `store`（店家名稱）與 `merchant_media`（商家影音），
+// 取代舊的 ep_account.store_name / ep_vlog。
 using System.Collections.Generic;
+using System.Linq;
+using Dapper;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
+using backend.Models;
 using backend.utils;
 using backend.ViewModels;
 
@@ -16,107 +21,106 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
-        // 1. 修改店家名稱 (更新 ep_account 中的 store_name 欄位)
-        public void UpdateStoreName(string epId, string storeName)
+        #region 1. 修改店家名稱
+        /// <summary>store.au_id 有唯一索引，一個帳號只會有一間店。</summary>
+        public int UpdateStoreName(int auId, string storeName)
         {
-            using var conn = new MySqlConnection(_appSettings.mydb);
-            conn.Open();
-            string sql = "UPDATE ep_account SET store_name = @store_name, updated_at = NOW() WHERE ep_id = @ep_id;";
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@store_name", storeName ?? "");
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.ExecuteNonQuery();
-        }
-
-        // 2. 已經生成檔案 (依照編輯時間 updated_at 新到舊排序)
-        public List<Dictionary<string, object>> GetMerchantFiles(string epId)
-        {
-            using var conn = new MySqlConnection(_appSettings.mydb);
-            conn.Open();
             string sql = @"
-                SELECT 
-                    vlog_id, 
-                    title, 
-                    video_url, 
-                    updated_at 
-                FROM ep_vlog 
-                WHERE ep_id = @ep_id 
+                UPDATE store
+                SET store_name = @storeName
+                WHERE au_id = @auId;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.Execute(sql, new { auId, storeName = storeName ?? "" });
+            }
+        }
+        #endregion
+
+        #region 2. 已經生成的影音檔案（依最後更新時間新到舊）
+        public List<MerchantFileItem> GetMerchantFiles(int auId)
+        {
+            string sql = @"
+                SELECT mm_id, mm_title, mm_video_url, mm_status, updated_at
+                FROM merchant_media
+                WHERE au_id = @auId
                 ORDER BY updated_at DESC;
             ";
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
 
-            var list = new List<Dictionary<string, object>>();
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                list.Add(new Dictionary<string, object>
+                conn.Open();
+                return conn.Query<MerchantFileItem>(sql, new { auId }).ToList();
+            }
+        }
+        #endregion
+
+        #region 3. 建立商家影音專案
+        /// <summary>寫入後回傳資料庫自動產生的 mm_id。</summary>
+        public int CreateVlogTask(int auId, GenerateVlogRequest req)
+        {
+            string sql = @"
+                INSERT INTO merchant_media
+                    (au_id, mm_title, mm_description, mm_text, mm_video_url, mm_status)
+                VALUES
+                    (@auId, @title, @description, @text, @videoUrl, 3);
+                SELECT LAST_INSERT_ID();
+            ";
+
+            string promotionText = req.promotion_text ?? "";
+            string title = promotionText.Length > 20
+                ? promotionText.Substring(0, 20)
+                : (string.IsNullOrWhiteSpace(promotionText) ? "商家精選影音" : promotionText);
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<int>(sql, new
                 {
-                    { "vlog_id", reader["vlog_id"].ToString() },
-                    { "title", reader["title"] == DBNull.Value ? "" : reader["title"].ToString() },
-                    { "video_url", reader["video_url"] == DBNull.Value ? "" : reader["video_url"].ToString() },
-                    { "updated_at", reader["updated_at"] == DBNull.Value ? "" : Convert.ToDateTime(reader["updated_at"]).ToString("yyyy-MM-dd HH:mm") }
+                    auId,
+                    title,
+                    description = promotionText,
+                    text = req.tone,
+                    videoUrl = req.media_url
                 });
             }
-            return list;
         }
+        #endregion
 
-        // 3. 商家生成影音 (建立生成任務)
-        public string CreateVlogTask(string epId, GenerateVlogRequest req)
+        #region 4. 取得最後生成畫面
+        public MerchantVlogResult GetVlogResult(int mmId, int auId)
         {
-            using var conn = new MySqlConnection(_appSettings.mydb);
-            conn.Open();
-            string vlogId = "VLOG_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-
             string sql = @"
-                INSERT INTO ep_vlog (vlog_id, ep_id, title, description, video_url, status, created_at, updated_at)
-                VALUES (@vlog_id, @ep_id, @title, @description, @media_url, 'COMPLETED', NOW(), NOW());
+                SELECT mm_id, mm_title, mm_text, mm_video_url, mm_hashtage, mm_status
+                FROM merchant_media
+                WHERE mm_id = @mmId AND au_id = @auId;
             ";
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@vlog_id", vlogId);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@title", req.promotion_text?.Length > 20 ? req.promotion_text.Substring(0, 20) : (req.promotion_text ?? "商家精選影音"));
-            cmd.Parameters.AddWithValue("@description", req.promotion_text ?? "");
-            cmd.Parameters.AddWithValue("@media_url", req.media_url ?? "https://example.com/default_reels.mp4");
-            cmd.ExecuteNonQuery();
 
-            return vlogId;
-        }
-
-        // 4. 取得最後生成畫面 (Reels 影音、推薦配文、標籤)
-        public Dictionary<string, object> GetVlogResult(string vlogId)
-        {
-            using var conn = new MySqlConnection(_appSettings.mydb);
-            conn.Open();
-            string sql = @"
-                SELECT 
-                    vlog_id, 
-                    title, 
-                    description, 
-                    video_url, 
-                    hashtags, 
-                    status 
-                FROM ep_vlog 
-                WHERE vlog_id = @vlog_id;
-            ";
-            using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@vlog_id", vlogId);
-
-            using var reader = cmd.ExecuteReader();
-            if (!reader.Read())
+            using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                throw new Exception("找不到此影音檔案資料");
+                conn.Open();
+                MerchantMedia row = conn.QueryFirstOrDefault<MerchantMedia>(sql, new { mmId, auId });
+
+                if (row == null)
+                {
+                    throw new System.Exception("找不到此影音檔案資料");
+                }
+
+                return new MerchantVlogResult
+                {
+                    mm_id = row.mm_id,
+                    mm_title = row.mm_title,
+                    caption = row.mm_text,
+                    mm_video_url = row.mm_video_url,
+                    hashtags = string.IsNullOrWhiteSpace(row.mm_hashtage)
+                        ? new string[0]
+                        : row.mm_hashtage.Split(','),
+                    mm_status = row.mm_status
+                };
             }
-
-            return new Dictionary<string, object>
-            {
-                { "vlog_id", reader["vlog_id"].ToString() },
-                { "title", reader["title"].ToString() },
-                { "caption", reader["description"] == DBNull.Value ? "" : reader["description"].ToString() },
-                { "video_url", reader["video_url"] == DBNull.Value ? "" : reader["video_url"].ToString() },
-                { "hashtags", reader["hashtags"] == DBNull.Value ? new string[] { "#居酒屋推薦", "#巷弄美食" } : reader["hashtags"].ToString().Split(',') },
-                { "status", reader["status"].ToString() }
-            };
         }
+        #endregion
     }
 }

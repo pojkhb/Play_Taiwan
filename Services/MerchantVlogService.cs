@@ -15,7 +15,7 @@ namespace backend.Services
     /// <summary>
     /// 商家端 Vlog 服務層：負責呼叫外部 AI 服務產生行銷腳本預覽，
     /// 以及打包照片＋固定背景音樂，送出正式影片合成任務。
-    /// 影片真正完成時才寫入 ep_vlog（因 completed_at 為 not null，商家端此欄位 story_id 固定存 null）。
+    /// 影片真正完成時才寫入 merchant_media（mm_status=3）。
     /// </summary>
     public class MerchantVlogService
     {
@@ -169,13 +169,12 @@ namespace backend.Services
 
         #endregion
 
-        #region 3. 查詢任務狀態（輪詢），完成時才寫入 ep_vlog
+        #region 3. 查詢任務狀態（輪詢），完成時才寫入 merchant_media
 
         /// <summary>
-        /// 查詢外部合成進度。若狀態為 ready 且尚無此 vlog_id 的紀錄，才寫入一筆完成紀錄。
-        /// 商家端無對應劇本，story_id 固定存 null。
+        /// 查詢外部合成進度。若狀態為 ready 且尚無此 task_id 的紀錄，才寫入一筆完成紀錄。
         /// </summary>
-        public async Task<VlogTaskStatusApiResponse> CheckStatusAsync(string taskId, string epId)
+        public async Task<VlogTaskStatusApiResponse> CheckStatusAsync(string taskId, int auId)
         {
             if (string.IsNullOrWhiteSpace(taskId))
                 throw new Exception("請提供任務 ID (task_id)");
@@ -194,10 +193,11 @@ namespace backend.Services
 
             if (result?.status == "ready")
             {
-                var existing = await _dao.GetByVlogIdAsync(taskId);
+                var existing = await _dao.GetByTaskIdAsync(taskId);
                 if (existing == null)
                 {
-                    await _dao.CreateCompletedRecordAsync(epId, taskId, storyId: null, videoUrl: result.download_url, thumbnailUrl: null);
+                    await _dao.CreateCompletedRecordAsync(
+                        auId, taskId, videoUrl: result.download_url, thumbnailUrl: null);
                 }
             }
 

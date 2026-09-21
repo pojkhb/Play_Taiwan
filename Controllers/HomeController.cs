@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.utils;
 using backend.ViewModels;
 
 namespace backend.Controllers
@@ -55,7 +56,7 @@ namespace backend.Controllers
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetOverview()
+                    Result = _service.GetOverview(User.GetAuId())
                 });
             }
             catch (UnauthorizedAccessException e)

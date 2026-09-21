@@ -34,13 +34,8 @@ namespace backend.Services
             return _dao.GetSilhouettes();
         }
 
-        public Silhouette GetSilhouetteById(string silhouetteId)
+        public Silhouette GetSilhouetteById(int silhouetteId)
         {
-            if (string.IsNullOrWhiteSpace(silhouetteId))
-            {
-                throw new ArgumentException("silhouette_id 不可為空白。");
-            }
-
             Silhouette result = _dao.GetSilhouetteById(silhouetteId);
             if (result == null)
             {
@@ -52,12 +47,12 @@ namespace backend.Services
         /// <summary>
         /// 透過代號取得圖片的二進位資料 (Base64 轉 byte[])
         /// </summary>
-        public byte[] GetSilhouetteImageBytes(string silhouetteId)
+        public byte[] GetSilhouetteImageBytes(int silhouetteId)
         {
             Silhouette silhouette = GetSilhouetteById(silhouetteId);
-            if (string.IsNullOrWhiteSpace(silhouette.image_url)) return null;
+            if (string.IsNullOrWhiteSpace(silhouette.si_image_url)) return null;
 
-            string base64Str = silhouette.image_url.Trim();
+            string base64Str = silhouette.si_image_url.Trim();
             if (base64Str.Contains(","))
             {
                 base64Str = base64Str.Split(',')[1];

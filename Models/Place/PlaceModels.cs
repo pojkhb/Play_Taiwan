@@ -5,7 +5,7 @@ namespace backend.Models
     // ===================== 地圖導覽 (對應資料表 place) =====================
     public class NavigationRequest
     {
-        public string node_id { get; set; }   // 欲導航前往的節點代號
+        public int node_id { get; set; }   // 欲導航前往的節點代號，對應 story_node.sn_id
     }
 
     public class NavigationResponse
@@ -16,7 +16,7 @@ namespace backend.Models
     // ===================== 附近景點 (對應資料表 place) =====================
     public class NearbyPlaceResponse
     {
-        public string place_id { get; set; }                // 景點/店家代號
+        public int place_id { get; set; }                   // 景點/店家代號，對應 place.p_id
         public string category { get; set; }                  // 分類：美食及其他
         public string name { get; set; }                        // 名稱
         public string address { get; set; }                      // 地址

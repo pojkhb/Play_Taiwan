@@ -28,34 +28,36 @@ namespace backend.Models
 
     public class StoryOptionResponse
     {
-        public string story_id { get; set; }               // 故事代號
-        public string title { get; set; }                   // 故事標題
-        public string prologue { get; set; }                // 前導故事
-        public string category { get; set; }                // 分類: 歷史/文化探險
-        public string transport { get; set; }                // 建議交通工具
-        public List<string> expected_badges { get; set; }   // 預期會解鎖的徽章名稱陣列
-        public int expected_postcards { get; set; }           // 預期會收集的明信片數量
-        public string region_id { get; set; }                 // 地區代號
-        public string region { get; set; }                     // 地區名稱
-        public List<string> route_preview { get; set; }      // 預覽路線節點(景點名稱陣列)
+        public int story_id { get; set; }                  // 故事代號，對應 story.s_id
+        public string title { get; set; }                   // 故事標題，對應 story_title
+        public string prologue { get; set; }                // 前導故事，對應 story_prologue
+        /// <summary>分類。新資料表 story 沒有這個欄位，固定為 null。</summary>
+        public string category { get; set; }
+        public string transport { get; set; }                // 建議交通工具，對應 sd_transport
+        public List<string> expected_badges { get; set; }   // 預期會解鎖的徽章，對應 story_badge
+        public int expected_postcards { get; set; }           // 預期明信片數量，對應 story_postcards
+        /// <summary>地區代號。新資料庫沒有地區主表，固定為 null。</summary>
+        public string region_id { get; set; }
+        public string region { get; set; }                     // 地區名稱，由 city_name + district_name 組成
+        public List<string> route_preview { get; set; }      // 預覽路線節點(節點標題陣列)
 
         public class RouteNode
         {
-            public string node_id { get; set; }         // 節點代號
+            public int node_id { get; set; }            // 節點代號，對應 story_node.sn_id
             public string location_name { get; set; }    // 景點名稱
-            public int node_order { get; set; }            // 節點順序
+            public int node_order { get; set; }            // 節點順序，對應 sn_order
         }
     }
 
     public class StoryConfirmRequest
     {
-        public string story_id { get; set; }   // 使用者確認選擇的故事代號
+        public int story_id { get; set; }   // 使用者確認選擇的故事代號
     }
 
     // ===================== 地圖 / 路線導覽 =====================
     public class MapResponse
     {
-        public string story_id { get; set; }                    // 故事代號
+        public int story_id { get; set; }                       // 故事代號，對應 story.s_id
         public int unlocked_node_count { get; set; }             // 已解鎖節點數
         public int total_node_count { get; set; }                 // 總節點數
         public int postcard_unlocked_count { get; set; }          // 已解鎖明信片數量
@@ -67,29 +69,30 @@ namespace backend.Models
 
     public class MapNode
     {
-        public string node_id { get; set; }                    // 節點代號
-        public string location_name { get; set; }               // 景點名稱
+        public int node_id { get; set; }                       // 節點代號，對應 story_node.sn_id
+        public string location_name { get; set; }               // 景點名稱，取自 story_node.sn_title
         public double lat { get; set; }                          // 緯度
         public double lng { get; set; }                          // 經度
-        public bool is_unlocked { get; set; }                    // 是否已解鎖
+        public bool is_unlocked { get; set; }                    // 是否已解鎖，依 story_session.ss_current 計算
         public bool is_night_only { get; set; }                   // 是否為夜晚限定景點
-        public string fog_hint { get; set; }                      // 迷霧探索提示
-        public int day_index { get; set; }                        // 節點所屬天數，畫面上為第幾天
-        public List<string> child_node_ids { get; set; }        // 包含的子節點代號列表
+        public string fog_hint { get; set; }                      // 迷霧探索提示，取自 story_node.sn_hint
+        /// <summary>節點所屬天數。新資料表沒有 day_index 欄位，目前固定為 1。</summary>
+        public int day_index { get; set; }
+        public List<int> child_node_ids { get; set; }           // 包含的子節點代號列表
         public string image_url { get; set; }                    // 已解鎖景點圖片
         public string silhouette_image_url { get; set; }        // 未解鎖的顯示剪影圖片
-        public int node_order { get; set; }                       // 畫面連線用的順序值
+        public int node_order { get; set; }                       // 畫面連線用的順序值，對應 sn_order
     }
 
     public class NodeDetailResponse
     {
-        public string node_id { get; set; }                 // 節點代號
+        public int node_id { get; set; }                    // 節點代號，對應 story_node.sn_id
         public string location_name { get; set; }            // 景點名稱
         public string npc_name { get; set; }                  // 探索節點出現的 NPC 名稱
         public string intro_story { get; set; }               // NPC 介紹故事
         public string opening_hours { get; set; }              // 景點開放時間
         public List<string> nearby_food { get; set; }        // 附近美食推薦陣列
-        public string task_id { get; set; }                    // 探索節點對應的任務代號
+        public int? task_id { get; set; }                     // 探索節點對應的任務代號，對應 task.task_id
         public string review_story_url { get; set; }          // 回顧故事網址
     }
 
@@ -108,7 +111,7 @@ namespace backend.Models
     public class HistoryStoryItem
     {
         /// <summary>故事代號，關聯 story.s_id</summary>
-        public string story_id { get; set; }                    // 故事代號
+        public int story_id { get; set; }                       // 故事代號
 
         /// <summary>故事標題</summary>
         public string title { get; set; }                        // 故事標題
@@ -125,8 +128,8 @@ namespace backend.Models
         /// <summary>路線節點預覽，依順序包含各節點的景點名稱</summary>
         public List<string> route_summary { get; set; }              // 路線節點預覽(景點名稱陣列)
 
-        /// <summary>使用者完成獲得的 Vlog 代號，若尚未生成則為 null</summary>
-        public string vlog_id { get; set; }                            // 關聯的 Vlog 代號
+        /// <summary>使用者完成獲得的 Vlog 代號，關聯 au_vlog.av_id，尚未生成則為 null</summary>
+        public int? vlog_id { get; set; }                              // 關聯的 Vlog 代號
 
         /// <summary>明信片回顧頁面的連結，若無則為 null。</summary>
         public string postcard_review_url { get; set; }                 // 明信片回顧連結

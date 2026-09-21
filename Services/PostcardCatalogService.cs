@@ -14,7 +14,7 @@ using backend.ViewModels;
 
 namespace backend.Services
 {
-    /// <summary>明信片主檔 (md_postcard) 服務層。</summary>
+    /// <summary>明信片 (資料表 postcard) 服務層。</summary>
     public class PostcardCatalogService
     {
         private readonly PostcardCatalogDao _dao;
@@ -29,46 +29,44 @@ namespace backend.Services
 
 
         #region 基本 CRUD 操作
-        public async Task<List<PostcardCatalogResponse>> GetAllAsync(string category = null)
+        public async Task<List<PostcardCatalogResponse>> GetAllAsync(int auId)
         {
-            var entities = await _dao.GetAllAsync(category);
+            var entities = await _dao.GetAllAsync(auId);
             return entities.Select(ToResponse).ToList();
         }
 
 
-        public async Task<PostcardCatalogResponse> GetByIdAsync(string id)
+        public async Task<PostcardCatalogResponse> GetByIdAsync(int id)
         {
             var entity = await _dao.GetByIdAsync(id);
             return entity == null ? null : ToResponse(entity);
         }
 
 
-        public async Task<List<PostcardCatalogResponse>> GetByStoryIdAsync(string storyId)
+        public async Task<List<PostcardCatalogResponse>> GetByStoryIdAsync(int storyId, int auId)
         {
-            var entities = await _dao.GetByStoryIdAsync(storyId);
+            var entities = await _dao.GetByStoryIdAsync(storyId, auId);
             return entities.Select(ToResponse).ToList();
         }
 
 
-        public async Task<bool> DeleteAsync(string id)
+        public async Task<bool> DeleteAsync(int id, int auId)
         {
-            return await _dao.DeleteAsync(id);
+            return await _dao.DeleteAsync(id, auId);
         }
 
 
         private static PostcardCatalogResponse ToResponse(Models.PostcardCatalog e) => new PostcardCatalogResponse
         {
-            PostcardId = e.PostcardId,
-            StoryId = e.StoryId,
-            PostcardName = e.PostcardName,
-            Summary = e.Summary,
-            ImageUrl = e.ImageUrl,
-            IsNightEditionDefault = e.IsNightEditionDefault,
-            Category = e.Category,
-            SortOrder = e.SortOrder,
-            IsActive = e.IsActive,
-            CreatedAt = e.CreatedAt,
-            UpdatedAt = e.UpdatedAt
+            PostcardId = e.p_id,
+            StoryId = e.s_id,
+            NodeId = e.sn_id,
+            PostcardName = e.p_name,
+            Summary = e.p_summary,
+            ImageUrl = e.p_imag_url,
+            IsNightEdition = e.is_night == 1,
+            CreatedAt = e.created_at,
+            UpdatedAt = e.updated_at
         };
         #endregion
 
@@ -79,7 +77,7 @@ namespace backend.Services
         /// 2. 直接把外部服務回傳的圖片網址 (download_url) 存入 MySQL 的 image_url 欄位
         ///    （不再下載圖片位元組、不再轉 Base64），前端後續可直接使用該網址顯示圖片
         /// </summary>
-        public async Task<Models.PostcardCatalog> GenerateAiPostcardAsync(AiPostcardGenerateRequest request, string epId)
+        public async Task<Models.PostcardCatalog> GenerateAiPostcardAsync(AiPostcardGenerateRequest request, int auId)
         {
             using var client = new HttpClient();
             using var content = new MultipartFormDataContent();
@@ -117,26 +115,19 @@ namespace backend.Services
             }
 
 
-            string unifiedPostcardId = "ai_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-
-
             var newEntity = new Models.PostcardCatalog
             {
-                PostcardId = unifiedPostcardId,
-                StoryId = request.story_id ?? "Custom_AI",
-                PostcardName = $"{request.spot_name} 專屬明信片",
-                Summary = aiResult.PostcardIntroduction,
-                ImageUrl = aiResult.DownloadUrl,
-                IsNightEditionDefault = request.is_night_edition,
-                Category = "AI Generate",
-                SortOrder = 1,
-                IsActive = true
+                au_id = auId,
+                s_id = request.story_id,
+                sn_id = request.node_id,
+                p_name = $"{request.spot_name} 專屬明信片",
+                p_summary = aiResult.PostcardIntroduction,
+                p_imag_url = aiResult.DownloadUrl,
+                is_night = request.is_night_edition ? 1 : 2
             };
 
-
-            await _dao.CreateAsync(newEntity);
-            await _dao.BindPostcardToUserAsync(epId, newEntity.PostcardId);
-
+            // postcard 已含 au_id，寫入即完成歸戶，不需要再綁定一次。
+            newEntity.p_id = await _dao.CreateAsync(newEntity);
 
             return newEntity;
         }
@@ -147,10 +138,10 @@ namespace backend.Services
         /// <summary>
         /// 依 postcard_id 撈出該張明信片的圖片網址，供 Controller 直接轉址 (Redirect) 使用。
         /// </summary>
-        public async Task<string> GetImageUrlByPostcardIdAsync(string postcardId)
+        public async Task<string> GetImageUrlByPostcardIdAsync(int postcardId)
         {
             var postcard = await _dao.GetByIdAsync(postcardId);
-            return postcard?.ImageUrl;
+            return postcard?.p_imag_url;
         }
 
 
@@ -158,13 +149,13 @@ namespace backend.Services
         /// 依 postcard_id 撈出該張明信片的圖片網址，並下載為實體位元組回傳。
         /// 僅供需要真正檔案內容的場景使用（例如 ibon 列印上傳）。
         /// </summary>
-        public async Task<byte[]> GetImageBytesByPostcardIdAsync(string postcardId)
+        public async Task<byte[]> GetImageBytesByPostcardIdAsync(int postcardId)
         {
             var postcard = await _dao.GetByIdAsync(postcardId);
-            if (postcard == null || string.IsNullOrEmpty(postcard.ImageUrl)) return null;
+            if (postcard == null || string.IsNullOrEmpty(postcard.p_imag_url)) return null;
 
             using var client = new HttpClient();
-            return await client.GetByteArrayAsync(postcard.ImageUrl);
+            return await client.GetByteArrayAsync(postcard.p_imag_url);
         }
         #endregion
 
@@ -173,12 +164,8 @@ namespace backend.Services
         /// <summary>
         /// 透過 postcard_id 找到指定的明信片，下載圖片網址內容並轉換為圖片發送給 ibon 微服務。
         /// </summary>
-        public async Task<PostcardPrintResponse> PrintToIbonByPostcardIdAsync(string postcardId)
+        public async Task<PostcardPrintResponse> PrintToIbonByPostcardIdAsync(int postcardId)
         {
-            if (string.IsNullOrEmpty(postcardId))
-                throw new Exception("請提供明信片 ID");
-
-
             // 統一呼叫共用的取圖方法，不再自己重複下載邏輯
             byte[] imageBytes = await GetImageBytesByPostcardIdAsync(postcardId);
 

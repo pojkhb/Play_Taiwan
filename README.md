@@ -120,6 +120,54 @@ appsettings.json 中請勿提交任何真實資料庫密碼或 JWT 密鑰，敏�
 
 API 皆透過 JWT Middleware 驗證身份，請在請求標頭中帶入 Authorization: Bearer <token>。
 
+🏪 商家資料維護 + NFC 模組（第一階段）
+
+對應 `play_taiwan_db_v4` 新增的 `auth`(auth_type=2)/`store`/`coupon`/`nfc_coupon`/`user_coupon`/
+`store_question`/`question_option` 資料表，Controller 分散在 `MerchantAccountController`、
+`MerchantPlaceController`、`MerchantCouponController`、`MerchantNfcController`、`NfcController`、
+`CouponRedeemController`、`MerchantQuestionController`（皆掛在 `api/merchant/*`、`api/nfc/*`、
+`api/coupons/*` 底下），本階段不做登入驗證，直接以 request 帶入的 au_id / s_id 識別操作者
+（見 `Services/ICurrentActorProvider.cs`，之後接登入驗證只要換一個實作即可）。
+
+**部署前待辦：**
+1. 執行 `Sqls/mysql/20260919_merchant_module_autoincrement.sql`，補上 `store`/`coupon`/
+   `user_coupon`/`store_question`/`question_option` 這幾個 PK 欄位遺漏的 `AUTO_INCREMENT`
+   （dump 匯出的 v4 schema 裡沒有設定，跟 `auth`/`story` 等表不同，不補的話新增資料時
+   `LAST_INSERT_ID()` 拿不到正確的新 PK）。
+2. 在本地測試用 Neo4j instance 上先建立版本鏈需要的 constraint：
+   ```cypher
+   CREATE CONSTRAINT IF NOT EXISTS FOR (v:Version) REQUIRE v.version_id IS UNIQUE;
+   ```
+   （景點身分節點的 `uid` 唯一約束沿用既有 `mergedb` 的 `Place.uid` constraint，不用重建。）
+3. 確認 `appsettings.json` 的 `Neo4jSettings`（Uri/User/Password/Database）指到你本機的測試
+   instance，帳密要跟該 instance 一致（目前 repo 裡的預設密碼只是佔位，本機驗證會直接失敗）。
+
+**Neo4j 版本鏈設計**（`Services/Neo4j/PlaceVersionChainService.cs`）：政府開放資料的原始節點
+永遠不變動；商家的補充/覆蓋資訊寫在新的 `:Current` 版本節點上，用 `[:HAS_VERSION]` 關聯回原始
+節點，取代時舊版本轉標成 `:Historical`。商家全新建立的景點會建立一顆額外帶 `:MerchantPlace`
+標籤的身分節點，走同一套版本鏈邏輯（`source: 'merchant'`），刪除商家帳號時只清這顆自建節點，
+不會動到任何政府資料節點。
+
+`Services/Neo4j/INeo4jGatewayService.cs` 有兩種實作，靠 `appsettings.json` 的 `Neo4j:Mode`
+（`Local` / `Remote`）切換：
+- `Local`：`LocalNeo4jDriverGatewayService`，用官方 Neo4j.Driver 直連本地測試 instance。
+- `Remote`：`RemoteNeo4jApiGatewayService`，呼叫正式對外的 `POST /api/neo4j/cypher`
+  （目前該端點只開放 MATCH 查詢，等外部開放完整 CRUD 後，把 `Neo4j:Mode` 改成 `Remote`
+  即可直接生效，不用改任何業務邏輯程式碼）。
+
+**已知假設 / 待補事項：**
+- `store` 表沒有獨立的 phone/website 欄位，`PUT /api/merchant/{sId}` 目前只會同步
+  name/address/description 到 Neo4j 版本節點，phone/website/opening_hours 欄位留空；
+  之後如果要讓商家補這些資訊，需要先擴充 `store` 表或另開一支專門的「編輯 Neo4j 商家資訊」API。
+- `GET /api/nfc/scan/{nfcUid}` 在該景點還沒有任何商家版本節點時，`merchant_place.merchant_override`
+  會是 `null`，前端請自行 fallback 顯示 `gov_name`/`gov_address`（政府原始資料）。
+- 刪除題目/商家時若被 `task.question_id` 引用，目前一律擋下並回傳 409 + 引用的 task_id 清單，
+  沒有做「自動把 task.question_id 設為 NULL」之類的替代方案，如果之後想改成非阻擋式，
+  對應邏輯在 `MerchantQuestionService.Delete` 與 `MerchantAccountDao.DeleteCascade`。
+- 商家整體刪除時，MySQL 端有完整 Transaction 保護，但 Neo4j 清理是在 MySQL commit 成功
+  「之後」才呼叫，兩邊沒有兩階段提交；若 Neo4j 那步失敗，只會記 log，不會讓 MySQL 回滾
+  （因為 MySQL 資料已經確定刪除），這階段先接受這個限制。
+
 🤝 貢獻方式
 歡迎提出 Issue 或 Pull Request：
 

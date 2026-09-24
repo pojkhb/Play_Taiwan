@@ -8,6 +8,7 @@ using backend.Services;
 using backend.Services.Neo4j;
 using backend.dao;
 using backend.utils;
+using Coravel;
 using Neo4j.Driver;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -20,6 +21,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -37,6 +39,9 @@ namespace backend
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // 載入 AI Service 網址（appsettings.json 的 AiService:BaseUrl）
+            AiServiceConfig.Init(Configuration);
+
             services.AddHttpContextAccessor();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
@@ -166,8 +171,11 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             services.AddScoped<Services.GeocodingService>();
             #endregion
+            #region 商家 / 遊客 VLOG
+            services.AddScoped<Services.VlogAiGateway>();
             services.AddScoped<VisitorVlogService>();
             services.AddScoped<VisitorVlogDao>();
+            #endregion
 
             #region S13-商家後台 / 商家影音
             // 這四個原本沒註冊，導致 MerchantController 與 MerchantVlogController
@@ -176,6 +184,30 @@ namespace backend
             services.AddScoped<dao.MerchantDao>();
             services.AddScoped<Services.MerchantVlogService>();
             services.AddScoped<dao.VlogDao>();
+            #endregion
+            #region S07-劇本生成 (RAG+LLM)
+            services.AddScoped<Services.StoryService>();
+            services.AddScoped<dao.StoryDao>();
+            services.AddScoped<Services.ValhallaService>();
+            #endregion
+            #region 公車 / 台灣好行（TDX）
+            services.AddHttpClient(Services.TdxClient.HttpClientName, client => client.Timeout = TimeSpan.FromMinutes(3))
+                .ConfigurePrimaryHttpMessageHandler(() => new System.Net.Http.HttpClientHandler
+                {
+                    AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+                });
+            services.AddSingleton<Services.TdxClient>();
+            services.AddScoped<dao.BusDao>();
+            services.AddScoped<Services.BusService>();
+            services.AddScheduler();
+            services.AddTransient<Services.BusSyncInvocable>();
+            #endregion
+            #region 捷運（TDX）+ 劇本交通路線
+            services.AddScoped<dao.MetroDao>();
+            services.AddScoped<Services.MetroService>();
+            services.AddTransient<Services.MetroSyncInvocable>();
+            services.AddScoped<dao.RouteDao>();
+            services.AddScoped<Services.RoutePlanService>();
             #endregion
             #region S17-商家資料維護 + NFC（play_taiwan_db_v4：auth/store/coupon/nfc_coupon/user_coupon/store_question/question_option）
             services.Configure<Neo4jSettings>(Configuration.GetSection("Neo4jSettings"));
@@ -340,6 +372,71 @@ namespace backend
                         ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
                 }
             );
+
+            ConfigureBusSync(app);
+            ConfigureMetroSync(app);
+        }
+
+        /// <summary>
+        /// 捷運資料排程：每週日台灣時間 04:00（UTC 週六 20:00）同步一次（捷運路網很少變動）；
+        /// 啟動後在背景補資料（資料庫還沒有捷運車站才同步）。
+        /// </summary>
+        private void ConfigureMetroSync(IApplicationBuilder app)
+        {
+            if (!Configuration.GetValue("MetroSync:Enabled", false)) return;
+
+            app.ApplicationServices.UseScheduler(scheduler =>
+            {
+                scheduler.Schedule<Services.MetroSyncInvocable>()
+                    .Cron("0 20 * * 6")
+                    .PreventOverlapping(nameof(Services.MetroSyncInvocable));
+            });
+
+            var lifetime = app.ApplicationServices.GetRequiredService<IHostApplicationLifetime>();
+            lifetime.ApplicationStarted.Register(() => System.Threading.Tasks.Task.Run(async () =>
+            {
+                using var scope = app.ApplicationServices.CreateScope();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+                try
+                {
+                    await scope.ServiceProvider.GetRequiredService<Services.MetroSyncInvocable>().InvokeIfMissingAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "啟動時補捷運資料失敗");
+                }
+            }));
+        }
+
+        /// <summary>
+        /// 公車資料排程：每天台灣時間 03:00（UTC 19:00）同步一次；
+        /// 啟動後在背景補資料（沒有路線就完整同步，沒有景點附近站牌就只補算站牌）。
+        /// </summary>
+        private void ConfigureBusSync(IApplicationBuilder app)
+        {
+            if (!Configuration.GetValue("BusSync:Enabled", false)) return;
+
+            app.ApplicationServices.UseScheduler(scheduler =>
+            {
+                scheduler.Schedule<Services.BusSyncInvocable>()
+                    .DailyAtHour(19)
+                    .PreventOverlapping(nameof(Services.BusSyncInvocable));
+            });
+
+            var lifetime = app.ApplicationServices.GetRequiredService<IHostApplicationLifetime>();
+            lifetime.ApplicationStarted.Register(() => System.Threading.Tasks.Task.Run(async () =>
+            {
+                using var scope = app.ApplicationServices.CreateScope();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Startup>>();
+                try
+                {
+                    await scope.ServiceProvider.GetRequiredService<Services.BusSyncInvocable>().InvokeIfMissingAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "啟動時補公車資料失敗");
+                }
+            }));
         }
     }
 }

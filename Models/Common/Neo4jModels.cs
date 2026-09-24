@@ -29,11 +29,19 @@ namespace backend.Models
         [JsonPropertyName("spot_count")]
         public int SpotCount { get; set; }
     }
-     public class NearbyAttractionNode
+    /// <summary>附近景點（Neo4j 全台景點資料）</summary>
+    public class NearbyAttractionNode
     {
+        /// <summary>景點名稱</summary>
         public string name { get; set; }
+
+        /// <summary>緯度</summary>
         public double lat { get; set; }
+
+        /// <summary>經度</summary>
         public double lon { get; set; }
+
+        /// <summary>與使用者的直線距離（公尺）</summary>
         public double distance_m { get; set; }
     }
 }

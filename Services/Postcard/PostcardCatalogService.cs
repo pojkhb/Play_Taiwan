@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using backend.dao;
+using backend.utils;
 using backend.Models;
 using backend.ViewModels;
 
@@ -95,7 +96,7 @@ namespace backend.Services
             content.Add(new StringContent(request.user_prompt ?? ""), "user_prompt");
 
 
-            var apiUrl = "https://vlog.angelalala.com/api/postcard/create_ai";
+            var apiUrl = $"{AiServiceConfig.BaseUrl}/api/postcard/create_ai";
             var response = await client.PostAsync(apiUrl, content);
 
 

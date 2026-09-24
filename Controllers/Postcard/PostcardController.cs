@@ -29,7 +29,7 @@ namespace backend.Controllers
         #region 取得明信片詳情 (暫不使用)
 
         /// <summary>
-        /// 【❌ 尚未完成 / 暫不使用】取得單張明信片的詳細內容。
+        /// 【前端不用接】（尚未完成，請改用 /api/PostcardCatalog）取得單張明信片的詳細內容。
         /// </summary>
         /// <remarks>
         /// 對應「明信片翻轉」頁面，顯示謎題解開後獲得的專屬記憶明信片。
@@ -37,6 +37,7 @@ namespace backend.Controllers
         [HttpGet]
         [Route("{postcard_id}")]
         [Obsolete("此 API 尚未完成，請勿使用")]
+        [ProducesResponseType(typeof(ResultViewModel<PostcardResponse>), 200)]
         public IActionResult GetPostcard(string postcard_id)
         {
             try
@@ -59,7 +60,7 @@ namespace backend.Controllers
         #region 取得劇本所有明信片(明信片集結) (暫不使用)
 
         /// <summary>
-        /// 【❌ 尚未完成 / 暫不使用】取得指定劇本已收集的所有明信片。
+        /// 【前端不用接】（尚未完成，請改用 /api/PostcardCatalog）取得指定劇本已收集的所有明信片。
         /// </summary>
         /// <remarks>
         /// 對應「過往－明信片vlog」頁面的「明信片集結」區塊。
@@ -67,6 +68,7 @@ namespace backend.Controllers
         [HttpGet]
         [Route("Story/{story_id}")]
         [Obsolete("此 API 尚未完成，請勿使用")]
+        [ProducesResponseType(typeof(ResultViewModel<List<PostcardResponse>>), 200)]
         public IActionResult GetByStory(string story_id)
         {
             try
@@ -89,7 +91,7 @@ namespace backend.Controllers
         #region 實體列印 (iBON) (暫不使用)
 
         /// <summary>
-        /// 【❌ 尚未完成 / 暫不使用】送出明信片實體列印申請。
+        /// 【前端不用接】（尚未完成，請改用 /api/PostcardCatalog）送出明信片實體列印申請。
         /// </summary>
         /// <remarks>
         /// 對應「明信片翻轉」頁面的「實體列印」按鈕。
@@ -97,6 +99,7 @@ namespace backend.Controllers
         [HttpPost]
         [Route("Print")]
         [Obsolete("此 API 尚未完成，請勿使用")]
+        [ProducesResponseType(typeof(ResultViewModel<PostcardPrintResponse>), 200)]
         public IActionResult Print([FromBody] PostcardPrintRequest req)
         {
             try
@@ -119,14 +122,16 @@ namespace backend.Controllers
         #region 分享 (暫不使用)
 
         /// <summary>
-        /// 【❌ 尚未完成 / 暫不使用】分享明信片至社群平台。
+        /// 【前端不用接】（尚未完成，請改用 /api/PostcardCatalog）分享明信片至社群平台。
         /// </summary>
         /// <remarks>
         /// 對應「明信片翻轉」頁面的「分享」按鈕。
         /// </remarks>
+        /// <response code="200">尚未完成，固定回傳失敗</response>
         [HttpPost]
         [Route("Share")]
         [Obsolete("此 API 尚未完成，請勿使用")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult Share([FromBody] PostcardShareRequest req)
         {
             try

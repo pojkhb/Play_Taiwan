@@ -47,6 +47,7 @@ namespace backend.Controllers
         /// <returns>地圖節點與探索進度資訊。</returns>
         // API：取得地圖（GetMap）－回傳指定劇本的地圖節點與探索進度
         [HttpGet("{story_id:int}")]
+        [ProducesResponseType(typeof(ResultViewModel<MapResponse>), 200)]
         public IActionResult GetMap(int story_id)
         {
             try
@@ -103,6 +104,7 @@ namespace backend.Controllers
         ///[❌]
         // API：GPS 確認抵達（Arrive）－驗證座標後解鎖指定節點
         [HttpPost("Node/{node_id:int}/Arrive")]
+        [ProducesResponseType(typeof(ResultViewModel<NodeDetailResponse>), 200)]
         public IActionResult Arrive(
             int node_id,
             [FromQuery] double lat,
@@ -169,6 +171,7 @@ namespace backend.Controllers
         /// <returns>節點詳細內容。</returns>
         // API：取得節點詳情（GetNode）－回傳指定節點的詳細內容
         [HttpGet("Node/{node_id:int}")]
+        [ProducesResponseType(typeof(ResultViewModel<NodeDetailResponse>), 200)]
         public IActionResult GetNode(int node_id)
         {
             try
@@ -214,6 +217,7 @@ namespace backend.Controllers
         /// <returns>NPC 互動內容。</returns>
         // API：NPC 隨機互動（Interact）－回傳指定節點的 NPC 對話內容
         [HttpGet("Node/{node_id:int}/Interact")]
+        [ProducesResponseType(typeof(ResultViewModel<NpcInteractionResponse>), 200)]
         public IActionResult Interact(int node_id)
         {
             try
@@ -262,6 +266,7 @@ namespace backend.Controllers
         /// <returns>導航路線資訊。</returns>
         // API：導航（Navigate）－回傳前往指定節點的路線資訊
         [HttpPost("Navigate")]
+        [ProducesResponseType(typeof(ResultViewModel<NavigationResponse>), 200)]
         public IActionResult Navigate([FromBody] NavigationRequest req)
         {
             try
@@ -308,6 +313,7 @@ namespace backend.Controllers
         /// <returns>周邊推薦地點清單。</returns>
         // API：周邊好去（Nearby）－回傳指定劇本周邊依分類篩選的推薦地點
         [HttpGet("{story_id:int}/Nearby")]
+        [ProducesResponseType(typeof(ResultViewModel<List<NearbyPlaceResponse>>), 200)]
         public IActionResult Nearby(
             int story_id,
             [FromQuery] string category)
@@ -344,6 +350,7 @@ namespace backend.Controllers
         /// </summary>
         [AllowAnonymous]
         [HttpPost("Location")]
+        [ProducesResponseType(typeof(ResultViewModel<LocationResponse>), 200)]
         public async Task<IActionResult> ReportLocation([FromBody] LocationRequest req)
         {
             try

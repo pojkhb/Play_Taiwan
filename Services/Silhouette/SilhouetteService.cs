@@ -7,6 +7,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using backend.dao;
+using backend.utils;
 using backend.Models;
 using backend.util;
 using Microsoft.AspNetCore.Hosting;
@@ -84,7 +85,7 @@ namespace backend.Services
                 parameters = new { place_name = placeName }
             };
 
-            var response = await client.PostAsJsonAsync("https://vlog.angelalala.com/api/neo4j/cypher", cypherRequest);
+            var response = await client.PostAsJsonAsync($"{AiServiceConfig.BaseUrl}/api/neo4j/cypher", cypherRequest);
             if (!response.IsSuccessStatusCode)
             {
                 throw new Exception("無法從 Neo4j 圖譜服務取得地點資料。");

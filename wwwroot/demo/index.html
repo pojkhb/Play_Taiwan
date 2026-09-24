@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play Taiwan 尋寶地圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --parchment: #f1e2bf;
+    --parchment-dark: #e2cc9c;
+    --ink: #3b2412;
+    --ink-soft: #6e4f33;
+    --line: rgba(92, 58, 28, .35);
+    --cinnabar: #9e2a17;
+    --gold: #b8862b;
+    --ring1: #9e2a17;
+    --ring2: #b8862b;
+    --ring3: #4f6b3a;
+    --ring4: #5a3d78;
+    --font-title: "LXGW WenKai TC", "Noto Serif TC", "PMingLiU", serif;
+    --font-body: "Noto Serif TC", "PMingLiU", serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--font-body);
+    color: var(--ink);
+    background: #5a3d22;
+    display: flex; flex-direction: column;
+  }
+
+  /* 羊皮紙質感 */
+  .parchment {
+    background-color: var(--parchment);
+    background-image:
+      radial-gradient(ellipse at 15% 8%, rgba(255, 255, 255, .45), transparent 45%),
+      radial-gradient(ellipse at 85% 92%, rgba(120, 72, 24, .22), transparent 55%),
+      radial-gradient(circle at 60% 35%, rgba(150, 100, 40, .10), transparent 30%),
+      radial-gradient(ellipse at center, transparent 55%, rgba(110, 70, 30, .28) 100%);
+  }
+
+  header {
+    padding: 10px 18px;
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 3px double var(--ink);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+    position: relative; z-index: 10;
+  }
+  header h1 { font-family: var(--font-title); font-size: 24px; margin: 0; flex: 1; letter-spacing: 2px; }
+  header h1 small { font-size: 14px; color: var(--ink-soft); letter-spacing: 1px; margin-left: 8px; }
+  header .who { font-size: 13px; color: var(--ink-soft); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  aside {
+    width: 390px; display: flex; flex-direction: column; min-height: 0;
+    border-right: 3px double var(--ink);
+    box-shadow: 4px 0 12px rgba(0, 0, 0, .35);
+    position: relative; z-index: 5;
+  }
+
+  /* 書籤式分頁 */
+  .tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 2px solid var(--ink); }
+  .tabs button {
+    flex: 1; font-family: var(--font-title); font-size: 16px;
+    border: 2px solid var(--ink); border-bottom: 0; border-radius: 10px 10px 0 0;
+    background: var(--parchment-dark); color: var(--ink-soft); padding: 8px 0;
+  }
+  .tabs button.active { background: var(--cinnabar); color: #f7e7c4; border-color: var(--cinnabar); }
+
+  .pane { display: none; padding: 14px 16px 20px; overflow-y: auto; flex: 1; }
+  .pane.active { display: block; }
+  .pane h2 { font-family: var(--font-title); font-size: 18px; margin: 4px 0 2px; }
+
+  label.field { display: block; font-size: 13px; color: var(--ink-soft); margin: 12px 0 4px; font-weight: 600; }
+  input[type=text], input[type=number], input[type=password], select {
+    width: 100%; padding: 8px 10px; font-size: 14px; font-family: var(--font-body); color: var(--ink);
+    background: rgba(255, 250, 235, .7); border: 1.5px solid var(--ink-soft); border-radius: 4px;
+  }
+  input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
+  .checks input { accent-color: var(--cinnabar); }
+
+  button { cursor: pointer; font-family: var(--font-body); color: var(--ink); border: 1.5px solid var(--ink-soft); background: rgba(255, 250, 235, .6); border-radius: 4px; padding: 7px 12px; font-size: 14px; }
+  button.primary {
+    width: 100%; margin-top: 16px; padding: 11px; font-family: var(--font-title); font-size: 17px; letter-spacing: 2px;
+    background: var(--cinnabar); color: #f7e7c4; border: 2px solid #6f1b0e; border-radius: 6px;
+    box-shadow: 0 3px 0 #6f1b0e, 0 4px 10px rgba(0, 0, 0, .25);
+  }
+  button.primary:active { transform: translateY(2px); box-shadow: 0 1px 0 #6f1b0e; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .mini { padding: 2px 8px; font-size: 12px; }
+
+  .hint { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.6; }
+  .msg { margin-top: 12px; padding: 8px 10px; border-radius: 4px; font-size: 13px; display: none; border: 1.5px dashed; }
+  .msg.err { display: block; color: var(--cinnabar); border-color: var(--cinnabar); background: rgba(158, 42, 23, .07); }
+  .msg.ok { display: block; color: var(--ring3); border-color: var(--ring3); }
+
+  .divider { text-align: center; font-family: var(--font-title); color: var(--ink-soft); margin: 18px 0 6px; font-size: 14px; }
+  .divider::before, .divider::after { content: "〜〜〜"; letter-spacing: -2px; margin: 0 8px; opacity: .6; }
+  .summary { font-size: 15px; text-align: center; }
+  .summary b { font-family: var(--font-title); font-size: 24px; color: var(--cinnabar); }
+
+  .list { list-style: none; padding: 0; margin: 8px 0 0; }
+  .list li { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .list li .grow { flex: 1; min-width: 0; }
+  .list li .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .list li .meta { color: var(--ink-soft); font-size: 12px; }
+  .list input { accent-color: var(--cinnabar); }
+
+  /* 蠟封章 */
+  .seal {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 26px; height: 26px; border-radius: 50%;
+    color: #f7e7c4; font-family: var(--font-title); font-size: 13px; font-weight: 700;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .25), 0 1px 3px rgba(0, 0, 0, .4);
+  }
+
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; font-size: 12px; margin-top: 8px; color: var(--ink-soft); }
+  .legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { width: 18px; height: 0; border-top: 3px dashed; display: inline-block; }
+  .stops { font-size: 12px; color: var(--ink-soft); margin: 6px 0 0 34px; line-height: 1.8; }
+
+  /* 公車密道 */
+  .seg { display: flex; border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .seg button { flex: 1; border: 0; border-radius: 0; background: transparent; font-family: var(--font-title); font-size: 14px; padding: 7px 0; }
+  .seg button + button { border-left: 1.5px solid var(--ink); }
+  .seg button.active { background: var(--ink); color: var(--parchment); }
+  .sub { display: none; }
+  .sub.active { display: block; }
+  .route-chip { display: inline-block; margin: 3px 4px 0 0; padding: 1px 7px; font-size: 12px; border-radius: 10px; border: 1px solid var(--ink-soft); background: rgba(255, 250, 235, .7); cursor: pointer; }
+  .route-chip.trip { border-color: var(--gold); background: rgba(184, 134, 43, .18); font-weight: 600; }
+  .route-chip:hover { background: var(--ink); color: var(--parchment); }
+  .arrivals { margin: 6px 0 2px 34px; font-size: 12px; line-height: 1.8; }
+  .arrivals .soon { color: var(--cinnabar); font-weight: 700; }
+  .clickable { cursor: pointer; }
+  .detail-head { display: flex; align-items: center; gap: 8px; }
+  .detail-title { flex: 1; font-family: var(--font-title); font-size: 18px; }
+
+  /* 地圖：褐色復古 + 暗角 */
+  #map { flex: 1; min-height: 0; background: var(--parchment); }
+  #map .leaflet-tile-pane { filter: sepia(.9) saturate(.65) hue-rotate(-12deg) contrast(1.05) brightness(.96); }
+  #map::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 450;
+    box-shadow: inset 0 0 90px rgba(80, 48, 18, .65), inset 0 0 20px rgba(80, 48, 18, .5);
+  }
+  .leaflet-container { font-family: var(--font-body); }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: var(--parchment); color: var(--ink); border: 1.5px solid var(--ink-soft); box-shadow: 0 3px 10px rgba(0, 0, 0, .35);
+  }
+  .leaflet-popup-content b { font-family: var(--font-title); font-size: 16px; }
+  .leaflet-tooltip { background: var(--parchment); color: var(--ink); border: 1px solid var(--ink-soft); font-family: var(--font-body); }
+  .leaflet-bar a { background: var(--parchment); color: var(--ink); border-color: var(--ink-soft); }
+
+  /* 羅盤 */
+  .compass { position: absolute; right: 16px; bottom: 26px; width: 96px; height: 96px; z-index: 500; pointer-events: none; opacity: .85; }
+
+  /* 標記 */
+  .x-mark { font-family: var(--font-title); font-weight: 700; font-size: 28px; line-height: 28px; text-align: center; text-shadow: 0 0 3px #f7e7c4, 0 0 6px #f7e7c4; }
+  .x-mark sup { font-size: 11px; margin-left: -2px; }
+  .ship-mark { font-size: 26px; line-height: 30px; text-align: center; filter: drop-shadow(0 0 3px #f7e7c4); }
+
+  /* 登入：藏寶圖卷軸 */
+  #login { position: fixed; inset: 0; background: rgba(40, 24, 10, .6); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 16px; }
+  #login.show { display: flex; }
+  #login .card { border: 3px double var(--ink); border-radius: 6px; padding: 22px; width: 100%; max-width: 340px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+  #login h2 { font-family: var(--font-title); margin: 0 0 4px; font-size: 22px; text-align: center; letter-spacing: 2px; }
+
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    aside { width: 100%; max-height: 55vh; border-right: 0; border-bottom: 3px double var(--ink); }
+    #map { min-height: 45vh; }
+    header h1 small { display: none; }
+    .compass { width: 64px; height: 64px; }
+  }
+</style>
+</head>
+<body>
+<header class="parchment">
+  <h1>🧭 Play Taiwan 尋寶地圖<small>等時同心圓・尋寶路線・公車密道</small></h1>
+  <span class="who" id="who">未登入</span>
+  <button class="mini" id="btnLogout">登出</button>
+</header>
+
+<main>
+  <aside class="parchment">
+    <div class="tabs">
+      <button data-tab="iso" class="active">同心圓</button>
+      <button data-tab="route">尋寶路線</button>
+      <button data-tab="bus">公車密道</button>
+    </div>
+
+    <!-- 等時同心圓 -->
+    <section class="pane active" id="pane-iso">
+      <h2>探險起點</h2>
+      <div class="row">
+        <div><label class="field">緯度</label><input type="number" step="any" id="lat" value="24.1477"></div>
+        <div><label class="field">經度</label><input type="number" step="any" id="lng" value="120.6736"></div>
+      </div>
+      <div class="hint">點一下地圖，也能把起點（⛵）移到那裡。</div>
+
+      <label class="field">交通方式</label>
+      <div class="checks" id="isoTransport">
+        <label><input type="checkbox" value="步行" checked> 步行</label>
+        <label><input type="checkbox" value="腳踏車"> 腳踏車</label>
+        <label><input type="checkbox" value="機車" checked> 機車</label>
+        <label><input type="checkbox" value="汽車"> 汽車</label>
+      </div>
+
+      <div class="row">
+        <div>
+          <label class="field">同心圓分鐘</label>
+          <select id="contour">
+            <option value="">預設 10 / 20 / 30</option>
+            <option value="5,10,15">5 / 10 / 15</option>
+            <option value="10,20,30">10 / 20 / 30</option>
+            <option value="15,30,45,60">15 / 30 / 45 / 60</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="primary" id="btnIso">展開藏寶圖</button>
+      <div class="msg" id="isoMsg"></div>
+
+      <div id="isoResult" style="display:none">
+        <div class="divider">寶藏清單</div>
+        <div class="summary">找到 <b id="isoCount">0</b> 處寶藏，範圍內共 <span id="isoTotal">0</span> 處</div>
+        <div class="legend" id="isoLegend"></div>
+        <ul class="list" id="isoList"></ul>
+        <button class="primary" id="btnToRoute">沿著勾選的寶藏出發 →</button>
+      </div>
+    </section>
+
+    <!-- 路線規劃 -->
+    <section class="pane" id="pane-route">
+      <h2>尋寶路線</h2>
+      <div class="hint">第 1 站是起點。可以從「同心圓」帶入寶藏，或直接點地圖加入新地點。</div>
+      <ul class="list" id="routePoints"></ul>
+
+      <label class="field">交通方式（每一段自動挑最快的）</label>
+      <div class="checks" id="routeTransport">
+        <label><input type="checkbox" value="步行" checked> 步行</label>
+        <label><input type="checkbox" value="腳踏車"> 腳踏車</label>
+        <label><input type="checkbox" value="機車" checked> 機車</label>
+        <label><input type="checkbox" value="汽車"> 汽車</label>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button id="btnClearPoints">清空路線</button>
+      </div>
+      <button class="primary" id="btnRoute">畫出尋寶路線</button>
+      <div class="msg" id="routeMsg"></div>
+
+      <div id="routeResult" style="display:none">
+        <div class="divider">航海日誌</div>
+        <div class="summary">全程 <b id="routeMin">0</b> 分鐘，<span id="routeKm">0</span> 公里</div>
+        <ul class="list" id="routeLegs"></ul>
+      </div>
+    </section>
+
+    <!-- 公車密道 -->
+    <section class="pane" id="pane-bus">
+      <div class="seg">
+        <button data-sub="near" class="active">附近站牌</button>
+        <button data-sub="trip">台灣好行</button>
+        <button data-sub="story">劇本公車</button>
+      </div>
+
+      <!-- 附近站牌 -->
+      <div class="sub active" id="sub-near">
+        <div class="hint">點一下地圖，查那附近的公車站牌；點站牌看即時到站，點路線看整條路線。</div>
+        <div class="row">
+          <div>
+            <label class="field">搜尋半徑</label>
+            <select id="nearRadius"><option value="300">300 公尺</option><option value="500" selected>500 公尺</option><option value="1000">1 公里</option></select>
+          </div>
+        </div>
+        <button class="primary" id="btnNear">搜尋起點附近的站牌</button>
+        <div class="msg" id="nearMsg"></div>
+        <ul class="list" id="nearList"></ul>
+      </div>
+
+      <!-- 台灣好行 -->
+      <div class="sub" id="sub-trip">
+        <button class="primary" id="btnTrip" style="margin-top:4px">展開台灣好行路線</button>
+        <div class="msg" id="tripMsg"></div>
+        <input type="text" id="tripFilter" placeholder="搜尋路線，例如 日月潭" style="display:none;margin-top:12px">
+        <ul class="list" id="tripList"></ul>
+      </div>
+
+      <!-- 劇本公車 -->
+      <div class="sub" id="sub-story">
+        <label class="field">劇本代號 story_id</label>
+        <input type="number" id="storyId" placeholder="例如 12">
+        <div class="hint">顯示生成劇本時規劃的直達公車：上下車站與沿途經過的每一個站牌。</div>
+        <button class="primary" id="btnBus">揭開劇本的公車密道</button>
+        <div class="msg" id="busMsg"></div>
+        <ul class="list" id="busLegs"></ul>
+      </div>
+
+      <!-- 路線詳情（三個子分頁共用） -->
+      <div id="routeDetail" style="display:none">
+        <div class="divider">路線詳情</div>
+        <div class="detail-head">
+          <div class="detail-title" id="rdTitle"></div>
+          <button class="mini" id="rdClose">✕ 關閉</button>
+        </div>
+        <div class="meta" id="rdMeta"></div>
+        <label class="field">方向</label>
+        <select id="rdPattern"></select>
+        <div class="meta" id="rdDepartures" style="margin-top:8px"></div>
+        <ul class="list" id="rdStops"></ul>
+      </div>
+    </section>
+  </aside>
+
+  <div id="map">
+    <!-- 羅盤 -->
+    <svg class="compass" viewBox="0 0 100 100" aria-hidden="true">
+      <circle cx="50" cy="50" r="44" fill="none" stroke="#3b2412" stroke-width="1.5"/>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="#3b2412" stroke-width=".8" stroke-dasharray="2 3"/>
+      <polygon points="50,8 56,50 50,44 44,50" fill="#9e2a17"/>
+      <polygon points="50,92 56,50 50,56 44,50" fill="#3b2412"/>
+      <polygon points="8,50 50,44 44,50 50,56" fill="#3b2412" opacity=".75"/>
+      <polygon points="92,50 50,44 56,50 50,56" fill="#3b2412" opacity=".75"/>
+      <polygon points="22,22 50,46 46,50" fill="#b8862b"/>
+      <polygon points="78,22 54,50 50,46" fill="#b8862b"/>
+      <polygon points="22,78 46,50 50,54" fill="#b8862b"/>
+      <polygon points="78,78 50,54 54,50" fill="#b8862b"/>
+      <circle cx="50" cy="50" r="4" fill="#f1e2bf" stroke="#3b2412" stroke-width="1.5"/>
+      <text x="50" y="6" text-anchor="middle" font-size="9" font-weight="700" fill="#9e2a17" font-family="serif">北</text>
+    </svg>
+  </div>
+</main>
+
+<div id="login">
+  <div class="card parchment">
+    <h2>📜 領取藏寶圖</h2>
+    <div class="hint" style="text-align:center">登入後才能向後端索取真實的寶藏資料。</div>
+    <label class="field">帳號或信箱</label>
+    <input type="text" id="loginName" autocomplete="username">
+    <label class="field">密碼</label>
+    <input type="password" id="loginPwd" autocomplete="current-password">
+    <button class="primary" id="btnLogin">啟程</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ───────── 共用 ─────────
+  const RING_COLORS = ['#9e2a17', '#b8862b', '#4f6b3a', '#5a3d78'];      // 硃砂、金、墨綠、紫
+  const LEG_COLORS = ['#7a3b14', '#9e2a17', '#4f6b3a', '#5a3d78', '#b8862b', '#2f4f6b', '#8a5a2b', '#6b2a4f'];
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function store(key, value) {
+    try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch (e) { }
+  }
+  function load(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  let token = load('pt_demo_token');
+
+  function showMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = 'msg ' + (ok ? 'ok' : 'err');
+  }
+  function clearMsg(el) { el.className = 'msg'; el.textContent = ''; }
+
+  async function api(path, body, method) {
+    const res = await fetch(path, {
+      method: method || (body ? 'POST' : 'GET'),
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { Authorization: 'Bearer ' + token } : {}),
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (res.status === 401) { openLogin(); throw new Error('請先登入'); }
+    let data = null;
+    try { data = await res.json(); } catch (e) { }
+    if (!res.ok || !data || data.isSuccess === false) throw new Error((data && data.message) || ('HTTP ' + res.status));
+    return data.Result;
+  }
+
+  function checked(containerId) {
+    return [...$(containerId).querySelectorAll('input:checked')].map(i => i.value);
+  }
+
+  // ───────── 登入 ─────────
+  function openLogin() { $('login').classList.add('show'); }
+  function refreshWho() {
+    $('who').textContent = token ? '探險家：' + (load('pt_demo_name') || '已登入') : '未登入';
+  }
+  $('btnLogin').onclick = async () => {
+    const btn = $('btnLogin');
+    btn.disabled = true;
+    try {
+      const r = await api('/api/Auth/Login', { auth_name: $('loginName').value.trim(), auth_pswd: $('loginPwd').value });
+      token = r.token;
+      store('pt_demo_token', token);
+      store('pt_demo_name', r.auth_name);
+      $('login').classList.remove('show');
+      clearMsg($('loginMsg'));
+      refreshWho();
+    } catch (e) {
+      showMsg($('loginMsg'), e.message);
+    } finally { btn.disabled = false; }
+  };
+  $('btnLogout').onclick = () => { token = null; store('pt_demo_token', null); store('pt_demo_name', null); refreshWho(); openLogin(); };
+  refreshWho();
+  if (!token) openLogin();
+
+  // ───────── 地圖 ─────────
+  const map = L.map('map').setView([24.1477, 120.6736], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const isoLayer = L.layerGroup().addTo(map);
+  const routeLayer = L.layerGroup().addTo(map);
+  const busLayer = L.layerGroup().addTo(map);
+  let centerMarker = null;
+
+  const shipIcon = L.divIcon({ className: '', html: '<div class="ship-mark">⛵</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+  const xIcon = (ring, color) => L.divIcon({
+    className: '', html: '<div class="x-mark" style="color:' + color + '">✕<sup>' + ring + '</sup></div>',
+    iconSize: [34, 30], iconAnchor: [15, 15]
+  });
+  const sealIcon = (n, color) => L.divIcon({
+    className: '', html: '<div class="seal" style="background:' + (color || 'var(--cinnabar)') + '">' + n + '</div>',
+    iconSize: [26, 26], iconAnchor: [13, 13]
+  });
+
+  function setCenter(lat, lng) {
+    $('lat').value = lat.toFixed(6);
+    $('lng').value = lng.toFixed(6);
+    if (centerMarker) centerMarker.setLatLng([lat, lng]);
+    else centerMarker = L.marker([lat, lng], { icon: shipIcon, zIndexOffset: 1000 }).addTo(map).bindTooltip('探險起點');
+  }
+  setCenter(24.1477, 120.6736);
+
+  let activeTab = 'iso';
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    activeTab = b.dataset.tab;
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + activeTab));
+    setTimeout(() => map.invalidateSize(), 0);
+  });
+
+  map.on('click', e => {
+    if (activeTab === 'iso') setCenter(e.latlng.lat, e.latlng.lng);
+    else if (activeTab === 'route') { routePoints.push({ lat: e.latlng.lat, lng: e.latlng.lng, name: '神秘地點 ' + (routePoints.length + 1) }); renderPoints(); }
+  });
+
+  // ───────── 等時同心圓 ─────────
+  let lastAttractions = [];
+
+  $('btnIso').onclick = async () => {
+    const btn = $('btnIso');
+    btn.disabled = true;
+    btn.textContent = '繪製藏寶圖中…';
+    clearMsg($('isoMsg'));
+    try {
+      const contour = $('contour').value ? $('contour').value.split(',').map(Number) : null;
+      const r = await api('/api/Story/ReachableAttractions', {
+        lat: parseFloat($('lat').value),
+        lng: parseFloat($('lng').value),
+        transportation: checked('isoTransport'),
+        contour_minutes: contour,
+        include_polygons: true
+      });
+      drawIso(r);
+    } catch (e) {
+      showMsg($('isoMsg'), e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '展開藏寶圖';
+    }
+  };
+
+  function drawIso(r) {
+    isoLayer.clearLayers();
+    setCenter(r.center_lat, r.center_lng);
+    const minutes = r.contour_minutes || [];
+    const colorOf = m => RING_COLORS[Math.max(0, minutes.indexOf(m)) % RING_COLORS.length];
+
+    // 大圈先畫，小圈疊在上面；線條用手繪虛線
+    const bands = (r.isochrones || []).slice().sort((a, b) => b.minutes - a.minutes);
+    let bounds = null;
+    bands.forEach(b => {
+      const layer = L.geoJSON({ type: 'MultiPolygon', coordinates: b.polygons }, {
+        style: {
+          color: colorOf(b.minutes), weight: 2.5, opacity: .9,
+          fillColor: colorOf(b.minutes), fillOpacity: 0.08,
+          dashArray: b.transport === '步行' ? '2 6' : '10 6', lineCap: 'round'
+        }
+      }).bindTooltip(esc(b.transport) + ' ' + b.minutes + ' 分鐘', { sticky: true });
+      layer.addTo(isoLayer);
+      try { bounds = bounds ? bounds.extend(layer.getBounds()) : L.latLngBounds(layer.getBounds().getSouthWest(), layer.getBounds().getNorthEast()); } catch (e) { }
+    });
+
+    lastAttractions = r.attractions || [];
+    lastAttractions.forEach(a => {
+      const color = RING_COLORS[(a.ring - 1) % RING_COLORS.length];
+      L.marker([a.lat, a.lon], { icon: xIcon(a.ring, color) }).bindPopup(
+        '<b>' + esc(a.name) + '</b><br>' +
+        esc(a.reachable_by) + ' ' + a.travel_minutes + ' 分鐘・' + a.travel_distance_km + ' 公里<br>' +
+        '第 ' + a.ring + ' 圈（' + a.reachable_minutes + ' 分鐘內可達）'
+      ).addTo(isoLayer);
+    });
+
+    if (bounds) map.fitBounds(bounds, { padding: [20, 20] });
+
+    $('isoLegend').innerHTML = minutes.map((m, i) =>
+      '<span><i style="border-color:' + RING_COLORS[i % RING_COLORS.length] + '"></i>' + m + ' 分鐘</span>').join('') +
+      '<span>點線 = 步行</span>';
+    $('isoCount').textContent = lastAttractions.length;
+    $('isoTotal').textContent = r.total_reachable ?? lastAttractions.length;
+    $('isoList').innerHTML = lastAttractions.map((a, i) =>
+      '<li><input type="checkbox" data-i="' + i + '" checked>' +
+      '<span class="seal" style="background:' + RING_COLORS[(a.ring - 1) % RING_COLORS.length] + '">' + a.ring + '</span>' +
+      '<div class="grow"><div class="name">' + esc(a.name) + '</div>' +
+      '<div class="meta">' + esc(a.reachable_by) + ' ' + a.travel_minutes + ' 分・' + a.travel_distance_km + ' 公里</div></div></li>'
+    ).join('');
+    $('isoResult').style.display = lastAttractions.length ? 'block' : 'none';
+    if (!lastAttractions.length) showMsg($('isoMsg'), '這片海域沒有可到達的寶藏，試試換個起點或交通方式');
+  }
+
+  $('btnToRoute').onclick = () => {
+    const picked = [...$('isoList').querySelectorAll('input:checked')].map(c => lastAttractions[+c.dataset.i]);
+    routePoints = [{ lat: parseFloat($('lat').value), lng: parseFloat($('lng').value), name: '探險起點' }]
+      .concat(picked.map(a => ({ lat: a.lat, lng: a.lon, name: a.name })));
+    const iso = checked('isoTransport');
+    $('routeTransport').querySelectorAll('input').forEach(i => i.checked = iso.includes(i.value));
+    renderPoints();
+    document.querySelector('.tabs button[data-tab=route]').click();
+    $('btnRoute').click();
+  };
+
+  // ───────── 尋寶路線 ─────────
+  let routePoints = [];
+
+  function renderPoints() {
+    $('routePoints').innerHTML = routePoints.map((p, i) =>
+      '<li><span class="seal" style="background:var(--cinnabar)">' + (i + 1) + '</span>' +
+      '<div class="grow"><div class="name">' + esc(p.name) + '</div>' +
+      '<div class="meta">' + p.lat.toFixed(5) + ', ' + p.lng.toFixed(5) + '</div></div>' +
+      '<button class="mini" data-act="up" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="mini" data-act="down" data-i="' + i + '"' + (i === routePoints.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="mini" data-act="del" data-i="' + i + '">✕</button></li>'
+    ).join('') || '<li class="meta">還沒有任何地點</li>';
+
+    routeLayer.clearLayers();
+    routePoints.forEach((p, i) => L.marker([p.lat, p.lng], { icon: i === 0 ? shipIcon : sealIcon(i + 1), zIndexOffset: 500 })
+      .bindTooltip(esc(p.name)).addTo(routeLayer));
+  }
+
+  $('routePoints').onclick = e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const i = +b.dataset.i;
+    if (b.dataset.act === 'del') routePoints.splice(i, 1);
+    if (b.dataset.act === 'up') [routePoints[i - 1], routePoints[i]] = [routePoints[i], routePoints[i - 1]];
+    if (b.dataset.act === 'down') [routePoints[i + 1], routePoints[i]] = [routePoints[i], routePoints[i + 1]];
+    renderPoints();
+  };
+  $('btnClearPoints').onclick = () => { routePoints = []; renderPoints(); $('routeResult').style.display = 'none'; };
+  renderPoints();
+
+  $('btnRoute').onclick = async () => {
+    if (routePoints.length < 2) { showMsg($('routeMsg'), '至少需要 2 個地點'); return; }
+    const btn = $('btnRoute');
+    btn.disabled = true;
+    btn.textContent = '描繪路線中…';
+    clearMsg($('routeMsg'));
+    try {
+      const r = await api('/api/Story/TravelRoute', { points: routePoints, transportation: checked('routeTransport') });
+      drawRoute(r);
+    } catch (e) {
+      showMsg($('routeMsg'), e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '畫出尋寶路線';
+    }
+  };
+
+  function drawRoute(r) {
+    renderPoints();
+    const all = [];
+    (r.legs || []).forEach((leg, i) => {
+      const latlngs = (leg.coordinates || []).map(c => [c[1], c[0]]);
+      all.push(...latlngs);
+      const color = LEG_COLORS[i % LEG_COLORS.length];
+      // 淡色底線 + 深色虛線，做出手繪尋寶小徑的感覺
+      L.polyline(latlngs, { color: '#f7e7c4', weight: 9, opacity: .7 }).addTo(routeLayer);
+      L.polyline(latlngs, { color, weight: 4, opacity: .95, dashArray: '1 9', lineCap: 'round' })
+        .bindTooltip('第 ' + leg.leg_order + ' 段・' + esc(leg.transport) + ' ' + leg.travel_minutes + ' 分', { sticky: true })
+        .addTo(routeLayer);
+    });
+    if (all.length) map.fitBounds(L.latLngBounds(all), { padding: [30, 30] });
+
+    $('routeMin').textContent = r.total_minutes;
+    $('routeKm').textContent = r.total_distance_km;
+    $('routeLegs').innerHTML = (r.legs || []).map((leg, i) =>
+      '<li><span class="seal" style="background:' + LEG_COLORS[i % LEG_COLORS.length] + '">' + leg.leg_order + '</span>' +
+      '<div class="grow"><div class="name">' + esc(leg.from_name || '起點') + ' → ' + esc(leg.to_name || '終點') + '</div>' +
+      '<div class="meta">' + esc(leg.transport) + '・' + leg.travel_minutes + ' 分鐘・' + leg.distance_km + ' 公里</div></div></li>'
+    ).join('');
+    $('routeResult').style.display = 'block';
+  }
+
+  // ───────── 公車密道 ─────────
+  let activeSub = 'near';
+  let busPoint = null;
+  const flagIcon = L.divIcon({ className: '', html: '<div class="ship-mark">🚩</div>', iconSize: [30, 30], iconAnchor: [8, 26] });
+
+  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+    activeSub = b.dataset.sub;
+    document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.sub').forEach(s => s.classList.toggle('active', s.id === 'sub-' + activeSub));
+  });
+
+  map.on('click', e => {
+    if (activeTab === 'bus' && activeSub === 'near') loadNearby(e.latlng.lat, e.latlng.lng);
+  });
+
+  const routeChips = routes => (routes || []).map(r =>
+    '<span class="route-chip' + (r.route_type === 3 ? ' trip' : '') + '" data-br="' + r.br_id + '">' + esc(r.route_name) + '</span>'
+  ).join('');
+
+  // 附近站牌
+  $('btnNear').onclick = () => loadNearby(parseFloat($('lat').value), parseFloat($('lng').value));
+
+  async function loadNearby(lat, lng) {
+    clearMsg($('nearMsg'));
+    busLayer.clearLayers();
+    $('routeDetail').style.display = 'none';
+    if (busPoint) busPoint.setLatLng([lat, lng]);
+    else busPoint = L.marker([lat, lng], { icon: flagIcon, zIndexOffset: 900 }).addTo(map).bindTooltip('搜尋位置');
+    $('nearList').innerHTML = '<li class="meta">搜尋中…</li>';
+
+    try {
+      const stops = await api('/api/Bus/Nearby?lat=' + lat + '&lng=' + lng + '&radius=' + $('nearRadius').value);
+      if (!stops.length) {
+        $('nearList').innerHTML = '';
+        showMsg($('nearMsg'), '這附近沒有公車站牌（目前只有臺中市公車與全台台灣好行的資料）');
+        return;
+      }
+      const pts = [[lat, lng]];
+      stops.forEach((s, i) => {
+        pts.push([s.lat, s.lng]);
+        L.circleMarker([s.lat, s.lng], { radius: 7, color: '#3b2412', weight: 2, fillColor: '#b8862b', fillOpacity: 1 })
+          .bindTooltip(esc(s.stop_name) + '（' + s.distance_m + ' 公尺）')
+          .on('click', () => toggleArrivals(i))
+          .addTo(busLayer);
+      });
+      map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 17 });
+
+      $('nearList').innerHTML = stops.map((s, i) =>
+        '<li style="display:block" data-i="' + i + '" data-bs="' + s.bs_id + '">' +
+        '<div class="clickable" style="display:flex;gap:8px;align-items:center" data-act="eta">' +
+        '<span class="seal" style="background:var(--gold)">🚏</span>' +
+        '<div class="grow"><div class="name">' + esc(s.stop_name) + '</div>' +
+        '<div class="meta">' + s.distance_m + ' 公尺・點我看即時到站</div></div></div>' +
+        '<div style="margin-left:34px">' + routeChips(s.routes) + '</div>' +
+        '<div class="arrivals" style="display:none"></div></li>'
+      ).join('');
+    } catch (e) {
+      $('nearList').innerHTML = '';
+      showMsg($('nearMsg'), e.message);
+    }
+  }
+
+  function toggleArrivals(i) {
+    const li = $('nearList').querySelector('li[data-i="' + i + '"]');
+    if (!li) return;
+    li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    loadArrivals(+li.dataset.bs, li.querySelector('.arrivals'));
+  }
+
+  async function loadArrivals(bsId, box) {
+    box.style.display = 'block';
+    box.textContent = '查詢即時到站中…';
+    try {
+      const list = await api('/api/Bus/Stop/' + bsId + '/Arrivals');
+      if (!list.length) { box.textContent = '目前沒有即時資料'; return; }
+      box.innerHTML = list.slice(0, 12).map(a =>
+        '<div><b>' + esc(a.route_name) + '</b>（' + (a.direction === 1 ? '返程' : a.direction === 2 ? '迴圈' : '去程') + '）　' +
+        '<span class="' + (a.estimate_minutes !== null && a.estimate_minutes <= 3 ? 'soon' : '') + '">' + esc(a.status_text) + '</span>' +
+        (a.estimate_minutes === null && a.next_bus_time ? '・下一班 ' + esc(a.next_bus_time) : '') + '</div>'
+      ).join('') + (list.length > 12 ? '<div>…還有 ' + (list.length - 12) + ' 班</div>' : '');
+    } catch (e) {
+      box.textContent = e.message;
+    }
+  }
+
+  $('nearList').onclick = e => {
+    const chip = e.target.closest('.route-chip');
+    if (chip) { loadRoute(+chip.dataset.br); return; }
+    const head = e.target.closest('[data-act=eta]');
+    if (head) toggleArrivals(+head.closest('li').dataset.i);
+  };
+
+  // 台灣好行
+  let tripRoutes = [];
+
+  $('btnTrip').onclick = async () => {
+    clearMsg($('tripMsg'));
+    const btn = $('btnTrip');
+    btn.disabled = true;
+    try {
+      tripRoutes = await api('/api/Bus/TaiwanTrip');
+      $('tripFilter').style.display = tripRoutes.length ? 'block' : 'none';
+      renderTrips();
+      if (!tripRoutes.length) showMsg($('tripMsg'), '還沒有台灣好行資料，請先同步');
+    } catch (e) {
+      showMsg($('tripMsg'), e.message);
+    } finally { btn.disabled = false; }
+  };
+
+  $('tripFilter').oninput = renderTrips;
+
+  function renderTrips() {
+    const q = $('tripFilter').value.trim();
+    $('tripList').innerHTML = tripRoutes
+      .filter(r => !q || (r.route_name + (r.departure_stop_name || '') + (r.destination_stop_name || '')).includes(q))
+      .map(r =>
+        '<li class="clickable" data-br="' + r.br_id + '">' +
+        '<span class="seal" style="background:var(--gold)">好</span>' +
+        '<div class="grow"><div class="name">' + esc(r.route_name.replace(/^台灣好行\s*/, '')) + '</div>' +
+        '<div class="meta">' + esc(r.departure_stop_name || '') + ' ⇄ ' + esc(r.destination_stop_name || '') + '・' + r.stop_count + ' 站</div></div></li>'
+      ).join('') || '<li class="meta">找不到符合的路線</li>';
+  }
+
+  $('tripList').onclick = e => {
+    const li = e.target.closest('li[data-br]');
+    if (li) loadRoute(+li.dataset.br);
+  };
+
+  // 路線詳情
+  let currentRoute = null;
+
+  async function loadRoute(brId) {
+    try {
+      currentRoute = await api('/api/Bus/Route/' + brId);
+    } catch (e) {
+      showMsg($(activeSub === 'trip' ? 'tripMsg' : activeSub === 'near' ? 'nearMsg' : 'busMsg'), e.message);
+      return;
+    }
+    const r = currentRoute;
+    $('rdTitle').textContent = r.route_name + '（' + r.route_type_name + '）';
+    $('rdMeta').innerHTML = [
+      r.departure_stop_name && r.destination_stop_name ? esc(r.departure_stop_name) + ' ⇄ ' + esc(r.destination_stop_name) : '',
+      r.headway_desc ? '班距：' + esc(r.headway_desc) : '',
+      r.fare_desc ? '票價：' + esc(r.fare_desc) : '',
+      r.route_map_url ? '<a href="' + esc(r.route_map_url) + '" target="_blank" rel="noopener">官方路線圖 ↗</a>' : ''
+    ].filter(Boolean).join('<br>');
+    $('rdPattern').innerHTML = (r.patterns || []).map((p, i) =>
+      '<option value="' + i + '">' + esc(p.direction_name) + (p.headsign ? '：' + esc(p.headsign) : '') +
+      (p.sub_route_name && p.sub_route_name !== r.route_name ? '（' + esc(p.sub_route_name) + '）' : '') + '</option>'
+    ).join('');
+    $('routeDetail').style.display = 'block';
+    drawPattern(0);
+    $('routeDetail').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  $('rdPattern').onchange = () => drawPattern(+$('rdPattern').value);
+  $('rdClose').onclick = () => { $('routeDetail').style.display = 'none'; busLayer.clearLayers(); };
+
+  function drawPattern(i) {
+    const p = (currentRoute.patterns || [])[i];
+    busLayer.clearLayers();
+    if (!p) { $('rdStops').innerHTML = '<li class="meta">這條路線沒有站序資料</li>'; return; }
+
+    const color = currentRoute.route_type === 3 ? '#b8862b' : '#7a3b14';
+    const line = p.shape && p.shape.length ? p.shape.map(c => [c[1], c[0]]) : p.stops.map(s => [s.lat, s.lng]);
+    L.polyline(line, { color: '#f7e7c4', weight: 9, opacity: .7 }).addTo(busLayer);
+    L.polyline(line, { color, weight: 4, dashArray: '8 6' }).addTo(busLayer);
+    p.stops.forEach((s, k) => {
+      const edge = k === 0 || k === p.stops.length - 1;
+      L.circleMarker([s.lat, s.lng], { radius: edge ? 7 : 4, color: '#3b2412', weight: 1.5, fillColor: edge ? color : '#f1e2bf', fillOpacity: 1 })
+        .bindTooltip(s.stop_sequence + '. ' + esc(s.stop_name)).addTo(busLayer);
+    });
+    if (line.length) map.fitBounds(L.latLngBounds(line), { padding: [30, 30] });
+
+    $('rdDepartures').innerHTML = (p.departures || []).length
+      ? p.departures.map(d => '<b>' + esc(d.service_days) + '</b>　' + d.times.map(esc).join('、')).join('<br>')
+      : (currentRoute.headway_desc ? '' : '沒有班表資料');
+
+    $('rdStops').innerHTML = p.stops.map(s =>
+      '<li style="display:block" data-bs="' + s.bs_id + '"><div class="clickable" style="display:flex;gap:8px;align-items:center">' +
+      '<span class="seal" style="background:' + color + '">' + s.stop_sequence + '</span>' +
+      '<div class="grow"><div class="name">' + esc(s.stop_name) + '</div></div></div>' +
+      '<div class="arrivals" style="display:none"></div></li>'
+    ).join('');
+  }
+
+  $('rdStops').onclick = e => {
+    const li = e.target.closest('li[data-bs]');
+    if (li) loadArrivals(+li.dataset.bs, li.querySelector('.arrivals'));
+  };
+
+  // 劇本公車
+  $('btnBus').onclick = async () => {
+    const id = parseInt($('storyId').value, 10);
+    if (!id) { showMsg($('busMsg'), '請輸入 story_id'); return; }
+    const btn = $('btnBus');
+    btn.disabled = true;
+    clearMsg($('busMsg'));
+    busLayer.clearLayers();
+    $('busLegs').innerHTML = '';
+    $('routeDetail').style.display = 'none';
+    try {
+      const legs = await api('/api/Story/' + id + '/Transit');
+      if (!legs.length) { showMsg($('busMsg'), '此劇本沒有公車密道（生成時沒選公車、景點附近站牌尚未計算，或找不到直達公車）'); return; }
+      const all = [];
+      legs.forEach((leg, i) => {
+        const color = LEG_COLORS[i % LEG_COLORS.length];
+        // 沿公車實際行駛線形畫；舊版 API 沒有 coordinates 時才退回站牌直線連接
+        const latlngs = leg.coordinates && leg.coordinates.length
+          ? leg.coordinates.map(c => [c[1], c[0]])
+          : (leg.stops || []).map(s => [s.lat, s.lng]);
+        all.push(...latlngs);
+        L.polyline(latlngs, { color: '#f7e7c4', weight: 9, opacity: .7 }).addTo(busLayer);
+        L.polyline(latlngs, { color, weight: 4, dashArray: '8 6' }).addTo(busLayer);
+        (leg.stops || []).forEach((s, k) => {
+          const edge = k === 0 || k === leg.stops.length - 1;
+          L.circleMarker([s.lat, s.lng], { radius: edge ? 8 : 4, color: '#3b2412', weight: 1.5, fillColor: edge ? color : '#f1e2bf', fillOpacity: 1 })
+            .bindTooltip(esc(s.stop_name) + (k === 0 ? '（上車）' : edge ? '（下車）' : '')).addTo(busLayer);
+        });
+      });
+      if (all.length) map.fitBounds(L.latLngBounds(all), { padding: [30, 30] });
+
+      $('busLegs').innerHTML = legs.map((leg, i) =>
+        '<li style="display:block"><div style="display:flex;gap:8px;align-items:center">' +
+        '<span class="seal" style="background:' + LEG_COLORS[i % LEG_COLORS.length] + '">' + (i + 1) + '</span>' +
+        '<div class="grow"><div class="name">' + esc(leg.route_name) + '（' + esc(leg.route_type_name) + '）' +
+        (leg.tripper_theme ? '・' + esc(leg.tripper_theme) : '') + '</div>' +
+        '<div class="meta">' + esc(leg.headsign || '') + '　' + esc(leg.board_stop_name) + ' 上車 → ' + esc(leg.alight_stop_name) + ' 下車・' +
+        leg.stop_count + ' 站' + (leg.est_ride_minutes ? '・約 ' + leg.est_ride_minutes + ' 分' : '') + '</div></div></div>' +
+        '<div class="stops">' + (leg.stops || []).map(s => esc(s.stop_name)).join(' → ') + '</div></li>'
+      ).join('');
+    } catch (e) {
+      showMsg($('busMsg'), e.message);
+    } finally { btn.disabled = false; }
+  };
+})();
+</script>
+</body>
+</html>

@@ -28,8 +28,10 @@
     "Password": "your_local_neo4j_password",
     "Database": "neo4j"
   },
+  "AiService": {
+    "BaseUrl": "https://aiservice.angelalala.com"
+  },
   "Neo4j": {
-    "Mode": "Local",
-    "RemoteApiUrl": "https://vlog.angelalala.com/api/neo4j/cypher"
+    "Mode": "Local"
   }
 }

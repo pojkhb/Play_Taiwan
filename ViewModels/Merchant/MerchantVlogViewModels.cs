@@ -1,28 +1,152 @@
 // 檔案路徑：System\ViewModels\Merchant\MerchantVlogViewModels.cs
+using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 
 namespace backend.ViewModels
 {
-    #region Preview（腳本預覽）
+    #region 敘事語氣
+
+    /// <summary>敘事語氣選項（narrative_tone）</summary>
+    public class NarrativeToneItem
+    {
+        /// <summary>敘事語氣流水號，Preview 時帶入 nt_id</summary>
+        public int nt_id { get; set; }
+
+        /// <summary>顯示名稱，例如「幽默詼諧」</summary>
+        public string nt_name { get; set; }
+
+        /// <summary>語氣說明，會一起送給 AI 當提示</summary>
+        public string nt_prompt { get; set; }
+    }
+
+    #endregion
+
+    #region Preview（輸入店家資訊 + 照片 → AI 旁白草稿、推薦配文、TAG）
 
     /// <summary>
-    /// 商家 Vlog 行銷預覽請求。對應畫面：店家名稱、敘事語氣、推薦資訊。
+    /// 商家 VLOG 生成請求（multipart/form-data）。對應「生成（輸入資訊）」頁面。
     /// </summary>
     public class MerchantVlogPreviewRequest
     {
-        /// <summary>店家名稱，需與 Neo4j 裡的店家名稱一致，才能撈到官方介紹。</summary>
-        public string merchant_name { get; set; }
+        /// <summary>選填：要重新產生草稿的專案 ID；不帶就建立新專案</summary>
+        public int? mm_id { get; set; }
 
-        /// <summary>推薦資訊／優惠重點（畫面上的「推薦資訊」欄位）。</summary>
-        public string promo_focus { get; set; }
+        /// <summary>店家名稱；不填就用商家資訊表（store）的名稱</summary>
+        public string store_name { get; set; }
 
-        /// <summary>
-        /// 敘事語氣（畫面上的「幽默詼諧 / 質感專業 / 溫情走心」）。
-        /// 文件本身沒有獨立參數，這裡併進 promo_focus 一起送給外部 API 當作提示詞修飾。
-        /// </summary>
-        public string narration_tone { get; set; }
+        /// <summary>營業時間，例如「週二至週日 11:00–21:00，週一公休」</summary>
+        public string open_time { get; set; }
+
+        /// <summary>地址；不填就用商家資訊表（store）的地址</summary>
+        public string address { get; set; }
+
+        /// <summary>敘事語氣 ID，選項由 GET /api/MerchantVlog/Tones 取得</summary>
+        public int? nt_id { get; set; }
+
+        /// <summary>推廣資訊（必填），例如本月主打、優惠內容</summary>
+        public string promo_text { get; set; }
+
+        /// <summary>照片（可多張，依上傳順序出現在影片中）。新專案必填；重新產生草稿時不帶就沿用已上傳的照片</summary>
+        public List<IFormFile> images { get; set; }
     }
+
+    /// <summary>商家 VLOG 草稿</summary>
+    public class MerchantVlogPreviewResponse
+    {
+        /// <summary>影音專案 ID，之後 CreateFinal / Status 都用它</summary>
+        public int mm_id { get; set; }
+
+        public string store_name { get; set; }
+        public string open_time { get; set; }
+        public string address { get; set; }
+
+        /// <summary>選用的敘事語氣名稱</summary>
+        public string tone_name { get; set; }
+
+        /// <summary>AI 旁白草稿，商家確認或修改後送 CreateFinal 的 final_script</summary>
+        public string script { get; set; }
+
+        /// <summary>推薦配文</summary>
+        public string caption { get; set; }
+
+        /// <summary>推薦 TAG（已補 #）</summary>
+        public List<string> hashtags { get; set; }
+
+        /// <summary>AI 建議的目標客群</summary>
+        public List<string> target_audience { get; set; }
+
+        /// <summary>這個專案目前的照片（依影片順序）</summary>
+        public List<string> image_urls { get; set; }
+    }
+
+    #endregion
+
+    #region CreateFinal（確認旁白 → 送出影片合成）
+
+    public class MerchantVlogCreateFinalRequest
+    {
+        /// <summary>影音專案 ID（Preview 回傳）</summary>
+        public int mm_id { get; set; }
+
+        /// <summary>商家確認或修改後的最終旁白（必填）</summary>
+        public string final_script { get; set; }
+
+        /// <summary>選填：修改後的推薦配文；不帶就沿用草稿</summary>
+        public string caption { get; set; }
+
+        /// <summary>選填：修改後的 TAG；不帶就沿用草稿</summary>
+        public List<string> hashtags { get; set; }
+    }
+
+    /// <summary>送出合成後的回應</summary>
+    public class MerchantVlogTaskResponse
+    {
+        public int mm_id { get; set; }
+
+        /// <summary>外部 AI 任務 ID</summary>
+        public string task_id { get; set; }
+
+        /// <summary>1=草稿、2=處理中、3=已完成、4=失敗</summary>
+        public int status { get; set; }
+        public string status_text { get; set; }
+    }
+
+    #endregion
+
+    #region Status（影片、推薦配文、TAG）
+
+    /// <summary>商家 VLOG 專案目前狀態；status=3 時 video_url 才有值</summary>
+    public class MerchantVlogStatusResponse
+    {
+        public int mm_id { get; set; }
+
+        /// <summary>1=草稿、2=處理中、3=已完成、4=失敗</summary>
+        public int status { get; set; }
+        public string status_text { get; set; }
+
+        public string title { get; set; }
+
+        /// <summary>推薦配文</summary>
+        public string caption { get; set; }
+
+        /// <summary>推薦 TAG</summary>
+        public List<string> hashtags { get; set; }
+
+        /// <summary>完成的影片網址</summary>
+        public string video_url { get; set; }
+
+        public string thumbnail { get; set; }
+
+        /// <summary>status=4 時的失敗原因</summary>
+        public string error_message { get; set; }
+
+        public DateTime updated_at { get; set; }
+    }
+
+    #endregion
+
+    #region 外部 AI 服務原始回應（商家 / 遊客共用）
 
     /// <summary>外部 API /api/merchant/vlog/preview 的原始回應結構。</summary>
     public class MerchantVlogPreviewApiResponse
@@ -48,25 +172,6 @@ namespace backend.ViewModels
         public string promo_copy { get; set; }
     }
 
-    #endregion
-
-    #region CreateFinal（正式合成影片）
-
-    /// <summary>
-    /// 商家 Vlog 正式合成影片請求。對應畫面：確認/微調後的旁白、上傳素材（多張照片）。
-    /// </summary>
-    public class MerchantVlogCreateFinalRequest
-    {
-        /// <summary>使用者確認或微調後的最終旁白文字（通常來自 Preview 回傳的 tw_script）。</summary>
-        public string final_script { get; set; }
-
-        /// <summary>畫面「上傳素材」欄位選取的多張照片，後端會即時打包成 zip 再送給外部 API。</summary>
-        public List<IFormFile> images { get; set; }
-
-        /// <summary>選填：圖片對應地點時間的中繼資料 JSON 字串。</summary>
-        public string spot_meta_json { get; set; }
-    }
-
     /// <summary>外部 API /api/visitor/vlog/create_final 的原始回應結構。</summary>
     public class VlogCreateFinalApiResponse
     {
@@ -76,10 +181,6 @@ namespace backend.ViewModels
         public string check_url { get; set; }
     }
 
-    #endregion
-
-    #region 任務狀態查詢
-
     /// <summary>外部 API /api/check_status/{task_id} 的原始回應結構。</summary>
     public class VlogTaskStatusApiResponse
     {
@@ -87,6 +188,7 @@ namespace backend.ViewModels
         public string task_id { get; set; }
         public string filename { get; set; }
         public string download_url { get; set; }
+        public string message { get; set; }
     }
 
     #endregion

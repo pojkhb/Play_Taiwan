@@ -60,6 +60,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("")]
+        [ProducesResponseType(typeof(ResultViewModel<List<HistoryStoryItem>>), 200)]
         public IActionResult GetHistoryList()
         {
             try
@@ -115,6 +116,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("{story_id:int}")]
+        [ProducesResponseType(typeof(ResultViewModel<HistoryStoryItem>), 200)]
         public IActionResult GetHistoryDetail(int story_id)
         {
             try

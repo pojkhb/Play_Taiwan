@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using backend.Models;
 using backend.Services;
+using backend.utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -25,7 +26,7 @@ namespace backend.Services.Neo4j
         public RemoteNeo4jApiGatewayService(HttpClient httpClient, IConfiguration configuration, ILogger<RemoteNeo4jApiGatewayService> logger)
         {
             _httpClient = httpClient;
-            _apiUrl = configuration["Neo4j:RemoteApiUrl"] ?? "https://vlog.angelalala.com/api/neo4j/cypher";
+            _apiUrl = AiServiceConfig.Neo4jCypherUrl;
             _logger = logger;
         }
 

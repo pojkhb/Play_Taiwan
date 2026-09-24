@@ -36,10 +36,19 @@ namespace backend.Models
     /// <summary>登入／查詢個人資料共用的回應格式。</summary>
     public class LoginResponse
     {
+        /// <summary>JWT 登入憑證，之後呼叫 API 放在 Header：Authorization: Bearer {token}（查詢個人資料時為 null）</summary>
         public string token { get; set; }
+
+        /// <summary>帳號代號</summary>
         public int au_id { get; set; }
+
+        /// <summary>帳號名稱</summary>
         public string auth_name { get; set; }
+
+        /// <summary>身分類型：1 = 遊客、2 = 商家、3 = 管理員</summary>
         public int auth_type { get; set; }
+
+        /// <summary>身分類型英文名稱：Tourist / Merchant / Admin，用來判斷登入後要導向哪個介面</summary>
         public string account_type_name { get; set; }
     }
 

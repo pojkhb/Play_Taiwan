@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using backend.utils;
 
 namespace backend.Services
 {
@@ -171,7 +172,7 @@ namespace backend.Services
         public AiTaskClient(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            _baseUrl = configuration["AiService:BaseUrl"] ?? "http://localhost:2026";
+            _baseUrl = AiServiceConfig.BaseUrl;
         }
 
         public async Task<AiTaskDescriptionResponse> GenerateDescriptionAsync(AiTaskRequest request)

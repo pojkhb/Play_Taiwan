@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using backend.utils;
 
 namespace backend.Services
 {
@@ -23,7 +24,7 @@ namespace backend.Services
         {
             _httpClient = httpClient;
             // 這裡對應 Python 服務的網址
-            _baseUrl = configuration["AiService:BaseUrl"] ?? "http://localhost:2026"; 
+            _baseUrl = AiServiceConfig.BaseUrl; 
         }
 
         public async Task<string> GenerateStoryAsync(HttpContent content)

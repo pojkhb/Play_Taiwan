@@ -1,4 +1,4 @@
-// 檔案路徑：System\dao\Story\StoryDao.cs
+﻿// 檔案路徑：System\dao\Story\StoryDao.cs
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -392,7 +392,7 @@ namespace backend.dao
         }
 
         /// <summary>查詢該使用者目前正在進行中的劇本。</summary>
-        public object GetCurrentPlayingStory(int auId)
+        public CurrentPlayingStory GetCurrentPlayingStory(int auId)
         {
             string sql = @"
                 SELECT s.s_id AS story_id, s.story_title AS title, ss.ss_current AS current_order
@@ -411,7 +411,7 @@ namespace backend.dao
 
                 if (row == null) return null;
 
-                return new
+                return new CurrentPlayingStory
                 {
                     story_id = (int)row.story_id,
                     title = (row.title as string) ?? "",
@@ -551,6 +551,448 @@ namespace backend.dao
                 }
             }
         }
+
+        #region 劇本任務一次生成（/api/v1/generate）
+
+        /// <summary>place_type + type 查出的單筆景點任務類型</summary>
+        public class PlaceTaskTypeRow
+        {
+            public string place_id { get; set; }
+            public string place_category { get; set; }
+            public int type_id { get; set; }
+            public string type_name { get; set; }
+        }
+
+        /// <summary>
+        /// 查多個景點（Neo4j uuid）各自可出的任務類型，來源 place_type JOIN type。
+        /// </summary>
+        public async Task<List<PlaceTaskTypeRow>> GetPlaceTaskTypesAsync(List<string> placeIds)
+        {
+            if (placeIds == null || placeIds.Count == 0) return new List<PlaceTaskTypeRow>();
+
+            string sql = @"
+                SELECT pt.place_id, pt.place_category, pt.type_id, t.type_name
+                FROM place_type pt
+                INNER JOIN `type` t ON t.type_id = pt.type_id
+                WHERE pt.place_id IN @placeIds
+                ORDER BY pt.place_id, pt.type_id;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var rows = await conn.QueryAsync<PlaceTaskTypeRow>(sql, new { placeIds });
+                return rows.ToList();
+            }
+        }
+
+        /// <summary>
+        /// 範圍內的景點（MySQL place 表），Neo4j 連不上時的備援。
+        /// uid 用 place_type 依名稱對回 Neo4j uuid（同 MapDao 的橋接方式），對不到時用 "place-{p_id}"。
+        /// </summary>
+        public async Task<List<ReachableAttractionNode>> GetPlacesInBoundsAsync(double lat, double lng, double minLat, double maxLat, double minLon, double maxLon)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var places = (await conn.QueryAsync<(int p_id, string p_name, double lat, double lng)>(@"
+                    SELECT p_id, p_name, p_latitude AS lat, p_longitude AS lng
+                    FROM place
+                    WHERE p_latitude BETWEEN @minLat AND @maxLat AND p_longitude BETWEEN @minLon AND @maxLon
+                      AND (p_category IS NULL OR p_category <> '飲食');",
+                    new { minLat, maxLat, minLon, maxLon })).ToList();
+                if (places.Count == 0) return new List<ReachableAttractionNode>();
+
+                var names = places.Select(p => p.p_name).Distinct().ToList();
+                var uids = (await conn.QueryAsync<(string place_name, string place_id)>(@"
+                    SELECT place_name, MIN(place_id) AS place_id FROM place_type
+                    WHERE place_name IN @names GROUP BY place_name;", new { names }))
+                    .ToDictionary(r => r.place_name, r => r.place_id);
+
+                return places
+                    .Select(p => new ReachableAttractionNode
+                    {
+                        uid = uids.TryGetValue(p.p_name, out string uid) ? uid : $"place-{p.p_id}",
+                        name = p.p_name,
+                        lat = p.lat,
+                        lon = p.lng,
+                        distance_m = Math.Round(Services.Geo.DistanceMeters(lat, lng, p.lat, p.lng), 1)
+                    })
+                    .OrderBy(p => p.distance_m)
+                    .ToList();
+            }
+        }
+
+        /// <summary>任務類型對照（type_id → type_name）</summary>
+        public async Task<Dictionary<int, string>> GetTaskTypeNamesAsync()
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var rows = await conn.QueryAsync<(int type_id, string type_name)>("SELECT type_id, type_name FROM `type`;");
+                return rows.GroupBy(r => r.type_id).ToDictionary(g => g.Key, g => g.First().type_name);
+            }
+        }
+
+        /// <summary>啟用中的敘事語氣名稱（narrative_tone.nt_name）</summary>
+        public async Task<List<string>> GetNarrativeTonesAsync()
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var rows = await conn.QueryAsync<string>("SELECT nt_name FROM narrative_tone WHERE is_active = 1;");
+                return rows.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).Distinct().ToList();
+            }
+        }
+
+        /// <summary>
+        /// 把 AI 生成的多份劇本 + 任務整包寫入 story、story_tag、story_node、task、task_option、task_clue（同一個交易，全部成功才寫入）。
+        /// 寫入後把 story_id、sn_id、task_db_id 回填到 results。
+        /// </summary>
+        public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit)
+        {
+            string insertStorySql = @"
+                INSERT INTO story (
+                    au_id, city_name, district_name, party_size, sd_transport,
+                    story_title, story_prologue, story_synopsis,
+                    story_badge, story_postcards, is_active, is_night_mode
+                ) VALUES (
+                    @auId, @cityName, @districtName, @partySize, @transport,
+                    @title, @prologue, @synopsis,
+                    @badge, @postcards, 1, @isNightMode
+                );
+                SELECT LAST_INSERT_ID();
+            ";
+
+            string insertTagSql = "INSERT IGNORE INTO story_tag (s_id, s_tag) VALUES (@storyId, @tag);";
+
+            string insertNodeSql = @"
+                INSERT INTO story_node (
+                    s_id, npc_id, place_id, sn_order, sn_title,
+                    is_hidden, is_night_only, is_active,
+                    location_codename, sn_opening_text, sn_success_text, sn_task_type
+                ) VALUES (
+                    @storyId, @npcId, @placeId, @order, @title,
+                    @isHidden, @isNightOnly, 2,
+                    @codename, @opening, @success, @taskType
+                );
+                SELECT LAST_INSERT_ID();
+            ";
+
+            string insertTaskSql = @"
+                INSERT INTO task (story_id, node_id, task_type, task_describe, correct_answer, task_hint)
+                VALUES (@storyId, @nodeId, @typeId, @describe, @answer, @hint);
+                SELECT LAST_INSERT_ID();
+            ";
+
+            // task_option.option_id 沒有自動遞增，交易內鎖住後自行編號
+            string maxOptionIdSql = "SELECT COALESCE(MAX(option_id), 0) FROM task_option FOR UPDATE;";
+            string insertOptionSql = @"
+                INSERT INTO task_option (option_id, task_id, option_context, is_correct, option_key)
+                VALUES (@optionId, @taskId, @text, @isCorrect, @key);
+            ";
+
+            string insertClueSql = @"
+                INSERT INTO task_clue (task_id, seat_no, clue_text)
+                VALUES (@taskId, @seatNo, @text);
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                await conn.OpenAsync();
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // task_option.option_id 所有劇本共用同一個遞增計數
+                        int nextOptionId = await conn.ExecuteScalarAsync<int>(maxOptionIdSql, transaction: transaction);
+
+                        foreach (GameStoryResult result in results)
+                        {
+                            GameStoryInfo story = result.story;
+
+                            int storyId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
+                            {
+                                auId,
+                                cityName = story.city_name ?? "",
+                                districtName = story.district_name ?? "",
+                                partySize = story.party_size,
+                                transport = string.Join(",", story.sd_transport ?? new List<string>()),
+                                title = string.IsNullOrWhiteSpace(story.story_title) ? "專屬客製化旅程" : Truncate(story.story_title, 255),
+                                prologue = story.story_prologue ?? "",
+                                synopsis = story.story_synopsis ?? "",
+                                badge = string.Join(",", story.story_badge ?? new List<string>()),
+                                postcards = story.story_postcards,
+                                isNightMode = story.is_night_mode == 1 ? 1 : 2
+                            }, transaction);
+
+                            foreach (string tag in (preferences ?? new List<string>())
+                                         .Where(t => !string.IsNullOrWhiteSpace(t))
+                                         .Select(t => Truncate(t.Trim(), 100))
+                                         .Distinct())
+                            {
+                                await conn.ExecuteAsync(insertTagSql, new { storyId, tag }, transaction);
+                            }
+
+                            foreach (GameStoryNode node in result.nodes ?? new List<GameStoryNode>())
+                            {
+                                List<GameStoryTask> tasks = node.tasks ?? new List<GameStoryTask>();
+
+                                node.sn_id = await conn.ExecuteScalarAsync<int>(insertNodeSql, new
+                                {
+                                    storyId,
+                                    npcId = node.npc_id,
+                                    placeId = node.place_id,
+                                    order = node.sn_order,
+                                    title = Truncate(node.sn_title ?? "", 255),
+                                    isHidden = node.is_hidden == 1 ? 1 : 2,
+                                    isNightOnly = node.is_night_only == 1 ? 1 : 0,
+                                    codename = Truncate(node.location_codename ?? "", 255),
+                                    opening = node.sn_opening_text ?? "",
+                                    success = node.sn_success_text ?? "",
+                                    taskType = Truncate(node.sn_task_type ?? "", 50)
+                                }, transaction);
+
+                                foreach (GameStoryTask task in tasks)
+                                {
+                                    task.task_db_id = await conn.ExecuteScalarAsync<int>(insertTaskSql, new
+                                    {
+                                        storyId,
+                                        nodeId = node.sn_id,
+                                        typeId = task.task_type,
+                                        describe = task.task_describe ?? "",
+                                        answer = string.IsNullOrWhiteSpace(task.correct_answer) ? null : Truncate(task.correct_answer, 255),
+                                        hint = task.task_hint ?? ""
+                                    }, transaction);
+
+                                    foreach (GameStoryTaskOption option in task.task_option ?? new List<GameStoryTaskOption>())
+                                    {
+                                        await conn.ExecuteAsync(insertOptionSql, new
+                                        {
+                                            optionId = ++nextOptionId,
+                                            taskId = task.task_db_id,
+                                            text = Truncate(option.option_context ?? "", 255),
+                                            isCorrect = option.is_correct == 1 ? 1 : 0,
+                                            key = Truncate(option.option_key ?? "", 10)
+                                        }, transaction);
+                                    }
+
+                                    foreach (GameStoryTaskClue clue in task.task_clue ?? new List<GameStoryTaskClue>())
+                                    {
+                                        await conn.ExecuteAsync(insertClueSql, new
+                                        {
+                                            taskId = task.task_db_id,
+                                            seatNo = clue.seat_no,
+                                            text = clue.clue_text ?? ""
+                                        }, transaction);
+                                    }
+                                }
+                            }
+
+                            // 相鄰節點之間的直達公車（nodes 已依 sn_order 排序）
+                            if (planBusTransit)
+                            {
+                                List<GameStoryNode> nodes = result.nodes ?? new List<GameStoryNode>();
+                                for (int i = 1; i < nodes.Count; i++)
+                                {
+                                    await SaveDirectBusLegAsync(conn, transaction, nodes[i - 1], nodes[i]);
+                                }
+                            }
+
+                            result.story_id = storyId;
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        throw new Exception($"劇本任務寫入資料庫失敗: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private static string Truncate(string value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value;
+            return value.Substring(0, maxLength);
+        }
+
+        #endregion
+
+
+        #region 公車 / 台灣好行
+
+        // 粗估每站乘車時間（分鐘），存進 story_node_transit.est_ride_minutes 當快照
+        private const double EstMinutesPerStop = 2.0;
+
+        public static string RouteTypeName(int routeType)
+        {
+            switch (routeType)
+            {
+                case 1: return "市區公車";
+                case 2: return "公路客運";
+                case 3: return "台灣好行";
+                default: return "公車";
+            }
+        }
+
+        /// <summary>
+        /// 找出從景點 A 附近站牌上車、在景點 B 附近站牌下車的直達公車（同一個行駛型態、下車站序較大），
+        /// 優先搭乘站數少、再來步行距離短的；找到就寫入 story_node_transit。找不到直達就不寫（目前不做轉乘）。
+        /// </summary>
+        private static async Task SaveDirectBusLegAsync(MySqlConnection conn, MySqlTransaction transaction, GameStoryNode from, GameStoryNode to)
+        {
+            if (string.IsNullOrWhiteSpace(from.place_id) || string.IsNullOrWhiteSpace(to.place_id)) return;
+
+            string findSql = @"
+                SELECT b.brs_id AS board_brs_id, a.brs_id AS alight_brs_id,
+                       a.stop_sequence - b.stop_sequence AS stop_count
+                FROM place_bus_stop pa
+                INNER JOIN bus_route_stop b ON b.bs_id = pa.bs_id
+                INNER JOIN bus_route_stop a ON a.brp_id = b.brp_id AND a.stop_sequence > b.stop_sequence
+                INNER JOIN place_bus_stop pb ON pb.bs_id = a.bs_id AND pb.place_id = @toPlace
+                INNER JOIN bus_route_pattern brp ON brp.brp_id = b.brp_id
+                INNER JOIN bus_sub_route bsr ON bsr.bsr_id = brp.bsr_id
+                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.is_active = 1
+                WHERE pa.place_id = @fromPlace
+                ORDER BY stop_count ASC, pa.walk_distance_m + pb.walk_distance_m ASC
+                LIMIT 1;
+            ";
+
+            var leg = await conn.QueryFirstOrDefaultAsync<DirectLegRow>(findSql,
+                new { fromPlace = from.place_id, toPlace = to.place_id }, transaction);
+            if (leg == null) return;
+
+            await conn.ExecuteAsync(@"
+                INSERT INTO story_node_transit (from_sn_id, to_sn_id, leg_order, board_brs_id, alight_brs_id, est_ride_minutes)
+                VALUES (@fromSnId, @toSnId, 1, @board, @alight, @minutes);
+            ", new
+            {
+                fromSnId = from.sn_id,
+                toSnId = to.sn_id,
+                board = leg.board_brs_id,
+                alight = leg.alight_brs_id,
+                minutes = Math.Round(leg.stop_count * EstMinutesPerStop, 1)
+            }, transaction);
+        }
+
+        private class DirectLegRow
+        {
+            public int board_brs_id { get; set; }
+            public int alight_brs_id { get; set; }
+            public int stop_count { get; set; }
+        }
+
+        /// <summary>
+        /// 讀出劇本所有節點之間的公車交通方案，含上下車站之間依序經過的所有站牌。
+        /// </summary>
+        public async Task<List<BusTransitLeg>> GetStoryTransitAsync(int storyId)
+        {
+            string legSql = @"
+                SELECT snt.from_sn_id, snt.to_sn_id, snt.leg_order, snt.est_ride_minutes,
+                       br.route_name, br.route_type, bsr.sub_route_name, brp.headsign, ttr.ttr_theme AS tripper_theme,
+                       b.brp_id, b.stop_sequence AS board_seq, a.stop_sequence AS alight_seq,
+                       bb.stop_name AS board_stop_name, ab.stop_name AS alight_stop_name
+                FROM story_node_transit snt
+                INNER JOIN story_node sn ON sn.sn_id = snt.to_sn_id
+                INNER JOIN bus_route_stop b ON b.brs_id = snt.board_brs_id
+                INNER JOIN bus_route_stop a ON a.brs_id = snt.alight_brs_id
+                INNER JOIN bus_stop bb ON bb.bs_id = b.bs_id
+                INNER JOIN bus_stop ab ON ab.bs_id = a.bs_id
+                INNER JOIN bus_route_pattern brp ON brp.brp_id = b.brp_id
+                INNER JOIN bus_sub_route bsr ON bsr.bsr_id = brp.bsr_id
+                INNER JOIN bus_route br ON br.br_id = bsr.br_id
+                LEFT JOIN taiwan_tripper_route ttr ON ttr.br_id = br.br_id
+                WHERE sn.s_id = @storyId
+                ORDER BY sn.sn_order, snt.leg_order;
+            ";
+
+            string stopsSql = @"
+                SELECT brs.stop_sequence, bs.stop_name, bs.bs_latitude AS lat, bs.bs_longitude AS lng
+                FROM bus_route_stop brs
+                INNER JOIN bus_stop bs ON bs.bs_id = brs.bs_id
+                WHERE brs.brp_id = @brpId AND brs.stop_sequence BETWEEN @fromSeq AND @toSeq
+                ORDER BY brs.stop_sequence;
+            ";
+
+            var legs = new List<BusTransitLeg>();
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var rows = (await conn.QueryAsync<TransitLegRow>(legSql, new { storyId })).ToList();
+                if (rows.Count == 0) return legs;
+
+                var shapes = (await conn.QueryAsync<(int brp_id, string geometry)>(
+                    "SELECT brp_id, geometry FROM bus_route_shape WHERE brp_id IN @brpIds;",
+                    new { brpIds = rows.Select(r => r.brp_id).Distinct().ToList() }))
+                    .ToDictionary(s => s.brp_id, s => s.geometry);
+
+                foreach (var row in rows)
+                {
+                    var stops = (await conn.QueryAsync<TransitStopRow>(stopsSql,
+                        new { brpId = row.brp_id, fromSeq = row.board_seq, toSeq = row.alight_seq })).ToList();
+
+                    List<double[]> coordinates = null;
+                    if (stops.Count >= 2 && shapes.TryGetValue(row.brp_id, out string wkt))
+                        coordinates = BusDao.SliceShape(wkt,
+                            (double)stops[0].lat, (double)stops[0].lng, (double)stops[^1].lat, (double)stops[^1].lng);
+
+                    legs.Add(new BusTransitLeg
+                    {
+                        from_sn_id = row.from_sn_id,
+                        to_sn_id = row.to_sn_id,
+                        leg_order = row.leg_order,
+                        route_name = row.route_name,
+                        sub_route_name = row.sub_route_name,
+                        route_type = row.route_type,
+                        route_type_name = RouteTypeName(row.route_type),
+                        tripper_theme = row.tripper_theme,
+                        headsign = row.headsign,
+                        board_stop_name = row.board_stop_name,
+                        alight_stop_name = row.alight_stop_name,
+                        stop_count = row.alight_seq - row.board_seq,
+                        est_ride_minutes = row.est_ride_minutes.HasValue ? (double)row.est_ride_minutes.Value : (double?)null,
+                        stops = stops.Select(s => new BusTransitStop
+                        {
+                            stop_sequence = s.stop_sequence,
+                            stop_name = s.stop_name,
+                            lat = (double)s.lat,
+                            lng = (double)s.lng
+                        }).ToList(),
+                        coordinates = coordinates ?? stops.Select(s => new[] { (double)s.lng, (double)s.lat }).ToList()
+                    });
+                }
+            }
+
+            return legs;
+        }
+
+        private class TransitLegRow
+        {
+            public int from_sn_id { get; set; }
+            public int to_sn_id { get; set; }
+            public int leg_order { get; set; }
+            public decimal? est_ride_minutes { get; set; }
+            public string route_name { get; set; }
+            public int route_type { get; set; }
+            public string sub_route_name { get; set; }
+            public string headsign { get; set; }
+            public string tripper_theme { get; set; }
+            public int brp_id { get; set; }
+            public int board_seq { get; set; }
+            public int alight_seq { get; set; }
+            public string board_stop_name { get; set; }
+            public string alight_stop_name { get; set; }
+        }
+
+        private class TransitStopRow
+        {
+            public int stop_sequence { get; set; }
+            public string stop_name { get; set; }
+            public decimal lat { get; set; }
+            public decimal lng { get; set; }
+        }
+
+        #endregion
+
 
         /// <summary>
         /// 依 s_id 完整讀出劇本，結構與 AI 原始藍圖對應。

@@ -13,7 +13,7 @@ namespace backend.Models
         public bool is_night_edition { get; set; }
     }
 
-    /* 解析外部 vlog.angelalala.com 回傳的 JSON 結構 */
+    /* 解析外部 AI Service 回傳的 JSON 結構 */
     public class AiPostcardApiResponse
     {
         [JsonPropertyName("status")]

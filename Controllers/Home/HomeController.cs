@@ -48,6 +48,7 @@ namespace backend.Controllers
         [HttpGet]
         [Route("Overview")]
         // GET: api/Home/Overview
+        [ProducesResponseType(typeof(ResultViewModel<HomeOverviewResponse>), 200)]
         public IActionResult Overview()
         {
             try

@@ -79,6 +79,7 @@ namespace backend.Controllers
         [HttpPost]
         [Route("GenerateAi")]
         [Authorize]
+        [ProducesResponseType(typeof(ResultViewModel<PostcardCatalog>), 200)]
         public async Task<IActionResult> GenerateAi([FromForm] AiPostcardGenerateRequest request)
         {
             if (request.user_image == null || request.user_image.Length == 0)
@@ -139,6 +140,7 @@ namespace backend.Controllers
         /// </remarks>
         [HttpPost]
         [Route("Print")]
+        [ProducesResponseType(typeof(ResultViewModel<PostcardPrintResponse>), 200)]
         public async Task<IActionResult> PrintIbon([FromBody] PrintPostcardRequest request)
         {
             if (request.postcard_id <= 0)
@@ -193,8 +195,10 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        /// <response code="200">分享紀錄成功；Result 固定為 "Success"</response>
         [HttpPost]
         [Route("Share")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult RecordShare([FromBody] StoryShareRequest request)
         {
             if (request.story_id <= 0)
@@ -261,6 +265,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("")]
+        [ProducesResponseType(typeof(ResultViewModel<List<PostcardCatalogResponse>>), 200)]
         public async Task<IActionResult> GetAll()
         {
             try
@@ -317,6 +322,7 @@ namespace backend.Controllers
         /// </remarks>
         [HttpGet]
         [Route("{id:int}")]
+        [ProducesResponseType(typeof(ResultViewModel<PostcardCatalogResponse>), 200)]
         public async Task<IActionResult> GetById(int id)
         {
             try
@@ -369,6 +375,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("by-story/{storyId:int}")]
+        [ProducesResponseType(typeof(ResultViewModel<List<PostcardCatalogResponse>>), 200)]
         public async Task<IActionResult> GetByStoryId(int storyId)
         {
             try
@@ -408,9 +415,11 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        /// <response code="200">刪除成功時 Result = true</response>
         [Authorize]
         [HttpPost]
         [Route("{id:int}/Delete")]
+        [ProducesResponseType(typeof(ResultViewModel<bool>), 200)]
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -432,7 +441,7 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址。
+        /// 【前端不用接：直接當圖片網址】依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址。
         /// </summary>
         /// <remarks>
         /// 資料庫現在直接儲存圖片的外部連結（不再是 Base64），此 API 會查出該連結後直接轉址，
@@ -452,6 +461,7 @@ namespace backend.Controllers
         /// **Response**：302 Redirect 至真實圖片網址。
         /// 查無資料時回傳 404 純文字：`找不到該明信片的圖片`
         /// </remarks>
+        /// <response code="200">302 轉址到實際圖片網址（不是 JSON）</response>
         [HttpGet]
         [Route("{id:int}/image")]
         [AllowAnonymous]

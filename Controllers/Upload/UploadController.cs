@@ -35,9 +35,18 @@ namespace backend.Controllers
             "audio/mpeg", "audio/mp4", "audio/wav", "audio/aac", "audio/x-wav"
         };
 
+        /// <summary>
+        /// 上傳檔案（照片、影片、錄音），回傳檔案網址。
+        /// </summary>
+        /// <remarks>
+        /// 使用 multipart/form-data，欄位名稱為 file，上限 200MB。
+        /// 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。
+        /// </remarks>
+        /// <response code="200">Result = 上傳後的檔案網址</response>
         [HttpPost]
         [RequestSizeLimit(MaxUploadBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MaxUploadBytes)]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
             if (file == null || file.Length == 0)

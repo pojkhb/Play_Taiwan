@@ -43,6 +43,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("Status")]
+        [ProducesResponseType(typeof(ResultViewModel<List<BadgeSeriesGroup>>), 200)]
         public IActionResult GetBadgeCatalog()
         {
             try

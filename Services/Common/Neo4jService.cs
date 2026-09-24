@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using backend.Models;
+using backend.utils;
 
 
 namespace backend.Services
@@ -24,7 +25,7 @@ namespace backend.Services
         private readonly HttpClient _httpClient;
 
         // 對應 Swagger 上的 Cypher 查詢 API
-        private readonly string _neo4jApiUrl = "https://vlog.angelalala.com/api/neo4j/cypher";
+        private readonly string _neo4jApiUrl = AiServiceConfig.Neo4jCypherUrl;
 
 
         public Neo4jService(HttpClient httpClient)

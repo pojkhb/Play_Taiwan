@@ -326,6 +326,7 @@ namespace backend.dao
                 SELECT
                     p.p_id        AS place_id,
                     p.p_category  AS category,
+                    p.p_type      AS type,
                     p.p_name      AS name,
                     p.p_address   AS address,
                     p.p_open_time AS open_time,
@@ -348,13 +349,16 @@ namespace backend.dao
                     {
                         place_id = (int)r.place_id,
                         category = r.category as string,
+                        type = r.type as string,
                         name = (r.name as string) ?? "",
                         address = r.address as string,
                         open_time = r.open_time as string,
                         photo_urls = string.IsNullOrWhiteSpace(r.image_url as string)
                             ? new List<string>()
                             : new List<string> { (string)r.image_url },
-                        maps_deeplink_url = BuildMapsUrl(r.lat, r.lng)
+                        maps_deeplink_url = BuildMapsUrl(r.lat, r.lng),
+                        lat = r.lat == null ? (double?)null : System.Convert.ToDouble(r.lat),
+                        lng = r.lng == null ? (double?)null : System.Convert.ToDouble(r.lng)
                     })
                     .ToList();
             }

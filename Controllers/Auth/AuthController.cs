@@ -69,6 +69,7 @@ namespace backend.Controllers
         [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
+        [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
         public IActionResult Login([FromBody] LoginRequest req)
         {
             try
@@ -103,9 +104,11 @@ namespace backend.Controllers
         /// 可在此 API 一併撤銷 Token。
         /// </remarks>
         /// <returns>登出執行結果。</returns>
+        /// <response code="200">登出成功，Result 為 null</response>
         [Authorize]
         [HttpPost]
         [Route("Logout")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult Logout()
         {
             try
@@ -161,6 +164,7 @@ namespace backend.Controllers
         [Authorize]
         [HttpGet]
         [Route("Profile")]
+        [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
         public IActionResult Profile()
         {
             try
@@ -200,9 +204,11 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="req">欲更新的帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
+        /// <response code="200">更新成功；Result 為 null</response>
         [Authorize]
         [HttpPost]
         [Route("Profile")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult UpdateProfile([FromBody] AuthAccountUpdateRequest req)
         {
             try
@@ -250,9 +256,11 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        /// <response code="200">註冊成功，驗證信會寄到信箱；Result 為 null</response>
         [AllowAnonymous]
         [HttpPost]
         [Route("Register")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
             try
@@ -282,14 +290,17 @@ namespace backend.Controllers
         #region 信箱驗證
 
         /// <summary>
-        /// 信箱驗證與啟用帳號。
+        /// 【前端不用接】信箱驗證與啟用帳號。
         /// </summary>
         /// <remarks>
+        /// **前端不用接**：這支是寫在驗證信裡的連結，使用者在信箱點擊後由瀏覽器直接開啟，會回傳 HTML 頁面。
+        ///
         /// 供信箱內的驗證連結點擊使用。成功後會將帳號狀態改為已驗證並清空 Token；
         /// 若連結已超過 24 小時會回傳過期訊息。
         /// </remarks>
         /// <param name="token">信箱驗證專屬的 Token</param>
         /// <returns>回傳驗證結果畫面的 HTML 內容</returns>
+        /// <response code="200">回傳 HTML 驗證結果頁面（不是 JSON）</response>
         [AllowAnonymous]
         [HttpGet]
         [Route("VerifyEmail")]
@@ -404,9 +415,11 @@ namespace backend.Controllers
         /// { "Email": "test@example.com" }
         /// ```
         /// </remarks>
+        /// <response code="200">重設密碼信已寄出；Result 為 null</response>
         [AllowAnonymous]
         [HttpPost]
         [Route("ForgotPassword")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
         {
             try
@@ -448,9 +461,11 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        /// <response code="200">密碼重設成功；Result 為 null</response>
         [AllowAnonymous]
         [HttpPost]
         [Route("ResetPassword")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult ResetPassword([FromBody] ResetPasswordRequest req)
         {
             try
@@ -484,9 +499,11 @@ namespace backend.Controllers
         /// <remarks>
         /// 需在登入狀態下，並提供舊密碼驗證。
         /// </remarks>
+        /// <response code="200">密碼修改成功；Result 為 null</response>
         [Authorize]
         [HttpPost]
         [Route("ChangePassword")]
+        [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
         public IActionResult ChangePassword([FromBody] ChangePasswordRequest req)
         {
             try

@@ -165,7 +165,10 @@ namespace backend.ViewModels
         /// <summary>劇本簡介</summary>
         public string story_synopsis { get; set; }
 
-        /// <summary>預期可獲得的勳章清單</summary>
+        /// <summary>
+        /// 完成後可抽的勳章類別，例如 ["島嶼城市", "台灣印記", "午夜台灣"]，劇本卡片「預計獲得」顯示用。
+        /// 完成劇本後呼叫 POST /api/Badge/Draw 從這些類別抽一枚
+        /// </summary>
         public List<string> story_badge { get; set; }
 
         /// <summary>預期可獲得的明信片數量（等於節點數）</summary>

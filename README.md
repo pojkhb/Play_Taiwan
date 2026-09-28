@@ -75,6 +75,8 @@ MySQL 資料庫
 
 Neo4j 資料庫
 
+Docker Desktop + Valhalla（交通等時圈 / 路線規劃，劇本生成會用到）：架設步驟見 [docs/valhalla-setup.md](docs/valhalla-setup.md)
+
 安裝與設定
 複製專案
 

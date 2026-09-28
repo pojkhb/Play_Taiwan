@@ -20,14 +20,16 @@ namespace backend.Services
         private readonly Neo4jService _neo4jService;
         private readonly ValhallaService _valhallaService;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly BadgeService _badgeService;
 
 
-        public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory)
+        public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory, BadgeService badgeService)
         {
             _dao = dao;
             _neo4jService = neo4jService;
             _valhallaService = valhallaService;
             _httpClientFactory = httpClientFactory;
+            _badgeService = badgeService;
         }
 
 
@@ -95,7 +97,9 @@ namespace backend.Services
 
         public async Task<int> SaveFullAiGeneratedStory(int auId, string cityName, string districtName, ScriptBlueprintData data)
         {
-            return await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
+            int storyId = await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
+            await _badgeService.RefreshStoryCategoriesAsync(storyId);
+            return storyId;
         }
 
 
@@ -634,7 +638,7 @@ namespace backend.Services
                 story.sd_transport = transport;
                 story.is_night_mode = isNightMode;
                 story.story_postcards = nodes.Count;
-                story.story_badge = story.story_badge ?? new List<string>();
+                story.story_badge = new List<string>();   // 寫入資料庫後依劇本內容算出可抽的勳章類別
 
                 results.Add(new GameStoryResult
                 {
@@ -651,9 +655,11 @@ namespace backend.Services
             // ── 5. 寫入資料庫（回填 story_id、sn_id、task_db_id；有選公車時一併寫入節點間的直達公車）──
             await _dao.SaveGameStoriesAsync(auId, req.preferences, results, planBusTransit);
 
-            // ── 6. 把公車方案（含經過的站牌）掛回每個節點 ──
+            // ── 6. 可抽的勳章類別；把公車方案（含經過的站牌）掛回每個節點 ──
             foreach (GameStoryResult result in results)
             {
+                result.story.story_badge = await _badgeService.RefreshStoryCategoriesAsync(result.story_id);
+
                 List<BusTransitLeg> legs = planBusTransit
                     ? await _dao.GetStoryTransitAsync(result.story_id)
                     : new List<BusTransitLeg>();

@@ -34,7 +34,7 @@ namespace backend.Models
         /// <summary>分類。新資料表 story 沒有這個欄位，固定為 null。</summary>
         public string category { get; set; }
         public string transport { get; set; }                // 建議交通工具，對應 sd_transport
-        public List<string> expected_badges { get; set; }   // 預期會解鎖的徽章，對應 story_badge
+        public List<string> expected_badges { get; set; }   // 完成後可抽的勳章類別，對應 story_badge
         public int expected_postcards { get; set; }           // 預期明信片數量，對應 story_postcards
         /// <summary>地區代號。新資料庫沒有地區主表，固定為 null。</summary>
         public string region_id { get; set; }

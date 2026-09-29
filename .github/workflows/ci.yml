@@ -1,0 +1,70 @@
+# 持續整合：每次 push 到 main 或開 PR，自動建置後端並執行單元測試 + API 整合測試
+# API 整合測試會在這裡開一個 MySQL 8.0 容器，用 Sqls/mysql/schema.sql 建立測試資料庫（測完即刪）
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 建置與測試
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    env:
+      DOTNET_NOLOGO: true
+      # ApiFactory 讀這個連線建立測試資料庫；本機沒設時改用 appsettings.json
+      TEST_MYSQL: Server=127.0.0.1;Port=3306;User Id=root;Password=root;Charset=utf8mb4;AllowPublicKeyRetrieval=true;
+
+    steps:
+      - name: 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 .NET SDK（依 global.json）
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: 還原套件與工具
+        run: |
+          dotnet tool restore
+          dotnet restore tests/TrafficSystem.Tests
+
+      - name: 建置
+        run: dotnet build tests/TrafficSystem.Tests --no-restore
+
+      - name: 執行測試（單元測試 + API 整合測試）
+        run: >-
+          dotnet test tests/TrafficSystem.Tests --no-build
+          --results-directory TestResults
+          --logger "trx;LogFileName=test-results.trx"
+          --logger GitHubActions
+          --collect:"XPlat Code Coverage"
+
+      - name: 產生覆蓋率報告
+        if: always()
+        run: dotnet reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:TestResults/coverage -reporttypes:Html
+
+      - name: 上傳測試結果與覆蓋率報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+          retention-days: 14

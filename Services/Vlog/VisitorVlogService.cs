@@ -92,7 +92,7 @@ namespace backend.Services
             };
         }
 
-        private static string PlayTime(VisitorVlogDao.SessionRow session, List<VisitorVlogDao.SpotRow> rows)
+        internal static string PlayTime(VisitorVlogDao.SessionRow session, List<VisitorVlogDao.SpotRow> rows)
         {
             DateTime? start = session?.started_at ?? rows.Min(r => r.first_at);
             DateTime? end = session?.completed_at ?? session?.last_played_at ?? rows.Max(r => r.last_at);
@@ -157,7 +157,7 @@ namespace backend.Services
         /// zip 內檔名 = {景點順序}_{第幾張}，例如 03_02.jpg 是第 3 站的第 2 張；沒掛節點的照片用 99_xx 排在最後。
         /// 同時把檔名寫回各景點的 images，讓 spot_meta_json 對得上照片。
         /// </summary>
-        private static List<(string entryName, string url)> NameZipEntries(List<(VisitorVlogSpot spot, string url)> photos)
+        internal static List<(string entryName, string url)> NameZipEntries(List<(VisitorVlogSpot spot, string url)> photos)
         {
             var counters = new Dictionary<int, int>();
             var entries = new List<(string, string)>();

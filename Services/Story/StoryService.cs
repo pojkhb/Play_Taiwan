@@ -296,7 +296,7 @@ namespace backend.Services
         /// 去除重複景點。Neo4j 內同一景點常有多個節點（不同 uid、座標差一點點），
         /// 候選清單已依離中心點距離排序，保留最先出現的那一筆。
         /// </summary>
-        private static List<ReachableAttractionNode> RemoveDuplicateAttractions(List<ReachableAttractionNode> candidates)
+        internal static List<ReachableAttractionNode> RemoveDuplicateAttractions(List<ReachableAttractionNode> candidates)
         {
             var kept = new List<ReachableAttractionNode>();
 
@@ -323,7 +323,7 @@ namespace backend.Services
         /// 各圈層輪流隨機抽景點，讓推薦結果近、中、遠都有，且每次生成的景點組合都不同。
         /// 不直接整體隨機，是因為外圈面積大、景點多，整體隨機幾乎都會抽到外圈。
         /// </summary>
-        private static List<ReachableAttractionNode> PickRandomAcrossRings(List<ReachableAttractionNode> attractions, int maxCount)
+        internal static List<ReachableAttractionNode> PickRandomAcrossRings(List<ReachableAttractionNode> attractions, int maxCount)
         {
             List<Queue<ReachableAttractionNode>> rings = attractions
                 .GroupBy(a => a.ring)
@@ -435,7 +435,7 @@ namespace backend.Services
         /// 把前端交通方式分組成 Valhalla costing。
         /// 公車/捷運不列入（沒有等車、轉乘時間，算出來會偏短）；剔除後沒有任何交通方式時預設步行。
         /// </summary>
-        private static List<(string costing, string label)> GroupTransports(List<string> transportation)
+        internal static List<(string costing, string label)> GroupTransports(List<string> transportation)
         {
             List<string> transports = (transportation ?? new List<string>())
                 .Where(t => !string.IsNullOrWhiteSpace(t))
@@ -678,7 +678,7 @@ namespace backend.Services
         /// 從範圍內所有景點抽出多組景點，每組各圈層輪流隨機抽。
         /// 景點夠多時各組互不重複；不夠時才允許跟前面的組重複，讓每組都盡量湊滿。
         /// </summary>
-        private static List<List<ReachableAttractionNode>> PickPlaceSets(List<ReachableAttractionNode> all, int setCount, int perSet)
+        internal static List<List<ReachableAttractionNode>> PickPlaceSets(List<ReachableAttractionNode> all, int setCount, int perSet)
         {
             var sets = new List<List<ReachableAttractionNode>>();
             var used = new HashSet<string>();
@@ -720,7 +720,7 @@ namespace backend.Services
         /// 1. 最近鄰居法：每次走到離目前位置最近、還沒去過的景點
         /// 2. 2-opt：路線有交叉時把中間那段反轉，直到總距離無法再縮短，避免來回繞路
         /// </summary>
-        private static List<ReachableAttractionNode> OrderByVisit(List<ReachableAttractionNode> attractions, double lat, double lng)
+        internal static List<ReachableAttractionNode> OrderByVisit(List<ReachableAttractionNode> attractions, double lat, double lng)
         {
             var remaining = attractions.ToList();
             var ordered = new List<ReachableAttractionNode>();

@@ -239,7 +239,7 @@ namespace backend.dao
             // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
             string nodeSql = @"
                 SELECT
-                    sn_id, sn_order, sn_title, sn_hint,
+                    sn_id, sn_order, sn_title,
                     location_codename, sn_opening_text, sn_success_text
                 FROM story_node
                 WHERE s_id = @storyId
@@ -280,7 +280,7 @@ namespace backend.dao
                     {
                         order = order,
                         place_name = title,
-                        task_description = (node.sn_hint as string) ?? "",
+                        task_description = "",   // story_node 已沒有 sn_hint，任務說明在 task 表
                         location_codename = (node.location_codename as string) ?? "",
                         opening = (node.sn_opening_text as string) ?? "",
                         success = (node.sn_success_text as string) ?? "",
@@ -452,11 +452,11 @@ namespace backend.dao
 
             string insertNodeSql = @"
                 INSERT INTO story_node (
-                    s_id, place_id, sn_order, sn_title, sn_hint,
+                    s_id, place_id, sn_order, sn_title,
                     is_hidden, is_night_only, is_active,
                     location_codename, sn_opening_text, sn_success_text, sn_task_type
                 ) VALUES (
-                    @storyId, @placeId, @order, @title, @hint,
+                    @storyId, @placeId, @order, @title,
                     2, 2, 2,
                     @codename, @opening, @success, @taskType
                 );
@@ -520,19 +520,12 @@ namespace backend.dao
                                 }
                             }
 
-                            string hint = node.task_description;
-                            if (!string.IsNullOrEmpty(hint) && hint.Length > 255)
-                            {
-                                hint = hint.Substring(0, 255);
-                            }
-
                             await conn.ExecuteAsync(insertNodeSql, new
                             {
                                 storyId = newStoryId,
                                 placeId = neo4jUid,
                                 order = node.node_order,
                                 title = node.node_title ?? node.place_name ?? "",
-                                hint,
                                 codename = node.location_codename ?? "",
                                 opening = node.dialogues?.opening ?? "",
                                 success = node.dialogues?.success ?? "",
@@ -1008,7 +1001,7 @@ namespace backend.dao
 
             string nodeSql = @"
                 SELECT sn_order, sn_title, location_codename, sn_task_type,
-                       sn_hint, sn_opening_text, sn_success_text
+                       sn_opening_text, sn_success_text
                 FROM story_node
                 WHERE s_id = @storyId
                 ORDER BY sn_order;
@@ -1046,7 +1039,7 @@ namespace backend.dao
                         location_codename = (node.location_codename as string) ?? "",
                         node_title = title,
                         task_type = (node.sn_task_type as string) ?? "",
-                        task_description = (node.sn_hint as string) ?? "",
+                        task_description = "",   // story_node 已沒有 sn_hint，任務說明在 task 表
                         dialogues = new ScriptBlueprintDialogues
                         {
                             opening = (node.sn_opening_text as string) ?? "",

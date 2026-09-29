@@ -5,7 +5,14 @@
     <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <!-- 測試專案放在 tests/ 底下，不要被主專案一起編譯、發佈 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 讓測試專案看得到 internal 的邏輯函式 -->
+    <InternalsVisibleTo Include="TrafficSystem.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspose.Cells" Version="21.11.0" />

@@ -28,9 +28,12 @@ namespace backend.dao
         }
 
         // story_node(Neo4j UUID) -> place_type(UUID + 名稱) -> place(名稱) 的暫時橋接。
+        // place_type 同一個景點依任務類型會有多筆、place 也可能同名多筆，都先收斂成一筆，避免節點重複。
         private const string PlaceBridgeJoin = @"
-            LEFT JOIN place_type pt ON pt.place_id = sn.place_id
-            LEFT JOIN place p       ON p.p_name    = pt.place_name
+            LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt
+                   ON pt.place_id = sn.place_id
+            LEFT JOIN place p
+                   ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
         ";
 
         #region 取得地圖節點
@@ -44,7 +47,7 @@ namespace backend.dao
                     sn.sn_id                     AS node_id,
                     sn.sn_order                  AS node_order,
                     1                            AS day_index,
-                    sn.sn_hint                   AS fog_hint,
+                    sn.location_codename         AS fog_hint,
                     (sn.is_night_only = 1)       AS is_night_only,
                     sn.sn_title                  AS location_name,
                     COALESCE(p.p_latitude, 0)    AS lat,

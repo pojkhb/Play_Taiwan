@@ -139,7 +139,7 @@ namespace backend.Services
         }
 
         /// <summary>劇本可抽的勳章（臺灣島本島總章除外）</summary>
-        private static List<BadgeInfo> MatchPool(BadgeDao.StoryFacts facts, List<BadgeInfo> badges)
+        internal static List<BadgeInfo> MatchPool(BadgeDao.StoryFacts facts, List<BadgeInfo> badges)
         {
             List<string> places = facts.places.Select(p => Normalize(p.place_name)).ToList();
             bool AnyPlace(string pattern) => places.Any(p => Regex.IsMatch(p, pattern));

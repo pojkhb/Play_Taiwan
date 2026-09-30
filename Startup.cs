@@ -127,10 +127,6 @@ namespace backend
             services.AddSingleton<Services.ISpeechToTextClient, Services.FakeSpeechToTextClient>();
             services.AddSingleton<Services.IQrTokenStore, Services.InMemoryQrTokenStore>();
             #endregion
-            #region S10-明信片
-            services.AddScoped<Services.PostcardService>();
-            services.AddScoped<dao.PostcardDao>();
-            #endregion
             #region S11-徽章
             services.AddScoped<Services.BadgeService>();
             services.AddScoped<dao.BadgeDao>();
@@ -146,10 +142,6 @@ namespace backend
             #region S15-明信片主檔
             services.AddScoped<Services.PostcardCatalogService>();
             services.AddScoped<dao.PostcardCatalogDao>();
-            #endregion
-            #region S16-任務線索提示
-            services.AddScoped<Services.TaskHintService>();
-            services.AddScoped<dao.TaskHintDao>();
             #endregion
             #region AI 非同步生成與任務追蹤
             services.AddScoped<MediaJobDao>();

@@ -47,24 +47,6 @@ namespace backend.dao
         }
         #endregion
 
-        #region 依代號取得單一剪影
-        public Silhouette GetSilhouetteById(int siId)
-        {
-            string sql = $@"
-                SELECT {SelectColumns}
-                FROM silhouette
-                WHERE si_id = @siId
-                LIMIT 1;
-            ";
-
-            using (var conn = new MySqlConnection(_appSettings.mydb))
-            {
-                conn.Open();
-                return conn.QueryFirstOrDefault<Silhouette>(sql, new { siId });
-            }
-        }
-        #endregion
-
         #region 劇本節點的剪影（依景點照片產生，同一張照片的剪影跨劇本重用）
 
         private MySqlConnection Open() => new MySqlConnection(_appSettings.mydb);

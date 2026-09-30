@@ -21,7 +21,6 @@ Valhalla 負責三件事：
 |---|---|
 | `POST /api/Story/GenerateGameStory`（劇本生成） | ❌ 直接失敗 |
 | `POST /api/Story/ReachableAttractions` | ❌ 直接失敗 |
-| `POST /api/Story/TravelRoute` | ❌ 直接失敗 |
 | `/api/Route/Availability`、`/api/Route/Plan`（交通規劃） | ⚠️ 退回直線距離估算，時間不準 |
 | 公車站牌對應、公車路線線形 | ⚠️ 退回直線 / 站牌連線 |
 

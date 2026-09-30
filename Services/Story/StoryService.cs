@@ -120,13 +120,7 @@ namespace backend.Services
         }
 
 
-        #region GPS 定位生成劇本 相關方法
-
-
-        public ScriptBlueprintData GetFullDetail(int storyId)
-        {
-            return _dao.GetFullDetail(storyId);
-        }
+        #region 存入 AI 生成的劇本（遊你說算）
 
 
         public async Task<int> SaveFullAiGeneratedStory(int auId, string cityName, string districtName, ScriptBlueprintData data)
@@ -135,18 +129,6 @@ namespace backend.Services
             await _badgeService.RefreshStoryCategoriesAsync(storyId);
             QueueSilhouetteGeneration(new[] { storyId });
             return storyId;
-        }
-
-
-        public string FindRegionIdByName(string cityName, string townName)
-        {
-            return _dao.FindRegionIdByName(cityName, townName);
-        }
-
-
-        public List<NearbyPlaceDistanceResponse> GetNearbyPlacesByDistance(double lat, double lng, double radiusKm)
-        {
-            return _dao.GetNearbyPlacesByDistance(lat, lng, radiusKm);
         }
 
 
@@ -177,7 +159,18 @@ namespace backend.Services
 
 
             var result = await _neo4jService.ExecuteCypherAsync<List<NearbyAttractionNode>>(cypherQuery, parameters);
-            return result ?? new List<NearbyAttractionNode>();
+            if (result != null) return result;
+
+            // null 代表 AI service 的 Neo4j 查詢失敗（真的查無資料會是空清單），改用 MySQL place 表的景點
+            double latDelta = radiusKm / 111.0;
+            double lonDelta = radiusKm / (111.0 * Math.Cos(lat * Math.PI / 180));
+            var places = await _dao.GetPlacesInBoundsAsync(lat, lng, lat - latDelta, lat + latDelta, lng - lonDelta, lng + lonDelta);
+            return places
+                .Where(p => p.distance_m <= radiusKm * 1000)
+                .GroupBy(p => p.name)
+                .Select(g => g.First())
+                .Select(p => new NearbyAttractionNode { name = p.name, lat = p.lat, lon = p.lon, distance_m = p.distance_m })
+                .ToList();
         }
 
 
@@ -397,72 +390,6 @@ namespace backend.Services
                      + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
                      * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
             return 2 * R * Math.Asin(Math.Sqrt(h));
-        }
-
-
-        /// <summary>
-        /// 依序經過多個點的實際路線。多種交通方式時，每一段各自挑最快的那一種。
-        /// </summary>
-        public async Task<TravelRouteResponse> GetTravelRouteAsync(TravelRouteRequest req)
-        {
-            List<TravelRoutePoint> points = (req?.points ?? new List<TravelRoutePoint>())
-                .Where(p => p != null && p.lat != 0 && p.lng != 0)
-                .ToList();
-
-            if (points.Count < 2)
-                throw new Exception("路線至少需要 2 個點（起點與終點）");
-
-            var coords = points.Select(p => (lat: p.lat, lng: p.lng)).ToList();
-            var costingGroups = GroupTransports(req.transportation);
-
-            // 每種交通方式各算一次整條路線；某種方式找不到路（例如公車到不了）就略過
-            var attempts = await Task.WhenAll(costingGroups.Select(async group =>
-            {
-                try
-                {
-                    ValhallaRoute route = await _valhallaService.GetRouteAsync(coords, group.costing);
-                    return (label: group.label, route: route, error: (string)null);
-                }
-                catch (Exception ex)
-                {
-                    return (label: group.label, route: (ValhallaRoute)null, error: ex.Message);
-                }
-            }));
-
-            var routes = attempts.Where(a => a.route != null).ToList();
-
-            if (routes.Count == 0)
-                throw new Exception("找不到可行的路線，請確認起點與終點附近有道路。" + attempts.First().error);
-
-            var response = new TravelRouteResponse { legs = new List<TravelRouteLeg>() };
-
-            for (int i = 0; i < points.Count - 1; i++)
-            {
-                var best = routes
-                    .Where(r => r.route.legs.Count > i)
-                    .OrderBy(r => r.route.legs[i].seconds)
-                    .FirstOrDefault();
-
-                if (best.route == null) continue;
-
-                ValhallaRouteLeg leg = best.route.legs[i];
-
-                response.legs.Add(new TravelRouteLeg
-                {
-                    leg_order = i + 1,
-                    from_name = points[i].name,
-                    to_name = points[i + 1].name,
-                    transport = best.label,
-                    travel_minutes = Math.Round(leg.seconds / 60.0, 1),
-                    distance_km = Math.Round(leg.km, 2),
-                    coordinates = leg.coordinates
-                });
-            }
-
-            response.total_minutes = Math.Round(response.legs.Sum(l => l.travel_minutes), 1);
-            response.total_distance_km = Math.Round(response.legs.Sum(l => l.distance_km), 2);
-
-            return response;
         }
 
 
@@ -802,28 +729,6 @@ namespace backend.Services
             }
 
             return ordered;
-        }
-
-
-        /// <summary>劇本節點之間的公車交通方案（含上下車站之間經過的所有站牌）</summary>
-        public Task<List<BusTransitLeg>> GetStoryTransitAsync(int storyId)
-        {
-            return _dao.GetStoryTransitAsync(storyId);
-        }
-
-
-        #endregion
-
-
-        #region Agent 即時推薦（/spin 用）
-
-
-        /// <summary>
-        /// 依城市/行政區名稱，將城市/行政區轉為經緯度，並將 Agent 推薦結果存進 md_agent_recommendation。
-        /// </summary>
-        public string SaveAgentRecommendation(string epId, string cityName, string townName, double lat, double lng, AgentOrchestrateResponse result)
-        {
-            return _dao.SaveAgentRecommendation(epId, cityName, townName, lat, lng, result);
         }
 
 

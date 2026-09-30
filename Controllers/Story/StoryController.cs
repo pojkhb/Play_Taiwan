@@ -19,7 +19,7 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 劇本生成與相關操作 API。
-    /// 提供 Agent 即時推薦、GPS 定位生成劇本、觀看劇本詳情、Neo4j 景點查詢及確認選卷等功能。
+    /// 提供劇本生成（現在揪出發、遊你說算）、Agent 即時推薦、劇本詳情、確認選卷與附近景點查詢等功能。
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -29,20 +29,17 @@ namespace backend.Controllers
         private readonly StoryService _service;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly GeocodingService _geocodingService;
-        private readonly TaskGenerationService _taskGeneration;
 
         public StoryController(
             ILogger<StoryController> logger,
             StoryService service,
             IHttpClientFactory httpClientFactory,
-            GeocodingService geocodingService,
-            TaskGenerationService taskGeneration)
+            GeocodingService geocodingService)
         {
             _logger = logger;
             _service = service;
             _httpClientFactory = httpClientFactory;
             _geocodingService = geocodingService;
-            _taskGeneration = taskGeneration;
         }
 
 
@@ -152,6 +149,10 @@ namespace backend.Controllers
                 if (agentResult == null)
                     throw new Exception("AI Agent 服務回傳的內容為空");
 
+                // AI 找不到地點時仍回 HTTP 200，只帶 message（例如「附近沒有符合您當下心情的地點。」），不能當成功
+                if (agentResult.phase_3_graph_rag == null && agentResult.phase_4_action_and_tools == null)
+                    throw new Exception($"AI Agent 沒有產生推薦：{VlogAiGateway.AiErrorMessage(responseString)}");
+
 
                 // 新資料庫沒有 md_agent_recommendation 表，推薦結果不存檔，直接回傳（recommendation_id 固定為 null）
                 return Ok(new ResultViewModel<SpinScriptResult>
@@ -211,220 +212,6 @@ namespace backend.Controllers
 
 
 
-        #region GPS 定位生成劇本 — 改成前端傳城市/行政區，後端自行轉經緯度
-        public class StoryGenerateByLocationRequest
-        {
-            /// <summary>前端傳入的城市名稱，例如「臺南市」</summary>
-            public string city_name { get; set; }
-
-
-            /// <summary>前端傳入的行政區名稱，例如「中西區」（必填，外部 AI 服務需要明確行政區才能定位生成劇本）</summary>
-            public string town_name { get; set; }
-
-
-            public int traveler_count { get; set; }
-            public List<string> preferences { get; set; }
-            public List<string> transportation { get; set; }
-            public int node_count { get; set; }
-            public bool is_night { get; set; }
-            public int story_count { get; set; }
-        }
-
-
-
-        /// <summary>
-        /// 依前端傳入的城市/行政區名稱，後端先轉換為經緯度（供回應與未來地圖使用），
-        /// 再打 AI 服務生成劇本，並完整回傳與外部 API 100% 相同結構的劇本內容。支援 story_count 一次生成多份。
-        /// </summary>
-        /// <remarks>
-        /// 跟舊版差異：舊版是前端傳 GPS 座標、後端反向地理編碼查出城市/行政區；
-        /// 現在改成前端直接傳城市/行政區、後端正向地理編碼轉出經緯度，省去一次反查、也更準確。
-        /// 節點座標查詢策略維持不變：優先比對 Neo4j 真實景點資料，查無結果才退回 Nominatim。
-        ///
-        /// city_name、town_name 皆為必填：外部 AI 服務需要明確的行政區才能定位生成劇本，
-        /// 只給城市會導致外部服務回應「找不到 地點資料」的錯誤，故在此提早擋下，回傳 400。
-        ///
-        /// **Request 範例**：
-        /// ```json
-        /// {
-        ///   "city_name": "臺南市",
-        ///   "town_name": "中西區",
-        ///   "traveler_count": 2,
-        ///   "preferences": ["解謎深入", "文學建築"],
-        ///   "transportation": ["步行", "公車"],
-        ///   "node_count": 4,
-        ///   "is_night": false,
-        ///   "story_count": 3
-        /// }
-        /// ```
-        /// </remarks>
-        [Authorize]
-        [HttpPost]
-        [Route("GenerateByLocation")]
-        [ProducesResponseType(typeof(ResultViewModel<GenerateByLocationResult>), 200)]
-        public async Task<IActionResult> GenerateByLocation([FromBody] StoryGenerateByLocationRequest req)
-        {
-            try
-            {
-                int auId = User.GetAuId();
-
-
-                if (string.IsNullOrWhiteSpace(req.city_name))
-                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供城市名稱 (city_name)" });
-
-                if (string.IsNullOrWhiteSpace(req.town_name))
-                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供行政區名稱 (town_name)，僅有城市無法生成劇本" });
-
-
-                string cityName = req.city_name;
-                string townName = req.town_name;
-
-
-                // 城市 + 行政區 → 經緯度（正向地理編碼，取代原本的反向地理編碼）
-                var geoResult = await _geocodingService.SearchPlaceCoordinatesAsync(townName, cityName);
-                double lat = geoResult.lat ?? 0;
-                double lng = geoResult.lng ?? 0;
-
-
-
-
-                int storyCount = req.story_count > 0 ? req.story_count : 1;
-
-
-                var payloadToPython = new
-                {
-                    city_name = cityName,
-                    town_name = townName,
-                    traveler_count = req.traveler_count > 0 ? req.traveler_count : 2,
-                    preferences = req.preferences ?? new List<string>(),
-                    transportation = req.transportation ?? new List<string>(),
-                    node_count = req.node_count > 0 ? req.node_count : 4,
-                    is_night = req.is_night
-                };
-
-
-                var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromMinutes(10);
-
-
-                string jsonPayload = JsonSerializer.Serialize(payloadToPython);
-                var allResults = new List<GeneratedStoryItem>();
-                var newStoryIds = new List<string>();
-
-
-                for (int i = 0; i < storyCount; i++)
-                {
-                    var jsonContent = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
-                    var response = await client.PostAsync($"{AiServiceConfig.BaseUrl}/api/admin/generate_script_blueprint", jsonContent);
-
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        string errContent = await response.Content.ReadAsStringAsync();
-                        throw new Exception($"外部 AI 服務回應錯誤 (第 {i + 1} 份): {errContent}");
-                    }
-
-
-                    string responseString = await response.Content.ReadAsStringAsync();
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-
-                    ScriptBlueprintApiResponse aiResult;
-                    try
-                    {
-                        aiResult = JsonSerializer.Deserialize<ScriptBlueprintApiResponse>(responseString, options);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new Exception($"反序列化失敗 (第 {i + 1} 份): {ex.Message}");
-                    }
-
-
-                    if (aiResult?.data == null)
-                    {
-                        _logger.LogWarning($"第 {i + 1} 份 AI 劇本回傳內容為空，已跳過此份");
-                        continue;
-                    }
-
-
-                    int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
-                    // TaskGenerationService 仍吃字串型別的 story_id，這裡先轉字串保持相容。
-                    newStoryIds.Add(newStoryId.ToString());
-
-
-                    allResults.Add(new GeneratedStoryItem
-                    {
-                        story_id = newStoryId,
-                        status = aiResult.status,
-                        data = aiResult.data
-                    });
-                }
-
-                // 劇本存檔後，接著為所有節點生成任務並寫入 md_task。
-                // 此方法內部已容錯，不會丟例外，任務生成失敗不影響劇本生成結果。
-                int taskPlayerCount = req.traveler_count > 0 ? req.traveler_count : 2;
-                await _taskGeneration.GenerateTasksForStoriesAsync(newStoryIds, taskPlayerCount);
-
-                return Ok(new ResultViewModel<GenerateByLocationResult>
-                {
-                    isSuccess = true,
-                    message = $"劇本生成完畢！共生成 {allResults.Count} 份",
-                    Result = new GenerateByLocationResult
-                    {
-                        lat = lat,
-                        lng = lng,
-                        detected_city = cityName,
-                        detected_town = townName,
-                        stories = allResults
-                    }
-                });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "依城市/行政區生成劇本失敗");
-                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-
-
-        #region GPS 附近地點查詢（依距離排序，MySQL md_place 版本）
-        /// <summary>
-        /// 【前端不用接】依玩家 GPS 座標，查詢方圓範圍內的景點（來源：MySQL md_place），依距離由近到遠排序。
-        /// </summary>
-        /// <remarks>
-        /// **前端不用接**：資料只包含「曾經生成過劇本」的地點，查附近景點請改用 ReachableAttractions（有去除重複、實際交通時間）。
-        ///
-        /// 資料來源：你自己的 md_place 表，只包含「曾經透過 GenerateByLocation 生成過劇本節點」的地點，
-        /// 不是全台灣景點資料庫。查無結果通常代表這附近從來沒有人生成過劇本，屬於正常情況。
-        /// 如果要做「這附近有什麼景點可以玩」這種通用探索功能，請改用 NearbyAttractions。
-        ///
-        /// **Request 範例**：
-        ///
-        ///     GET /api/Story/NearbyPlaces?lat=22.9908&amp;lng=120.2034&amp;radiusKm=2
-        /// </remarks>
-        [Authorize]
-        [HttpGet]
-        [Route("NearbyPlaces")]
-        [ProducesResponseType(typeof(ResultViewModel<List<NearbyPlaceDistanceResponse>>), 200)]
-        public IActionResult NearbyPlaces([FromQuery] double lat, [FromQuery] double lng, [FromQuery] double radiusKm = 2.0)
-        {
-            try
-            {
-                var result = _service.GetNearbyPlacesByDistance(lat, lng, radiusKm);
-                return Ok(new ResultViewModel<List<NearbyPlaceDistanceResponse>> { isSuccess = true, message = "查詢成功", Result = result });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "查詢附近地點失敗");
-                return StatusCode(500, new ResultViewModel<List<NearbyPlaceDistanceResponse>> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-
-
         #region 劇情觀看更多 (Detail)
         /// <summary>
         /// 取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）。
@@ -448,36 +235,6 @@ namespace backend.Controllers
             {
                 _logger.LogError(e, "查詢劇本詳情失敗");
                 return StatusCode(500, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-
-
-        #region 完整劇本詳情（欄位對照 AI 原始格式，不遺失任何欄位）
-        /// <summary>
-        /// 依 story_id 取得完整劇本內容，欄位結構與 AI 原始生成格式 100% 相同（含 task_type、is_night_mode 等完整欄位）。
-        /// </summary>
-        /// <remarks>
-        /// **Request 範例**：
-        ///
-        ///     GET /api/Story/{story_id}/FullDetail
-        /// </remarks>
-        [Authorize]
-        [HttpGet]
-        [Route("{story_id:int}/FullDetail")]
-        [ProducesResponseType(typeof(ResultViewModel<ScriptBlueprintData>), 200)]
-        public IActionResult FullDetail(int story_id)
-        {
-            try
-            {
-                var result = _service.GetFullDetail(story_id);
-                return Ok(new ResultViewModel<ScriptBlueprintData> { isSuccess = true, message = "查詢成功", Result = result });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "查詢完整劇本詳情失敗");
-                return StatusCode(500, new ResultViewModel<ScriptBlueprintData> { isSuccess = false, message = e.Message, Result = null });
             }
         }
         #endregion
@@ -596,7 +353,7 @@ namespace backend.Controllers
         /// 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。
         /// </summary>
         /// <remarks>
-        /// 跟 GenerateByLocation 的差異：GenerateByLocation 需要前端明確帶城市/行政區/偏好等結構化參數；
+        /// 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數；
         /// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
         ///
         /// **Request 範例**：
@@ -777,56 +534,6 @@ namespace backend.Controllers
  
  
  
-        #region 路線：依序經過多個點的實際路線與時間（Valhalla）
-        /// <summary>
-        /// 依序經過多個點，回傳每一段的交通方式、真實時間、距離與路線座標。
-        /// </summary>
-        /// <remarks>
-        /// 第一個點是起點。交通方式可複選，每一段會各自挑最快的方式。
-        /// coordinates 是 [經度, 緯度] 清單，前端依序連線就能畫出路線。
-        ///
-        /// **Request 範例**：
-        /// ```json
-        /// {
-        ///   "points": [
-        ///     { "lat": 24.1477, "lng": 120.6736, "name": "我的位置" },
-        ///     { "lat": 24.1572, "lng": 120.6660, "name": "國立自然科學博物館" },
-        ///     { "lat": 24.1411, "lng": 120.6634, "name": "國立臺灣美術館" }
-        ///   ],
-        ///   "transportation": ["步行", "機車"]
-        /// }
-        /// ```
-        /// </remarks>
-        [Authorize]
-        [HttpPost]
-        [Route("TravelRoute")]
-        [ProducesResponseType(typeof(ResultViewModel<TravelRouteResponse>), 200)]
-        public async Task<IActionResult> TravelRoute([FromBody] TravelRouteRequest req)
-        {
-            try
-            {
-                if (req?.points == null || req.points.Count < 2)
-                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供至少 2 個點（起點與終點）" });
- 
-                TravelRouteResponse result = await _service.GetTravelRouteAsync(req);
- 
-                return Ok(new ResultViewModel<TravelRouteResponse>
-                {
-                    isSuccess = true,
-                    message = $"路線規劃完成，共 {result.legs.Count} 段，約 {result.total_minutes} 分鐘",
-                    Result = result
-                });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "路線規劃失敗");
-                return StatusCode(500, new ResultViewModel<TravelRouteResponse> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-
-
         #region 劇本任務一次生成（AI service /api/v1/generate）
         /// <summary>
         /// 依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。
@@ -910,40 +617,6 @@ namespace backend.Controllers
             {
                 _logger.LogError(e, "劇本任務生成失敗");
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-
-
-        /// <summary>
-        /// 取得劇本節點之間的公車交通方案（搭哪一路、哪站上下車、中間經過的所有站牌）。
-        /// </summary>
-        /// <remarks>
-        /// 只有生成劇本時選了公車/客運/台灣好行、而且找得到直達公車的路段才會有資料。
-        ///
-        /// **Request 範例**：
-        ///
-        ///     GET /api/Story/{story_id}/Transit
-        /// </remarks>
-        [Authorize]
-        [HttpGet]
-        [Route("{story_id:int}/Transit")]
-        [ProducesResponseType(typeof(ResultViewModel<List<BusTransitLeg>>), 200)]
-        public async Task<IActionResult> GetStoryTransit(int story_id)
-        {
-            try
-            {
-                List<BusTransitLeg> result = await _service.GetStoryTransitAsync(story_id);
-                return Ok(new ResultViewModel<List<BusTransitLeg>>
-                {
-                    isSuccess = true,
-                    message = result.Count == 0 ? "此劇本沒有公車交通方案" : $"查詢成功，共 {result.Count} 段公車",
-                    Result = result
-                });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "查詢劇本公車交通方案失敗");
-                return StatusCode(500, new ResultViewModel<List<BusTransitLeg>> { isSuccess = false, message = e.Message, Result = null });
             }
         }
         #endregion

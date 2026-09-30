@@ -268,61 +268,6 @@ namespace backend.dao
 
         #endregion
 
-        #region 徽章抽選
-
-        /// <summary>
-        /// 完成節點時由 md_badge_pool 的權重隨機抽出徽章，並存入 ep_badge，若已擁有則不重複寫入。
-        /// </summary>
-        public string DrawBadge(string ep_id, string story_id)
-        {
-            Hashtable poolParam = new()
-            {
-                {"@story_id", new MySQLParameter(story_id, MySqlDbType.VarChar)}
-            };
-
-            string poolSql = @"
-                SELECT badge_id, badge_name, weight FROM md_badge_pool
-                WHERE (story_id = @story_id OR story_id IS NULL) AND is_active = 1";
-
-            List<BadgePoolRow> pool = mysql_connect.GetDataList<BadgePoolRow>(poolSql, poolParam);
-
-            if (pool == null || pool.Count == 0) return null;
-
-            int totalWeight = pool.Sum(p => p.weight);
-            int roll = new Random().Next(totalWeight);
-            int cumulative = 0;
-            var picked = pool[0];
-            foreach (var item in pool)
-            {
-                cumulative += item.weight;
-                if (roll < cumulative) { picked = item; break; }
-            }
-
-            Hashtable insertParam = new()
-            {
-                {"@ep_id", new MySQLParameter(ep_id, MySqlDbType.VarChar)},
-                {"@badge_id", new MySQLParameter(picked.badge_id, MySqlDbType.VarChar)},
-                {"@badge_name", new MySQLParameter(picked.badge_name, MySqlDbType.VarChar)}
-            };
-
-            string insertSql = @"
-                INSERT IGNORE INTO ep_badge (ep_id, badge_id, badge_name)
-                VALUES (@ep_id, @badge_id, @badge_name)";
-
-            mysql_connect.Execute(insertSql, insertParam);
-
-            return picked.badge_id;
-        }
-
-        private class BadgePoolRow
-        {
-            public string badge_id { get; set; }
-            public string badge_name { get; set; }
-            public int weight { get; set; }
-        }
-
-        #endregion
-
         #region 隱藏劇情
 
         /// <summary>

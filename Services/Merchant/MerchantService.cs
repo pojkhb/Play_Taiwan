@@ -28,19 +28,5 @@ namespace backend.Services
             return _dao.GetMerchantFiles(auId);
         }
         #endregion
-
-        #region 建立商家影音專案
-        public int CreateVlogTask(int auId, GenerateVlogRequest req)
-        {
-            return _dao.CreateVlogTask(auId, req);
-        }
-        #endregion
-
-        #region 取得最後生成畫面
-        public MerchantVlogResult GetVlogResult(int mmId, int auId)
-        {
-            return _dao.GetVlogResult(mmId, auId);
-        }
-        #endregion
     }
 }

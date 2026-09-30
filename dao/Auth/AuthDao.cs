@@ -50,12 +50,13 @@ namespace backend.dao
         #region 註冊 (新增帳號)
         public async Task<bool> RegisterAsync(RegisterRequest req, string emailToken)
         {
+            // 驗證期限由資料庫用 NOW() 計算，驗證時也是跟 NOW() 比，時區才會一致
             string sql = @"
                 INSERT INTO auth
                 (auth_name, auth_type, auth_email, auth_pswd, au_email_token, au_email_expires,
                  is_email_verified, au_birthday, au_gender)
                 VALUES
-                (@auth_name, @auth_type, @auth_email, @auth_pswd, @emailToken, @emailExpires,
+                (@auth_name, @auth_type, @auth_email, @auth_pswd, @emailToken, NOW() + INTERVAL 24 HOUR,
                  0, @birthday, @gender);
             ";
 
@@ -71,7 +72,6 @@ namespace backend.dao
                         auth_email = req.Email,
                         auth_pswd = req.Password,
                         emailToken,
-                        emailExpires = DateTime.UtcNow.AddHours(24),
                         birthday = req.Birthday,
                         gender = req.Gender
                     });
@@ -173,18 +173,19 @@ namespace backend.dao
         #endregion
 
         #region 寫入忘記密碼重設 Token
-        public void SetPasswordResetToken(int auId, string resetToken, DateTime expires)
+        /// <summary>期限由資料庫用 NOW() 計算，查詢時也是跟 NOW() 比，時區才會一致</summary>
+        public void SetPasswordResetToken(int auId, string resetToken, int validMinutes)
         {
             string sql = @"
                 UPDATE auth
-                SET pwd_reset_token = @resetToken, pwd_reset_expires = @expires
+                SET pwd_reset_token = @resetToken, pwd_reset_expires = NOW() + INTERVAL @validMinutes MINUTE
                 WHERE au_id = @auId;
             ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
-                conn.Execute(sql, new { auId, resetToken, expires });
+                conn.Execute(sql, new { auId, resetToken, validMinutes });
             }
         }
         #endregion

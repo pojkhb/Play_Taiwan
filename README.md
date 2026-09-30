@@ -108,8 +108,8 @@ Controller	用途
 AuthController	註冊 / 登入 / JWT 發行
 MapController	地圖與地點查詢
 MerchantController	店家資訊
-TaskController / TaskHintController	任務派發、提示
-PostcardController / PostcardCatalogController	明信片收集與圖鑑
+TaskController	任務派發、提示
+PostcardCatalogController	明信片收集、列印與分享
 BadgeController	徽章成就
 StoryController	劇情敘事內容
 SilhouetteController	剪影猜景點小遊戲

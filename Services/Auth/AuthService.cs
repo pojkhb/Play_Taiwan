@@ -158,9 +158,8 @@ namespace backend.Services
             if (account == null) throw new Exception("找不到此 Email 註冊的帳號");
 
             string resetToken = Guid.NewGuid().ToString("N");
-            DateTime expires = DateTime.UtcNow.AddMinutes(30);
 
-            _dao.SetPasswordResetToken(account.au_id, resetToken, expires);
+            _dao.SetPasswordResetToken(account.au_id, resetToken, validMinutes: 30);
 
             string resetUrl = $"http://localhost:5501/reset-password?token={resetToken}";
             string subject = "Play Taiwan - 密碼重設通知";

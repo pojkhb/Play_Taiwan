@@ -135,13 +135,6 @@ namespace backend.Services
         }
         #endregion
 
-        #region 獎章抽取
-        public string DrawBadge(string ep_id, string story_id)
-        {
-            return task_dao.DrawBadge(ep_id, story_id);
-        }
-        #endregion
-
         #region 隱藏關卡
         public HiddenLevelTriggerResult CheckHiddenLevel(string ep_id, double lat, double lng, string region_id)
         {

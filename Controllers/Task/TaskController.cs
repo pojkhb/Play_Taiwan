@@ -177,44 +177,6 @@ namespace backend.Controllers
 
         #endregion
 
-        #region 抽取獎章
-
-        /// <summary>
-        /// 完成節點時抽取一次獎章。
-        /// </summary>
-        /// <remarks>
-        /// 依 md_badge_pool 的 weight 權重隨機抽取，同一枚徽章不會重複發放給同一位探員。
-        ///
-        /// Request 範例：
-        ///
-        ///     POST /api/Task/Badge/Draw?ep_id=EP001&amp;story_id=story_tainan_001
-        /// </remarks>
-        /// <param name="ep_id">探員代號。</param>
-        /// <param name="story_id">劇本代號，用於篩選專屬獎章池，無專屬池則抽通用池。</param>
-        /// <returns>抽中的徽章代號，若獎章池為空則回傳 null。</returns>
-        // API：抽取獎章（DrawBadge）－完成節點時依權重隨機抽一枚徽章
-        [HttpPost]
-        [Route("Badge/Draw")]
-        public IActionResult DrawBadge([FromQuery] string ep_id, [FromQuery] string story_id)
-        {
-            try
-            {
-                var badgeId = _service.DrawBadge(ep_id, story_id);
-                return Ok(new ResultViewModel<string>
-                {
-                    isSuccess = true,
-                    message = badgeId != null ? "抽中新徽章！" : "本次沒有可抽的徽章",
-                    Result = badgeId
-                });
-            }
-            catch (Exception e)
-            {
-                return NotFound(new ResultViewModel<string> { isSuccess = false, message = e.Message.ToString(), Result = null });
-            }
-        }
-
-        #endregion
-
         #region 隱藏關卡檢查
 
         /// <summary>

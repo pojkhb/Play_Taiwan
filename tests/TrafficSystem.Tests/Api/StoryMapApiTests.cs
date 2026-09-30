@@ -44,17 +44,16 @@ public class StoryMapApiTests
     }
 
     [Fact]
-    public async Task 完整劇本詳情可以查詢()
+    public async Task 劇本詳情帶日夜模式與每站任務類型()
     {
         int user = _api.NewUserId();
         int storyId = await _api.CreateStoryAsync(user, "臺北市", night: true, "台北101", "西門町");
+        await _api.ExecuteAsync("UPDATE story_node SET sn_task_type = '文化問答型' WHERE s_id = @storyId AND sn_order = 1;", new { storyId });
 
-        HttpResponseMessage response = await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/FullDetail");
+        StoryDetailResponse detail = (await (await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        ScriptBlueprintData data = (await response.ReadResultAsync<ScriptBlueprintData>()).Result;
-        Assert.True(data.is_night_mode);
-        Assert.Equal(2, data.nodes.Count);
+        Assert.True(detail.is_night_mode);
+        Assert.Equal(new[] { "文化問答型", "" }, detail.nodes.Select(n => n.task_type));
     }
 
     [Fact]

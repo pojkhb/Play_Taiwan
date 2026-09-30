@@ -36,14 +36,4 @@ namespace backend.Models
         public DateTime updated_at { get; set; }            // 最後更新時間
     }
 
-    /// <summary>商家影音最後生成畫面（Reels 影音、推薦配文、標籤）。</summary>
-    public class MerchantVlogResult
-    {
-        public int mm_id { get; set; }                 // 商家影音流水號
-        public string mm_title { get; set; }             // 標題
-        public string caption { get; set; }                // 推薦配文，取自 mm_text
-        public string mm_video_url { get; set; }             // 影片網址
-        public string[] hashtags { get; set; }                 // 標籤陣列，由 mm_hashtage 逗號拆開
-        public int mm_status { get; set; }                       // 1=草稿、2=處理中、3=已完成、4=失敗
-    }
 }

@@ -41,38 +41,6 @@ namespace backend.Models
     }
 
     // ===================== 明信片 =====================
-    /// <summary>（舊版，尚未完成）明信片</summary>
-    public class PostcardResponse
-    {
-        /// <summary>明信片代號</summary>
-        public string postcard_id { get; set; }
-
-        /// <summary>明信片標題</summary>
-        public string title { get; set; }
-
-        /// <summary>明信片副標題</summary>
-        public string subtitle { get; set; }
-
-        /// <summary>AI 生成的正面圖片網址</summary>
-        public string front_image_url { get; set; }
-
-        /// <summary>玩家拍攝的背面照片網址</summary>
-        public string back_photo_url { get; set; }
-
-        /// <summary>文化解說內容</summary>
-        public string culture_note { get; set; }
-
-        /// <summary>獲得日期</summary>
-        public DateTime found_date { get; set; }
-
-        /// <summary>是否為夜晚限定版</summary>
-        public bool is_night_edition { get; set; }
-    }
-
-    public class PostcardPrintRequest
-    {
-        public string postcard_id { get; set; }   // 欲列印的明信片代號
-    }
 
     /// <summary>ibon 列印結果</summary>
     public class PostcardPrintResponse
@@ -88,12 +56,6 @@ namespace backend.Models
 
         /// <summary>取件 QR Code 圖片（Base64 編碼，可直接當 img src 的 data URL 使用）</summary>
         public string qrcode_base64 { get; set; }
-    }
-
-    public class PostcardShareRequest
-    {
-        public string postcard_id { get; set; }   // 欲分享的明信片代號
-        public string platform { get; set; }        // 分享平台，例如 IG
     }
 
     /// <summary>ibon 列印請求，對應 PostcardCatalogController 的 Print。</summary>

@@ -76,6 +76,8 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["AppSettings:jwt_secret"] = JwtSecret,
             ["BusSync:Enabled"] = "false",     // 測試時不要在背景同步公車、捷運資料
             ["MetroSync:Enabled"] = "false",
+            ["SmtpSettings:Server"] = "127.0.0.1",   // 寄信一律失敗，測試不會寄出真的信（註冊、忘記密碼）
+            ["SmtpSettings:Port"] = "1",
         }));
         builder.ConfigureTestServices(services =>
             services.ConfigureAll<HttpClientFactoryOptions>(options =>

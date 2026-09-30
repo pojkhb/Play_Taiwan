@@ -20,12 +20,14 @@ namespace backend.Services
     {
         private readonly PostcardCatalogDao _dao;
         private readonly IConfiguration _configuration;
+        private readonly IHttpClientFactory _httpClientFactory;
 
 
-        public PostcardCatalogService(PostcardCatalogDao dao, IConfiguration configuration)
+        public PostcardCatalogService(PostcardCatalogDao dao, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _dao = dao;
             _configuration = configuration;
+            _httpClientFactory = httpClientFactory;
         }
 
 
@@ -80,7 +82,7 @@ namespace backend.Services
         /// </summary>
         public async Task<Models.PostcardCatalog> GenerateAiPostcardAsync(AiPostcardGenerateRequest request, int auId)
         {
-            using var client = new HttpClient();
+            var client = _httpClientFactory.CreateClient();
             using var content = new MultipartFormDataContent();
 
 
@@ -155,7 +157,7 @@ namespace backend.Services
             var postcard = await _dao.GetByIdAsync(postcardId);
             if (postcard == null || string.IsNullOrEmpty(postcard.p_imag_url)) return null;
 
-            using var client = new HttpClient();
+            var client = _httpClientFactory.CreateClient();
             return await client.GetByteArrayAsync(postcard.p_imag_url);
         }
         #endregion
@@ -175,7 +177,7 @@ namespace backend.Services
                 throw new Exception($"查無此明信片 (ID: {postcardId}) 的圖片內容，無法列印");
 
 
-            using var httpClient = new HttpClient();
+            var httpClient = _httpClientFactory.CreateClient();
             using var form = new MultipartFormDataContent();
 
 

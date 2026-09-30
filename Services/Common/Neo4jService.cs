@@ -17,6 +17,9 @@ namespace backend.Services
         public string status { get; set; }
         public int count { get; set; }
         public TData data { get; set; }
+
+        /// <summary>status 為 error 時的原因（AI service 連不到自己的 Neo4j 時仍回 HTTP 200，只能從這裡看出失敗）</summary>
+        public string message { get; set; }
     }
 
 
@@ -83,6 +86,11 @@ namespace backend.Services
                     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
                     var apiResponse = JsonSerializer.Deserialize<Neo4jApiResponse<T>>(jsonString, options);
+                    if (apiResponse?.status == "error")
+                    {
+                        Console.WriteLine($"Neo4j API 回傳錯誤: {apiResponse.message}");
+                        return default;
+                    }
                     return apiResponse != null ? apiResponse.data : default;
                 }
 

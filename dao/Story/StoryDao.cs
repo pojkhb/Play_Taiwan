@@ -257,7 +257,7 @@ namespace backend.dao
         public StoryDetailResponse GetDetail(int storyId)
         {
             string storySql = @"
-                SELECT s_id, story_title, story_prologue, story_synopsis
+                SELECT s_id, story_title, story_prologue, story_synopsis, is_night_mode
                 FROM story
                 WHERE s_id = @storyId AND is_active = 1;
             ";
@@ -265,7 +265,7 @@ namespace backend.dao
             // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
             string nodeSql = $@"
                 SELECT
-                    sn.sn_id, sn.sn_order, sn.sn_title,
+                    sn.sn_id, sn.sn_order, sn.sn_title, sn.sn_task_type,
                     sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
                     NULLIF(p.p_image, '') AS image_url
                 FROM story_node sn
@@ -295,6 +295,7 @@ namespace backend.dao
                     subtitle = "",
                     preface = string.IsNullOrEmpty(prologue) ? synopsis : prologue,
                     synopsis = synopsis,
+                    is_night_mode = Convert.ToInt32(story.is_night_mode) == 1,
                     nodes = new List<NodeDetail>(),
                     route_nodes = new List<StoryOptionResponse.RouteNode>()
                 };
@@ -313,6 +314,7 @@ namespace backend.dao
                         opening = (node.sn_opening_text as string) ?? "",
                         success = (node.sn_success_text as string) ?? "",
                         npc_name = "",
+                        task_type = (node.sn_task_type as string) ?? "",
                         image_url = node.image_url as string
                     });
 
@@ -1016,204 +1018,6 @@ namespace backend.dao
         #endregion
 
 
-        /// <summary>
-        /// 依 s_id 完整讀出劇本，結構與 AI 原始藍圖對應。
-        /// NPC 區塊因為新資料庫沒有 NPC 主表，固定為 null。
-        /// </summary>
-        public ScriptBlueprintData GetFullDetail(int storyId)
-        {
-            string storySql = @"
-                SELECT story_title, story_prologue, story_synopsis, is_night_mode
-                FROM story
-                WHERE s_id = @storyId AND is_active = 1;
-            ";
-
-            string nodeSql = @"
-                SELECT sn_order, sn_title, location_codename, sn_task_type,
-                       sn_opening_text, sn_success_text
-                FROM story_node
-                WHERE s_id = @storyId
-                ORDER BY sn_order;
-            ";
-
-            using (var conn = new MySqlConnection(_appSettings.mydb))
-            {
-                conn.Open();
-
-                var story = conn.QueryFirstOrDefault(storySql, new { storyId });
-
-                if (story == null)
-                {
-                    throw new Exception("找不到此劇本：" + storyId);
-                }
-
-                var result = new ScriptBlueprintData
-                {
-                    title = story.story_title as string,
-                    preface = (story.story_prologue as string) ?? "",
-                    synopsis = (story.story_synopsis as string) ?? "",
-                    is_night_mode = Convert.ToInt32(story.is_night_mode) == 1,
-                    npc = null,
-                    nodes = new List<ScriptBlueprintNode>()
-                };
-
-                foreach (var node in conn.Query(nodeSql, new { storyId }))
-                {
-                    string title = (node.sn_title as string) ?? "";
-
-                    result.nodes.Add(new ScriptBlueprintNode
-                    {
-                        node_order = (int)node.sn_order,
-                        place_name = title,
-                        location_codename = (node.location_codename as string) ?? "",
-                        node_title = title,
-                        task_type = (node.sn_task_type as string) ?? "",
-                        task_description = "",   // story_node 已沒有 sn_hint，任務說明在 task 表
-                        dialogues = new ScriptBlueprintDialogues
-                        {
-                            opening = (node.sn_opening_text as string) ?? "",
-                            success = (node.sn_success_text as string) ?? ""
-                        }
-                    });
-                }
-
-                return result;
-            }
-        }
-        #endregion
-
-
-
-        #region GPS 附近地點查詢（依實際距離排序，供劇本節點使用）
-        public List<NearbyPlaceDistanceResponse> GetNearbyPlacesByDistance(double lat, double lng, double radiusKm)
-        {
-            // place 沒有 is_active 欄位，改為只要有座標就納入計算。
-            string sql = @"
-                SELECT
-                    p_id   AS place_id,
-                    p_name AS place_name,
-                    (
-                        6371 * ACOS(
-                            COS(RADIANS(@lat)) * COS(RADIANS(p_latitude)) *
-                            COS(RADIANS(p_longitude) - RADIANS(@lng)) +
-                            SIN(RADIANS(@lat)) * SIN(RADIANS(p_latitude))
-                        )
-                    ) AS distance_km
-                FROM place
-                WHERE p_latitude IS NOT NULL AND p_longitude IS NOT NULL
-                HAVING distance_km <= @radiusKm
-                ORDER BY distance_km;
-            ";
-
-            using (var conn = new MySqlConnection(_appSettings.mydb))
-            {
-                conn.Open();
-
-                return conn.Query<NearbyPlaceDistanceResponse>(
-                        sql, new { lat, lng, radiusKm })
-                    .Select(x =>
-                    {
-                        x.location_codename = "";
-                        return x;
-                    })
-                    .ToList();
-            }
-        }
-        #endregion
-
-
-
-        #region 依城市/鄉鎮名稱模糊比對，找出對應的 region_id
-        public string FindRegionIdByName(string cityName, string townName)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
-            string sql = @"
-                SELECT region_id
-                FROM md_region
-                WHERE is_active = 1
-                  AND REPLACE(city_name, '臺', '台') = REPLACE(@city_name, '臺', '台')
-                  AND (
-                        @town_name = ''
-                        OR REPLACE(district_name, '臺', '台') = REPLACE(@town_name, '臺', '台')
-                      )
-                LIMIT 1;
-            ";
-
-
-            using var command = new MySqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@city_name", cityName ?? "");
-            command.Parameters.AddWithValue("@town_name", townName ?? "");
-
-
-            var resultObj = command.ExecuteScalar();
-            return resultObj?.ToString();
-        }
-        #endregion
-
-
-
-        #region Agent 即時推薦（/spin 用，存進 md_agent_recommendation）
-        public string SaveAgentRecommendation(string epId, string cityName, string townName, double lat, double lng, AgentOrchestrateResponse result)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-
-
-            string newId = "REC_" + Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper();
-
-
-            string sql = @"
-                INSERT INTO md_agent_recommendation (
-                    recommendation_id, ep_id, city_name, town_name, user_lat, user_lon,
-                    voice_input, emotion_detected, agent_thought_process, extracted_tags_json,
-                    spot_name, spot_address, spot_description, spot_tags_json, spot_distance_m,
-                    theme_title, npc_dialogue, task_mission, preparation_tips_json,
-                    calendar_sync_url, social_share_url, next_step
-                ) VALUES (
-                    @recommendation_id, @ep_id, @city_name, @town_name, @user_lat, @user_lon,
-                    @voice_input, @emotion_detected, @agent_thought_process, @extracted_tags_json,
-                    @spot_name, @spot_address, @spot_description, @spot_tags_json, @spot_distance_m,
-                    @theme_title, @npc_dialogue, @task_mission, @preparation_tips_json,
-                    @calendar_sync_url, @social_share_url, @next_step
-                );
-            ";
-
-
-            var spot = result.phase_3_graph_rag?.recommended_spot;
-            var blueprint = result.phase_4_action_and_tools?.script_blueprint;
-
-
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@recommendation_id", newId);
-            cmd.Parameters.AddWithValue("@ep_id", epId);
-            cmd.Parameters.AddWithValue("@city_name", cityName ?? "");
-            cmd.Parameters.AddWithValue("@town_name", townName ?? "");
-            cmd.Parameters.AddWithValue("@user_lat", lat);
-            cmd.Parameters.AddWithValue("@user_lon", lng);
-            cmd.Parameters.AddWithValue("@voice_input", result.phase_1_perception?.voice_input ?? "");
-            cmd.Parameters.AddWithValue("@emotion_detected", result.phase_1_perception?.emotion_detected ?? "");
-            cmd.Parameters.AddWithValue("@agent_thought_process", result.phase_2_cognition?.agent_thought_process ?? "");
-            cmd.Parameters.AddWithValue("@extracted_tags_json", JsonSerializer.Serialize(result.phase_2_cognition?.extracted_tags ?? new List<string>()));
-            cmd.Parameters.AddWithValue("@spot_name", spot?.name ?? "");
-            cmd.Parameters.AddWithValue("@spot_address", spot?.address ?? "");
-            cmd.Parameters.AddWithValue("@spot_description", spot?.description ?? "");
-            cmd.Parameters.AddWithValue("@spot_tags_json", JsonSerializer.Serialize(spot?.tags ?? new List<string>()));
-            cmd.Parameters.AddWithValue("@spot_distance_m", spot?.distance_m ?? 0);
-            cmd.Parameters.AddWithValue("@theme_title", blueprint?.theme_title ?? "");
-            cmd.Parameters.AddWithValue("@npc_dialogue", blueprint?.npc_dialogue ?? "");
-            cmd.Parameters.AddWithValue("@task_mission", blueprint?.task_mission ?? "");
-            cmd.Parameters.AddWithValue("@preparation_tips_json", JsonSerializer.Serialize(blueprint?.preparation_tips ?? new List<string>()));
-            cmd.Parameters.AddWithValue("@calendar_sync_url", result.phase_4_action_and_tools?.tool_1_calendar_sync ?? "");
-            cmd.Parameters.AddWithValue("@social_share_url", result.phase_4_action_and_tools?.tool_2_social_share ?? "");
-            cmd.Parameters.AddWithValue("@next_step", result.phase_5_next_step ?? "");
-            cmd.ExecuteNonQuery();
-
-
-            return newId;
-        }
         #endregion
     }
 }

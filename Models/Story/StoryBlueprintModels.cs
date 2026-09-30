@@ -99,6 +99,9 @@ namespace backend.Models
         /// <summary>內文簡介（畫面 1）</summary>
         public string synopsis { get; set; }
 
+        /// <summary>是否為夜間劇本（夜間劇本完成後才能抽「午夜台灣」系列勳章）</summary>
+        public bool is_night_mode { get; set; }
+
         /// <summary>NPC 資訊（畫面 3）</summary>
         public NpcDetail npc { get; set; }
 
@@ -148,6 +151,9 @@ namespace backend.Models
 
         /// <summary>此節點 NPC 名稱（目前為空字串）</summary>
         public string npc_name { get; set; }
+
+        /// <summary>此節點的任務類型，例如「文化問答型」；沒有設定時為空字串</summary>
+        public string task_type { get; set; }
 
         /// <summary>景點照片（完整網址），劇本檔案館與地圖解鎖後用同一張；景點沒有照片時為 null</summary>
         public string image_url { get; set; }
@@ -312,38 +318,6 @@ public class ConfirmStoryRequest
 
         /// <summary>AI Agent 推薦內容</summary>
         public AgentOrchestrateResponse agent_result { get; set; }
-    }
-
-    /// <summary>依城市/行政區生成劇本的結果</summary>
-    public class GenerateByLocationResult
-    {
-        /// <summary>城市/行政區轉換出的中心點緯度（轉換失敗為 0）</summary>
-        public double lat { get; set; }
-
-        /// <summary>城市/行政區轉換出的中心點經度（轉換失敗為 0）</summary>
-        public double lng { get; set; }
-
-        /// <summary>城市名稱</summary>
-        public string detected_city { get; set; }
-
-        /// <summary>行政區名稱</summary>
-        public string detected_town { get; set; }
-
-        /// <summary>生成的劇本清單（數量依 story_count，AI 回傳空內容的那份會略過）</summary>
-        public List<GeneratedStoryItem> stories { get; set; }
-    }
-
-    /// <summary>生成的一份劇本</summary>
-    public class GeneratedStoryItem
-    {
-        /// <summary>劇本代號（story.s_id），之後查詳情、確認選卷都用這個</summary>
-        public int story_id { get; set; }
-
-        /// <summary>AI 服務回傳的狀態，例如「success」</summary>
-        public string status { get; set; }
-
-        /// <summary>劇本完整內容</summary>
-        public ScriptBlueprintData data { get; set; }
     }
 
     /// <summary>自然語言生成劇本（遊你說了算）結果</summary>

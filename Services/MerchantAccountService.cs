@@ -61,7 +61,24 @@ namespace backend.Services
             var hashTool = new sha256Hash();
             string passwordHash = hashTool.getSha256(req.auth_pswd, _appSettings.hash_key);
 
-            (int auId, int sId) = _dao.RegisterMerchant(req, passwordHash, storeUid);
+            int auId, sId;
+            try
+            {
+                (auId, sId) = _dao.RegisterMerchant(req, passwordHash, storeUid);
+            }
+            catch when (hasNewPlace)
+            {
+                // Neo4j 沒有跟 MySQL 同一個交易：MySQL 寫入失敗（例如 Email 重複）時，把剛建立的新景點刪掉，不留孤兒節點
+                try
+                {
+                    await _placeService.DeleteMerchantVersionAsync(storeUid);
+                }
+                catch (System.Exception cleanupEx)
+                {
+                    _logger.LogError(cleanupEx, "商家註冊失敗，清理 Neo4j 新景點 uid={Uid} 也失敗", storeUid);
+                }
+                throw;
+            }
 
             return new MerchantRegisterResponse { au_id = auId, s_id = sId, store_uid = storeUid };
         }

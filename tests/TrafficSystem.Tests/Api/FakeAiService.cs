@@ -43,12 +43,26 @@ public class FakeAiService : HttpMessageHandler
         }
     };
 
+    /// <summary>AI service 連不到自己的 Neo4j 時的回應：仍是 HTTP 200，只能從 status 看出失敗</summary>
+    public static readonly object Neo4jDown = new { status = "error", message = "Couldn't connect to localhost:7687" };
+
+    /// <summary>/api/neo4j/cypher 要回的內容，預設模擬 AI service 的 Neo4j 連不上</summary>
+    public object Neo4jCypherResponse { get; set; } = Neo4jDown;
+
+    /// <summary>AI Agent 找不到地點時的回應：HTTP 200，只有 message</summary>
+    public static readonly object AgentNoPlace = new { message = "附近沒有符合您當下心情的地點。" };
+
+    /// <summary>/api/agent/orchestrate（spin）要回的內容</summary>
+    public object AgentOrchestrateResponse { get; set; } = AgentNoPlace;
+
     public void Reset()
     {
         Requests.Clear();
         TextJobPolls.Clear();
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
+        Neo4jCypherResponse = Neo4jDown;
+        AgentOrchestrateResponse = AgentNoPlace;
     }
 
     public Received Last(string path) => Requests.LastOrDefault(r => r.Path == path);
@@ -97,9 +111,13 @@ public class FakeAiService : HttpMessageHandler
             "/api/merchant/vlog/preview" => MerchantPreviewResponse,
             "/api/visitor/vlog/create_final" => new { status = "processing", task_id = TaskId, message = "已排入佇列" },
             _ when path == "/api/check_status/" + TaskId => CheckStatusResponse,
+            "/upload" => new { pincode = "PT123456", qrcode_base64 = "iVBORw0KGgo=" },   // ibon 列印服務
             "/api/npc/speak" => new { status = "success", task_id = "npc-001", download_url = "/api/download/npc_npc-001.mp3" },
             "/api/api/admin/generate_script_blueprint_by_text" => new { status = "processing", job_id = TextJobId, check_url = "fake" },
             _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId => NextTextPoll(),
+            "/api/neo4j/cypher" => Neo4jCypherResponse,
+            "/api/agent/orchestrate" => AgentOrchestrateResponse,
+            "/search" => new[] { new { lat = "25.0324", lon = "121.5199" } },   // Nominatim：地名 → 座標
             _ => null
         };
 

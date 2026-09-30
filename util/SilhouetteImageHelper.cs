@@ -29,53 +29,6 @@ namespace backend.util
         // 小於整張圖這個比例的碎塊（飛鳥、電線、雜點）不算剪影
         private const double MinPartRatio = 0.004;
 
-        public static void CreateThresholdSilhouette(
-            string inputPath,
-            string outputPath,
-            byte threshold)
-        {
-            using Image<Rgba32> image = SixLabors.ImageSharp.Image.Load<Rgba32>(inputPath);
-
-            image.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    Span<Rgba32> row = accessor.GetRowSpan(y);
-
-                    for (int x = 0; x < row.Length; x++)
-                    {
-                        Rgba32 pixel = row[x];
-
-                        if (pixel.A == 0)
-                        {
-                            continue;
-                        }
-
-                        byte brightness = (byte)Math.Clamp(
-                            (int)Math.Round(
-                                pixel.R * 0.299 +
-                                pixel.G * 0.587 +
-                                pixel.B * 0.114),
-                            0,
-                            255);
-
-                        row[x] = brightness < threshold
-                            ? new Rgba32(0, 0, 0, pixel.A)
-                            : new Rgba32(255, 255, 255, pixel.A);
-                    }
-                }
-            });
-
-            string directory = Path.GetDirectoryName(outputPath);
-
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            image.SaveAsPng(outputPath);
-        }
-
         /// <summary>
         /// 去背實心剪影：從照片上緣與左右兩側上半部的天空做區域成長找出背景，
         /// 背景透明、其餘（建築物與地面）填成 <see cref="Ink"/>。

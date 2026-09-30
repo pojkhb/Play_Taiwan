@@ -150,18 +150,6 @@ namespace backend.Models
         public string reward_postcard_id { get; set; }              // 觸發後可獲得的明信片代號
     }
 
-    /// <summary>任務線索提示 (對應 md_task_hint)。</summary>
-    public class TaskHint
-    {
-        public int HintId { get; set; }                    // 提示紀錄唯一編號
-        public string TaskId { get; set; }                  // 對應的任務代號
-        public int HintStage { get; set; }                  // 提示階段(第幾階段的提示，數字越大提示越明顯)
-        public int TriggerWrongCount { get; set; }          // 累積答錯幾次後觸發此階段提示
-        public string HintText { get; set; }                // 提示文字內容
-        public string LlmPromptTemplate { get; set; }        // 給 LLM 動態生成提示用的提示詞範本
-        public bool IsActive { get; set; }                   // 是否啟用此提示
-    }
-
     /// <summary>動態難度 LLM 提示字 (對應 md_difficulty_prompt)。</summary>
     public class DifficultyPrompt
     {

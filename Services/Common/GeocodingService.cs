@@ -13,6 +13,13 @@ namespace backend.Services
     /// </summary>
     public class GeocodingService
     {
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public GeocodingService(IHttpClientFactory httpClientFactory)
+        {
+            _httpClientFactory = httpClientFactory;
+        }
+
         /// <summary>座標 → 縣市/鄉鎮區名稱（反向地理編碼）。</summary>
         public async Task<(string city, string district)> ResolveTaiwanAreaAsync(double lat, double lng)
         {
@@ -20,7 +27,7 @@ namespace backend.Services
                 "https://nominatim.openstreetmap.org/reverse" +
                 $"?format=json&lat={lat}&lon={lng}&accept-language=zh-TW";
 
-            using var http = new HttpClient();
+            HttpClient http = _httpClientFactory.CreateClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd("PlayTaiwan/1.0 (local-dev)");
 
             string json = await http.GetStringAsync(url);
@@ -60,7 +67,7 @@ namespace backend.Services
                 "https://nominatim.openstreetmap.org/search" +
                 $"?format=json&q={Uri.EscapeDataString(query)}&countrycodes=tw&limit=1&accept-language=zh-TW";
 
-            using var http = new HttpClient();
+            HttpClient http = _httpClientFactory.CreateClient();
             http.DefaultRequestHeaders.UserAgent.ParseAdd("PlayTaiwan/1.0 (local-dev)");
 
             string json = await http.GetStringAsync(url);

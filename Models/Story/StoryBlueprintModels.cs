@@ -102,6 +102,9 @@ namespace backend.Models
         /// <summary>是否為夜間劇本（夜間劇本完成後才能抽「午夜台灣」系列勳章）</summary>
         public bool is_night_mode { get; set; }
 
+        /// <summary>是否為使用者喜愛的劇本（用 POST /api/Story/{story_id}/Favorite 設定）</summary>
+        public bool is_favorite { get; set; }
+
         /// <summary>NPC 資訊（畫面 3）</summary>
         public NpcDetail npc { get; set; }
 

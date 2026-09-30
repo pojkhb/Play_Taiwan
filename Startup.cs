@@ -134,6 +134,8 @@ namespace backend
             #region S12-過往紀錄
             services.AddScoped<Services.HistoryService>();
             services.AddScoped<dao.HistoryDao>();
+            services.AddScoped<Services.StoryRecapService>();
+            services.AddScoped<dao.StoryRecapDao>();
             #endregion
             #region S14-地圖迷霧圖
             services.AddScoped<Services.FogService>();

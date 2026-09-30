@@ -70,11 +70,11 @@ namespace backend.dao
                   AND ss.au_id = @auId;
             ";
 
-            // story_node.place_id 存的是 Neo4j UUID，place 主表的主鍵是 int p_id，
-            // 兩者無法直接 JOIN，景點名稱先取節點標題。
-            string spotSql = @"
-                SELECT COALESCE(sn.sn_title, sn.location_codename) AS place_name
+            // story_node.place_id 是 Neo4j UUID，透過 place_type 橋接到 place 取真正的景點名稱；橋接不到時用節點標題
+            string spotSql = $@"
+                SELECT COALESCE(p.p_name, sn.sn_title, sn.location_codename) AS place_name
                 FROM story_node sn
+                {MapDao.PlaceBridgeJoin}
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
             ";

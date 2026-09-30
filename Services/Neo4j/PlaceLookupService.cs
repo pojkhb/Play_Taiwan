@@ -1,12 +1,15 @@
 // 檔案路徑：System\Services\Neo4j\PlaceLookupService.cs
 // 景點座標與基本資料查詢。劇本節點（story_node.place_id）存的是 Neo4j uid，
 // 地圖、抵達、任務作答、導航都從這裡查同一份座標，避免各處來源不一致。
-// 走 INeo4jGatewayService（依 Neo4j:Mode 直連或走 API），不再經過 MySQL place 表的名稱對應。
+// 走 INeo4jGatewayService（依 Neo4j:Mode 直連或走 API）。Neo4j 連不上或查不到這個 uid 時，
+// 才退回 MySQL：place_type（uid → 景點名稱）→ place（名稱 → 座標）的名稱對應，準度不如 Neo4j。
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using backend.utils;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
 
@@ -20,11 +23,13 @@ namespace backend.Services.Neo4j
 
         private readonly INeo4jGatewayService _gateway;
         private readonly AppSettings _appSettings;
+        private readonly ILogger<PlaceLookupService> _logger;
 
-        public PlaceLookupService(INeo4jGatewayService gateway, IOptions<AppSettings> appSettings)
+        public PlaceLookupService(INeo4jGatewayService gateway, IOptions<AppSettings> appSettings, ILogger<PlaceLookupService> logger)
         {
             _gateway = gateway;
             _appSettings = appSettings.Value;
+            _logger = logger;
         }
 
         public class PlaceInfo
@@ -39,6 +44,7 @@ namespace backend.Services.Neo4j
         /// <summary>
         /// 一次查多個景點（key = place_id）。查不到或沒有座標的景點不會出現在結果裡。
         /// 商家補充過的景點以最新版本（:Current）的名稱、介紹為準；座標一律取身分節點。
+        /// Neo4j 連不上或沒有這個 uid 時，改用 MySQL 的名稱對應（見 GetBridgedPlacesAsync）。
         /// </summary>
         public async Task<Dictionary<string, PlaceInfo>> GetPlacesAsync(IEnumerable<string> placeIds)
         {
@@ -52,19 +58,33 @@ namespace backend.Services.Neo4j
             List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
             if (uids.Count > 0)
             {
-                var rows = await _gateway.ExecuteCypherAsync(@"
-                    MATCH (p:Place) WHERE p.uid IN $uids
-                    OPTIONAL MATCH (p)-[:HAS_VERSION]->(v:Current)
-                    RETURN p.uid AS uid,
-                           coalesce(v.name, p.name, p.EventName) AS name,
-                           coalesce(p.lat, p.PositionLat) AS lat,
-                           coalesce(p.lon, p.PositionLon) AS lon,
-                           coalesce(v.description, p.description, p.Description) AS description", new { uids });
-
-                foreach (var row in rows)
+                try
                 {
-                    PlaceInfo place = ToPlaceInfo(row);
-                    if (place != null) result[place.uid] = place;
+                    var rows = await _gateway.ExecuteCypherAsync(@"
+                        MATCH (p:Place) WHERE p.uid IN $uids
+                        OPTIONAL MATCH (p)-[:HAS_VERSION]->(v:Current)
+                        RETURN p.uid AS uid,
+                               coalesce(v.name, p.name, p.EventName) AS name,
+                               coalesce(p.lat, p.PositionLat) AS lat,
+                               coalesce(p.lon, p.PositionLon) AS lon,
+                               coalesce(v.description, p.description, p.Description) AS description", new { uids });
+
+                    foreach (var row in rows)
+                    {
+                        PlaceInfo place = ToPlaceInfo(row);
+                        if (place != null) result[place.uid] = place;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "向 Neo4j 查景點座標失敗，改用 MySQL place 表的名稱對應。");
+                }
+
+                List<string> missing = uids.Where(id => !result.ContainsKey(id)).ToList();
+                if (missing.Count > 0)
+                {
+                    foreach (PlaceInfo place in await GetBridgedPlacesAsync(missing))
+                        result[place.uid] = place;
                 }
             }
 
@@ -89,6 +109,22 @@ namespace backend.Services.Neo4j
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Neo4j 查不到的景點改用 MySQL：place_type（uid → 景點名稱，每個景點依題型有多筆，先收斂成一筆）
+        /// → place（名稱 → 座標，同名多筆取編號最小的）。沒有對應或沒有座標的不會出現在結果裡。
+        /// </summary>
+        private async Task<List<PlaceInfo>> GetBridgedPlacesAsync(List<string> uids)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            var rows = await conn.QueryAsync<(string place_id, string p_name, double lat, double lng, string p_introduction)>(@"
+                SELECT pt.place_id, p.p_name, p.p_latitude AS lat, p.p_longitude AS lng, p.p_introduction
+                FROM (SELECT place_id, MIN(place_name) AS place_name FROM place_type WHERE place_id IN @uids GROUP BY place_id) pt
+                INNER JOIN place p ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
+                WHERE p.p_latitude IS NOT NULL AND p.p_longitude IS NOT NULL;", new { uids });
+
+            return rows.Select(r => new PlaceInfo { uid = r.place_id, name = r.p_name, lat = r.lat, lng = r.lng, description = r.p_introduction }).ToList();
         }
 
         /// <summary>單一景點，查不到或沒有座標時回傳 null。</summary>

@@ -15,7 +15,7 @@ public class VlogApiTests
     public async Task 商家VLOG可以取得敘事語氣選項()
     {
         List<NarrativeToneItem> tones =
-            (await (await _api.ClientFor(_api.NewUserId()).GetAsync("/api/MerchantVlog/Tones")).ReadResultAsync<List<NarrativeToneItem>>()).Result;
+            (await (await _api.MerchantClientFor(_api.NewUserId()).GetAsync("/api/MerchantVlog/Tones")).ReadResultAsync<List<NarrativeToneItem>>()).Result;
 
         Assert.Equal(3, tones.Count);
         Assert.Contains(tones, t => t.nt_name == "溫情走心");
@@ -30,7 +30,7 @@ public class VlogApiTests
             { new StringContent("11:00–21:00"), "open_time" },
         };
 
-        HttpResponseMessage response = await _api.ClientFor(_api.NewUserId()).PostAsync("/api/MerchantVlog/Preview", form);
+        HttpResponseMessage response = await _api.MerchantClientFor(_api.NewUserId()).PostAsync("/api/MerchantVlog/Preview", form);
 
         ApiResult<string> result = await response.ReadResultAsync<string>();
         Assert.False(result.isSuccess);

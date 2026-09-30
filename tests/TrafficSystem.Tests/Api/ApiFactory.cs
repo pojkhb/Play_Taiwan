@@ -143,12 +143,39 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    /// <summary>
+    /// 帶角色的 Token，比照 AuthService.GenerateJwtToken：商家帳號帶 Role=Merchant 與 s_id（商家 API 用 JWT 識別店家），
+    /// 遊客帶 Role=Tourist（掃 QR Code 時才會寫入領券紀錄）。
+    /// </summary>
+    public static string TokenWithRole(int auId, string role, int? sId = null)
+    {
+        var claims = new List<Claim> { new Claim("au_id", auId.ToString()), new Claim(ClaimTypes.Role, role) };
+        if (sId.HasValue) claims.Add(new Claim("s_id", sId.Value.ToString()));
+
+        DateTime exp = DateTime.UtcNow.AddHours(1);
+        var token = new JwtSecurityToken(
+            claims: claims,
+            notBefore: exp.AddHours(-2),
+            expires: exp,
+            signingCredentials: new SigningCredentials(
+                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret)), SecurityAlgorithms.HmacSha256));
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
     /// <summary>帶登入身分的 HttpClient；auId 為 null 時不帶 Token</summary>
     public HttpClient ClientFor(int? auId)
     {
         HttpClient client = CreateClient();
         if (auId.HasValue)
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(auId.Value));
+        return client;
+    }
+
+    /// <summary>商家登入的 HttpClient（Role=Merchant；有店家時帶 s_id）</summary>
+    public HttpClient MerchantClientFor(int auId, int? sId = null)
+    {
+        HttpClient client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TokenWithRole(auId, "Merchant", sId));
         return client;
     }
 

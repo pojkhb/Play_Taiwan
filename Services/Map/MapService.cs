@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
+using backend.Services.Neo4j;
 using backend.utils;
 using Microsoft.Extensions.Configuration;
 
@@ -15,21 +16,25 @@ namespace backend.Services
 {
     public class MapService
     {
-        private const double UnlockRadiusMeters = 50.0;
+        // 抵達判定距離，與任務作答共用（PlayRules）
+        private const double UnlockRadiusMeters = PlayRules.ArrivalRadiusMeters;
 
         /// <summary>fog 資料表沒有資料時用的迷霧圖</summary>
         private const string DefaultFogImage = "/images/fog/default_fog.png";
 
         private readonly MapDao _dao;
         private readonly GeocodingService _geocodingService;
+        private readonly PlaceLookupService _placeLookup;
         private readonly FogGenerationQueue _fogQueue;
         private readonly double _fogRadiusMeters;
         private readonly string _fogSecret;
 
-        public MapService(MapDao dao, GeocodingService geocodingService, FogGenerationQueue fogQueue, IConfiguration configuration)
+        public MapService(MapDao dao, GeocodingService geocodingService, PlaceLookupService placeLookup,
+            FogGenerationQueue fogQueue, IConfiguration configuration)
         {
             _dao = dao;
             _geocodingService = geocodingService;
+            _placeLookup = placeLookup;
             _fogQueue = fogQueue;
             _fogRadiusMeters = double.TryParse(configuration["Fog:RadiusMeters"], out double radius) && radius > 0 ? radius : 300;
             _fogSecret = configuration["AppSettings:jwt_secret"] ?? "";
@@ -38,17 +43,17 @@ namespace backend.Services
         #region 取得地圖
 
         /// <summary>
-        /// 取得指定劇本的地圖資訊。
-        /// 後端依 story_session.ss_current 判斷節點是否解鎖，未解鎖的站由後端蓋上迷霧：
-        /// 站名換成迷霧提示、照片換成這一站照片的迷霧版、座標換成偏移過的迷霧中心，真正的答案不會傳給前端。
-        /// 迷霧圖還沒做好的站先用通用迷霧圖，並在背景補做（下次打開地圖就會換上）。
+        /// 取得指定劇本的地圖資訊。只有劇本擁有者或協作隊員可以查看。
+        /// 後端依 story_session.ss_current 判斷節點是否解鎖（協作隊伍全隊共用進度，見 TeamProgress），座標依節點的 place_id 向 Neo4j 查。
+        /// 未解鎖的站由後端蓋上迷霧：站名換成迷霧提示、照片換成這一站照片的迷霧版、座標換成偏移過的迷霧中心，
+        /// 真正的答案不會傳給前端。迷霧圖還沒做好的站先用通用迷霧圖，並在背景補做（下次打開地圖就會換上）。
         /// 新資料表沒有 day_index，目前所有節點都歸在第一日。
         /// </summary>
         /// <param name="storyId">劇本代號，對應 story.s_id。</param>
         /// <param name="user">目前登入使用者 JWT Claims。</param>
         /// <param name="baseUrl">後端網址（例如 https://xxx），用來把迷霧圖組成完整網址。</param>
         /// <returns>地圖進度、節點、明信片統計與總天數。</returns>
-        public MapResponse GetMap(
+        public async Task<MapResponse> GetMap(
             int storyId,
             ClaimsPrincipal user,
             string baseUrl)
@@ -60,6 +65,23 @@ namespace backend.Services
             if (nodes == null || nodes.Count == 0)
             {
                 throw new KeyNotFoundException("此劇本沒有可用的地圖節點。");
+            }
+
+            if (!_dao.CanPlay(auId, storyId))
+            {
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法查看地圖。");
+            }
+
+            Dictionary<string, PlaceLookupService.PlaceInfo> places =
+                await _placeLookup.GetPlacesAsync(nodes.Select(x => x.place_id));
+
+            foreach (MapNode node in nodes)
+            {
+                if (node.place_id != null && places.TryGetValue(node.place_id, out PlaceLookupService.PlaceInfo place))
+                {
+                    node.lat = place.lat;
+                    node.lng = place.lng;
+                }
             }
 
             int currentNodeOrder = _dao.GetCurrentNodeOrder(auId, storyId);
@@ -74,7 +96,8 @@ namespace backend.Services
 
             foreach (MapNode node in nodes)
             {
-                node.is_unlocked = IsUnlocked(node.node_order, currentNodeOrder);
+                // 第一個節點固定開放；抵達第 N 節點後開放第 N+1 節點（協作隊伍全隊共用進度）。
+                node.is_unlocked = TeamProgress.IsUnlocked(node.node_order, currentNodeOrder);
 
                 if (node.is_unlocked)
                 {
@@ -86,7 +109,7 @@ namespace backend.Services
                 {
                     if (string.IsNullOrWhiteSpace(node.fog_hint))
                     {
-                        node.fog_hint = "前方仍被迷霧籠罩，完成前一站任務後即可探索。";
+                        node.fog_hint = "前方仍被迷霧籠罩，抵達前一站後即可探索。";
                     }
 
                     // 迷霧中的站：不回傳真正的站名、照片與精確座標
@@ -145,16 +168,17 @@ namespace backend.Services
 
         #region GPS 確認抵達
 
-        public NodeDetailResponse ArriveNode(
+        /// <summary>
+        /// GPS 確認抵達：只有劇本擁有者或協作隊員可以抵達，且只能抵達已解鎖的站；
+        /// 距離以節點 place_id 在 Neo4j 的座標計算（與任務作答同一份座標）。
+        /// </summary>
+        public async Task<NodeDetailResponse> ArriveNode(
             int nodeId,
             double userLat,
             double userLng,
             ClaimsPrincipal user)
         {
             int auId = user.GetAuId();
-
-            // 要照順序來：還在迷霧中的站不能打卡
-            EnsureUnlocked(auId, nodeId);
 
             MapNode node = _dao.GetNodeLocation(nodeId);
 
@@ -163,16 +187,24 @@ namespace backend.Services
                 throw new KeyNotFoundException("找不到指定節點。");
             }
 
-            if (node.lat == 0 || node.lng == 0)
+            int storyId = _dao.GetNodeStoryId(nodeId) ?? throw new KeyNotFoundException("找不到指定節點。");
+
+            if (!_dao.CanPlay(auId, storyId))
             {
-                throw new InvalidOperationException("此節點尚未設定有效座標。");
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法抵達節點。");
             }
+
+            // 只能抵達已解鎖的站（還在迷霧中回 403），避免直接跳到後面的站把進度推過去
+            EnsureUnlocked(auId, nodeId);
+
+            PlaceLookupService.PlaceInfo place = await _placeLookup.GetPlaceAsync(node.place_id)
+                ?? throw new InvalidOperationException("查不到此節點的景點座標，無法確認抵達。");
 
             double distance = CalculateDistanceMeters(
                 userLat,
                 userLng,
-                node.lat,
-                node.lng);
+                place.lat,
+                place.lng);
 
             if (distance > UnlockRadiusMeters)
             {
@@ -240,7 +272,7 @@ namespace backend.Services
         #region 導航
 
         /// <summary>導航；還在迷霧中的站不能導航（否則會直接洩漏精確位置）</summary>
-        public NavigationResponse GetNavigation(NavigationRequest req, ClaimsPrincipal user)
+        public async Task<NavigationResponse> GetNavigation(NavigationRequest req, ClaimsPrincipal user)
         {
             if (req == null || req.node_id <= 0)
             {
@@ -256,15 +288,13 @@ namespace backend.Services
                 throw new KeyNotFoundException("找不到指定導航節點。");
             }
 
-            if (node.lat == 0 || node.lng == 0)
-            {
-                throw new InvalidOperationException("此景點尚未設定有效座標。");
-            }
+            PlaceLookupService.PlaceInfo place = await _placeLookup.GetPlaceAsync(node.place_id)
+                ?? throw new InvalidOperationException("查不到此景點的座標。");
 
             return new NavigationResponse
             {
                 maps_deeplink_url =
-                    $"https://www.google.com/maps/search/?api=1&query={node.lat},{node.lng}"
+                    $"https://www.google.com/maps/search/?api=1&query={place.lat},{place.lng}"
             };
         }
 
@@ -283,11 +313,11 @@ namespace backend.Services
 
         #region 迷霧
 
-        /// <summary>第一站固定開放；玩家抵達第 N 站後，開放第 N+1 站</summary>
+        /// <summary>第一站固定開放；玩家（協作隊伍全隊共用）抵達第 N 站後，開放第 N+1 站。規則見 TeamProgress</summary>
         internal static bool IsUnlocked(int nodeOrder, int currentNodeOrder) =>
-            nodeOrder == 1 || nodeOrder <= currentNodeOrder + 1;
+            TeamProgress.IsUnlocked(nodeOrder, currentNodeOrder);
 
-        /// <summary>這一站還在迷霧中就丟出 NodeLockedException</summary>
+        /// <summary>這一站還在迷霧中就丟出 NodeLockedException（進度用 TeamProgress，協作隊伍全隊共用）</summary>
         private void EnsureUnlocked(int auId, int nodeId)
         {
             MapDao.NodeProgress progress = _dao.GetNodeProgress(auId, nodeId);

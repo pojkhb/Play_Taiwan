@@ -9,29 +9,19 @@ namespace backend.Models
         public string node_id { get; set; } // 欲進行任務的節點代號
         public float gps_lon { get; set; } // 玩家目前經度
         public float gps_lat { get; set; } // 玩家目前緯度
-        // player_count 已移除：任務生成改在劇本生成（POST api/Story/GenerateAi）時就決定，
-        // 這裡純讀取 md_task，人數不影響查詢結果。
-
-        // 協作解謎型（type_id=5）專用：標示這是隊伍中的第幾位玩家（1 或 2），
-        // 後端會依此回傳對應角色的線索文字。其他題型忽略此欄位，未帶值視為 1。
-        public int player_index { get; set; } = 1;
+        // player_count 已移除：任務在劇本生成時就決定，這裡純讀取 task，人數不影響查詢結果。
+        // player_index 已移除：協作解謎型的座位改由後端依登入者（JWT）在協作隊伍中的 seat_no 決定。
     }
 
     /// <summary>
-    /// 測試用：手動觸發任務生成的請求。
-    /// 正式流程的任務生成是在 POST api/Story/GenerateAi 劇本存檔後自動執行。
+    /// 測試用（前端不用接）：手動觸發任務生成的請求。
+    /// 正式流程的任務在 GenerateGameStory 生成劇本時就一併生成。
     /// </summary>
     public class TaskGenerateReq
     {
         public string story_id { get; set; }     // 為整份劇本的所有節點生成
         public string node_id { get; set; }      // 有值時只針對此節點生成（優先於 story_id）
         public int player_count { get; set; }    // 遊玩人數，未給預設 2
-    }
-
-    public class SearchNeo4jReq
-    {
-        public string place_id { get; set; } // 欲查詢的景點代號
-        public string story_id { get; set; } // 所屬故事代號
     }
 
     /// <summary>
@@ -46,14 +36,18 @@ namespace backend.Models
         public int type_id { get; set; }
         public string task_type { get; set; }
 
-        public string task_describe { get; set; } // AI 生成的任務描述（協作解謎型時，已依 player_index 換成對應角色的線索）
+        public string task_describe { get; set; } // 任務描述（協作解謎型為兩人共同的題目）
+
+        public string clue_text { get; set; } // 協作解謎型（type_id=5）：登入者座位（協作隊伍的 seat_no）在 task_clue 的線索，其他題型為 null
+
+        public int pass { get; set; } // 任務通關狀態（task.pass）：0=未通過、1=已通過
 
         public List<TaskOption> options { get; set; } // 選擇題選項
         public List<string> media_urls { get; set; } // 使用者上傳圖片/影片
 
-        // 協作解謎型（type_id=5）專用欄位，僅供後端內部換算 task_describe 用，不回傳給前端。
+        // 協作解謎型（type_id=5）生成時使用：座位 2 的線索（座位 1 放 clue_text），寫入 task_clue，不回傳給前端。
         [JsonIgnore]
-        public string task_describe_b { get; set; } // 玩家 B 看到的線索文字
+        public string task_describe_b { get; set; }
 
         // 文字問答類題型（跨關集結型/協作解謎型）的正確答案，供 SubmitAnswer 核對，不回傳給前端。
         [JsonIgnore]
@@ -71,7 +65,7 @@ namespace backend.Models
 
     public class TaskAnswerRequest
     {
-        public int task_id { get; set; }                           // 任務代號 (md_task.task_id)
+        public int task_id { get; set; }                           // 任務代號 (task.task_id)；要帶哪個作答欄位見節點遊玩畫面的 answer_mode
 
         public float gps_lon { get; set; }                         // 玩家提交當下的經度（位置驗證用）
 
@@ -88,17 +82,109 @@ namespace backend.Models
         public string audio_url { get; set; }                      // 採訪蒐證型
 
         [System.Text.Json.Serialization.JsonIgnore]
-        public string ep_id { get; set; }                          // 後端從 Token 取得
+        public int au_id { get; set; }                             // 後端從 Token 取得（登入者 au_id）
     }
 
     public class TaskAnswerResponse
     {
         public bool is_correct { get; set; }                  // 答題是否正確
+        public int pass { get; set; }                           // 作答後的任務通關狀態（task.pass）：0=未通過、1=已通過
         public bool is_pending_review { get; set; }             // 是否人工審核中
         public string feedback_message { get; set; }             // 系統回饋文字
-        public string unlocked_postcard_id { get; set; }          // 答對後解鎖的明信片代號
-        public int unlocked_node_progress { get; set; }            // 目前已解鎖節點進度
-        public int total_node_count { get; set; }                   // 任務總節點數
+        public NodeProgress node_progress { get; set; }            // 作答後這一站的進度（答完不用重抓節點遊玩畫面）
+        public bool node_completed { get; set; }                     // 這一站的任務是否已全部通過
+        public bool story_completed { get; set; }                      // 整份劇本的任務是否已全部通過（此時遊玩紀錄與隊伍已自動標成完成）
+    }
+
+    /// <summary>一站的任務進度</summary>
+    public class NodeProgress
+    {
+        public int passed { get; set; }        // 已通過題數
+        public int total { get; set; }         // 總題數
+        public bool all_passed { get; set; }   // 是否全部通過
+    }
+
+    /// <summary>
+    /// 作答方式（NodePlayTask.answer_mode），決定前端顯示哪種輸入、作答時送哪個欄位：
+    /// choice → selected_option_key；text → text_answer；photo → photo_url；
+    /// audio_or_video → audio_url 或 video_url；gps → 不用帶作答欄位，在現場送出即可。
+    /// </summary>
+    public static class AnswerModes
+    {
+        public const string Gps = "gps";
+        public const string Text = "text";
+        public const string Choice = "choice";
+        public const string Photo = "photo";
+        public const string AudioOrVideo = "audio_or_video";
+
+        /// <summary>依任務類型（type.type_id）決定作答方式，對應 TaskVerificationService 的驗證規則</summary>
+        public static string ForType(int typeId) => typeId switch
+        {
+            1 => Gps,
+            2 => Text,
+            3 => Photo,
+            4 => Photo,
+            5 => Text,
+            6 => Choice,
+            7 => Choice,
+            8 => AudioOrVideo,
+            9 => Choice,
+            10 => Choice,
+            _ => Text
+        };
+
+        /// <summary>作答方式需要的欄位沒帶時回傳提示訊息（SubmitAnswer 回 400），都有帶時回傳 null</summary>
+        public static string MissingFieldMessage(string answerMode, TaskAnswerRequest req) => answerMode switch
+        {
+            Text when string.IsNullOrWhiteSpace(req.text_answer) => "請輸入文字答案（text_answer）",
+            Choice when string.IsNullOrWhiteSpace(req.selected_option_key) => "請選擇一個選項（selected_option_key）",
+            Photo when string.IsNullOrWhiteSpace(req.photo_url) => "請先上傳照片（photo_url）",
+            AudioOrVideo when string.IsNullOrWhiteSpace(req.audio_url) && string.IsNullOrWhiteSpace(req.video_url)
+                => "請先上傳錄音或影片（audio_url 或 video_url）",
+            _ => null
+        };
+    }
+
+    /// <summary>節點遊玩畫面（GET api/Task/Node/{node_id}）：一次拿到這一站畫面需要的所有資料</summary>
+    public class NodePlayResponse
+    {
+        public NodePlayNode node { get; set; }
+        public int my_seat_no { get; set; }                  // 登入者的座位（協作解謎看的線索），沒有隊伍的擁有者為 1
+        public NodeProgress progress { get; set; }
+        public List<NodePlayTask> tasks { get; set; } = new();
+    }
+
+    public class NodePlayNode
+    {
+        public int node_id { get; set; }               // story_node.sn_id
+        public int story_id { get; set; }
+        public int node_order { get; set; }
+        public string title { get; set; }
+        public string location_codename { get; set; }
+        public string opening_text { get; set; }       // 抵達時的開場劇情
+        public string success_text { get; set; }       // 完成劇情，這一站任務全部通過後才有值
+    }
+
+    public class NodePlayTask
+    {
+        public int task_id { get; set; }               // 作答、取提示用的任務代號
+        public int type_id { get; set; }
+        public string type_name { get; set; }
+        public string answer_mode { get; set; }        // 見 AnswerModes
+        public string task_describe { get; set; }
+        public string clue_text { get; set; }          // 協作解謎型：自己座位的線索，其他題型為 null
+        public List<NodePlayOption> options { get; set; } = new();
+        public int pass { get; set; }                  // 0=未通過、1=已通過（協作隊伍共用）
+        public int wrong_count { get; set; }           // 自己在這題答錯的次數
+        public bool hint_available { get; set; }       // 是否可以取提示（答錯次數達門檻、還沒通過、這題有提示；門檻依題目難易度與玩家表現）
+    }
+
+    /// <summary>選項（不含正確答案）</summary>
+    public class NodePlayOption
+    {
+        public string option_key { get; set; }
+        public string option_text { get; set; }
+        public string option_url { get; set; }
     }
 
     public class TaskHintResponse
@@ -150,13 +236,21 @@ namespace backend.Models
         public string reward_postcard_id { get; set; }              // 觸發後可獲得的明信片代號
     }
 
-    /// <summary>動態難度 LLM 提示字 (對應 md_difficulty_prompt)。</summary>
-    public class DifficultyPrompt
+    /// <summary>題型解鎖進度（GET api/Task/Progress）：玩家在目前所在鄉鎮市區的題型解鎖狀態</summary>
+    public class TaskProgressResponse
     {
-        public int DifficultyStar { get; set; }              // 難度星級 1~5
-        public string Title { get; set; }                     // 該難度等級的標題名稱
-        public string LlmPromptTemplate { get; set; }          // 給 LLM 依此難度生成內容用的提示詞範本
-        public int RaiseVisitThreshold { get; set; }            // 累積造訪次數達到此門檻後，難度自動提升
+        public string city_name { get; set; }          // 所在縣市，查不到所在區時為 null
+        public string district_name { get; set; }      // 所在鄉鎮市區，查不到所在區時為 null
+        public bool is_first_visit { get; set; }       // 是否第一次到這個區（還沒在這個區抵達過任何一站），查不到所在區時為 true
+        public List<TaskTypeUnlock> unlocked_types { get; set; } = new();
+        public List<TaskTypeUnlock> locked_types { get; set; } = new();
+    }
+
+    public class TaskTypeUnlock
+    {
+        public int type_id { get; set; }
+        public string type_name { get; set; }
+        public string unlock_hint { get; set; }        // 解鎖條件，已解鎖的題型為 null
     }
 
     /// <summary>隱藏關卡 (對應 md_hidden_level)。</summary>
@@ -175,14 +269,5 @@ namespace backend.Models
         public string RewardBadgeId { get; set; }                     // 觸發後可能給予的徽章代號
         public string RewardPostcardId { get; set; }                   // 觸發後可能給予的明信片代號
         public bool IsActive { get; set; }                              // 是否啟用此隱藏關卡
-    }
-
-    /// <summary>探員造訪次數 (對應 ep_visit_count)，用於動態難度判定。</summary>
-    public class VisitCount
-    {
-        public string EpId { get; set; }                     // 探員代號
-        public string RegionId { get; set; }                  // 地區代號
-        public int VisitCountValue { get; set; }                // 累積造訪次數
-        public int CurrentDifficultyStar { get; set; }            // 目前套用的難度星級 1~5
     }
 }

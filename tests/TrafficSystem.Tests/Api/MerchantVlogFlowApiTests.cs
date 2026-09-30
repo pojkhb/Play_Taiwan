@@ -64,7 +64,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Fact]
     public async Task 完整流程_店家資訊與照片_拿到旁白配文TAG_送出合成_取得影片()
     {
-        HttpClient client = _api.ClientFor(_api.NewUserId());
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
         List<NarrativeToneItem> tones = (await (await client.GetAsync("/api/MerchantVlog/Tones")).ReadResultAsync<List<NarrativeToneItem>>()).Result;
         NarrativeToneItem warm = tones.Single(t => t.nt_name == "溫情走心");
 
@@ -130,7 +130,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Fact]
     public async Task 換語氣重新產生草稿時不帶照片會沿用原本的照片()
     {
-        HttpClient client = _api.ClientFor(_api.NewUserId());
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
         MerchantVlogPreviewResponse first = (await PreviewAsync(client, Form(imageCount: 2))).Result;
 
         MerchantVlogPreviewResponse again = (await PreviewAsync(client, Form(imageCount: 0, mmId: first.mm_id))).Result;
@@ -142,7 +142,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Fact]
     public async Task 影片合成中不能再修改草稿()
     {
-        HttpClient client = _api.ClientFor(_api.NewUserId());
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
         MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
         await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
 
@@ -155,7 +155,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Fact]
     public async Task AI合成失敗時記錄失敗原因()
     {
-        HttpClient client = _api.ClientFor(_api.NewUserId());
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
         MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
         await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
 
@@ -169,10 +169,10 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Fact]
     public async Task 別的商家看不到這個影音專案()
     {
-        MerchantVlogPreviewResponse draft = (await PreviewAsync(_api.ClientFor(_api.NewUserId()), Form(imageCount: 1))).Result;
+        MerchantVlogPreviewResponse draft = (await PreviewAsync(_api.MerchantClientFor(_api.NewUserId()), Form(imageCount: 1))).Result;
 
         ApiResult<MerchantVlogStatusResponse> other =
-            await (await _api.ClientFor(_api.NewUserId()).GetAsync($"/api/MerchantVlog/Status/{draft.mm_id}")).ReadResultAsync<MerchantVlogStatusResponse>();
+            await (await _api.MerchantClientFor(_api.NewUserId()).GetAsync($"/api/MerchantVlog/Status/{draft.mm_id}")).ReadResultAsync<MerchantVlogStatusResponse>();
 
         Assert.False(other.isSuccess);
         Assert.Equal("找不到此影音專案", other.message);
@@ -185,7 +185,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     public async Task 照片不符合規定時擋下(int count, string fileName, string contentType, string expected)
     {
         ApiResult<MerchantVlogPreviewResponse> result =
-            await PreviewAsync(_api.ClientFor(_api.NewUserId()), Form(count, fileName: fileName, contentType: contentType));
+            await PreviewAsync(_api.MerchantClientFor(_api.NewUserId()), Form(count, fileName: fileName, contentType: contentType));
 
         Assert.False(result.isSuccess);
         Assert.Contains(expected, result.message);

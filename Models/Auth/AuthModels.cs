@@ -50,6 +50,9 @@ namespace backend.Models
 
         /// <summary>身分類型英文名稱：Tourist / Merchant / Admin，用來判斷登入後要導向哪個介面</summary>
         public string account_type_name { get; set; }
+
+        /// <summary>商家帳號的店家代號（store.s_id），非商家或尚未建立店家資料時為 null</summary>
+        public int? s_id { get; set; }
     }
 
     /// <summary>註冊請求。年齡欄位已移除，新表沒有 age，只存生日。</summary>

@@ -1,6 +1,7 @@
 // 檔案路徑：System\Services\Auth\AuthService.cs
 // 對應新資料表 `auth`，取代舊的 ep_account 相關邏輯
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -38,7 +39,43 @@ namespace backend.Services
         }
 
         #region 登入
+        /// <summary>
+        /// 一般登入（遊客／商家／管理員共用）。商家帳號的 Token 會一併帶 s_id Claim，可直接呼叫商家 API。
+        /// </summary>
         public LoginResponse Login(LoginRequest req)
+        {
+            AuthAccount account = ValidateCredentials(req);
+
+            int? sId = account.auth_type == MerchantAuthType ? _dao.GetStoreIdByAuId(account.au_id) : null;
+
+            return IssueLogin(account, sId);
+        }
+
+        /// <summary>
+        /// 商家登入：只接受商家帳號（auth_type = 2）且已建立店家資料，Token 帶 au_id + s_id + Role=Merchant。
+        /// </summary>
+        public LoginResponse MerchantLogin(LoginRequest req)
+        {
+            AuthAccount account = ValidateCredentials(req);
+
+            if (account.auth_type != MerchantAuthType)
+            {
+                throw new UnauthorizedAccessException("此帳號不是商家帳號，請改用一般登入");
+            }
+
+            int? sId = _dao.GetStoreIdByAuId(account.au_id);
+            if (sId == null)
+            {
+                throw new UnauthorizedAccessException("找不到此帳號的商家資料，請先完成商家註冊");
+            }
+
+            return IssueLogin(account, sId);
+        }
+
+        private const int MerchantAuthType = 2;
+
+        /// <summary>檢查帳號狀態與密碼，通過後回傳帳號資料。</summary>
+        private AuthAccount ValidateCredentials(LoginRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.auth_name) || string.IsNullOrWhiteSpace(req.auth_pswd))
             {
@@ -70,17 +107,22 @@ namespace backend.Services
                 throw new Exception("帳號或密碼錯誤");
             }
 
-            _dao.UpdateLastLogin(account.au_id);
+            return account;
+        }
 
-            string token = GenerateJwtToken(account);
+        /// <summary>更新最後登入時間並簽發 Token。</summary>
+        private LoginResponse IssueLogin(AuthAccount account, int? sId)
+        {
+            _dao.UpdateLastLogin(account.au_id);
 
             return new LoginResponse
             {
-                token = token,
+                token = GenerateJwtToken(account, sId),
                 au_id = account.au_id,
                 auth_name = account.auth_name,
                 auth_type = account.auth_type,
-                account_type_name = GetAccountTypeName(account.auth_type)
+                account_type_name = GetAccountTypeName(account.auth_type),
+                s_id = sId
             };
         }
         #endregion
@@ -236,9 +278,9 @@ namespace backend.Services
         }
 
         /// <summary>
-        /// 產生登入 JWT Token。
+        /// 產生登入 JWT Token。商家帳號有店家資料時另外帶 s_id Claim（見 CurrentUser.GetSId）。
         /// </summary>
-        private string GenerateJwtToken(AuthAccount account)
+        private string GenerateJwtToken(AuthAccount account, int? sId)
         {
             string roleStr = GetAccountTypeName(account.auth_type);
 
@@ -251,7 +293,7 @@ namespace backend.Services
                 SecurityAlgorithms.HmacSha256
             );
 
-            Claim[] claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim("au_id", account.au_id.ToString()),
                 new Claim("auth_name", account.auth_name),
@@ -259,6 +301,11 @@ namespace backend.Services
                 new Claim(ClaimTypes.Name, account.auth_name),
                 new Claim(ClaimTypes.Role, roleStr)
             };
+
+            if (sId.HasValue)
+            {
+                claims.Add(new Claim("s_id", sId.Value.ToString()));
+            }
 
             JwtSecurityToken token = new JwtSecurityToken(
                 claims: claims,
@@ -293,6 +340,7 @@ namespace backend.Services
             LoginResponse profile = _dao.GetProfile(auId);
             if (profile == null) throw new Exception("找不到此帳號");
             profile.account_type_name = GetAccountTypeName(profile.auth_type);
+            profile.s_id = profile.auth_type == MerchantAuthType ? _dao.GetStoreIdByAuId(auId) : null;
             return profile;
         }
         #endregion

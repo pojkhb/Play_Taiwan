@@ -263,11 +263,13 @@ namespace backend.dao
             ";
 
             // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
+            // story_node 已移除 sn_hint，任務說明改取該節點第一筆任務的 task_describe。
             string nodeSql = $@"
                 SELECT
                     sn.sn_id, sn.sn_order, sn.sn_title, sn.sn_task_type,
                     sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
-                    NULLIF(p.p_image, '') AS image_url
+                    NULLIF(p.p_image, '') AS image_url,
+                    (SELECT t.task_describe FROM task t WHERE t.node_id = sn.sn_id ORDER BY t.task_id LIMIT 1) AS task_describe
                 FROM story_node sn
                 {PlaceImageJoin}
                 WHERE sn.s_id = @storyId
@@ -310,7 +312,7 @@ namespace backend.dao
                     {
                         order = order,
                         place_name = title,
-                        task_description = "",   // story_node 已沒有 sn_hint，任務說明在 task 表
+                        task_description = (node.task_describe as string) ?? "",
                         location_codename = (node.location_codename as string) ?? "",
                         opening = (node.sn_opening_text as string) ?? "",
                         success = (node.sn_success_text as string) ?? "",
@@ -490,8 +492,38 @@ namespace backend.dao
             }
         }
 
+        /// <summary>登入者與劇本的關係：劇本不存在時回傳 null</summary>
+        public class StoryParticipation
+        {
+            public int owner_id { get; set; }
+
+            /// <summary>這份劇本協作隊伍（未取消）的成員。只有遊玩紀錄不算（避免沒參與的人自己建紀錄）</summary>
+            public bool is_participant { get; set; }
+        }
+
+        public StoryParticipation GetStoryParticipation(int auId, int storyId)
+        {
+            string sql = @"
+                SELECT
+                    s.au_id AS owner_id,
+                    EXISTS (SELECT 1
+                            FROM story_pair_member pm
+                            INNER JOIN story_pair_session ps ON ps.pair_id = pm.pair_id
+                            WHERE pm.au_id = @auId AND ps.s_id = s.s_id AND ps.pair_status <> 'cancelled') AS is_participant
+                FROM story s
+                WHERE s.s_id = @storyId;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.QueryFirstOrDefault<StoryParticipation>(sql, new { auId, storyId });
+            }
+        }
+
         /// <summary>
         /// 玩家結束劇本時呼叫，把該場次標記為完成（首頁與過往紀錄都以 completed 統計）。
+        /// 沒有遊玩紀錄（沒按過確認開始）時不補建，回傳 false。
         /// </summary>
         public bool ClearStoryPlaying(int auId, int storyId)
         {
@@ -501,10 +533,21 @@ namespace backend.dao
                 WHERE au_id = @auId AND s_id = @storyId;
             ";
 
+            // 劇本擁有者結束劇本時，進行中的協作隊伍一併標成完成（配對碼釋出）
+            string completePairSql = @"
+                UPDATE story_pair_session ps
+                INNER JOIN story s ON s.s_id = ps.s_id
+                SET ps.pair_status = 'completed', ps.completed_at = NOW()
+                WHERE ps.s_id = @storyId AND s.au_id = @auId
+                  AND ps.pair_status IN ('waiting', 'locked', 'expired');
+            ";
+
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
-                return conn.Execute(sql, new { auId, storyId }) > 0;
+                bool cleared = conn.Execute(sql, new { auId, storyId }) > 0;
+                conn.Execute(completePairSql, new { auId, storyId });
+                return cleared;
             }
         }
 
@@ -574,7 +617,7 @@ namespace backend.dao
                     location_codename, sn_opening_text, sn_success_text, sn_task_type
                 ) VALUES (
                     @storyId, @placeId, @order, @title,
-                    2, 2, 2,
+                    2, @isNightOnly, 2,
                     @codename, @opening, @success, @taskType
                 );
             ";
@@ -602,7 +645,7 @@ namespace backend.dao
                             prologue = data.preface ?? "",
                             synopsis = data.synopsis ?? "",
                             expectedPostcards = data.nodes?.Count ?? 0,
-                            isNightMode = data.is_night_mode ? 1 : 2
+                            isNightMode = data.is_night_mode ? 1 : 0
                         }, transaction);
 
                         foreach (var node in data.nodes ?? new List<ScriptBlueprintNode>())
@@ -643,6 +686,7 @@ namespace backend.dao
                                 placeId = neo4jUid,
                                 order = node.node_order,
                                 title = node.node_title ?? node.place_name ?? "",
+                                isNightOnly = data.is_night_mode ? 1 : 0,
                                 codename = node.location_codename ?? "",
                                 opening = node.dialogues?.opening ?? "",
                                 success = node.dialogues?.success ?? "",
@@ -731,6 +775,84 @@ namespace backend.dao
             }
         }
 
+        /// <summary>商家題庫的一題（含選項），place_id 為商家對應的 Neo4j uuid（store.store_uid）</summary>
+        public class MerchantQuestionRow
+        {
+            public string place_id { get; set; }
+            public int question_id { get; set; }
+            public string question_describe { get; set; }
+            public List<GameStoryTaskOption> options { get; set; } = new List<GameStoryTaskOption>();
+        }
+
+        private class MerchantQuestionOptionRow
+        {
+            public int question_id { get; set; }
+            public string option_key { get; set; }
+            public string option_context { get; set; }
+            public string option_url { get; set; }
+            public int is_correct { get; set; }
+        }
+
+        /// <summary>
+        /// 查多個景點中，屬於已註冊商家（store.store_uid）的商家題庫（store_question + question_option）。
+        /// 沒有選項的題目不回傳（無法作答）。
+        /// </summary>
+        public async Task<List<MerchantQuestionRow>> GetMerchantQuestionsByPlaceIdsAsync(List<string> placeIds)
+        {
+            if (placeIds == null || placeIds.Count == 0) return new List<MerchantQuestionRow>();
+
+            string sql = @"
+                SELECT s.store_uid AS place_id, q.question_id, q.question_describe
+                FROM store s
+                INNER JOIN store_question q ON q.store_id = s.s_id
+                WHERE s.store_uid IN @placeIds;
+
+                SELECT o.question_id, o.option_key, o.option_context, o.option_url, o.is_correct
+                FROM question_option o
+                INNER JOIN store_question q ON q.question_id = o.question_id
+                INNER JOIN store s ON s.s_id = q.store_id
+                WHERE s.store_uid IN @placeIds
+                ORDER BY o.option_id;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                using var multi = await conn.QueryMultipleAsync(sql, new { placeIds });
+                List<MerchantQuestionRow> questions = (await multi.ReadAsync<MerchantQuestionRow>()).ToList();
+                ILookup<int, MerchantQuestionOptionRow> options = (await multi.ReadAsync<MerchantQuestionOptionRow>())
+                    .ToLookup(o => o.question_id);
+
+                foreach (MerchantQuestionRow question in questions)
+                {
+                    question.options = options[question.question_id]
+                        .Select(o => new GameStoryTaskOption
+                        {
+                            option_key = o.option_key,
+                            option_context = o.option_context,
+                            option_url = o.option_url,
+                            is_correct = o.is_correct == 1 ? 1 : 0
+                        })
+                        .ToList();
+                }
+
+                return questions.Where(q => q.options.Count > 0).ToList();
+            }
+        }
+
+        /// <summary>
+        /// 現有商家的景點 uid（store.store_uid，含自建景點與綁定的既有景點），行程規劃補商家候選用，
+        /// 座標由 PlaceLookupService 向 Neo4j 查。已刪除帳號的商家沒有 store 資料，不會列入。
+        /// </summary>
+        public async Task<List<string>> GetStoreUidsAsync()
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                var rows = await conn.QueryAsync<string>(
+                    "SELECT DISTINCT store_uid FROM store WHERE store_uid IS NOT NULL AND store_uid <> '';");
+                return rows.ToList();
+            }
+        }
+
         /// <summary>任務類型對照（type_id → type_name）</summary>
         public async Task<Dictionary<int, string>> GetTaskTypeNamesAsync()
         {
@@ -753,6 +875,7 @@ namespace backend.dao
 
         /// <summary>
         /// 把 AI 生成的多份劇本 + 任務整包寫入 story、story_tag、story_node、task、task_option、task_clue（同一個交易，全部成功才寫入）。
+        /// 商家知識問答（task.question_id 有值）只寫 task 本身，題目與選項沿用商家題庫。
         /// 寫入後把 story_id、sn_id、task_db_id 回填到 results。
         /// </summary>
         public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit)
@@ -785,9 +908,10 @@ namespace backend.dao
                 SELECT LAST_INSERT_ID();
             ";
 
+            // 商家題庫任務只寫 question_id，題目文字與選項由 store_question / question_option 帶出
             string insertTaskSql = @"
-                INSERT INTO task (story_id, node_id, task_type, task_describe, correct_answer, task_hint)
-                VALUES (@storyId, @nodeId, @typeId, @describe, @answer, @hint);
+                INSERT INTO task (story_id, node_id, task_type, question_id, task_describe, correct_answer, task_hint)
+                VALUES (@storyId, @nodeId, @typeId, @questionId, @describe, @answer, @hint);
                 SELECT LAST_INSERT_ID();
             ";
 
@@ -829,7 +953,7 @@ namespace backend.dao
                                 synopsis = story.story_synopsis ?? "",
                                 badge = string.Join(",", story.story_badge ?? new List<string>()),
                                 postcards = story.story_postcards,
-                                isNightMode = story.is_night_mode == 1 ? 1 : 2
+                                isNightMode = story.is_night_mode == 1 ? 1 : 0
                             }, transaction);
 
                             foreach (string tag in (preferences ?? new List<string>())
@@ -861,22 +985,27 @@ namespace backend.dao
 
                                 foreach (GameStoryTask task in tasks)
                                 {
-                                    task.task_db_id = await conn.ExecuteScalarAsync<int>(insertTaskSql, new
+                                    bool fromQuestionBank = task.question_id.HasValue;
+
+                                    task.task_id = await conn.ExecuteScalarAsync<int>(insertTaskSql, new
                                     {
                                         storyId,
                                         nodeId = node.sn_id,
                                         typeId = task.task_type,
-                                        describe = task.task_describe ?? "",
+                                        questionId = task.question_id,
+                                        describe = fromQuestionBank ? null : task.task_describe ?? "",
                                         answer = string.IsNullOrWhiteSpace(task.correct_answer) ? null : Truncate(task.correct_answer, 255),
-                                        hint = task.task_hint ?? ""
+                                        hint = fromQuestionBank ? null : task.task_hint ?? ""
                                     }, transaction);
+
+                                    if (fromQuestionBank) continue;
 
                                     foreach (GameStoryTaskOption option in task.task_option ?? new List<GameStoryTaskOption>())
                                     {
                                         await conn.ExecuteAsync(insertOptionSql, new
                                         {
                                             optionId = ++nextOptionId,
-                                            taskId = task.task_db_id,
+                                            taskId = task.task_id,
                                             text = Truncate(option.option_context ?? "", 255),
                                             isCorrect = option.is_correct == 1 ? 1 : 0,
                                             key = Truncate(option.option_key ?? "", 10)
@@ -887,7 +1016,7 @@ namespace backend.dao
                                     {
                                         await conn.ExecuteAsync(insertClueSql, new
                                         {
-                                            taskId = task.task_db_id,
+                                            taskId = task.task_id,
                                             seatNo = clue.seat_no,
                                             text = clue.clue_text ?? ""
                                         }, transaction);

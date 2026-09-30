@@ -40,9 +40,27 @@ namespace backend.Middleware
                     Result = ex.Conflicts
                 });
             }
+            catch (BadRequestException ex)
+            {
+                await WriteResultAsync(context, HttpStatusCode.BadRequest, new ResultViewModel<object>
+                {
+                    isSuccess = false,
+                    message = ex.Message,
+                    Result = null
+                });
+            }
             catch (NotFoundException ex)
             {
                 await WriteResultAsync(context, HttpStatusCode.NotFound, new ResultViewModel<object>
+                {
+                    isSuccess = false,
+                    message = ex.Message,
+                    Result = null
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                await WriteResultAsync(context, HttpStatusCode.Forbidden, new ResultViewModel<object>
                 {
                     isSuccess = false,
                     message = ex.Message,

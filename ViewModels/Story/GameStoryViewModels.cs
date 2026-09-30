@@ -1,6 +1,7 @@
 // 檔案路徑：System\ViewModels\Story\GameStoryViewModels.cs
 // 劇本 + 任務一次生成（AI service /api/v1/generate），一次生成多份劇本讓使用者挑
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace backend.ViewModels
 {
@@ -34,8 +35,45 @@ namespace backend.ViewModels
         /// <summary>偏好標籤，例如 ["好山好水", "美食"]</summary>
         public List<string> preferences { get; set; }
 
-        /// <summary>是否為夜間劇本：1 = 是、2 = 否，不帶時預設 2</summary>
+        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天，不帶時預設 0</summary>
         public int is_night_mode { get; set; }
+    }
+
+    /// <summary>
+    /// 劇本生成條件（GenerateGameStory 使用，後端內部使用）。
+    /// 中心點經緯度、城市/行政區由 Controller 補齊後傳入 StoryService.GenerateStoriesAsync。
+    /// </summary>
+    public class GameStoryPlan
+    {
+        /// <summary>行程規劃的中心點緯度</summary>
+        public double lat { get; set; }
+
+        /// <summary>行程規劃的中心點經度</summary>
+        public double lng { get; set; }
+
+        /// <summary>城市，例如「臺中市」</summary>
+        public string city_name { get; set; }
+
+        /// <summary>行政區，例如「西區」</summary>
+        public string town_name { get; set; }
+
+        /// <summary>隊伍人數</summary>
+        public int party_size { get; set; }
+
+        /// <summary>交通方式（可複選）</summary>
+        public List<string> transportation { get; set; }
+
+        /// <summary>偏好標籤</summary>
+        public List<string> preferences { get; set; }
+
+        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天</summary>
+        public int is_night_mode { get; set; }
+
+        /// <summary>一次生成幾份劇本讓使用者挑</summary>
+        public int story_count { get; set; }
+
+        /// <summary>每份劇本幾個景點（節點）</summary>
+        public int places_per_story { get; set; }
     }
 
     #endregion
@@ -120,7 +158,9 @@ namespace backend.ViewModels
     #endregion
 
 
-    #region 後端回傳給前端（AI 回傳的結構，後端再補上 story_id、sn_id、task_db_id 與條件欄位）
+    #region 後端回傳給前端（AI 回傳的結構，後端再補上 story_id、sn_id、task_id 與條件欄位）
+    // 答案類欄位（correct_answer、task_hint、task_clue、選項的 is_correct）會讀取 AI 回傳並存進資料庫，
+    // 但回傳給前端前會清成 null 並設定為 null 時不輸出，避免前端拿到答案、提示與隊友的線索。
 
     /// <summary>一份生成好的劇本</summary>
     public class GameStoryResult
@@ -174,7 +214,7 @@ namespace backend.ViewModels
         /// <summary>預期可獲得的明信片數量（等於節點數）</summary>
         public int story_postcards { get; set; }
 
-        /// <summary>是否為夜間劇本：1 = 是、2 = 否</summary>
+        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天</summary>
         public int is_night_mode { get; set; }
     }
 
@@ -230,8 +270,8 @@ namespace backend.ViewModels
     /// <summary>節點任務</summary>
     public class GameStoryTask
     {
-        /// <summary>寫入資料庫後的任務代號（task.task_id），作答時用這個</summary>
-        public int task_db_id { get; set; }
+        /// <summary>寫入資料庫後的任務代號（task.task_id），進入節點遊玩畫面、作答時用這個</summary>
+        public int task_id { get; set; }
 
         /// <summary>任務類型代號（type.type_id），例如 6 = 文化問答型</summary>
         public int task_type { get; set; }
@@ -239,19 +279,28 @@ namespace backend.ViewModels
         /// <summary>任務類型名稱，例如「文化問答型」</summary>
         public string type_name { get; set; }
 
+        /// <summary>
+        /// 商家題庫題目代號（store_question.question_id），只有商家知識問答（9）才有值。
+        /// 題目與選項由商家題庫帶出、不經 AI，寫入 task.question_id。
+        /// </summary>
+        public int? question_id { get; set; }
+
         /// <summary>任務題目/情境描述</summary>
         public string task_describe { get; set; }
 
-        /// <summary>任務提示</summary>
+        /// <summary>任務提示（存進資料庫；回傳前端時不輸出，答錯後改用提示 API 取得）</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string task_hint { get; set; }
 
-        /// <summary>正確答案，只有協作解謎型有值（不要直接顯示給玩家），其他類型為 null</summary>
+        /// <summary>正確答案，只有協作解謎型有值（存進資料庫；回傳前端時不輸出）</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string correct_answer { get; set; }
 
-        /// <summary>選項，只有選擇題型（文化問答型、景點猜猜樂）才有</summary>
+        /// <summary>選項，只有選擇題型（文化問答型、景點猜猜樂、商家知識問答）才有</summary>
         public List<GameStoryTaskOption> task_option { get; set; }
 
-        /// <summary>分段線索，只有協作解謎型才有，每位玩家依座位編號看到不同線索</summary>
+        /// <summary>分段線索，只有協作解謎型才有（存進資料庫；回傳前端時不輸出，自己座位的線索由節點遊玩畫面取得）</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<GameStoryTaskClue> task_clue { get; set; }
     }
 
@@ -264,8 +313,12 @@ namespace backend.ViewModels
         /// <summary>選項文字</summary>
         public string option_context { get; set; }
 
-        /// <summary>是否為正確答案：1 = 正確、0 = 錯誤</summary>
-        public int is_correct { get; set; }
+        /// <summary>選項圖片網址，目前只有商家題庫的選項可能有值</summary>
+        public string option_url { get; set; }
+
+        /// <summary>是否為正確答案：1 = 正確、0 = 錯誤（存進資料庫；回傳前端時不輸出）</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? is_correct { get; set; }
     }
 
     /// <summary>協作解謎線索</summary>

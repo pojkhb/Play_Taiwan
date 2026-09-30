@@ -6,8 +6,9 @@
 // 1. story_node.is_active 的語意變成「是否解鎖(1=是、2=否)」，不是舊的「資料是否啟用」。
 //    預設值是 2，所以絕對不能再沿用舊的 `WHERE is_active = 1` 過濾，否則會一筆節點都查不到。
 //    解鎖與否一律由 story_session.ss_current 計算。
-// 2. story_node.place_id 存的是 Neo4j UUID，而 place 主表的主鍵是 int p_id，兩者無法直接 JOIN。
-//    目前用 place_type（同時有 UUID 與景點名稱）當橋接取座標，找不到時經緯度為 0。
+// 2. story_node.place_id 存的是 Neo4j UUID。節點座標一律由 MapService 透過 PlaceLookupService 向 Neo4j 查
+//    （抵達、作答、導航共用同一份座標），這裡只帶出 place_id。
+//    圖片、介紹、營業時間仍用 place_type（UUID + 景點名稱）→ place 的名稱橋接（見 待修改問題.md）。
 using System.Collections.Generic;
 using System.Linq;
 using Dapper;
@@ -28,7 +29,8 @@ namespace backend.dao
         }
 
         // story_node(Neo4j UUID) -> place_type(UUID + 名稱) -> place(名稱) 的暫時橋接。
-        // place_type 同一個景點依任務類型會有多筆、place 也可能同名多筆，都先收斂成一筆，避免節點重複。
+        // place_type 每個景點會有多筆（一種任務類型一筆），place 也可能有同名多筆，
+        // 兩邊都先收斂成一筆再 JOIN，避免節點被重複列出（同 VisitorVlogDao）。
         internal const string PlaceBridgeJoin = @"
             LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt
                    ON pt.place_id = sn.place_id
@@ -38,7 +40,7 @@ namespace backend.dao
 
         #region 取得地圖節點
         /// <summary>
-        /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依 ss_current 統一計算。
+        /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依 ss_current 統一計算，座標由 MapService 依 place_id 補上。
         /// fog_image 是這一站景點照片做成的迷霧圖（fog 表用照片網址的 SHA-1 對應），還沒做好時為 null。
         /// </summary>
         public List<MapNode> GetStoryNodes(int storyId)
@@ -51,10 +53,11 @@ namespace backend.dao
                     sn.location_codename         AS fog_hint,
                     (sn.is_night_only = 1)       AS is_night_only,
                     sn.sn_title                  AS location_name,
-                    COALESCE(p.p_latitude, 0)    AS lat,
-                    COALESCE(p.p_longitude, 0)   AS lng,
+                    sn.place_id                  AS place_id,
                     NULLIF(p.p_image, '')        AS image_url,
-                    f.fog_image                  AS fog_image
+                    f.fog_image                  AS fog_image,
+                    (EXISTS (SELECT 1 FROM task t WHERE t.node_id = sn.sn_id)
+                     AND NOT EXISTS (SELECT 1 FROM task t WHERE t.node_id = sn.sn_id AND t.pass = 0)) AS is_completed
                 FROM story_node sn
                 {PlaceBridgeJoin}
                 LEFT JOIN fog f ON f.fog_source_key = SHA1(NULLIF(p.p_image, ''))
@@ -79,38 +82,57 @@ namespace backend.dao
         #endregion
 
         #region 取得玩家目前節點進度
+        /// <summary>登入者（有協作隊伍時為全隊共用）最遠抵達的節點順序，見 TeamProgress。</summary>
         public int GetCurrentNodeOrder(int auId, int storyId)
         {
-            string sql = @"
-                SELECT COALESCE(MAX(ss_current), 0)
-                FROM story_session
-                WHERE au_id = @auId AND s_id = @storyId;
-            ";
-
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
-                return conn.ExecuteScalar<int>(sql, new { auId, storyId });
+                return TeamProgress.GetCurrentNodeOrder(conn, auId, storyId);
             }
         }
 
-        /// <summary>節點的站序與玩家在該劇本的進度，判斷這一站是否還在迷霧中用；找不到節點回傳 null</summary>
-        public NodeProgress GetNodeProgress(int auId, int nodeId)
+        /// <summary>登入者能不能玩這份劇本（劇本擁有者或協作隊伍成員），見 TeamProgress.CanPlay。</summary>
+        public bool CanPlay(int auId, int storyId)
         {
-            string sql = @"
-                SELECT sn.s_id      AS story_id,
-                       sn.sn_order  AS node_order,
-                       (SELECT COALESCE(MAX(ss.ss_current), 0)
-                          FROM story_session ss
-                         WHERE ss.au_id = @auId AND ss.s_id = sn.s_id) AS current_order
-                FROM story_node sn
-                WHERE sn.sn_id = @nodeId;
-            ";
-
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
-                return conn.QueryFirstOrDefault<NodeProgress>(sql, new { auId, nodeId });
+                return TeamProgress.CanPlay(conn, auId, storyId);
+            }
+        }
+
+        /// <summary>節點所屬劇本（story_node.s_id），找不到節點時回傳 null。</summary>
+        public int? GetNodeStoryId(int nodeId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<int?>("SELECT s_id FROM story_node WHERE sn_id = @nodeId;", new { nodeId });
+            }
+        }
+
+        /// <summary>
+        /// 節點的站序與玩家在該劇本的進度，判斷這一站是否還在迷霧中用；找不到節點回傳 null。
+        /// 進度用 TeamProgress（有協作隊伍時全隊共用，跟地圖解鎖、抵達、任務門檻一致）。
+        /// </summary>
+        public NodeProgress GetNodeProgress(int auId, int nodeId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+
+                NodeProgress progress = conn.QueryFirstOrDefault<NodeProgress>(@"
+                    SELECT sn.s_id AS story_id, sn.sn_order AS node_order
+                    FROM story_node sn
+                    WHERE sn.sn_id = @nodeId;", new { nodeId });
+
+                if (progress != null)
+                {
+                    progress.current_order = TeamProgress.GetCurrentNodeOrder(conn, auId, progress.story_id);
+                }
+
+                return progress;
             }
         }
 
@@ -142,20 +164,19 @@ namespace backend.dao
         }
         #endregion
 
-        #region 取得節點座標
+        #region 取得節點（抵達、導航用）
+        /// <summary>節點基本資料與所屬劇本、place_id；座標由 MapService 依 place_id 向 Neo4j 查。</summary>
         public MapNode GetNodeLocation(int nodeId)
         {
-            string sql = $@"
+            string sql = @"
                 SELECT
                     sn.sn_id                     AS node_id,
                     sn.sn_order                  AS node_order,
                     1                            AS day_index,
                     (sn.is_night_only = 1)       AS is_night_only,
                     sn.sn_title                  AS location_name,
-                    COALESCE(p.p_latitude, 0)    AS lat,
-                    COALESCE(p.p_longitude, 0)   AS lng
+                    sn.place_id                  AS place_id
                 FROM story_node sn
-                {PlaceBridgeJoin}
                 WHERE sn.sn_id = @nodeId
                 LIMIT 1;
             ";
@@ -180,6 +201,7 @@ namespace backend.dao
         /// <summary>
         /// 抵達節點後推進 story_session.ss_current，同時把節點本身標記為已解鎖。
         /// story_session 沒有 (au_id, s_id) 唯一鍵，因此用先更新、沒更新到才新增的方式處理。
+        /// story_node.last_time 是「完成時間」，在這一站任務全部通過時才寫入（TaskDao.SaveAnswerRecord），抵達時不寫。
         /// </summary>
         public void UnlockNode(int auId, int nodeId)
         {
@@ -201,7 +223,7 @@ namespace backend.dao
 
             string unlockNodeSql = @"
                 UPDATE story_node
-                SET is_active = 1, last_time = NOW()
+                SET is_active = 1
                 WHERE sn_id = @nodeId;
             ";
 

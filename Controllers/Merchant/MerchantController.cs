@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
 using backend.utils;
@@ -13,87 +11,194 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 商家專屬後台 API。
-    /// 提供商家修改店名、取得近期檔案列表(依時間排序)、生成影音及查看 Reels 完成畫面等功能。
+    /// 提供商家登入／註冊、店家資料維護、刪除帳號、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
+    /// 除了登入與註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
+    /// 錯誤統一由 ExceptionHandlingMiddleware 轉成 ResultViewModel（404 / 409 / 403 / 500）。
     /// </summary>
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class MerchantController : ControllerBase
     {
-        private readonly ILogger<MerchantController> _logger;
         private readonly MerchantService _service;
+        private readonly AuthService _authService;
 
-        public MerchantController(ILogger<MerchantController> logger, MerchantService service)
+        public MerchantController(MerchantService service, AuthService authService)
         {
-            _logger = logger;
             _service = service;
+            _authService = authService;
         }
 
-        #region 1. 商家名稱修改
-        public class UpdateStoreNameRequest
-        {
-            /// <summary>新的店家名稱</summary>
-            public string store_name { get; set; }
-        }
-
+        #region 1. 商家登入
         /// <summary>
-        /// 修改登入商家的「店家名稱」。
+        /// 商家登入，成功後回傳 JWT。
         /// </summary>
         /// <remarks>
-        /// 對應設定頁面中的「預設資訊－店家名稱」修改與儲存功能。
-        /// 
+        /// 只接受商家帳號（auth_type = 2）且已建立店家資料；Token 帶 au_id、s_id 與 Role=Merchant，
+        /// 之後呼叫商家 API 放在 Header：Authorization: Bearer {token}。
+        ///
+        /// **Request 範例**：
+        /// ```json
+        /// {
+        ///   "auth_name": "masha-garden@example.com",
+        ///   "auth_pswd": "123456"
+        /// }
+        /// ```
+        ///
+        /// **Response 範例**：
+        /// ```json
+        /// {
+        ///   "isSuccess": true,
+        ///   "message": "登入成功",
+        ///   "Result": {
+        ///     "token": "eyJhbGciOi...",
+        ///     "au_id": 2,
+        ///     "auth_name": "瑪莎園景觀餐廳",
+        ///     "auth_type": 2,
+        ///     "account_type_name": "Merchant",
+        ///     "s_id": 2
+        ///   }
+        /// }
+        /// ```
+        /// </remarks>
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("Login")]
+        [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
+        public IActionResult Login([FromBody] LoginRequest req)
+        {
+            // 登入失敗的回應方式比照 api/Auth/Login，前端可共用同一套處理
+            try
+            {
+                return Ok(new ResultViewModel<LoginResponse>
+                {
+                    isSuccess = true,
+                    message = "登入成功",
+                    Result = _authService.MerchantLogin(req)
+                });
+            }
+            catch (System.Exception e)
+            {
+                return NotFound(new ResultViewModel<LoginResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+        #endregion
+
+        #region 2. 商家註冊
+        /// <summary>註冊商家。</summary>
+        /// <remarks>
+        /// 建立 auth(auth_type=2, 免審核直接啟用) + store。place_uid 與 new_place 二擇一：
+        /// 選擇既有景點時帶 place_uid（由 GET api/merchant/register/search-place 取得）；
+        /// 選「都沒有，我要建立新的」時帶 new_place，後端會在 Neo4j 建立新的身分節點與版本節點，
+        /// 並寫入 MySQL place（座標）與 place_type（通用任務類型 6、7、8），讓這個景點能被排進劇本行程。
+        /// new_place.lat / new_place.lng 必填（建議由地圖選點取得）；new_place.category 可選
+        /// Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
+        /// 註冊完成後請呼叫 POST api/Merchant/Login 取得 Token。
+        /// </remarks>
+        [AllowAnonymous]
+        [HttpPost]
+        [Route("Register")]
+        [ProducesResponseType(typeof(ResultViewModel<MerchantRegisterResponse>), 200)]
+        public async Task<IActionResult> Register([FromBody] MerchantRegisterRequest req)
+        {
+            MerchantRegisterResponse result = await _service.RegisterAsync(req);
+            return Ok(new ResultViewModel<MerchantRegisterResponse>
+            {
+                isSuccess = true,
+                message = "商家註冊成功",
+                Result = result
+            });
+        }
+        #endregion
+
+        #region 3. 店家資料
+        /// <summary>查詢登入商家的店家資料。</summary>
+        [Authorize(Roles = "Merchant")]
+        [HttpGet]
+        [Route("Profile")]
+        [ProducesResponseType(typeof(ResultViewModel<MerchantDetailResponse>), 200)]
+        public IActionResult GetProfile()
+        {
+            return Ok(new ResultViewModel<MerchantDetailResponse>
+            {
+                isSuccess = true,
+                message = "查詢成功",
+                Result = _service.GetProfile(User.GetSId())
+            });
+        }
+
+        /// <summary>更新登入商家的店家資料。</summary>
+        /// <remarks>
+        /// 只更新有帶值的欄位，沒帶的欄位維持原值；只改店名時帶 store_name 即可（取代原本的 StoreName API）。
+        /// 同時會在 Neo4j 建立新的版本節點，讓 QR Code 掃描回傳的商家資訊跟著更新。
+        ///
         /// **Request 範例**：
         /// ```json
         /// {
         ///   "store_name": "日式復古串燒居酒屋"
         /// }
         /// ```
-        /// 
-        /// **Response 範例**：
-        /// ```json
-        /// {
-        ///   "isSuccess": true,
-        ///   "message": "店家名稱修改成功",
-        ///   "Result": null
-        /// }
-        /// ```
         /// </remarks>
-        /// <param name="req">包含新店名名稱的物件。</param>
-        /// <returns>修改成功與否的狀態訊息。</returns>
-        [HttpPost]
-        [Route("StoreName")]
-        public IActionResult UpdateStoreName([FromBody] UpdateStoreNameRequest req)
+        [Authorize(Roles = "Merchant")]
+        [HttpPut]
+        [Route("Profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] MerchantUpdateRequest req)
         {
-            try
+            await _service.UpdateProfileAsync(User.GetSId(), req);
+            return Ok(new ResultViewModel<object>
             {
-                _service.UpdateStoreName(User.GetAuId(), req.store_name);
+                isSuccess = true,
+                message = "商家資料更新成功",
+                Result = null
+            });
+        }
 
-                return Ok(new ResultViewModel<string>
-                {
-                    isSuccess = true,
-                    message = "店家名稱修改成功",
-                    Result = null
-                });
-            }
-            catch (Exception e)
+        /// <summary>刪除登入商家的帳號。</summary>
+        /// <remarks>
+        /// 交易內依序刪除 qrcode_coupon／user_coupon／coupon／question_option／store_question／store／auth；
+        /// 若商家題庫仍被任務引用，會回傳 409 並附上引用的 task_id 清單，不會刪除任何資料。
+        /// </remarks>
+        [Authorize(Roles = "Merchant")]
+        [HttpDelete]
+        [Route("Account")]
+        public async Task<IActionResult> DeleteAccount()
+        {
+            await _service.DeleteAccountAsync(User.GetSId());
+            return Ok(new ResultViewModel<object>
             {
-                _logger.LogError(e, "修改店家名稱失敗");
-                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-            }
+                isSuccess = true,
+                message = "商家帳號已刪除",
+                Result = null
+            });
+        }
+
+        /// <summary>查詢商家列表（限管理員）。</summary>
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        [Route("List")]
+        [ProducesResponseType(typeof(ResultViewModel<MerchantListResponse>), 200)]
+        public IActionResult List([FromQuery] MerchantListQuery query)
+        {
+            return Ok(new ResultViewModel<MerchantListResponse>
+            {
+                isSuccess = true,
+                message = "查詢成功",
+                Result = _service.List(query)
+            });
         }
         #endregion
 
-        #region 2. 已經生成檔案列表 (依編輯時間新到舊排序)
+        #region 4. 已經生成檔案列表 (依編輯時間新到舊排序)
         /// <summary>
         /// 取得商家已生成的檔案清單。
         /// </summary>
         /// <remarks>
         /// 對應商家首頁的「近期檔案」列表，後端會自動依**編輯時間 (updated_at) 從新到舊**排序回傳。
-        /// 
+        ///
         /// **Request 範例**：
-        /// 
+        ///
         ///     GET /api/Merchant/Files
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
@@ -101,36 +206,29 @@ namespace backend.Controllers
         ///   "message": "查詢成功",
         ///   "Result": [
         ///     {
-        ///       "vlog_id": "VLOG_12345678",
-        ///       "title": "日式串燒限時特惠活動",
-        ///       "video_url": "[https://example.com/video.mp4](https://example.com/video.mp4)",
-        ///       "updated_at": "2026-09-07 12:30"
+        ///       "mm_id": 1,
+        ///       "mm_title": "日式串燒限時特惠活動",
+        ///       "mm_video_url": "https://example.com/video.mp4",
+        ///       "mm_status": 3,
+        ///       "updated_at": "2026-09-07T12:30:00"
         ///     }
         ///   ]
         /// }
         /// ```
         /// </remarks>
         /// <returns>依編輯時間新到舊排序的檔案清單陣列。</returns>
+        [Authorize(Roles = "Merchant")]
         [HttpGet]
         [Route("Files")]
+        [ProducesResponseType(typeof(ResultViewModel<List<MerchantFileItem>>), 200)]
         public IActionResult GetMerchantFiles()
         {
-            try
+            return Ok(new ResultViewModel<List<MerchantFileItem>>
             {
-                var files = _service.GetMerchantFiles(User.GetAuId());
-
-                return Ok(new ResultViewModel<object>
-                {
-                    isSuccess = true,
-                    message = "查詢成功",
-                    Result = files
-                });
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "取得商家檔案清單失敗");
-                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
-            }
+                isSuccess = true,
+                message = "查詢成功",
+                Result = _service.GetMerchantFiles(User.GetAuId())
+            });
         }
         #endregion
     }

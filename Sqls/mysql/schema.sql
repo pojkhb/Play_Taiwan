@@ -353,15 +353,15 @@ CREATE TABLE `narrative_tone` (
   PRIMARY KEY (`nt_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='敘事語氣';
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `nfc_coupon`;
+DROP TABLE IF EXISTS `qrcode_coupon`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `nfc_coupon` (
-  `nfc_uid` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'NFC貼紙UID，掃描後讀取到的卡片序號',
+CREATE TABLE `qrcode_coupon` (
+  `qr_uid` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'NFC貼紙UID，掃描後讀取到的卡片序號',
   `coupon_id` int NOT NULL COMMENT '對應的優惠券ID，可join回md_coupon取得商家資訊',
   `used_count` tinyint NOT NULL DEFAULT '0' COMMENT '此貼紙被兌換次數',
-  PRIMARY KEY (`nfc_uid`) USING BTREE,
-  UNIQUE KEY `nfc_uid` (`nfc_uid`) USING BTREE
+  PRIMARY KEY (`qr_uid`) USING BTREE,
+  UNIQUE KEY `nfc_uid` (`qr_uid`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='NFC貼紙-優惠券對照表（掃描入口，join md_coupon → ep_store 取得完整資訊）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `place`;
@@ -664,6 +664,7 @@ CREATE TABLE `task` (
   `task_describe` text COLLATE utf8mb4_general_ci COMMENT 'AI生成任務的題目描述文字；商家題庫任務此欄留空，文字由question_id取得',
   `correct_answer` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '協作解謎型等任務用的正確答案文字',
   `task_hint` mediumtext COLLATE utf8mb4_general_ci COMMENT '任務提示',
+  `pass` int NOT NULL DEFAULT '0' COMMENT '預設0->未通過任務，1->已通過任務',
   PRIMARY KEY (`task_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='任務表（任務實例：某題出現在story/node的哪個位置）';
 /*!40101 SET character_set_client = @saved_cs_client */;

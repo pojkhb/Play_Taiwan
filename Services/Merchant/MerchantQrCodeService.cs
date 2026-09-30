@@ -6,37 +6,48 @@ using backend.ViewModels;
 
 namespace backend.Services
 {
-    public class MerchantNfcService
+    public class MerchantQrCodeService
     {
-        private readonly MerchantNfcDao _dao;
+        private readonly MerchantQrCodeDao _dao;
         private readonly PlaceVersionChainService _placeService;
 
-        public MerchantNfcService(MerchantNfcDao dao, PlaceVersionChainService placeService)
+        public MerchantQrCodeService(MerchantQrCodeDao dao, PlaceVersionChainService placeService)
         {
             _dao = dao;
             _placeService = placeService;
         }
 
-        /// <summary>商家掃描 NFC 貼紙後綁定優惠券；同一張貼紙重複綁定回傳 409。</summary>
-        public void Bind(string nfcUid, int couponId)
+        /// <summary>
+        /// 商家掃描 QR Code 後綁定優惠券：優惠券必須屬於此商家（sId 來自 JWT），
+        /// 同一個 QR Code 重複綁定回傳 409。
+        /// </summary>
+        public void Bind(int sId, string qrUid, int couponId)
         {
-            if (_dao.ExistsNfcUid(nfcUid))
+            if (string.IsNullOrWhiteSpace(qrUid))
             {
-                throw new ConflictException($"NFC 貼紙 {nfcUid} 已經綁定過優惠券");
+                throw new BadRequestException("請提供 qr_uid");
             }
-            _dao.Bind(nfcUid, couponId);
+            if (!_dao.CouponBelongsToStore(couponId, sId))
+            {
+                throw new NotFoundException($"找不到 coupon_id={couponId} 的優惠券");
+            }
+            if (_dao.ExistsQrUid(qrUid))
+            {
+                throw new ConflictException($"QR Code {qrUid} 已經綁定過優惠券");
+            }
+            _dao.Bind(qrUid, couponId);
         }
 
         /// <summary>
-        /// 使用者掃描 NFC 貼紙：商家資訊來自 Neo4j（含版本鏈覆蓋後的最新內容），
+        /// 使用者掃描 QR Code：商家資訊來自 Neo4j（含版本鏈覆蓋後的最新內容），
         /// 優惠券資訊來自 MySQL；auId 有值時同時寫入領取紀錄（已領取過則不重複寫入）。
         /// </summary>
-        public async Task<NfcScanResponse> ScanAsync(string nfcUid, int? auId)
+        public async Task<QrCodeScanResponse> ScanAsync(string qrUid, int? auId)
         {
-            (var coupon, string storeUid) = _dao.GetScanInfo(nfcUid);
+            (var coupon, string storeUid) = _dao.GetScanInfo(qrUid);
             if (coupon == null)
             {
-                throw new NotFoundException($"找不到 NFC 貼紙 {nfcUid} 對應的優惠券資料");
+                throw new NotFoundException($"找不到 QR Code {qrUid} 對應的優惠券資料");
             }
 
             PlaceCurrentInfo merchantPlace = string.IsNullOrWhiteSpace(storeUid)
@@ -54,7 +65,7 @@ namespace backend.Services
                 }
             }
 
-            return new NfcScanResponse
+            return new QrCodeScanResponse
             {
                 coupon = coupon,
                 merchant_place = merchantPlace,
@@ -62,7 +73,7 @@ namespace backend.Services
             };
         }
 
-        /// <summary>核銷優惠券：更新 user_coupon 並遞增 nfc_coupon.used_count。</summary>
+        /// <summary>核銷優惠券：更新 user_coupon 並遞增 qrcode_coupon.used_count。</summary>
         public void Redeem(int couponId, int auId)
         {
             bool redeemed = _dao.Redeem(couponId, auId);

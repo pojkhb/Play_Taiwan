@@ -13,6 +13,7 @@ namespace backend.Services
     {
         private readonly TaskDao _taskDao;
         private readonly IAiTaskClient _aiTaskClient;
+        private readonly Neo4j.PlaceLookupService _placeLookup;
         private readonly ILogger<TaskGenerationService> _logger;
 
         // =====================================================================
@@ -139,32 +140,20 @@ namespace backend.Services
         public TaskGenerationService(
             TaskDao taskDao,
             IAiTaskClient aiTaskClient,
+            Neo4j.PlaceLookupService placeLookup,
             ILogger<TaskGenerationService> logger)
         {
             _taskDao = taskDao;
             _aiTaskClient = aiTaskClient;
+            _placeLookup = placeLookup;
             _logger = logger;
         }
 
         // =====================================================================
-        // 對外入口
-        // 三個入口一律不對外丟例外，回傳實際成功生成的任務清單（可能為空）。
-        // 呼叫端（劇本生成）不需要 try/catch，任務生成失敗不影響劇本生成的結果。
+        // 對外入口（只剩測試用的 POST api/Task/Generate 在用）
+        // 正式流程的任務已改由 StoryService.GenerateStoriesAsync 規劃好題型後，連同劇本一次交給 AI 生成。
+        // 兩個入口一律不對外丟例外，回傳實際成功生成的任務清單（可能為空）。
         // =====================================================================
-
-        /// <summary>
-        /// 劇本生成完畢後呼叫，為多份劇本的所有節點產生任務。
-        /// </summary>
-        public async Task<List<TaskDetailResponse>> GenerateTasksForStoriesAsync(IEnumerable<string> storyIds, int playerCount)
-        {
-            var results = new List<TaskDetailResponse>();
-            if (storyIds == null) return results;
-
-            foreach (var storyId in storyIds)
-                results.AddRange(await GenerateTasksForStoryAsync(storyId, playerCount));
-
-            return results;
-        }
 
         /// <summary>
         /// 為單一劇本底下的所有節點產生任務。單一節點失敗會跳過並繼續處理下一個節點。
@@ -252,7 +241,7 @@ namespace backend.Services
         {
             var placeTypes = _taskDao.GetPlaceTypes(placeId);
             if (placeTypes == null || placeTypes.Count == 0)
-                throw new InvalidOperationException($"景點 {placeId} 在 md_place_type 找不到任何任務類型設定。");
+                throw new InvalidOperationException($"景點 {placeId} 在 place_type 找不到任何任務類型設定。");
 
             string placeCategory = placeTypes.FirstOrDefault()?.place_category;
             bool isLastNode = _taskDao.IsLastNodeInStory(storyId, nodeId);
@@ -260,8 +249,8 @@ namespace backend.Services
             // 決定此節點要生成哪幾種題型
             List<int> tasksToGenerate = new List<int> { 3 }; // 創意攝影型為基本題型
 
-            if (isLastNode) tasksToGenerate.Add(2);              // 跨關集結型：最後節點
-            if (placeCategory == "2") tasksToGenerate.Add(4);   // 地方美食型：餐飲類景點
+            if (isLastNode) tasksToGenerate.Add(2);                       // 跨關集結型：最後節點
+            if (placeCategory == "Restaurant") tasksToGenerate.Add(4);   // 地方美食型：餐飲類景點
             if (playerCount >= 2) tasksToGenerate.Add(5);       // 協作解謎型：多人同行
 
             // 從景點支援的隨機題型中抽一個（6~10 類）
@@ -272,8 +261,9 @@ namespace backend.Services
                 tasksToGenerate.Add(pickedType.type_id);
             }
 
-            // 取得劇本內容（供 AI 生成）
-            string storyContent = _taskDao.GetStoryContent(nodeId);
+            // 取得劇本內容（供 AI 生成），景點介紹向 Neo4j 查
+            string placeIntroduction = (await _placeLookup.GetPlaceAsync(placeId))?.description;
+            string storyContent = _taskDao.GetStoryContent(nodeId, placeIntroduction);
 
             var results = new List<TaskDetailResponse>();
 
@@ -426,14 +416,15 @@ namespace backend.Services
 
         /// <summary>
         /// 呼叫 generate/coop API（協作解謎型）並轉換為 TaskDetailResponse。
-        /// task_describe 存玩家 A 的線索、task_describe_b 存玩家 B 的線索，
-        /// TaskService.GetTask 會依 player_index 決定要把哪一段換到 task_describe 回傳給前端。
+        /// task_describe 存兩人共同的題目說明；玩家 A 的線索放 clue_text（座位 1）、玩家 B 的放 task_describe_b（座位 2），
+        /// 由 TaskDao.InsertTask 寫入 task_clue，TaskService.GetTask 再依登入者在協作隊伍的座位回傳該座位的線索。
         /// correct_answer 供 SubmitAnswer 核對玩家提交的 text_answer，不回傳給前端。
         /// </summary>
         private async Task<TaskDetailResponse> CallCoopApiAsync(
             AiTaskRequest aiRequest, string nodeId, string placeId, string storyId, int typeId, string typeName)
         {
             var task = CreateBaseTask(nodeId, placeId, storyId, typeId, typeName);
+            task.task_describe = "兩位玩家各自拿到不同的線索，交換資訊後合力找出共同答案。";
 
             const string fallbackA = "[AI 生成失敗] (協作解謎型) 請與隊友互相描述你所在位置看到的細節，合力找出答案。";
             const string fallbackB = "[AI 生成失敗] (協作解謎型) 請與隊友互相描述你所在位置看到的細節，合力找出答案。";
@@ -447,7 +438,7 @@ namespace backend.Services
                     && !string.IsNullOrWhiteSpace(aiResponse.task_describe_b)
                     && !string.IsNullOrWhiteSpace(aiResponse.correct_answer);
 
-                task.task_describe   = ok ? aiResponse.task_describe_a : fallbackA;
+                task.clue_text       = ok ? aiResponse.task_describe_a : fallbackA;
                 task.task_describe_b = ok ? aiResponse.task_describe_b : fallbackB;
                 // 生成失敗時沒有可信的正確答案，correct_answer 留空；
                 // TaskVerificationService 會把「沒有 correct_answer」視為此題暫時無法核對答案。
@@ -455,7 +446,7 @@ namespace backend.Services
             }
             catch (Exception ex)
             {
-                task.task_describe   = fallbackA;
+                task.clue_text       = fallbackA;
                 task.task_describe_b = fallbackB;
                 task.correct_answer  = null;
                 _logger.LogError(ex, "generate/coop 失敗（題型 {TypeName}），改用 fallback 文字。", typeName);

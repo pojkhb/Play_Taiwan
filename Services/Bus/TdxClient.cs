@@ -20,7 +20,7 @@ namespace backend.Services
         public const string HttpClientName = "tdx";
 
         private const string TokenUrl = "https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token";
-        private const string ApiBaseUrl = "https://tdx.transportdata.tw/api/basic/";
+        private const string ApiRootUrl = "https://tdx.transportdata.tw/api/";
         private const int MinIntervalMs = 1500;
         private const int MaxRetries = 5;
 
@@ -47,9 +47,22 @@ namespace backend.Services
         /// <summary>
         /// GET TDX API，path 例如 "v2/Bus/Route/City/Taichung"（可帶 $filter 等查詢參數），自動加上 $format=JSON。
         /// </summary>
-        public async Task<T> GetAsync<T>(string path)
+        public Task<T> GetAsync<T>(string path)
         {
-            string url = ApiBaseUrl + path.TrimStart('/');
+            return GetFromAsync<T>("basic/", path);
+        }
+
+        /// <summary>
+        /// GET TDX 進階（advanced）API，path 例如 "V3/Map/GeoCode/Coordinate/Address/{地址}"，自動加上 $format=JSON。
+        /// </summary>
+        public Task<T> GetAdvancedAsync<T>(string path)
+        {
+            return GetFromAsync<T>("advanced/", path);
+        }
+
+        private async Task<T> GetFromAsync<T>(string apiGroup, string path)
+        {
+            string url = ApiRootUrl + apiGroup + path.TrimStart('/');
             url += (url.Contains("?") ? "&" : "?") + "$format=JSON";
 
             for (int attempt = 1; ; attempt++)

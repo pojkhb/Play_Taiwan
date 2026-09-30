@@ -25,6 +25,58 @@ namespace backend.ViewModels
         public string opening_hours { get; set; }
     }
 
+    /// <summary>
+    /// 商家註冊時選「都沒有，我要建立新的」景點要帶的資料：版本鏈欄位 + 座標與分類。
+    /// 地址（註冊請求的 store_city、store_town、store_address）與座標至少填一個，只填一個時後端自動轉另一個，
+    /// 轉不了才要兩個都填（見 StoreLocationService）；景點會掛到 Neo4j 的鄉鎮市區。
+    /// 分類影響任務類型判斷（Restaurant 會加地方美食型）。
+    /// </summary>
+    public class MerchantNewPlace : MerchantPlaceFields
+    {
+        /// <summary>緯度（選填，前端地圖選點取得；和 lng 要一起帶）</summary>
+        public double? lat { get; set; }
+
+        /// <summary>經度（選填）</summary>
+        public double? lng { get; set; }
+
+        /// <summary>景點分類：Attraction / Restaurant / Hotel / Event，不帶時預設 Restaurant</summary>
+        public string category { get; set; }
+    }
+
+    /// <summary>Neo4j 的鄉鎮市區節點（:Town），town_id 為「縣市_鄉鎮市區」。</summary>
+    public class TownRef
+    {
+        public string town_id { get; set; }
+        public string town_name { get; set; }
+        public string city_name { get; set; }
+    }
+
+    /// <summary>
+    /// 商家自建景點的位置：縣市、鄉鎮市區、地址與座標（地址、座標最後都要有，只填一個時由後端自動轉另一個）。
+    /// 地址轉換 API 也回傳這個，欄位名稱與註冊請求相同，前端可以直接填回表單。
+    /// </summary>
+    public class MerchantPlaceLocation
+    {
+        /// <summary>縣市（Neo4j 的寫法，例如「台中市」）</summary>
+        public string store_city { get; set; }
+
+        /// <summary>鄉鎮市區，例如「西區」</summary>
+        public string store_town { get; set; }
+
+        /// <summary>不含縣市、鄉鎮市區的地址，例如「英才路600號」</summary>
+        public string store_address { get; set; }
+
+        /// <summary>完整地址（縣市＋鄉鎮市區＋地址）</summary>
+        public string full_address { get; set; }
+
+        public double lat { get; set; }
+        public double lng { get; set; }
+
+        /// <summary>Neo4j Town.id（「縣市_鄉鎮市區」），景點掛鄉鎮用，不回傳給前端</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string town_id { get; set; }
+    }
+
     /// <summary>單一圖片資訊，對應 Neo4j (:Image) 節點。</summary>
     public class PlaceImageItem
     {

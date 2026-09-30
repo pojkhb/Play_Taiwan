@@ -245,6 +245,7 @@ namespace backend.Controllers
         /// <summary>
         /// 玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1），
         /// 並自動把其他劇本重置為未進行（假設同一時間只允許一份劇本進行中）。
+        /// 只有劇本擁有者或協作隊員可以確認（403），找不到劇本 404。
         /// </summary>
         /// <remarks>
         /// **Request 範例**：
@@ -263,6 +264,18 @@ namespace backend.Controllers
                 StoryDetailResponse detail = _service.ConfirmStory(User.GetAuId(), req);
                 return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return StatusCode(403, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "確認選卷失敗");
@@ -272,15 +285,21 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行（is_playing = 0）。
+        /// 玩家完成或退出劇本時呼叫，把自己在這份劇本的遊玩紀錄（story_session）標成完成。
         /// </summary>
         /// <remarks>
+        /// 劇本擁有者、協作隊員或有遊玩紀錄的人都可以呼叫。沒按過確認開始（沒有遊玩紀錄）時一樣回成功，但不會補建完成紀錄。
+        /// 劇本擁有者結束時，進行中的協作隊伍一併標成完成。
+        ///
         /// **Request 範例**：
         /// ```json
-        /// { "story_id": "AI_3F2A9C1B" }
+        /// { "story_id": 1 }
         /// ```
         /// </remarks>
-        /// <response code="200">Result = 結束的劇本代號；isSuccess = false 代表找不到該劇本</response>
+        /// <response code="200">Result = 結束的劇本代號</response>
+        /// <response code="400">沒有帶 story_id</response>
+        /// <response code="403">沒有參與這份劇本</response>
+        /// <response code="404">找不到這份劇本</response>
         [Authorize]
         [HttpPost]
         [Route("EndStory")]
@@ -289,13 +308,25 @@ namespace backend.Controllers
         {
             try
             {
-                bool result = _service.EndStory(User.GetAuId(), req.story_id);
+                _service.EndStory(User.GetAuId(), req?.story_id ?? 0);
                 return Ok(new ResultViewModel<string>
                 {
-                    isSuccess = result,
-                    message = result ? "已結束此劇本的進行狀態" : $"找不到 story_id = {req.story_id} 的劇本",
+                    isSuccess = true,
+                    message = "已結束此劇本",
                     Result = req.story_id.ToString()
                 });
+            }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return StatusCode(403, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
             catch (Exception e)
             {
@@ -390,8 +421,6 @@ namespace backend.Controllers
 
                 string cityName = aiResult.parsed_intent?.city_name ?? "";
                 string townName = aiResult.parsed_intent?.town_name ?? "";
-
-
                 int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
 
 
@@ -540,17 +569,23 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。
-        /// 3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複）與一種敘事語氣（narrative_tone）。
-        /// 景點已去除重複，交通圈只算步行/腳踏車/機車/汽車；同樣的條件每次生成的景點組合都不同。
-        /// 每個景點可出的任務類型來自 place_type 表；查不到時預設「創意攝影型、文化問答型、協作解謎型」，
-        /// 1 人時不出協作解謎型。
+        /// 流程：
+        /// 1. 規劃旅遊行程：3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複）
+        ///    與一種敘事語氣（narrative_tone）。景點已去除重複，交通圈只算步行/腳踏車/機車/汽車；
+        ///    同樣的條件每次生成的景點組合都不同。
+        /// 2. 判斷任務類型：每站固定出創意攝影型；最後一站加跨關集結型；餐廳類加地方美食型；
+        ///    2 人以上加協作解謎型；再從景點可出的文化問答型／景點猜猜樂／e人訪談型（place_type）隨機抽一題。
+        ///    景點在 place_type 標有 9（商家新增題目時自動標記）時，另外必出一題商家知識問答
+        ///    （直接引用題庫，不經 AI，task 帶 question_id）。商家自建的景點也會列入行程規劃候選。
+        /// 3. 打包成一包丟給 AI service，一次拿回 3 份劇本。
         ///
         /// 回傳陣列，每一份都有自己的 story_id；使用者選定後用那份的 story_id 呼叫 Confirm 開始遊玩。
         /// transportation 有選「公車」、「客運」或「台灣好行」時，會找出相鄰節點之間的直達公車，
         /// 寫入 story_node_transit，並在每個節點的 transit 回傳上下車站與中間經過的所有站牌。
         ///
         /// 會寫入 story、story_tag、story_node、task、task_option、task_clue、story_node_transit。
-        /// task_db_id 是作答時要用的任務代號。
+        /// task_id 是進入節點遊玩畫面、作答時要用的任務代號；回應不含正確答案、提示與各座位線索，
+        /// 抵達節點後由 GET api/Task/Node/{node_id} 取得自己座位的線索與作答方式。
         ///
         /// **Request 範例**：
         /// ```json
@@ -560,7 +595,7 @@ namespace backend.Controllers
         ///   "party_size": 2,
         ///   "transportation": ["步行", "公車"],
         ///   "preferences": ["好山好水", "美食"],
-        ///   "is_night_mode": 2
+        ///   "is_night_mode": 0
         /// }
         /// ```
         /// </remarks>

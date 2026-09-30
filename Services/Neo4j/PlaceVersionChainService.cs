@@ -222,13 +222,84 @@ namespace backend.Services.Neo4j
         }
 
         /// <summary>
-        /// 商家註冊時選「都沒有，我要建立新的」景點：建立一顆全新身分節點（:Place:MerchantPlace）
+        /// 依縣市＋鄉鎮市區找 Neo4j 的 Town 節點（Town.id 為「縣市_鄉鎮市區」，Neo4j 用「台」，比對時統一台／臺），
+        /// 找不到時回傳 null。
+        /// </summary>
+        public async Task<TownRef> FindTownAsync(string city, string town)
+        {
+            string key = TownKey(city, town);
+            if (key == null) return null;
+
+            var rows = await _gateway.ExecuteCypherAsync(@"
+                MATCH (t:Town) WHERE replace(t.id, '臺', '台') = $key
+                OPTIONAL MATCH (t)-[:PART_OF]->(c:City)
+                RETURN t.id AS town_id, t.name AS town, c.name AS city
+                LIMIT 1", new { key });
+
+            return ToTownRef(rows.FirstOrDefault());
+        }
+
+        /// <summary>
+        /// 依地址開頭的「縣市＋鄉鎮市區」找 Neo4j 的 Town 節點（例如「台中市西區安龍里英才路600號」→ 台中市_西區），
+        /// 找不到時回傳 null。鄉鎮名稱有包含關係時（例如新市區）取最長的。
+        /// </summary>
+        public async Task<TownRef> FindTownByAddressAsync(string address)
+        {
+            if (string.IsNullOrWhiteSpace(address)) return null;
+
+            var rows = await _gateway.ExecuteCypherAsync(@"
+                MATCH (t:Town)
+                WITH t, split(replace(t.id, '臺', '台'), '_') AS parts
+                WHERE size(parts) = 2 AND $address STARTS WITH (parts[0] + parts[1])
+                OPTIONAL MATCH (t)-[:PART_OF]->(c:City)
+                RETURN t.id AS town_id, t.name AS town, c.name AS city, size(parts[1]) AS town_length
+                ORDER BY town_length DESC
+                LIMIT 1", new { address = Clean(address) });
+
+            return ToTownRef(rows.FirstOrDefault());
+        }
+
+        private static TownRef ToTownRef(Dictionary<string, object> row)
+        {
+            if (row == null) return null;
+
+            return new TownRef
+            {
+                town_id = Neo4jValueConverter.AsString(row.GetValueOrDefault("town_id")),
+                town_name = Neo4jValueConverter.AsString(row.GetValueOrDefault("town")),
+                city_name = Neo4jValueConverter.AsString(row.GetValueOrDefault("city"))
+            };
+        }
+
+        private static string TownKey(string city, string town)
+        {
+            if (string.IsNullOrWhiteSpace(city) || string.IsNullOrWhiteSpace(town)) return null;
+            return $"{Clean(city)}_{Clean(town)}";
+        }
+
+        /// <summary>比對地名用：去掉空白、統一成 Neo4j 的「台」</summary>
+        private static string Clean(string s) => new string(s.Where(ch => !char.IsWhiteSpace(ch)).ToArray()).Replace('臺', '台');
+
+        // 把自建景點掛到指定的鄉鎮市區與所屬縣市（先拆掉舊的行政區關聯），接在已綁定 a 的查詢後面
+        private const string LinkTownCypher = @"
+                WITH a
+                OPTIONAL MATCH (a)-[old:LOCATED_IN_TOWN|LOCATED_IN_CITY]->()
+                DELETE old
+                WITH DISTINCT a
+                OPTIONAL MATCH (t:Town {id: $townId})
+                OPTIONAL MATCH (t)-[:PART_OF]->(c:City)
+                FOREACH (_ IN CASE WHEN t IS NULL THEN [] ELSE [1] END | CREATE (a)-[:LOCATED_IN_TOWN]->(t))
+                FOREACH (_ IN CASE WHEN c IS NULL THEN [] ELSE [1] END | CREATE (a)-[:LOCATED_IN_CITY]->(c))";
+
+        /// <summary>
+        /// 商家註冊時選「都沒有，我要建立新的」景點：建立一顆全新身分節點（:Place:MerchantPlace，帶座標、完整地址，
+        /// 並掛上鄉鎮市區與縣市，和政府資料的景點一樣可以依行政區查詢）
         /// 加一顆 source='merchant' 的 :Current 版本節點，回傳新產生的 uid。
         /// </summary>
-        public async Task<string> CreateMerchantPlaceAsync(MerchantPlaceFields fields, string submittedBy)
+        public async Task<string> CreateMerchantPlaceAsync(MerchantNewPlace fields, MerchantPlaceLocation location, string submittedBy)
         {
-            const string query = @"
-                CREATE (a:Place:MerchantPlace {uid: randomUUID()})
+            string query = @"
+                CREATE (a:Place:MerchantPlace {uid: randomUUID(), lat: $lat, lon: $lon, address: $fullAddress})
                 CREATE (v:Place:Version:Current {
                     version_id: randomUUID(),
                     version_no: 1,
@@ -243,12 +314,16 @@ namespace backend.Services.Neo4j
                     valid_from: datetime(),
                     valid_to: null
                 })
-                CREATE (a)-[:HAS_VERSION]->(v)
+                CREATE (a)-[:HAS_VERSION]->(v)" + LinkTownCypher + @"
                 RETURN a.uid AS uid
             ";
 
             var rows = await _gateway.ExecuteCypherAsync(query, new
             {
+                lat = location.lat,
+                lon = location.lng,
+                fullAddress = location.full_address,
+                townId = location.town_id,
                 name = fields.name,
                 address = fields.address,
                 description = fields.description,
@@ -262,8 +337,43 @@ namespace backend.Services.Neo4j
         }
 
         /// <summary>
+        /// 商家改了地址：更新自建景點身分節點的座標、完整地址，並重新掛鄉鎮市區與縣市。
+        /// 只動 :MerchantPlace，政府開放資料的景點不會被修改。
+        /// </summary>
+        public async Task UpdateMerchantPlaceLocationAsync(string uid, MerchantPlaceLocation location)
+        {
+            string query = @"
+                MATCH (a:MerchantPlace {uid: $uid})
+                SET a.lat = $lat, a.lon = $lon, a.address = $fullAddress" + LinkTownCypher;
+
+            await _gateway.ExecuteCypherAsync(query, new
+            {
+                uid,
+                lat = location.lat,
+                lon = location.lng,
+                fullAddress = location.full_address,
+                townId = location.town_id
+            });
+        }
+
+        /// <summary>
+        /// 刪掉剛建立、還沒被任何劇本用到的商家自建景點（身分節點與版本節點一起刪），商家註冊的 MySQL 寫入失敗時清理用。
+        /// 只刪 :MerchantPlace，政府開放資料的景點不會被刪。商家刪除帳號請用 DeleteMerchantVersionAsync（自建景點只標成已刪除）。
+        /// </summary>
+        public async Task DeleteUnusedMerchantPlaceAsync(string uid)
+        {
+            if (string.IsNullOrWhiteSpace(uid)) return;
+
+            await _gateway.ExecuteCypherAsync(@"
+                MATCH (a:MerchantPlace {uid: $uid})
+                OPTIONAL MATCH (a)-[:HAS_VERSION]->(v)
+                DETACH DELETE v, a", new { uid });
+        }
+
+        /// <summary>
         /// 商家刪除帳號時清理 Neo4j 側資料：
-        /// - 若身分節點是商家自建的（:MerchantPlace），整條身分節點連同所有版本節點一併刪除。
+        /// - 若身分節點是商家自建的（:MerchantPlace），保留節點與版本（舊劇本還要用座標與名稱），
+        ///   只標成已刪除（is_deleted = true、deleted_at）；商家資料已刪，行程規劃不會再排入。
         /// - 若是政府開放資料的景點，只刪除商家自己的 :Current 版本節點，絕對不動原始身分節點。
         /// </summary>
         public async Task DeleteMerchantVersionAsync(string uid)
@@ -281,12 +391,11 @@ namespace backend.Services.Neo4j
 
             if (labels.Contains("MerchantPlace"))
             {
-                const string deleteAllQuery = @"
-                    MATCH (a {uid: $uid})
-                    OPTIONAL MATCH (a)-[:HAS_VERSION]->(v)
-                    DETACH DELETE v, a
+                const string markDeletedQuery = @"
+                    MATCH (a:MerchantPlace {uid: $uid})
+                    SET a.is_deleted = true, a.deleted_at = datetime()
                 ";
-                await _gateway.ExecuteCypherAsync(deleteAllQuery, new { uid });
+                await _gateway.ExecuteCypherAsync(markDeletedQuery, new { uid });
             }
             else
             {

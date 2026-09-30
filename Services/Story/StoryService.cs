@@ -22,10 +22,13 @@ namespace backend.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly BadgeService _badgeService;
         private readonly FogGenerationQueue _fogQueue;
+        private readonly Neo4j.PlaceLookupService _placeLookup;
+        private readonly TaskDifficultyService _difficulty;
 
 
         public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory,
-                            BadgeService badgeService, FogGenerationQueue fogQueue)
+                            BadgeService badgeService, FogGenerationQueue fogQueue,
+                            Neo4j.PlaceLookupService placeLookup, TaskDifficultyService difficulty)
         {
             _dao = dao;
             _neo4jService = neo4jService;
@@ -33,6 +36,8 @@ namespace backend.Services
             _httpClientFactory = httpClientFactory;
             _badgeService = badgeService;
             _fogQueue = fogQueue;
+            _placeLookup = placeLookup;
+            _difficulty = difficulty;
         }
 
 
@@ -61,10 +66,17 @@ namespace backend.Services
 
 
         // === 變更重點：原本只讀不寫，現在會把該劇本標記為「正在遊玩中」 ===
+        /// <summary>確認開始：只有劇本擁有者或協作隊員可以把這份劇本設為進行中。</summary>
         public StoryDetailResponse ConfirmStory(int auId, StoryConfirmRequest req)
         {
             if (req == null || req.story_id <= 0)
-                throw new Exception("請提供 story_id");
+                throw new BadRequestException("請提供 story_id");
+
+            StoryDao.StoryParticipation participation = _dao.GetStoryParticipation(auId, req.story_id)
+                ?? throw new NotFoundException($"找不到 story_id = {req.story_id} 的劇本");
+
+            if (participation.owner_id != auId && !participation.is_participant)
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法開始遊玩");
 
             bool success = _dao.SetStoryPlaying(auId, req.story_id);
             if (!success)
@@ -74,12 +86,23 @@ namespace backend.Services
         }
 
         // === 新增：玩家結束/退出劇本時呼叫 ===
-        public bool EndStory(int auId, int storyId)
+        /// <summary>
+        /// 結束劇本：劇本存在且登入者有參與（擁有者或協作隊員）就視為成功。
+        /// 有遊玩紀錄時標成完成；沒按過確認開始就不補建完成紀錄，避免首頁與過往紀錄多出沒玩過的劇本。
+        /// 擁有者結束時，進行中的協作隊伍一併標成完成。
+        /// </summary>
+        public void EndStory(int auId, int storyId)
         {
             if (storyId <= 0)
-                throw new Exception("請提供 story_id");
+                throw new BadRequestException("請提供 story_id");
 
-            return _dao.ClearStoryPlaying(auId, storyId);
+            StoryDao.StoryParticipation participation = _dao.GetStoryParticipation(auId, storyId)
+                ?? throw new NotFoundException($"找不到 story_id = {storyId} 的劇本");
+
+            if (participation.owner_id != auId && !participation.is_participant)
+                throw new UnauthorizedAccessException("你沒有參與這個劇本");
+
+            _dao.ClearStoryPlaying(auId, storyId);
         }
 
         // === 新增：查目前哪個劇本正在進行中 ===
@@ -393,22 +416,28 @@ namespace backend.Services
 
         #region 劇本任務一次生成（AI service /api/v1/generate）
 
+        // 任務類型代號（type.type_id）
+        private const int CrossLevelTypeId = 2;         // 跨關集結型：最後一站
+        private const int CreativePhotoTypeId = 3;      // 創意攝影型：每站必出
+        private const int LocalFoodTypeId = 4;          // 地方美食型：餐廳類景點
         private const int CoopTaskTypeId = 5;           // 協作解謎型，至少 2 人才出
-        private const int MerchantQuizTypeId = 9;       // 商家知識問答，商家後台維護，不給 AI 生成
+        private const int MerchantQuizTypeId = PlaceTypeWriter.MerchantQuizTypeId;   // 商家知識問答，直接引用商家題庫，不給 AI 生成
+
+        // 每站再從景點在 place_type 可出的這幾類隨機抽一題：文化問答型、景點猜猜樂、e人訪談型
+        // （舊架構是 6~10 類；9 改由商家題庫掛入，10 不在 AI 生成規格內）
+        private static readonly int[] RandomTaskTypeIds = { 6, 7, 8 };
 
         // 選了這些交通方式時，才規劃節點之間的公車
         private static readonly HashSet<string> BusTransports = new HashSet<string> { "公車", "客運", "台灣好行" };
 
-        // place_type 查不到任何設定時的預設任務類型：創意攝影型、文化問答型、協作解謎型
-        private static readonly int[] DefaultTaskTypeIds = { 3, 6, 5 };
         private static readonly Dictionary<int, string> FallbackTypeNames = new Dictionary<int, string>
         {
             { 1, "GPS 區域定位型" }, { 2, "跨關集結型" }, { 3, "創意攝影型" }, { 4, "地方美食型" },
-            { 5, "協作解謎型" }, { 6, "文化問答型" }, { 7, "景點猜猜樂" }, { 8, "e人訪談型" }
+            { 5, "協作解謎型" }, { 6, "文化問答型" }, { 7, "景點猜猜樂" }, { 8, "e人訪談型" }, { 9, "商家知識問答" }
         };
 
 
-        // 一次生成幾份劇本讓使用者挑
+        // GenerateGameStory 一次生成幾份劇本讓使用者挑
         private const int StoryCount = 3;
 
         // narrative_tone 沒有資料時用的預設敘事語氣
@@ -416,50 +445,77 @@ namespace backend.Services
 
 
         /// <summary>
-        /// 劇本 + 任務一次生成（一次 3 份讓使用者挑）：
-        /// 1. 用交通等時圈找出範圍內所有景點（已去重複、不含公車），隨機抽 3 組、每組 8 個，
-        ///    景點夠多時各組不重複，每組各自排好順路的參觀順序
-        /// 2. 每組配一個敘事語氣；每個景點從 place_type 查可出的任務類型組成 type_list
-        /// 3. 打 AI service /api/v1/generate，一次拿回 3 份劇本
-        /// 4. 後端補上 AI 不回傳的欄位，全部寫入 story、story_tag、story_node、task、task_option、task_clue（同一個交易）
+        /// GenerateGameStory：依使用者位置一次生成 3 份劇本（每份 8 個景點）讓使用者挑。
         /// 呼叫前 req.lat/lng、city_name、town_name 必須已由 Controller 補齊。
         /// </summary>
-        public async Task<List<GameStoryResult>> GenerateGameStoryAsync(int auId, GameStoryGenerateRequest req)
+        public Task<List<GameStoryResult>> GenerateGameStoryAsync(int auId, GameStoryGenerateRequest req)
         {
-            int partySize = req.party_size > 0 ? req.party_size : 2;
-            int isNightMode = req.is_night_mode == 1 ? 1 : 2;
-
-            // ── 1. 挑 3 組景點 ──
-            ReachableAttractionsResponse reachable = await FindAllReachableAttractionsAsync(new ReachableAttractionsRequest
+            return GenerateStoriesAsync(auId, new GameStoryPlan
             {
                 lat = req.lat,
                 lng = req.lng,
-                transportation = req.transportation
+                city_name = req.city_name,
+                town_name = req.town_name,
+                party_size = req.party_size,
+                transportation = req.transportation,
+                preferences = req.preferences,
+                is_night_mode = req.is_night_mode,
+                story_count = StoryCount,
+                places_per_story = AttractionCount
             });
+        }
 
-            if (reachable.attractions.Count == 0)
-                throw new Exception("附近找不到可到達的景點，請換個地點或交通方式再試一次");
 
-            List<List<ReachableAttractionNode>> placeSets = PickPlaceSets(reachable.attractions, StoryCount, AttractionCount)
-                .Select(set => OrderByVisit(set, req.lat, req.lng))
-                .ToList();
+        /// <summary>
+        /// 劇本 + 任務一次生成（GenerateGameStory 使用；依城市／行政區生成也走這裡，由 Controller 先轉成中心點）：
+        /// 1. 規劃旅遊行程：交通等時圈找出可到達的景點（含商家自建景點），抽出每份劇本的景點組合並排好順路的參觀順序
+        /// 2. 判斷任務類型：照舊架構規則決定每站要出哪些題型；景點在 place_type 標有 9（商家有題庫）時，
+        ///    另外必出一題商家知識問答。隨機題型依玩家紀錄調整（動態難度，見 TaskDifficultyService）
+        /// 3. 打包成一包丟給 AI service /api/v1/generate，一次拿回所有劇本
+        /// 4. 補上 AI 不回傳的欄位、掛入商家題庫任務，全部寫入資料庫（同一個交易），回傳給前端挑選
+        /// </summary>
+        public async Task<List<GameStoryResult>> GenerateStoriesAsync(int auId, GameStoryPlan plan)
+        {
+            int partySize = plan.party_size > 0 ? plan.party_size : 2;
+            int isNightMode = plan.is_night_mode == 1 ? 1 : 0;   // 白天=0、夜間=1（story.is_night_mode）
+            int storyCount = plan.story_count > 0 ? plan.story_count : StoryCount;
+            int placesPerStory = plan.places_per_story > 0 ? plan.places_per_story : AttractionCount;
 
-            // ── 2. 敘事語氣、每個景點的任務類型 ──
-            List<string> tones = await PickNarrativeTonesAsync(placeSets.Count);
+            // ── 1. 規劃旅遊行程 ──
+            List<List<ReachableAttractionNode>> placeSets =
+                await PlanItinerariesAsync(plan.lat, plan.lng, plan.transportation, storyCount, placesPerStory);
 
+            // ── 2. 判斷任務類型 ──
             List<string> placeIds = placeSets.SelectMany(s => s).Select(a => a.uid).Distinct().ToList();
             List<StoryDao.PlaceTaskTypeRow> typeRows = await _dao.GetPlaceTaskTypesAsync(placeIds);
+            ILookup<string, StoryDao.MerchantQuestionRow> merchantQuestions =
+                (await _dao.GetMerchantQuestionsByPlaceIdsAsync(placeIds)).ToLookup(q => q.place_id);
             Dictionary<int, string> typeNames = await _dao.GetTaskTypeNamesAsync();
+            List<string> tones = await PickNarrativeTonesAsync(placeSets.Count);
 
-            string TypeName(int id) => typeNames.TryGetValue(id, out string name) ? name
+            // 動態難度：玩家第一次到的鄉鎮市區不出 e人訪談型，隨機題型的權重依玩家表現調整
+            TaskDifficultyService.PlayerProfile player = await _difficulty.GetPlayerProfileAsync(auId);
+            HashSet<string> firstVisitPlaces =
+                await _difficulty.GetFirstVisitPlaceIdsAsync(player, placeIds, plan.city_name, plan.town_name);
+
+            string TypeName(int id) => typeNames.TryGetValue(id, out string name) && !string.IsNullOrWhiteSpace(name) ? name
                                      : FallbackTypeNames.TryGetValue(id, out string fallback) ? fallback : "";
 
-            AiGamePlace ToAiPlace(ReachableAttractionNode a)
+            // 商家知識問答：place_type 有 (景點, 9) 標記、且商家題庫有題目的景點，每站必出一題
+            // （從題庫隨機挑，同一景點在各份劇本用同一題）
+            HashSet<string> merchantQuizPlaces = typeRows
+                .Where(r => r.type_id == MerchantQuizTypeId)
+                .Select(r => r.place_id)
+                .ToHashSet();
+
+            Dictionary<string, StoryDao.MerchantQuestionRow> pickedQuestions = placeIds
+                .Where(id => merchantQuizPlaces.Contains(id) && merchantQuestions[id].Any())
+                .ToDictionary(id => id, id => merchantQuestions[id].OrderBy(_ => Random.Shared.Next()).First());
+
+            AiGamePlace ToAiPlace(ReachableAttractionNode a, bool isLastNode)
             {
                 List<StoryDao.PlaceTaskTypeRow> rows = typeRows.Where(r => r.place_id == a.uid).ToList();
                 string category = rows.Select(r => r.place_category).FirstOrDefault(c => !string.IsNullOrWhiteSpace(c)) ?? "Attraction";
-
-                IEnumerable<int> typeIds = rows.Count > 0 ? rows.Select(r => r.type_id) : DefaultTaskTypeIds;
 
                 return new AiGamePlace
                 {
@@ -467,56 +523,34 @@ namespace backend.Services
                     p_name = a.name,
                     is_hotel = category == "Lodging" || category == "Hotel" ? 1 : 2,
                     is_hidden = 2,
-                    type_list = typeIds
-                        .Distinct()
-                        .Where(id => id != MerchantQuizTypeId)
-                        .Where(id => id != CoopTaskTypeId || partySize >= 2)
+                    type_list = DecideTaskTypes(rows, category, isLastNode, partySize, player, firstVisitPlaces.Contains(a.uid))
                         .Select(id => new AiTaskTypeRef { type_id = id, type_name = TypeName(id) })
                         .ToList()
                 };
             }
 
-            // places 已排成順路的參觀順序，AI 照陣列順序排 sn_order
+            // ── 3. 打包成一包丟給 AI（places 已排成順路的參觀順序，AI 照陣列順序排 sn_order）──
             List<AiStoryCondition> conditions = placeSets.Select((set, i) => new AiStoryCondition
             {
                 story_no = i + 1,
                 nt_name = tones[i],
-                places = set.Select(ToAiPlace).ToList()
+                places = set.Select((a, index) => ToAiPlace(a, index == set.Count - 1)).ToList()
             }).ToList();
 
             var aiRequest = new AiGameStoryRequest
             {
-                city_name = req.city_name ?? "",
-                district_name = req.town_name ?? "",
+                city_name = plan.city_name ?? "",
+                district_name = plan.town_name ?? "",
                 party_size = partySize,
-                s_tag = req.preferences ?? new List<string>(),
+                s_tag = plan.preferences ?? new List<string>(),
                 is_night_mode = isNightMode,
                 stories = conditions
             };
 
-            // ── 3. 打 AI service ──
-            HttpClient client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromMinutes(10);
+            AiGameStoryResponse aiResponse = await RequestAiStoriesAsync(aiRequest);
 
-            var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
-            HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url("/api/v1/generate"), content);
-            string responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"AI 劇本任務生成服務回應錯誤 (Status: {(int)response.StatusCode}): {responseString}");
-
-            AiGameStoryResponse aiResponse;
-            try
-            {
-                aiResponse = JsonSerializer.Deserialize<AiGameStoryResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"AI 劇本任務回傳格式無法解析: {ex.Message}");
-            }
-
-            // ── 4. 補上 AI 不回傳的欄位 ──
-            List<string> transport = (req.transportation ?? new List<string>())
+            // ── 4. 補上 AI 不回傳的欄位、掛入商家題庫任務 ──
+            List<string> transport = (plan.transportation ?? new List<string>())
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .Select(t => t.Trim())
                 .Distinct()
@@ -548,13 +582,30 @@ namespace backend.Services
                 {
                     GameStoryNode node = nodes[i];
                     AiGamePlace place = condition.places.First(p => p.place_id == node.place_id);
+                    HashSet<int> plannedTypes = place.type_list.Select(t => t.type_id).ToHashSet();
 
                     node.sn_order = i + 1;
                     node.p_name = place.p_name;
                     node.is_hidden = place.is_hidden;
                     node.is_night_only = isNightMode == 1 ? 1 : 0;
                     node.npc_id = null;
-                    node.tasks = node.tasks ?? new List<GameStoryTask>();
+
+                    // 只收規劃好的題型，AI 多給的丟掉
+                    node.tasks = (node.tasks ?? new List<GameStoryTask>())
+                        .Where(t => plannedTypes.Contains(t.task_type))
+                        .ToList();
+
+                    if (pickedQuestions.TryGetValue(node.place_id, out StoryDao.MerchantQuestionRow question))
+                    {
+                        node.tasks.Add(new GameStoryTask
+                        {
+                            task_type = MerchantQuizTypeId,
+                            question_id = question.question_id,
+                            task_describe = question.question_describe,
+                            task_option = question.options,
+                            task_clue = new List<GameStoryTaskClue>()
+                        });
+                    }
 
                     foreach (GameStoryTask task in node.tasks)
                         task.type_name = TypeName(task.task_type);
@@ -583,8 +634,8 @@ namespace backend.Services
             if (results.Count == 0)
                 throw new Exception("AI 劇本任務回傳內容為空");
 
-            // ── 5. 寫入資料庫（回填 story_id、sn_id、task_db_id；有選公車時一併寫入節點間的直達公車）──
-            await _dao.SaveGameStoriesAsync(auId, req.preferences, results, planBusTransit);
+            // 寫入資料庫（回填 story_id、sn_id、task_id；有選公車時一併寫入節點間的直達公車）
+            await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit);
 
             // ── 6. 可抽的勳章類別、景點照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
             Dictionary<int, string> images = await _dao.GetNodeImagesAsync(results.Select(r => r.story_id));
@@ -609,7 +660,190 @@ namespace backend.Services
             foreach (GameStoryResult r in results)
                 _fogQueue.Enqueue(r.story_id, force: true);   // 在背景把每一站的照片做成迷霧圖
 
+            HideAnswers(results);
             return results;
+        }
+
+
+        /// <summary>
+        /// 回傳給前端前清掉答案類欄位（已存進資料庫）：正確答案、提示、所有座位的線索、選項的對錯。
+        /// 前端改由節點遊玩畫面（GET api/Task/Node/{node_id}）取得自己座位的線索與作答方式。
+        /// </summary>
+        private static void HideAnswers(List<GameStoryResult> results)
+        {
+            foreach (GameStoryTask task in results.SelectMany(r => r.nodes).SelectMany(n => n.tasks ?? new List<GameStoryTask>()))
+            {
+                task.correct_answer = null;
+                task.task_hint = null;
+                task.task_clue = null;
+
+                foreach (GameStoryTaskOption option in task.task_option ?? new List<GameStoryTaskOption>())
+                {
+                    option.is_correct = null;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// 規劃旅遊行程：用交通等時圈找出範圍內所有景點（已去重複、不含公車），
+        /// 抽出 storyCount 組、每組 placesPerStory 個景點（景點夠多時各組不重複），每組各自排好順路的參觀順序。
+        /// </summary>
+        private async Task<List<List<ReachableAttractionNode>>> PlanItinerariesAsync(
+            double lat, double lng, List<string> transportation, int storyCount, int placesPerStory)
+        {
+            // 要拿等時圈補商家景點，所以請核心一併回傳等時圈
+            ReachableAttractionsResponse reachable = await FindAllReachableAttractionsAsync(new ReachableAttractionsRequest
+            {
+                lat = lat,
+                lng = lng,
+                transportation = transportation,
+                include_polygons = true
+            });
+
+            await AddReachableMerchantPlacesAsync(reachable, transportation);
+
+            if (reachable.attractions.Count == 0)
+                throw new Exception("附近找不到可到達的景點，請換個地點或交通方式再試一次");
+
+            return PickPlaceSets(reachable.attractions, storyCount, placesPerStory)
+                .Select(set => OrderByVisit(set, lat, lng))
+                .ToList();
+        }
+
+
+        /// <summary>
+        /// 把範圍內的商家景點（現有商家的 store_uid，含自建景點與綁定的既有景點）補進行程候選。
+        /// FindAllReachableAttractionsAsync 只查 :Attraction，商家自建景點（:MerchantPlace）與綁定的餐廳、旅宿都不在其中，
+        /// 所以座標向 Neo4j 查（PlaceLookupService），用同一組等時圈判斷是否在範圍內、同樣用 Valhalla 算真實交通時間與圈層後再加進候選。
+        /// 已刪除帳號的商家沒有 store 資料，不會被排入。
+        /// 刻意不改 FindAllReachableAttractionsAsync（交通規劃核心），這裡的圈內判斷與圈層規則要跟它保持一致。
+        /// </summary>
+        private async Task AddReachableMerchantPlacesAsync(ReachableAttractionsResponse reachable, List<string> transportation)
+        {
+            List<IsochroneBand> bands = reachable.isochrones;
+            if (bands == null || bands.Count == 0) return;
+
+            double lat = reachable.center_lat;
+            double lng = reachable.center_lng;
+            var (minLat, maxLat, minLon, maxLon) = ValhallaService.GetBoundingBox(bands);
+
+            HashSet<string> existingUids = reachable.attractions.Select(a => a.uid).ToHashSet();
+            List<string> storeUids = await _dao.GetStoreUidsAsync();
+            List<ReachableAttractionNode> merchants = (await _placeLookup.GetPlacesInBoundsAsync(storeUids, minLat, maxLat, minLon, maxLon))
+                .Where(p => !string.IsNullOrWhiteSpace(p.name))
+                .Select(p => new ReachableAttractionNode
+                {
+                    uid = p.uid,
+                    name = p.name,
+                    lat = p.lat,
+                    lon = p.lng,
+                    distance_m = Math.Round(DistanceMeters(lat, lng, p.lat, p.lng), 1)
+                })
+                .Where(m => !existingUids.Contains(m.uid))
+                .Where(m => bands.Any(b => ValhallaService.Contains(b, m.lat, m.lon)))
+                .ToList();
+
+            // 跟既有候選同名相近、或幾乎同座標的視為同一個景點，以既有候選為準
+            HashSet<ReachableAttractionNode> kept = RemoveDuplicateAttractions(reachable.attractions.Concat(merchants).ToList()).ToHashSet();
+            merchants = merchants.Where(kept.Contains).ToList();
+            if (merchants.Count == 0) return;
+
+            var costingGroups = GroupTransports(transportation);
+            var targets = merchants.Select(a => (lat: a.lat, lng: a.lon)).ToList();
+            List<(double? seconds, double? km)>[] timeResults = await Task.WhenAll(
+                costingGroups.Select(group => _valhallaService.GetTravelTimesAsync(lat, lng, targets, group.costing)));
+
+            List<int> minutes = reachable.contour_minutes;
+
+            for (int i = 0; i < merchants.Count; i++)
+            {
+                double? bestSeconds = null;
+                double? bestKm = null;
+                string bestBy = null;
+
+                for (int k = 0; k < costingGroups.Count; k++)
+                {
+                    var (seconds, km) = timeResults[k][i];
+                    if (seconds.HasValue && (!bestSeconds.HasValue || seconds.Value < bestSeconds.Value))
+                    {
+                        bestSeconds = seconds;
+                        bestKm = km;
+                        bestBy = costingGroups[k].label;
+                    }
+                }
+
+                // 在圈內但路網上實際到不了，略過
+                if (!bestSeconds.HasValue) continue;
+
+                ReachableAttractionNode merchant = merchants[i];
+                merchant.travel_minutes = Math.Round(bestSeconds.Value / 60.0, 1);
+                merchant.travel_distance_km = Math.Round(bestKm ?? 0, 2);
+                merchant.reachable_by = bestBy;
+
+                int ringIndex = minutes.FindIndex(m => merchant.travel_minutes <= m);
+                merchant.ring = ringIndex >= 0 ? ringIndex + 1 : minutes.Count;
+                merchant.reachable_minutes = minutes[merchant.ring - 1];
+
+                reachable.attractions.Add(merchant);
+            }
+
+            reachable.total_reachable = reachable.attractions.Count;
+        }
+
+
+        /// <summary>
+        /// 判斷一站要出哪些題型（沿用舊架構 TaskGenerationService 的規則）：
+        /// 1. 每站固定出創意攝影型（3）
+        /// 2. 最後一站加跨關集結型（2）
+        /// 3. 餐廳類景點加地方美食型（4）
+        /// 4. 2 人以上加協作解謎型（5）
+        /// 5. 再從景點在 place_type 可出的文化問答型／景點猜猜樂／e人訪談型（6~8）依權重抽一題：
+        ///    玩家第一次到這個景點的鄉鎮市區時不出 e人訪談型，權重依玩家紀錄調整（TaskDifficultyService.PickRandomType）
+        /// 商家知識問答（9）不參加隨機抽取：place_type 有 (景點, 9) 標記時，另外由商家題庫掛入（每站必出）。
+        /// </summary>
+        private static List<int> DecideTaskTypes(List<StoryDao.PlaceTaskTypeRow> placeTypes, string category, bool isLastNode, int partySize,
+            TaskDifficultyService.PlayerProfile player, bool isFirstVisit)
+        {
+            var types = new List<int> { CreativePhotoTypeId };
+
+            if (isLastNode) types.Add(CrossLevelTypeId);
+            if (category == "Restaurant") types.Add(LocalFoodTypeId);
+            if (partySize >= 2) types.Add(CoopTaskTypeId);
+
+            IEnumerable<int> randomPool = placeTypes
+                .Select(r => r.type_id)
+                .Where(id => RandomTaskTypeIds.Contains(id));
+
+            int? picked = TaskDifficultyService.PickRandomType(randomPool, player, isFirstVisit);
+            if (picked.HasValue)
+                types.Add(picked.Value);
+
+            return types.Distinct().ToList();
+        }
+
+
+        /// <summary>打包好的劇本條件一次送給 AI service /api/v1/generate，拿回所有劇本。</summary>
+        private async Task<AiGameStoryResponse> RequestAiStoriesAsync(AiGameStoryRequest aiRequest)
+        {
+            HttpClient client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(10);
+
+            var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
+            HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url("/api/v1/generate"), content);
+            string responseString = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"AI 劇本任務生成服務回應錯誤 (Status: {(int)response.StatusCode}): {responseString}");
+
+            try
+            {
+                return JsonSerializer.Deserialize<AiGameStoryResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"AI 劇本任務回傳格式無法解析: {ex.Message}");
+            }
         }
 
 

@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Dapper;
 using backend.utils;
 using backend.Models;
 using backend.Services;
@@ -22,62 +23,18 @@ namespace backend.dao
     {
         private readonly HttpContext _ipContext;
         private readonly MysqlConnect mysql_connect = new(app_settings_obj.Value.mydb);
+        private readonly string mydb = app_settings_obj.Value.mydb;
         private readonly Neo4jService neo4j_service = neo4j_service_obj;
 
         #region 查詢任務地點
 
         /// <summary>
-        /// <summary>
-        /// 依 task_id 查詢任務地點，關聯 md_task 表。
+        /// 節點對應的景點 uid（story_node.place_id），座標由 PlaceLookupService 向 Neo4j 查（與地圖抵達同一份座標）。
         /// </summary>
-        public async Task<Location> GetPlaceLocation(string node_id)
+        public string GetNodePlaceId(int snId)
         {
-            // 1. MySQL 查詢 place_id
-            Hashtable param = new()
-            {
-                {"@node_id", new MySQLParameter(node_id, MySqlDbType.VarChar)}
-            };
-
-            string sql = @"
-                        SELECT place_id, story_id FROM md_story_node
-                        WHERE node_id = @node_id";
-
-            List<SearchNeo4jReq> mysqlData = mysql_connect.GetDataList<SearchNeo4jReq>(sql, param);
-
-            // 若查詢結果無 place_id 則回傳 null
-            if (mysqlData == null || mysqlData.Count == 0 || string.IsNullOrEmpty(mysqlData[0].place_id))
-            {
-                return null;
-            }
-
-            string targetPlaceId = mysqlData[0].place_id;
-            string targetStoryId = mysqlData[0].story_id;
-
-            // 2. 建立 Neo4j Cypher 查詢
-            string cypher = @"
-                            MATCH (n)
-                            WHERE (n:Attraction OR n:Event OR n:Hotel OR n:Restaurant)
-                            AND (elementId(n) = $id OR n.id = $id OR n.EventID = $id OR n.uid = $id)
-                            RETURN coalesce(n.lat, n.PositionLat) AS Lat,
-                                coalesce(n.lon, n.PositionLon) AS Lon
-                            LIMIT 1";
-
-            // 3. 執行 Neo4j 查詢
-            var locationResult = await neo4j_service.ExecuteCypherAsync<List<Location>>(
-                cypher,
-                new { id = targetPlaceId }
-            );
-
-            // 4. 若有結果，則附加 place_id 及 story_id 回傳
-            if (locationResult != null && locationResult.Count > 0)
-            {
-                locationResult[0].PlaceId = targetPlaceId;
-                locationResult[0].StoryId = targetStoryId;
-                return locationResult[0];
-            }
-
-            // 若查無結果，回傳預設假座標供測試
-            return new Location { PlaceId = targetPlaceId, StoryId = targetStoryId, Lat = 25.0456, Lon = 121.5123 };
+            using var conn = new MySqlConnection(mydb);
+            return conn.ExecuteScalar<string>("SELECT place_id FROM story_node WHERE sn_id = @snId;", new { snId });
         }
         #endregion
 
@@ -148,122 +105,19 @@ namespace backend.dao
 
         #region 取得提示
 
-        /// <summary>
-        /// 依任務代號與錯誤次數取得對應提示，關聯 md_task_hint。
-        /// trigger_wrong_count 與 hint_stage 決定顯示哪一階段提示。
-        /// </summary>
-        public TaskHintResponse GetHintByWrongCount(string task_id, int wrongCount)
+        /// <summary>取得任務提示（task.task_hint），沒有提示時回傳 null。</summary>
+        public string GetTaskHint(int taskId)
         {
-            Hashtable param = new()
-            {
-                {"@task_id", new MySQLParameter(task_id, MySqlDbType.VarChar)},
-                {"@wrongCount", new MySQLParameter(wrongCount, MySqlDbType.Int32)}
-            };
-
-            string sql = @"
-                SELECT hint_text FROM md_task_hint
-                WHERE task_id = @task_id AND trigger_wrong_count <= @wrongCount AND is_active = 1
-                ORDER BY hint_stage DESC
-                LIMIT 1";
-
-            List<HintTextRow> rows = mysql_connect.GetDataList<HintTextRow>(sql, param);
-            string hintText = rows is { Count: > 0 } ? rows[0].hint_text : null;
-
-            return new TaskHintResponse
-            {
-                task_id = task_id,
-                hint_text = hintText ?? "目前沒有更多的提示內容了。",
-                is_available = hintText != null
-            };
+            using var conn = new MySqlConnection(mydb);
+            string hint = conn.ExecuteScalar<string>("SELECT task_hint FROM task WHERE task_id = @taskId;", new { taskId });
+            return string.IsNullOrWhiteSpace(hint) ? null : hint;
         }
 
-        private class HintTextRow
+        /// <summary>任務的題型（task.task_type），任務不存在時回傳 0</summary>
+        public int GetTaskTypeId(int taskId)
         {
-            public string hint_text { get; set; }
-        }
-
-        #endregion
-
-        #region 難度等級
-
-        /// <summary>
-        /// 紀錄玩家到訪地區的累積次數，並由 md_difficulty_prompt 的設定動態調整難度等級。
-        /// </summary>
-        public int RecordVisitAndGetDifficulty(string ep_id, string region_id)
-        {
-            Hashtable epRegionParam = new()
-            {
-                {"@ep_id", new MySQLParameter(ep_id, MySqlDbType.VarChar)},
-                {"@region_id", new MySQLParameter(region_id, MySqlDbType.VarChar)}
-            };
-
-            string upsertSql = @"
-                INSERT INTO ep_visit_count (ep_id, region_id, visit_count, current_difficulty_star)
-                VALUES (@ep_id, @region_id, 1, 1)
-                ON DUPLICATE KEY UPDATE visit_count = visit_count + 1";
-            mysql_connect.Execute(upsertSql, epRegionParam);
-
-            string visitSql = @"
-                SELECT visit_count FROM ep_visit_count
-                WHERE ep_id = @ep_id AND region_id = @region_id";
-            List<VisitCountRow> visitRows = mysql_connect.GetDataList<VisitCountRow>(visitSql, epRegionParam);
-            int visitCount = visitRows is { Count: > 0 } ? visitRows[0].visit_count : 0;
-
-            Hashtable starParam = new()
-            {
-                {"@visitCount", new MySQLParameter(visitCount, MySqlDbType.Int32)}
-            };
-            string starSql = @"
-                SELECT MAX(difficulty_star) AS max_star FROM md_difficulty_prompt
-                WHERE raise_visit_threshold <= @visitCount AND is_active = 1";
-            List<MaxStarRow> starRows = mysql_connect.GetDataList<MaxStarRow>(starSql, starParam);
-            int newStar = starRows is { Count: > 0 } && starRows[0].max_star.HasValue
-                ? starRows[0].max_star.Value
-                : 1;
-
-            Hashtable updateParam = new()
-            {
-                {"@star", new MySQLParameter(newStar, MySqlDbType.Int32)},
-                {"@ep_id", new MySQLParameter(ep_id, MySqlDbType.VarChar)},
-                {"@region_id", new MySQLParameter(region_id, MySqlDbType.VarChar)}
-            };
-            string updateSql = @"
-                UPDATE ep_visit_count SET current_difficulty_star = @star
-                WHERE ep_id = @ep_id AND region_id = @region_id";
-            mysql_connect.Execute(updateSql, updateParam);
-
-            return newStar;
-        }
-
-        private class VisitCountRow
-        {
-            public int visit_count { get; set; }
-        }
-
-        private class MaxStarRow
-        {
-            public int? max_star { get; set; }
-        }
-
-        /// <summary>由難度等級取得準備給 LLM 的對話提示範本，關聯 md_difficulty_prompt。</summary>
-        public string GetDifficultyPrompt(int difficultyStar)
-        {
-            Hashtable param = new()
-            {
-                {"@star", new MySQLParameter(difficultyStar, MySqlDbType.Int32)}
-            };
-
-            string sql = @"
-                SELECT llm_prompt_template FROM md_difficulty_prompt
-                WHERE difficulty_star = @star AND is_active = 1";
-
-            List<PromptTemplateRow> rows = mysql_connect.GetDataList<PromptTemplateRow>(sql, param);
-            return rows is { Count: > 0 } ? rows[0].llm_prompt_template ?? "" : "";
-        }
-
-        private class PromptTemplateRow
-        {
-            public string llm_prompt_template { get; set; }
+            using var conn = new MySqlConnection(mydb);
+            return conn.ExecuteScalar<int?>("SELECT task_type FROM task WHERE task_id = @taskId;", new { taskId }) ?? 0;
         }
 
         #endregion
@@ -355,140 +209,264 @@ namespace backend.dao
         #region 玩家任務答題紀錄
 
         /// <summary>
-        /// 取得特定玩家在指定任務中已答錯的次數。
-        /// 若紀錄中未包含此任務，則回傳 0。
+        /// 取得玩家在指定任務中已答錯的次數（user_task_record.is_correct = 0 的筆數）。
         /// </summary>
-        /// <param name="epId">玩家代號</param>
-        /// <param name="taskId">任務代號</param>
-        /// <returns>累積答錯次數</returns>
-        public int GetWrongCount(string epId, string taskId)
+        public int GetWrongCount(int auId, int taskId)
         {
-            Hashtable param = new()
-            {
-                {"@ep_id", new MySQLParameter(epId, MySqlDbType.VarChar)},
-                {"@task_id", new MySQLParameter(taskId, MySqlDbType.VarChar)}
-            };
-
-            string sql = @"
-                SELECT COALESCE(wrong_count, 0) AS wrong_count
-                FROM ep_task_record
-                WHERE ep_id = @ep_id
-                  AND task_id = @task_id";
-
-            List<WrongCountRow> rows = mysql_connect.GetDataList<WrongCountRow>(sql, param);
-            return rows is { Count: > 0 } ? rows[0].wrong_count : 0;
+            using var conn = new MySqlConnection(mydb);
+            return conn.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM user_task_record WHERE au_id = @auId AND task_id = @taskId AND is_correct = 0;",
+                new { auId, taskId });
         }
 
-        private class WrongCountRow
+        /// <summary>登入者與某個節點的關係（節點不存在時查詢回傳 null）</summary>
+        public class PlayerNodeState
         {
-            public int wrong_count { get; set; }
+            public int story_id { get; set; }
+            public int owner_id { get; set; }
+            public int node_order { get; set; }
+
+            /// <summary>登入者在協作隊伍（未取消）中的座位，不在隊伍中為 null</summary>
+            public int? seat_no { get; set; }
+
+            /// <summary>登入者（有隊伍時為全隊共用）最遠抵達的節點順序，見 TeamProgress</summary>
+            public int current_node_order { get; set; }
         }
 
         /// <summary>
-        /// 玩家答錯時增加答錯次數。
-        /// 若為首次錯誤將建立紀錄，若已存在則將 wrong_count 加一。
+        /// 查詢登入者在某個節點所屬劇本的身分、座位與隊伍進度。節點不存在時回傳 null。
         /// </summary>
-        /// <param name="epId">玩家代號</param>
-        /// <param name="taskId">任務代號</param>
-        /// <param name="storyId">故事代號</param>
-        /// <param name="nodeId">節點代號</param>
-        public void IncreaseWrongCount(
-            string epId,
-            int    taskId,
-            string storyId,
-            string nodeId)
+        public PlayerNodeState GetPlayerNodeState(int auId, int snId)
         {
-            Hashtable param = new()
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+
+            PlayerNodeState state = conn.QueryFirstOrDefault<PlayerNodeState>(@"
+                SELECT sn.s_id AS story_id,
+                       s.au_id AS owner_id,
+                       sn.sn_order AS node_order,
+                       (SELECT pm.seat_no
+                        FROM story_pair_member pm
+                        INNER JOIN story_pair_session ps ON ps.pair_id = pm.pair_id
+                        WHERE pm.au_id = @auId AND ps.s_id = sn.s_id AND ps.pair_status <> 'cancelled'
+                        ORDER BY pm.pair_id DESC
+                        LIMIT 1) AS seat_no
+                FROM story_node sn
+                INNER JOIN story s ON s.s_id = sn.s_id
+                WHERE sn.sn_id = @snId;", new { auId, snId });
+
+            if (state != null)
             {
-                {"@ep_id",    new MySQLParameter(epId,    MySqlDbType.VarChar)},
-                {"@task_id",  new MySQLParameter(taskId,  MySqlDbType.Int32)},
-                {"@story_id", new MySQLParameter(string.IsNullOrWhiteSpace(storyId) ? (object)DBNull.Value : storyId, MySqlDbType.VarChar)},
-                {"@node_id",  new MySQLParameter(string.IsNullOrWhiteSpace(nodeId)  ? (object)DBNull.Value : nodeId,  MySqlDbType.VarChar)}
-            };
+                state.current_node_order = TeamProgress.GetCurrentNodeOrder(conn, auId, state.story_id);
+            }
 
-            string sql = @"
-                INSERT INTO ep_task_record
-                (
-                    ep_id,
-                    task_id,
-                    story_id,
-                    node_id,
-                    wrong_count,
-                    is_completed,
-                    created_at,
-                    updated_at
-                )
-                VALUES
-                (
-                    @ep_id,
-                    @task_id,
-                    @story_id,
-                    @node_id,
-                    1,
-                    0,
-                    NOW(),
-                    NOW()
-                )
-                ON DUPLICATE KEY UPDATE
-                    wrong_count = wrong_count + 1,
-                    updated_at = NOW()";
+            return state;
+        }
 
-            mysql_connect.Execute(sql, param);
+        /// <summary>節點遊玩畫面用的節點資料</summary>
+        public class NodePlayRow
+        {
+            public int sn_id { get; set; }
+            public int s_id { get; set; }
+            public int sn_order { get; set; }
+            public string sn_title { get; set; }
+            public string location_codename { get; set; }
+            public string sn_opening_text { get; set; }
+            public string sn_success_text { get; set; }
+        }
+
+        public NodePlayRow GetNodePlayRow(int snId)
+        {
+            using var conn = new MySqlConnection(mydb);
+            return conn.QueryFirstOrDefault<NodePlayRow>(@"
+                SELECT sn_id, s_id, sn_order, sn_title, location_codename, sn_opening_text, sn_success_text
+                FROM story_node
+                WHERE sn_id = @snId;", new { snId });
+        }
+
+        /// <summary>多個任務各自的「登入者答錯次數」與「是否有提示」</summary>
+        public Dictionary<int, (int wrongCount, bool hasHint)> GetTaskPlayerStats(int auId, List<int> taskIds)
+        {
+            if (taskIds == null || taskIds.Count == 0) return new Dictionary<int, (int, bool)>();
+
+            using var conn = new MySqlConnection(mydb);
+            return conn.Query<(int task_id, int wrong_count, int has_hint)>(@"
+                SELECT t.task_id,
+                       (SELECT COUNT(*) FROM user_task_record r
+                        WHERE r.au_id = @auId AND r.task_id = t.task_id AND r.is_correct = 0) AS wrong_count,
+                       (t.task_hint IS NOT NULL AND t.task_hint <> '') AS has_hint
+                FROM task t
+                WHERE t.task_id IN @taskIds;", new { auId, taskIds })
+                .ToDictionary(r => r.task_id, r => (r.wrong_count, r.has_hint == 1));
         }
 
         /// <summary>
-        /// 玩家答對後建立或更新任務完成紀錄。
-        /// 將清除之前的答錯次數歸零，並設定為已完成。
+        /// 確認玩家能否作答此劇本的任務：劇本擁有者（story.au_id），或該劇本協作隊伍的成員（story_pair_member）。
+        /// 回傳 (是否為擁有者, 所屬協作隊伍 pair_id)；兩者皆無代表玩家沒有參與這個劇本。
         /// </summary>
-        /// <param name="epId">玩家代號</param>
-        /// <param name="taskId">任務代號</param>
-        /// <param name="storyId">故事代號</param>
-        /// <param name="nodeId">節點代號</param>
-        public void MarkTaskCompleted(
-            string epId,
-            string taskId,
-            string storyId,
-            string nodeId)
+        public (bool isOwner, int? pairId) GetStoryAccess(int auId, int storyId)
         {
-            Hashtable param = new()
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+
+            bool isOwner = conn.ExecuteScalar<int>(
+                "SELECT COUNT(*) FROM story WHERE s_id = @storyId AND au_id = @auId;",
+                new { auId, storyId }) > 0;
+
+            int? pairId = conn.ExecuteScalar<int?>(@"
+                SELECT pm.pair_id
+                FROM story_pair_member pm
+                INNER JOIN story_pair_session ps ON ps.pair_id = pm.pair_id
+                WHERE pm.au_id = @auId AND ps.s_id = @storyId AND ps.pair_status <> 'cancelled'
+                ORDER BY pm.pair_id DESC
+                LIMIT 1;", new { auId, storyId });
+
+            return (isOwner, pairId);
+        }
+
+        /// <summary>作答寫入後的結果與進度</summary>
+        public class AnswerSaveResult
+        {
+            public int attempt_no { get; set; }
+            public NodeProgress node_progress { get; set; }
+            public bool story_completed { get; set; }
+        }
+
+        /// <summary>一站的任務進度（task.pass，協作隊伍共用）</summary>
+        public NodeProgress GetNodeProgress(int snId)
+        {
+            using var conn = new MySqlConnection(mydb);
+            return GetNodeProgress(conn, null, snId);
+        }
+
+        private static NodeProgress GetNodeProgress(MySqlConnection conn, MySqlTransaction transaction, int snId)
+        {
+            var (total, passed) = conn.QueryFirst<(int total, int passed)>(@"
+                SELECT COUNT(*) AS total, CAST(COALESCE(SUM(pass = 1), 0) AS SIGNED) AS passed
+                FROM task
+                WHERE node_id = @snId;", new { snId }, transaction);
+
+            return new NodeProgress { total = total, passed = passed, all_passed = total > 0 && passed == total };
+        }
+
+        /// <summary>
+        /// 寫入一次作答紀錄（user_task_record），答對時同一個交易：
+        /// 1. 把 task.pass 設為 1（已通過）
+        /// 2. 這一站任務全部通過 → 寫入 story_node.last_time（完成時間）
+        /// 3. 整份劇本任務全部通過 → 劇本擁有者與協作隊員的遊玩紀錄標成完成、協作隊伍標成完成
+        /// 第一個上傳素材存 answer_media_url，其餘存 record_media。
+        /// user_task_record.record_id、record_media.media_id 沒有自動遞增，交易內鎖住後自行編號
+        /// （同 StoryDao 寫 task_option.option_id 的做法）。
+        /// </summary>
+        /// <param name="isCorrect">1=正確、0=錯誤；null=人工審核中，尚無對錯判定</param>
+        public AnswerSaveResult SaveAnswerRecord(int auId, int taskId, int storyId, int nodeId, int? pairId,
+            string answerContent, List<string> mediaUrls, bool? isCorrect)
+        {
+            mediaUrls ??= new List<string>();
+
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
             {
-                {"@ep_id", new MySQLParameter(epId, MySqlDbType.VarChar)},
-                {"@task_id", new MySQLParameter(taskId, MySqlDbType.VarChar)},
-                {"@story_id", new MySQLParameter(string.IsNullOrWhiteSpace(storyId) ? (object)DBNull.Value : storyId, MySqlDbType.VarChar)},
-                {"@node_id", new MySQLParameter(string.IsNullOrWhiteSpace(nodeId) ? (object)DBNull.Value : nodeId, MySqlDbType.VarChar)}
-            };
+                int recordId = conn.ExecuteScalar<int>(
+                    "SELECT COALESCE(MAX(record_id), 0) + 1 FROM user_task_record FOR UPDATE;",
+                    transaction: transaction);
 
-            string sql = @"
-                INSERT INTO ep_task_record
-                (
-                    ep_id,
-                    task_id,
-                    story_id,
-                    node_id,
-                    wrong_count,
-                    is_completed,
-                    completed_at,
-                    created_at,
-                    updated_at
-                )
-                VALUES
-                (
-                    @ep_id,
-                    @task_id,
-                    @story_id,
-                    @node_id,
-                    0,
-                    1,
-                    NOW(),
-                    NOW(),
-                    NOW()
-                )
-                ON DUPLICATE KEY UPDATE
-                    is_completed = 1,
-                    completed_at = COALESCE(completed_at, NOW()),
-                    updated_at = NOW()";
+                int attemptNo = conn.ExecuteScalar<int>(
+                    "SELECT COUNT(*) + 1 FROM user_task_record WHERE au_id = @auId AND task_id = @taskId;",
+                    new { auId, taskId }, transaction);
 
-            mysql_connect.Execute(sql, param);
+                conn.Execute(@"
+                    INSERT INTO user_task_record
+                        (record_id, au_id, task_id, pair_id, answer_content, answer_media_url, is_correct, attempt_no)
+                    VALUES
+                        (@recordId, @auId, @taskId, @pairId, @answerContent, @answerMediaUrl, @isCorrect, @attemptNo);",
+                    new
+                    {
+                        recordId,
+                        auId,
+                        taskId,
+                        pairId,
+                        answerContent,
+                        answerMediaUrl = mediaUrls.FirstOrDefault(),
+                        isCorrect = isCorrect.HasValue ? (isCorrect.Value ? 1 : 0) : (int?)null,
+                        attemptNo
+                    }, transaction);
+
+                if (mediaUrls.Count > 1)
+                {
+                    int mediaId = conn.ExecuteScalar<int>(
+                        "SELECT COALESCE(MAX(media_id), 0) FROM record_media FOR UPDATE;",
+                        transaction: transaction);
+
+                    foreach (string url in mediaUrls.Skip(1))
+                    {
+                        conn.Execute(
+                            "INSERT INTO record_media (media_id, record_id, media_url) VALUES (@mediaId, @recordId, @url);",
+                            new { mediaId = ++mediaId, recordId, url }, transaction);
+                    }
+                }
+
+                bool storyCompleted = false;
+
+                if (isCorrect == true)
+                {
+                    conn.Execute("UPDATE task SET pass = 1 WHERE task_id = @taskId;", new { taskId }, transaction);
+
+                    if (GetNodeProgress(conn, transaction, nodeId).all_passed)
+                    {
+                        conn.Execute(
+                            "UPDATE story_node SET last_time = COALESCE(last_time, NOW()) WHERE sn_id = @nodeId;",
+                            new { nodeId }, transaction);
+                    }
+
+                    int remaining = conn.ExecuteScalar<int>(
+                        "SELECT COUNT(*) FROM task WHERE story_id = @storyId AND pass = 0;", new { storyId }, transaction);
+
+                    if (remaining == 0)
+                    {
+                        CompleteStory(conn, transaction, storyId);
+                        storyCompleted = true;
+                    }
+                }
+
+                NodeProgress progress = GetNodeProgress(conn, transaction, nodeId);
+
+                transaction.Commit();
+                return new AnswerSaveResult { attempt_no = attemptNo, node_progress = progress, story_completed = storyCompleted };
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 劇本全部任務通過：劇本擁有者與協作隊員（未取消隊伍）的遊玩紀錄標成完成，協作隊伍標成完成。
+        /// 沒有遊玩紀錄（沒按過確認開始、也沒抵達過）的人不補建。
+        /// </summary>
+        private static void CompleteStory(MySqlConnection conn, MySqlTransaction transaction, int storyId)
+        {
+            conn.Execute(@"
+                UPDATE story_session
+                SET ss_status = 'completed', completed_at = COALESCE(completed_at, NOW())
+                WHERE s_id = @storyId
+                  AND ss_status <> 'completed'
+                  AND au_id IN (
+                      SELECT au_id FROM story WHERE s_id = @storyId
+                      UNION
+                      SELECT pm.au_id
+                      FROM story_pair_member pm
+                      INNER JOIN story_pair_session ps ON ps.pair_id = pm.pair_id
+                      WHERE ps.s_id = @storyId AND ps.pair_status <> 'cancelled');", new { storyId }, transaction);
+
+            conn.Execute(@"
+                UPDATE story_pair_session
+                SET pair_status = 'completed', completed_at = NOW()
+                WHERE s_id = @storyId AND pair_status IN ('waiting', 'locked', 'expired');", new { storyId }, transaction);
         }
 
         #endregion
@@ -497,45 +475,48 @@ namespace backend.dao
 
         /// <summary>
         /// 組合 AI 任務生成所需的景點劇本內容（story_content）。
-        /// 取自三個資料表：
-        ///   - md_story.prologue：劇本前導故事
-        ///   - md_story_node.fog_hint：節點迷霧提示
-        ///   - md_place.introduction：景點詳細介紹
-        /// 三欄位皆可為 NULL，僅取有值的部分組合成段落回傳。
+        /// 取自：
+        ///   - story.story_prologue：劇本前傳
+        ///   - story_node.location_codename：節點地點代號（原 fog_hint，v5 已移除 sn_hint）
+        ///   - placeIntroduction：景點介紹（呼叫端向 Neo4j 查，見 PlaceLookupService）
+        /// 欄位皆可為 NULL，僅取有值的部分組合成段落回傳。
         /// </summary>
-        /// <param name="node_id">節點代號（md_story_node.node_id）</param>
+        /// <param name="node_id">節點代號（story_node.sn_id）</param>
+        /// <param name="placeIntroduction">景點介紹，沒有時傳 null</param>
         /// <returns>組合後的景點劇本說明文字，供 AiTaskRequest.story_content 使用</returns>
-        public string GetStoryContent(string node_id)
+        public string GetStoryContent(string node_id, string placeIntroduction)
         {
-            Hashtable param = new()
-            {
-                { "@node_id", new MySQLParameter(node_id, MySqlDbType.VarChar) }
-            };
+            if (!int.TryParse(node_id, out int snId))
+                return string.Empty;
 
             string sql = @"
                 SELECT
-                    s.prologue       AS story_prologue,
-                    n.fog_hint       AS node_fog_hint,
-                    p.introduction   AS place_introduction,
-                    p.place_name     AS place_name
-                FROM md_story_node n
-                INNER JOIN md_story s ON s.story_id = n.story_id
-                LEFT  JOIN md_place p ON p.place_id  = n.place_id
-                WHERE n.node_id = @node_id
-                LIMIT 1";
+                    s.story_prologue     AS story_prologue,
+                    sn.location_codename AS node_fog_hint,
+                    pt.place_name        AS place_name
+                FROM story_node sn
+                INNER JOIN story s ON s.s_id = sn.s_id
+                LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt
+                       ON pt.place_id = sn.place_id
+                WHERE sn.sn_id = @snId
+                LIMIT 1;";
 
-            var rows = mysql_connect.GetDataList<StoryContentRow>(sql, param);
-            if (rows == null || rows.Count == 0)
+            StoryContentRow r;
+            using (var conn = new MySqlConnection(mydb))
+            {
+                r = conn.QueryFirstOrDefault<StoryContentRow>(sql, new { snId });
+            }
+
+            if (r == null)
                 return string.Empty;
 
-            var r = rows[0];
             var parts = new List<string>();
 
             if (!string.IsNullOrWhiteSpace(r.place_name))
                 parts.Add($"【景點】{r.place_name}");
 
-            if (!string.IsNullOrWhiteSpace(r.place_introduction))
-                parts.Add($"【景點介紹】{r.place_introduction}");
+            if (!string.IsNullOrWhiteSpace(placeIntroduction))
+                parts.Add($"【景點介紹】{placeIntroduction}");
 
             if (!string.IsNullOrWhiteSpace(r.story_prologue))
                 parts.Add($"【劇本背景】{r.story_prologue}");
@@ -550,7 +531,6 @@ namespace backend.dao
         {
             public string story_prologue    { get; set; }
             public string node_fog_hint     { get; set; }
-            public string place_introduction { get; set; }
             public string place_name        { get; set; }
         }
 
@@ -559,23 +539,19 @@ namespace backend.dao
         #region 任務類型查詢
 
         /// <summary>
-        /// 查詢特定景點所屬的所有類別屬性，JOIN md_place_type + md_type。
+        /// 查詢特定景點可出的所有任務類型，來源 place_type JOIN type。
+        /// place_category 為 Attraction / Event / Hotel / Restaurant。
         /// </summary>
         public List<PlaceTypeInfo> GetPlaceTypes(string place_id)
         {
-            Hashtable param = new()
-            {
-                {"@place_id", new MySQLParameter(place_id, MySqlDbType.VarChar)}
-            };
-
             string sql = @"
-                SELECT pt.type_id, p.category AS place_category, t.type_name
-                FROM md_place_type pt
-                INNER JOIN md_type t ON t.type_id = pt.type_id
-                LEFT JOIN md_place p ON p.place_id = pt.place_id
-                WHERE pt.place_id = @place_id";
+                SELECT pt.type_id, pt.place_category, t.type_name
+                FROM place_type pt
+                INNER JOIN `type` t ON t.type_id = pt.type_id
+                WHERE pt.place_id = @place_id;";
 
-            return mysql_connect.GetDataList<PlaceTypeInfo>(sql, param) ?? new List<PlaceTypeInfo>();
+            using var conn = new MySqlConnection(mydb);
+            return conn.Query<PlaceTypeInfo>(sql, new { place_id }).ToList();
         }
 
         public class PlaceTypeInfo
@@ -591,6 +567,7 @@ namespace backend.dao
 
         /// <summary>
         /// 任務生成階段所需的節點基本資料（不含座標，故不打 Neo4j）。
+        /// node_id = story_node.sn_id、story_id = story_node.s_id，沿用字串型別給 TaskGenerationService。
         /// </summary>
         public class StoryNodeRef
         {
@@ -600,22 +577,22 @@ namespace backend.dao
         }
 
         /// <summary>
-        /// 取得一份劇本底下所有啟用中的節點，供劇本生成後批次產生任務使用。
+        /// 取得一份劇本底下的所有節點，供劇本生成後批次產生任務使用。
+        /// story_node.is_active 在 v5 代表「是否解鎖」，不能拿來過濾。
         /// </summary>
         public List<StoryNodeRef> GetNodesByStoryId(string story_id)
         {
-            Hashtable param = new()
-            {
-                {"@story_id", new MySQLParameter(story_id, MySqlDbType.VarChar)}
-            };
+            if (!int.TryParse(story_id, out int sId))
+                return new List<StoryNodeRef>();
 
             string sql = @"
-                SELECT node_id, place_id, story_id
-                FROM md_story_node
-                WHERE story_id = @story_id AND is_active = 1
-                ORDER BY node_order";
+                SELECT CAST(sn_id AS CHAR) AS node_id, place_id, CAST(s_id AS CHAR) AS story_id
+                FROM story_node
+                WHERE s_id = @sId
+                ORDER BY sn_order;";
 
-            return mysql_connect.GetDataList<StoryNodeRef>(sql, param) ?? new List<StoryNodeRef>();
+            using var conn = new MySqlConnection(mydb);
+            return conn.Query<StoryNodeRef>(sql, new { sId }).ToList();
         }
 
         /// <summary>
@@ -623,211 +600,246 @@ namespace backend.dao
         /// </summary>
         public StoryNodeRef GetNodeRef(string node_id)
         {
-            Hashtable param = new()
-            {
-                {"@node_id", new MySQLParameter(node_id, MySqlDbType.VarChar)}
-            };
+            if (!int.TryParse(node_id, out int snId))
+                return null;
 
             string sql = @"
-                SELECT node_id, place_id, story_id
-                FROM md_story_node
-                WHERE node_id = @node_id
-                LIMIT 1";
+                SELECT CAST(sn_id AS CHAR) AS node_id, place_id, CAST(s_id AS CHAR) AS story_id
+                FROM story_node
+                WHERE sn_id = @snId
+                LIMIT 1;";
 
-            var rows = mysql_connect.GetDataList<StoryNodeRef>(sql, param);
-            return rows is { Count: > 0 } ? rows[0] : null;
+            using var conn = new MySqlConnection(mydb);
+            return conn.QueryFirstOrDefault<StoryNodeRef>(sql, new { snId });
         }
 
         /// <summary>
-        /// 查詢特定節點下的所有任務，若已完成則不再顯示。
+        /// 查詢特定節點下的所有任務（含通關狀態 task.pass）。
+        /// 協作解謎型另外帶出該座位（seat_no）在 task_clue 的線索，放在 clue_text。
         /// </summary>
-        public List<TaskDetailResponse> GetTasksByNodeId(string node_id)
+        public List<TaskDetailResponse> GetTasksByNodeId(string node_id, int seat_no)
         {
-            Hashtable param = new()
-            {
-                {"@node_id", new MySQLParameter(node_id, MySqlDbType.VarChar)}
-            };
+            if (!int.TryParse(node_id, out int snId))
+                return new List<TaskDetailResponse>();
 
             string sql = @"
                 SELECT
-                    t.task_id, t.story_id, t.node_id, t.task_place_id,
-                    t.task_type AS type_id, ty.type_name AS task_type, t.task_describe,
-                    t.task_describe_b, t.correct_answer
-                FROM md_task t
-                INNER JOIN md_type ty ON ty.type_id = t.task_type
-                WHERE t.node_id = @node_id";
+                    t.task_id,
+                    CAST(t.story_id AS CHAR) AS story_id,
+                    CAST(t.node_id AS CHAR)  AS node_id,
+                    sn.place_id              AS task_place_id,
+                    t.task_type              AS type_id,
+                    ty.type_name             AS task_type,
+                    COALESCE(NULLIF(t.task_describe, ''), sq.question_describe) AS task_describe,
+                    t.correct_answer,
+                    t.pass,
+                    tc.clue_text
+                FROM task t
+                LEFT JOIN `type` ty     ON ty.type_id = t.task_type
+                LEFT JOIN store_question sq ON sq.question_id = t.question_id
+                LEFT JOIN story_node sn ON sn.sn_id = t.node_id
+                LEFT JOIN task_clue tc  ON tc.task_id = t.task_id AND tc.seat_no = @seat_no
+                WHERE t.node_id = @snId
+                ORDER BY t.task_id;";
 
-            var tasks = mysql_connect.GetDataList<TaskDetailResponse>(sql, param) ?? new List<TaskDetailResponse>();
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+
+            List<TaskDetailResponse> tasks = conn.Query<TaskDetailResponse>(sql, new { snId, seat_no }).ToList();
+            Dictionary<int, List<TaskOption>> options = GetTaskOptions(conn, tasks.Select(t => t.task_id).ToList());
 
             foreach (var task in tasks)
             {
-                task.options = GetTaskOptions(task.task_id);
-                task.media_urls = GetTaskMedia(task.task_id);
+                task.options = options.TryGetValue(task.task_id, out var list) ? list : new List<TaskOption>();
+                task.media_urls = new List<string>();
             }
 
             return tasks;
         }
 
+        /// <summary>
+        /// 取得作答用的任務內容：task + type + task_option，含目前的通關狀態（task.pass）。
+        /// </summary>
         public TaskDetailResponse GetTaskDetail(int task_id)
         {
-            Hashtable param = new()
-            {
-                {"@task_id", new MySQLParameter(task_id, MySqlDbType.Int32)}
-            };
-
             string sql = @"
                 SELECT
-                    t.task_id, t.story_id, t.node_id, t.task_place_id,
-                    t.task_type AS type_id, ty.type_name AS task_type, t.task_describe,
-                    t.task_describe_b, t.correct_answer
-                FROM md_task t
-                INNER JOIN md_type ty ON ty.type_id = t.task_type
+                    t.task_id,
+                    CAST(t.story_id AS CHAR) AS story_id,
+                    CAST(t.node_id AS CHAR)  AS node_id,
+                    t.task_type              AS type_id,
+                    ty.type_name             AS task_type,
+                    COALESCE(NULLIF(t.task_describe, ''), sq.question_describe) AS task_describe,
+                    t.correct_answer,
+                    t.pass
+                FROM task t
+                LEFT JOIN `type` ty ON ty.type_id = t.task_type
+                LEFT JOIN store_question sq ON sq.question_id = t.question_id
                 WHERE t.task_id = @task_id
-                LIMIT 1";
+                LIMIT 1;";
 
-            var rows = mysql_connect.GetDataList<TaskDetailResponse>(sql, param);
-            if (rows == null || rows.Count == 0)
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+
+            TaskDetailResponse task = conn.QueryFirstOrDefault<TaskDetailResponse>(sql, new { task_id });
+            if (task == null)
                 throw new KeyNotFoundException($"找不到 task_id={task_id} 的任務");
 
-            var task = rows[0];
-            task.options = GetTaskOptions(task.task_id);
-            task.media_urls = GetTaskMedia(task.task_id);
+            task.options = GetTaskOptions(conn, new List<int> { task_id })
+                .TryGetValue(task_id, out var list) ? list : new List<TaskOption>();
+            task.media_urls = new List<string>();
             return task;
         }
 
-        private List<TaskOption> GetTaskOptions(int task_id)
+        private class TaskOptionRow
         {
-            Hashtable param = new()
-            {
-                {"@task_id", new MySQLParameter(task_id, MySqlDbType.Int32)}
-            };
+            public int task_id { get; set; }
+            public string option_key { get; set; }
+            public string option_text { get; set; }
+            public string option_url { get; set; }
+            public int is_correct { get; set; }
+        }
+
+        /// <summary>
+        /// 一次取出多個任務的選項，依 task_id 分組：
+        /// AI 生成的任務取 task_option；商家知識問答（task.question_id 有值）取商家題庫的 question_option。
+        /// </summary>
+        private static Dictionary<int, List<TaskOption>> GetTaskOptions(MySqlConnection conn, List<int> taskIds)
+        {
+            if (taskIds == null || taskIds.Count == 0)
+                return new Dictionary<int, List<TaskOption>>();
 
             string sql = @"
-                SELECT option_key, option_context AS option_text, option_url, is_correct
-                FROM md_option
-                WHERE task_id = @task_id
-                ORDER BY option_id";
+                SELECT t.task_id, o.option_id AS sort_id, o.option_key, o.option_context AS option_text, o.option_url, o.is_correct
+                FROM task t
+                INNER JOIN task_option o ON o.task_id = t.task_id
+                WHERE t.task_id IN @taskIds AND t.question_id IS NULL
+                UNION ALL
+                SELECT t.task_id, qo.option_id AS sort_id, qo.option_key, qo.option_context AS option_text, qo.option_url, qo.is_correct
+                FROM task t
+                INNER JOIN question_option qo ON qo.question_id = t.question_id
+                WHERE t.task_id IN @taskIds
+                ORDER BY task_id, sort_id;";
 
-            return mysql_connect.GetDataList<TaskOption>(sql, param) ?? new List<TaskOption>();
+            return conn.Query<TaskOptionRow>(sql, new { taskIds })
+                .GroupBy(o => o.task_id)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(o => new TaskOption
+                    {
+                        option_key = o.option_key,
+                        option_text = o.option_text,
+                        option_url = o.option_url,
+                        is_correct = o.is_correct == 1
+                    }).ToList());
         }
-
-        private List<string> GetTaskMedia(int task_id)
-        {
-            Hashtable param = new()
-            {
-                {"@task_id", new MySQLParameter(task_id, MySqlDbType.Int32)}
-            };
-
-            string sql = "SELECT media_url FROM md_task_media WHERE task_id = @task_id";
-            var rows = mysql_connect.GetDataList<TaskMediaRow>(sql, param);
-            return rows?.Select(r => r.media_url).ToList() ?? new List<string>();
-        }
-
-        private class TaskMediaRow { public string media_url { get; set; } }
 
         public string GetTypeName(int typeId)
         {
-            Hashtable param = new Hashtable { {"@type_id", new MySQLParameter(typeId, MySqlDbType.Int32)} };
-            string sql = "SELECT type_name FROM md_type WHERE type_id = @type_id";
-            var rows = mysql_connect.GetDataList<TypeNameRow>(sql, param);
-            return rows != null && rows.Count > 0 ? rows[0].type_name : typeId.ToString();
+            using var conn = new MySqlConnection(mydb);
+            string name = conn.ExecuteScalar<string>("SELECT type_name FROM `type` WHERE type_id = @typeId;", new { typeId });
+            return string.IsNullOrWhiteSpace(name) ? typeId.ToString() : name;
         }
-        private class TypeNameRow { public string type_name { get; set; } }
 
+        /// <summary>
+        /// 寫入一筆任務（task）。協作解謎型的兩段線索寫入 task_clue：
+        /// clue_text → 座位 1、task_describe_b → 座位 2（對應 story_pair_member.seat_no）。
+        /// </summary>
         public int InsertTask(TaskDetailResponse task, int typeId)
         {
-            Hashtable param = new()
+            int? storyId = int.TryParse(task.story_id, out int sId) ? sId : null;
+            int? nodeId = int.TryParse(task.node_id, out int snId) ? snId : null;
+
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
             {
-                {"@story_id",     new MySQLParameter(task.story_id    ?? (object)DBNull.Value, MySqlDbType.VarChar)},
-                {"@node_id",      new MySQLParameter(task.node_id,     MySqlDbType.VarChar)},
-                {"@task_type",    new MySQLParameter(typeId,           MySqlDbType.Int32)},
-                {"@task_describe",new MySQLParameter(task.task_describe ?? "", MySqlDbType.Text)},
-                {"@task_place_id",new MySQLParameter(task.task_place_id, MySqlDbType.VarChar)},
-                // 協作解謎型（type_id=5）專用，其他題型一律為 NULL
-                {"@task_describe_b", new MySQLParameter(string.IsNullOrEmpty(task.task_describe_b) ? (object)DBNull.Value : task.task_describe_b, MySqlDbType.Text)},
-                {"@correct_answer",  new MySQLParameter(string.IsNullOrEmpty(task.correct_answer)  ? (object)DBNull.Value : task.correct_answer,  MySqlDbType.VarChar)}
-            };
+                int taskId = conn.ExecuteScalar<int>(@"
+                    INSERT INTO task (story_id, node_id, task_type, task_describe, correct_answer)
+                    VALUES (@storyId, @nodeId, @typeId, @describe, @answer);
+                    SELECT LAST_INSERT_ID();",
+                    new
+                    {
+                        storyId,
+                        nodeId,
+                        typeId,
+                        describe = task.task_describe ?? "",
+                        answer = string.IsNullOrEmpty(task.correct_answer) ? null : task.correct_answer
+                    }, transaction);
 
-            string sql = @"
-                INSERT INTO md_task
-                (story_id, node_id, task_type, task_describe, task_place_id, task_describe_b, correct_answer)
-                VALUES
-                (@story_id, @node_id, @task_type, @task_describe, @task_place_id, @task_describe_b, @correct_answer);
-                SELECT LAST_INSERT_ID() AS last_id;";
+                var clues = new[] { (seat: 1, text: task.clue_text), (seat: 2, text: task.task_describe_b) }
+                    .Where(c => !string.IsNullOrEmpty(c.text));
 
-            var idRows = mysql_connect.GetDataList<LastIdRow>(sql, param);
-            return idRows is { Count: > 0 } ? idRows[0].last_id : 0;
+                foreach (var (seat, text) in clues)
+                {
+                    conn.Execute(
+                        "INSERT INTO task_clue (task_id, seat_no, clue_text) VALUES (@taskId, @seat, @text);",
+                        new { taskId, seat, text }, transaction);
+                }
+
+                transaction.Commit();
+                return taskId;
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
 
-        private class LastIdRow { public int last_id { get; set; } }
-
+        /// <summary>
+        /// 寫入任務選項（task_option）。option_id 沒有自動遞增，交易內鎖住後自行編號（同 StoryDao）。
+        /// </summary>
         public void InsertTaskOptions(int task_id, List<TaskOption> options)
         {
             if (options == null || options.Count == 0) return;
 
-            foreach (var opt in options)
+            using var conn = new MySqlConnection(mydb);
+            conn.Open();
+            using var transaction = conn.BeginTransaction();
+
+            try
             {
-                Hashtable param = new()
+                int optionId = conn.ExecuteScalar<int>(
+                    "SELECT COALESCE(MAX(option_id), 0) FROM task_option FOR UPDATE;", transaction: transaction);
+
+                foreach (var opt in options)
                 {
-                    {"@task_id",        new MySQLParameter(task_id,          MySqlDbType.Int32)},
-                    {"@option_key",     new MySQLParameter(opt.option_key ?? (object)DBNull.Value, MySqlDbType.VarChar)},
-                    {"@option_context", new MySQLParameter(opt.option_text ?? "", MySqlDbType.VarChar)},
-                    {"@option_url", new MySQLParameter(opt.option_url ?? (object)DBNull.Value, MySqlDbType.VarChar)},
-                    {"@is_correct",     new MySQLParameter(opt.is_correct ? 1 : 0, MySqlDbType.Int32)}
-                };
+                    conn.Execute(@"
+                        INSERT INTO task_option (option_id, task_id, option_key, option_context, option_url, is_correct)
+                        VALUES (@optionId, @task_id, @option_key, @option_context, @option_url, @is_correct);",
+                        new
+                        {
+                            optionId = ++optionId,
+                            task_id,
+                            opt.option_key,
+                            option_context = opt.option_text ?? "",
+                            opt.option_url,
+                            is_correct = opt.is_correct ? 1 : 0
+                        }, transaction);
+                }
 
-                string sql = @"
-                    INSERT INTO md_option (task_id, option_key, option_context, option_url, is_correct)
-                    VALUES (@task_id, @option_key, @option_context, @option_url, @is_correct)";
-
-                mysql_connect.Execute(sql, param);
+                transaction.Commit();
             }
-        }
-
-        public void InsertTaskMedia(int task_id, string ep_id, List<string> mediaUrls)
-        {
-            if (mediaUrls == null || mediaUrls.Count == 0) return;
-
-            foreach (var url in mediaUrls)
+            catch
             {
-                Hashtable param = new()
-                {
-                    {"@task_id",   new MySQLParameter(task_id, MySqlDbType.Int32)},
-                    {"@ep_id",     new MySQLParameter(ep_id ?? (object)DBNull.Value, MySqlDbType.VarChar)},
-                    {"@media_url", new MySQLParameter(url, MySqlDbType.VarChar)}
-                };
-
-                string sql = @"
-                    INSERT INTO md_task_media (task_id, ep_id, media_url)
-                    VALUES (@task_id, @ep_id, @media_url)";
-
-                mysql_connect.Execute(sql, param);
+                transaction.Rollback();
+                throw;
             }
         }
 
         public bool IsLastNodeInStory(string story_id, string node_id)
         {
-            Hashtable param = new()
-            {
-                {"@story_id", new MySQLParameter(story_id, MySqlDbType.VarChar)}
-            };
+            if (!int.TryParse(story_id, out int sId) || !int.TryParse(node_id, out int snId))
+                return false;
 
-            string sql = @"
-                SELECT node_id 
-                FROM md_story_node 
-                WHERE story_id = @story_id 
-                ORDER BY node_order DESC 
-                LIMIT 1";
-
-            var rows = mysql_connect.GetDataList<LastNodeRow>(sql, param);
-            if (rows != null && rows.Count > 0)
-            {
-                return rows[0].node_id == node_id;
-            }
-            return false;
+            using var conn = new MySqlConnection(mydb);
+            int? lastSnId = conn.ExecuteScalar<int?>(
+                "SELECT sn_id FROM story_node WHERE s_id = @sId ORDER BY sn_order DESC LIMIT 1;", new { sId });
+            return lastSnId == snId;
         }
-
-        private class LastNodeRow { public string node_id { get; set; } }
 
         #endregion
     }

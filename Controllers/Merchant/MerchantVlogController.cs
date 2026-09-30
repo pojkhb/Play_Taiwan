@@ -18,7 +18,7 @@ namespace backend.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+    [Authorize(Roles = "Merchant")]
     public class MerchantVlogController : ControllerBase
     {
         private readonly ILogger<MerchantVlogController> _logger;

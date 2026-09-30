@@ -10,9 +10,9 @@ namespace backend.ViewModels
         public string option_key { get; set; }
     }
 
+    /// <summary>新增題目請求；所屬商家由 JWT 的 s_id 決定，不需帶 store_id。</summary>
     public class QuestionCreateRequest
     {
-        public int store_id { get; set; }
         public string question_describe { get; set; }
         public List<QuestionOptionInput> options { get; set; }
     }

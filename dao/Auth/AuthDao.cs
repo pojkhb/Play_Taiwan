@@ -45,6 +45,16 @@ namespace backend.dao
                 return conn.QueryFirstOrDefault<AuthAccount>(sql, new { authName });
             }
         }
+
+        /// <summary>商家帳號對應的店家 s_id（store.au_id 有唯一索引，一個帳號只有一間店）；沒有店家資料時回傳 null。</summary>
+        public int? GetStoreIdByAuId(int auId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<int?>("SELECT s_id FROM store WHERE au_id = @auId LIMIT 1;", new { auId });
+            }
+        }
         #endregion
 
         #region 註冊 (新增帳號)

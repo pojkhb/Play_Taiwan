@@ -15,6 +15,7 @@ namespace backend.Services
         {
             return task.type_id switch
             {
+                1 => VerifyGpsArrival(task, req),
                 2 => VerifyCrossLevelRally(task, req),
                 3 => VerifyCreativePhoto(task, req),               
                 4 => VerifyLocalFood(task, req),                   
@@ -30,13 +31,19 @@ namespace backend.Services
 
         #region 各題型專屬驗證邏輯
 
-        // 2: 跨關集結型 (需輸入文字答案)
+        // 1: GPS 區域定位型 (提交前已通過位置驗證，抵達即完成)
+        private TaskAnswerResponse VerifyGpsArrival(TaskDetailResponse task, TaskAnswerRequest req)
+        {
+            return Success(task, "已抵達指定區域，定位成功！");
+        }
+
+        // 2: 跨關集結型 (開放式作答：寫下推理，有填字就通過，不比對答案)
         private TaskAnswerResponse VerifyCrossLevelRally(TaskDetailResponse task, TaskAnswerRequest req)
         {
             if (string.IsNullOrEmpty(req.text_answer))
-                return Fail("請輸入您的推理答案！");
+                return Fail("請寫下您的推理！");
 
-            return Success(task, "推理正確，恭喜集結成功！");
+            return Success(task, "已記錄你的推理，旅程集結完成！");
         }
 
         // 3: 創意攝影型 (需上傳照片)

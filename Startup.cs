@@ -121,6 +121,8 @@ namespace backend
             services.AddScoped<dao.TaskDao>();
             services.AddScoped<Services.ITaskVerificationService, Services.TaskVerificationService>();
             services.AddScoped<Services.TaskGenerationService>();
+            services.AddScoped<Services.TaskDifficultyService>();
+            services.AddScoped<dao.TaskDifficultyDao>();
 
             services.AddSingleton<Services.IVisionApiClient, Services.FakeVisionApiClient>();
             services.AddSingleton<Services.IPoseCompareClient, Services.FakePoseCompareClient>();
@@ -175,6 +177,7 @@ namespace backend
             // 這四個原本沒註冊，導致 MerchantController 與 MerchantVlogController
             // 每次請求都在 DI 解析時就失敗。
             services.AddScoped<Services.MerchantService>();
+            services.AddScoped<Services.StoreLocationService>();
             services.AddScoped<dao.MerchantDao>();
             services.AddScoped<Services.MerchantVlogService>();
             services.AddScoped<dao.VlogDao>();
@@ -203,7 +206,7 @@ namespace backend
             services.AddScoped<dao.RouteDao>();
             services.AddScoped<Services.RoutePlanService>();
             #endregion
-            #region S17-商家資料維護 + NFC（play_taiwan_db_v4：auth/store/coupon/nfc_coupon/user_coupon/store_question/question_option）
+            #region S17-商家資料維護 + QR Code（play_taiwan_db_v5：auth/store/coupon/qrcode_coupon/user_coupon/store_question/question_option）
             services.Configure<Neo4jSettings>(Configuration.GetSection("Neo4jSettings"));
 
             // Neo4j:Mode = Local（本地測試 Driver）/ Remote（正式對外 /api/neo4j/cypher）
@@ -228,16 +231,19 @@ namespace backend
             }
 
             services.AddScoped<PlaceVersionChainService>();
-            services.AddScoped<ICurrentActorProvider, RequestActorProvider>();
+            // 景點座標查詢（劇本節點 uid → Neo4j），地圖抵達、任務作答、導航共用
+            services.AddScoped<PlaceLookupService>();
 
-            services.AddScoped<Services.MerchantAccountService>();
-            services.AddScoped<dao.MerchantAccountDao>();
             services.AddScoped<Services.MerchantCouponService>();
             services.AddScoped<dao.MerchantCouponDao>();
-            services.AddScoped<Services.MerchantNfcService>();
-            services.AddScoped<dao.MerchantNfcDao>();
+            services.AddScoped<Services.MerchantQrCodeService>();
+            services.AddScoped<dao.MerchantQrCodeDao>();
             services.AddScoped<Services.MerchantQuestionService>();
             services.AddScoped<dao.MerchantQuestionDao>();
+
+            // 協作解謎配對（story_pair_session / story_pair_member）
+            services.AddScoped<Services.PairService>();
+            services.AddScoped<dao.PairDao>();
             #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();

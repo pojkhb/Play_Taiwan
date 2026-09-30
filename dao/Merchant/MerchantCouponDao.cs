@@ -8,6 +8,7 @@ using MySql.Data.MySqlClient;
 
 namespace backend.dao
 {
+    /// <summary>商家優惠券（coupon）。單筆操作都帶 s_id 條件，只能動到自己店家的優惠券。</summary>
     public class MerchantCouponDao
     {
         private readonly AppSettings _appSettings;
@@ -17,51 +18,61 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
-        public List<CouponResponse> GetByStore(int storeId)
+        public List<CouponResponse> GetByStore(int sId)
         {
             const string sql = @"
                 SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
                        discount_type, discount_value, valid_from, valid_to, status
                 FROM coupon
-                WHERE s_id = @storeId
+                WHERE s_id = @sId
                 ORDER BY coupon_id DESC;
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.Query<CouponResponse>(sql, new { storeId }).ToList();
+            return connection.Query<CouponResponse>(sql, new { sId }).ToList();
         }
 
-        public CouponResponse GetById(int couponId)
+        public CouponResponse GetById(int sId, int couponId)
         {
             const string sql = @"
                 SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
                        discount_type, discount_value, valid_from, valid_to, status
                 FROM coupon
-                WHERE coupon_id = @couponId
+                WHERE coupon_id = @couponId AND s_id = @sId
                 LIMIT 1;
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.QueryFirstOrDefault<CouponResponse>(sql, new { couponId });
+            return connection.QueryFirstOrDefault<CouponResponse>(sql, new { sId, couponId });
         }
 
-        public int Create(CouponCreateRequest req)
+        public int Create(int sId, CouponCreateRequest req)
         {
             const string sql = @"
                 INSERT INTO coupon
                     (s_id, coupon_code, coupon_name, discount_commodity, discount_type,
                      discount_value, valid_from, valid_to, status)
                 VALUES
-                    (@s_id, @coupon_code, @coupon_name, @discount_commodity, @discount_type,
+                    (@sId, @coupon_code, @coupon_name, @discount_commodity, @discount_type,
                      @discount_value, @valid_from, @valid_to, 'active');
                 SELECT LAST_INSERT_ID();
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.ExecuteScalar<int>(sql, req);
+            return connection.ExecuteScalar<int>(sql, new
+            {
+                sId,
+                req.coupon_code,
+                req.coupon_name,
+                req.discount_commodity,
+                req.discount_type,
+                req.discount_value,
+                req.valid_from,
+                req.valid_to
+            });
         }
 
-        public bool Update(int couponId, CouponUpdateRequest req)
+        public bool Update(int sId, int couponId, CouponUpdateRequest req)
         {
             const string sql = @"
                 UPDATE coupon
@@ -72,12 +83,13 @@ namespace backend.dao
                     discount_value = @discount_value,
                     valid_from = @valid_from,
                     valid_to = @valid_to
-                WHERE coupon_id = @couponId;
+                WHERE coupon_id = @couponId AND s_id = @sId;
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
             int affected = connection.Execute(sql, new
             {
+                sId,
                 couponId,
                 req.coupon_code,
                 req.coupon_name,
@@ -90,19 +102,19 @@ namespace backend.dao
             return affected > 0;
         }
 
-        public bool UpdateStatus(int couponId, string status)
+        public bool UpdateStatus(int sId, int couponId, string status)
         {
-            const string sql = "UPDATE coupon SET status = @status WHERE coupon_id = @couponId;";
+            const string sql = "UPDATE coupon SET status = @status WHERE coupon_id = @couponId AND s_id = @sId;";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.Execute(sql, new { couponId, status }) > 0;
+            return connection.Execute(sql, new { sId, couponId, status }) > 0;
         }
 
         /// <summary>
-        /// 刪除優惠券：Transaction 內依序刪 nfc_coupon → user_coupon → coupon，比照 StoryDao 的
-        /// BeginTransaction/Commit/Rollback 寫法，避免斷頭資料。
+        /// 刪除優惠券：先確認優惠券屬於此商家，再於 Transaction 內依序刪 qrcode_coupon → user_coupon → coupon，
+        /// 比照 StoryDao 的 BeginTransaction/Commit/Rollback 寫法，避免斷頭資料。
         /// </summary>
-        public bool Delete(int couponId)
+        public bool Delete(int sId, int couponId)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
@@ -110,7 +122,17 @@ namespace backend.dao
 
             try
             {
-                connection.Execute("DELETE FROM nfc_coupon WHERE coupon_id = @couponId;", new { couponId }, transaction);
+                bool owned = connection.ExecuteScalar<int>(
+                    "SELECT COUNT(1) FROM coupon WHERE coupon_id = @couponId AND s_id = @sId;",
+                    new { sId, couponId }, transaction) > 0;
+
+                if (!owned)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                connection.Execute("DELETE FROM qrcode_coupon WHERE coupon_id = @couponId;", new { couponId }, transaction);
                 connection.Execute("DELETE FROM user_coupon WHERE coupon_id = @couponId;", new { couponId }, transaction);
                 int affected = connection.Execute("DELETE FROM coupon WHERE coupon_id = @couponId;", new { couponId }, transaction);
 

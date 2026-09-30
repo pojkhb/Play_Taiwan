@@ -34,4 +34,13 @@ namespace backend.Models
         public NodeLockedException()
             : base("這一站還在迷霧中，請先完成前一站。") { }
     }
+
+    /// <summary>
+    /// 請求內容不正確（缺少必填欄位、格式錯誤、值不在允許範圍），
+    /// 由 ExceptionHandlingMiddleware 統一轉成 HTTP 400 回應。
+    /// </summary>
+    public class BadRequestException : System.Exception
+    {
+        public BadRequestException(string message) : base(message) { }
+    }
 }

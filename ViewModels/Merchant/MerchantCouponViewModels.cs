@@ -2,9 +2,9 @@ using System;
 
 namespace backend.ViewModels
 {
+    /// <summary>新增優惠券請求；所屬商家由 JWT 的 s_id 決定，不需帶 s_id。</summary>
     public class CouponCreateRequest
     {
-        public int s_id { get; set; }
         public string coupon_code { get; set; }
         public string coupon_name { get; set; }
         public string discount_commodity { get; set; }

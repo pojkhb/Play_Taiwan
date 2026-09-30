@@ -291,7 +291,8 @@ namespace backend.dao
                     intro_story = introStory,
                     opening_hours = row.opening_hours as string,
                     nearby_food = new List<string>(),
-                    task_id = (int?)row.task_id
+                    task_id = (int?)row.task_id,
+                    review_story_url = null
                 };
             }
         }

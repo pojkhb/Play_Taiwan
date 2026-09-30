@@ -31,15 +31,16 @@
 | 首頁 | 總覽卡片：已完成探索數、明信片、勳章、Vlog 等統計 | `/api/Home/Overview` |
 | 劇本生成 | 現在揪出發（定位或指定縣市，一次生成 3 份劇本）、遊你說算（一句話生成）、AI Agent 情緒推薦 | `/api/Story/GenerateGameStory`、`/api/Story/GenerateByText`、`/api/Story/spin` |
 | 劇本 | 劇本詳情、確認開始遊玩、結束劇本 | `/api/Story/*` |
-| 喜愛 | 把劇本標成喜愛、查看「我喜愛的劇本」清單 | `/api/Story/{story_id}/Favorite`、`/api/Story/Favorites` |
-| 行事曆 | 把喜歡的劇本加入 Google 行事曆（回傳填好的新增活動連結，不需要 Google 帳號授權） | `/api/Story/{story_id}/Calendar` |
+| 解謎地圖 | 地圖節點、抵達打卡、導航、周邊推薦。迷霧由後端處理：未解鎖的站只回傳地點代號、景點照片的霧化版與大概位置，而且不能查看、導航或打卡 | `/api/Map/*` |
+| 解謎地圖 | 地圖節點（未解鎖顯示剪影）、抵達打卡、導航、周邊推薦 | `/api/Map/*` |
+| 景點剪影 | 用景點照片產生去背實心剪影，地圖上未解鎖的節點顯示剪影 | `/api/Silhouette/*` |
 | 解謎地圖 | 地圖節點、抵達打卡、導航、周邊推薦。迷霧由後端處理：未解鎖的站只回傳地點代號、景點照片的霧化版與大概位置，而且不能查看、導航或打卡 | `/api/Map/*` |
 | NPC 語音 | 劇情前傳與任意文字轉語音 | `/api/Npc/*` |
 | 任務 | 任務清單、答題、提示、隱藏關卡 | `/api/Task/*` |
 | 交通規劃 | 等時圈可到達景點、多點路線規劃（步行／自行車／機車／汽車／公車／捷運）、公車即時到站 | `/api/Route/*`、`/api/Bus/*`、`/api/Metro/*` |
 | 明信片 | AI 生成明信片、ibon 列印、分享 | `/api/PostcardCatalog/*` |
 | 勳章 | 完成劇本後依劇本內容抽一枚勳章，夜間劇本才能抽「午夜台灣」系列 | `/api/Badge/*` |
-| 過往旅途 | 通關紀錄；劇本回顧一次回傳每一站的景點與劇情、玩家照片、作答結果、明信片、勳章、Vlog，以及旁白（文字與語音） | `/api/History/*` |
+| 過往旅途 | 通關紀錄與旅程內容 | `/api/History/*` |
 | 遊客 Vlog | 依玩家走過的景點與照片，由 AI 產生旁白並合成影片 | `/api/VisitorVlog/*` |
 | 商家 Vlog | 店家資訊與照片 → AI 旁白、推薦配文、TAG → 合成影片 | `/api/MerchantVlog/*` |
 | 商家後台 | 商家註冊、優惠券、NFC 貼紙綁定與掃描、核銷、題庫 | `/api/merchant/*`、`/api/nfc/*`、`/api/coupons/*` |
@@ -82,9 +83,26 @@
 ├── ViewModels/         API 請求與回應格式
 ├── Middleware/         JWT 驗證、例外處理
 ├── Extensions/         擴充方法
-├── util/               共用工具（設定、雜湊、迷霧圖影像處理…）
-├── Sqls/mysql/         MySQL 建表、初始資料與資料庫遷移腳本
+<<<<<<< HEAD
+<<<<<<< HEAD
+├── util/               共用工具（設定、雜湊、剪影影像處理…）
+├── Sqls/mysql/         MySQL 建表與初始資料
+├── wwwroot/            靜態檔案（背景音樂、剪影、上傳檔案）
+=======
+├── util/               共用工具（設定、雜湊…）
+├── Sqls/mysql/         MySQL 建表與初始資料
 ├── wwwroot/            靜態檔案（背景音樂、迷霧圖、上傳檔案）
+>>>>>>> db5237c (迷霧)
+=======
+├── util/               共用工具（設定、雜湊…）
+├── Sqls/mysql/         MySQL 建表與初始資料
+├── wwwroot/            靜態檔案（背景音樂、迷霧圖、上傳檔案）
+=======
+├── util/               共用工具（設定、雜湊、剪影影像處理…）
+├── Sqls/mysql/         MySQL 建表與初始資料
+├── wwwroot/            靜態檔案（背景音樂、剪影、上傳檔案）
+>>>>>>> 25982c763398f1a26f9991595ecb8356a41295bc
+>>>>>>> 1f3e59ff6a56fa722038141d971ca30b8e673bc9
 ├── tests/              單元測試與 API 整合測試
 ├── docs/               文件（API 清單、Valhalla 架設…）
 ├── .github/workflows/  CI 設定
@@ -117,18 +135,36 @@ cd Play_Taiwan
 ```bash
 mysql -u root -p -e "CREATE DATABASE play_taiwan_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
 mysql -u root -p play_taiwan_db < Sqls/mysql/schema.sql            # 所有資料表
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型、迷霧圖等基本資料
 ```
 
-已經建好的資料庫，依需要各執行一次遷移腳本：
-
-| 狀況 | 執行 |
-|---|---|
-| 還有 `silhouette`、`story_node_silhouette` 兩張表 | `Sqls/mysql/20260930_silhouette_to_fog.sql`（換成迷霧圖表 `fog`） |
-| `story` 表還沒有 `is_favorite` 欄位 | `Sqls/mysql/20260930_story_favorite.sql`（劇本的「喜愛」欄位） |
+> 已經建好的資料庫如果還有 `silhouette`、`story_node_silhouette` 兩張表，執行一次 `Sqls/mysql/20260930_silhouette_to_fog.sql`，換成迷霧圖表 `fog`。
 
 公車與捷運資料有兩種來源，擇一即可：
 
+=======
+>>>>>>> 1f3e59ff6a56fa722038141d971ca30b8e673bc9
+mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型等基本資料
+```
+
+公車與捷運資料有兩種來源，擇一即可：
+
+<<<<<<< HEAD
+=======
+mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型、迷霧圖等基本資料
+```
+
+> 已經建好的資料庫如果還有 `silhouette`、`story_node_silhouette` 兩張表，執行一次 `Sqls/mysql/20260930_silhouette_to_fog.sql`，換成迷霧圖表 `fog`。
+
+公車與捷運資料有兩種來源，擇一即可：
+
+>>>>>>> db5237c (迷霧)
+=======
+>>>>>>> 25982c763398f1a26f9991595ecb8356a41295bc
+>>>>>>> 1f3e59ff6a56fa722038141d971ca30b8e673bc9
 - 直接匯入 `Sqls/mysql/BusData_Taichung.sql`（臺中市公車 + 全台台灣好行）與 `Sqls/mysql/MetroData.sql`（捷運）
 - 設定 TDX 金鑰，由後端自動從 TDX 同步（見[設定檔說明](#設定檔說明)）
 
@@ -193,7 +229,16 @@ dotnet run
 | `AppSettings:tdx_client_id`、`tdx_client_secret` | TDX 交通資料金鑰 | 同步公車、捷運時需要 |
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
 | `Fog:RadiusMeters` | 地圖迷霧範圍的半徑（公尺），預設 300 | |
+>>>>>>> db5237c (迷霧)
+=======
+| `Fog:RadiusMeters` | 地圖迷霧範圍的半徑（公尺），預設 300 | |
+=======
+>>>>>>> 25982c763398f1a26f9991595ecb8356a41295bc
+>>>>>>> 1f3e59ff6a56fa722038141d971ca30b8e673bc9
 
 ---
 
@@ -224,7 +269,18 @@ dotnet test tests/TrafficSystem.Tests
 | 登入 | 先呼叫 `POST /api/Auth/Login` 取得 token，之後在標頭帶 `Authorization: Bearer <token>` |
 | 回傳格式 | `{ "isSuccess": true, "message": "說明", "Result": 資料 }`，失敗時看 `message` |
 | 欄位命名 | 跟 C# 屬性同名（例如 `story_id`、`isSuccess`），不會轉成小駝峰 |
+<<<<<<< HEAD
+<<<<<<< HEAD
+| 圖片網址 | `/` 開頭的是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+=======
 | 圖片網址 | `/` 開頭的（例如上傳的檔案）是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+>>>>>>> db5237c (迷霧)
+=======
+| 圖片網址 | `/` 開頭的（例如上傳的檔案）是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+=======
+| 圖片網址 | `/` 開頭的是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+>>>>>>> 25982c763398f1a26f9991595ecb8356a41295bc
+>>>>>>> 1f3e59ff6a56fa722038141d971ca30b8e673bc9
 | 很久才回應的 API | 劇本生成可能要好幾分鐘，前端請把逾時設長；Vlog 合成送出後用 Status 輪詢 |
 
 ---

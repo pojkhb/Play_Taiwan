@@ -89,19 +89,22 @@ namespace backend.Models
         public int total_days { get; set; }
     }
 
-    /// <summary>地圖上的一個節點（景點）</summary>
+    /// <summary>
+    /// 地圖上的一個節點（景點）。迷霧由後端處理：未解鎖的站不會回傳真正的站名、照片與精確座標，
+    /// 前端照欄位顯示即可，不用自己判斷鎖定狀態。
+    /// </summary>
     public class MapNode
     {
         /// <summary>節點代號（story_node.sn_id）</summary>
         public int node_id { get; set; }
 
-        /// <summary>景點名稱</summary>
+        /// <summary>站名；未解鎖時是迷霧提示（地點代號）</summary>
         public string location_name { get; set; }
 
-        /// <summary>緯度</summary>
+        /// <summary>緯度；未解鎖時是迷霧中心（大概位置，真正的點在 fog_radius_m 範圍內）</summary>
         public double lat { get; set; }
 
-        /// <summary>經度</summary>
+        /// <summary>經度；未解鎖時是迷霧中心</summary>
         public double lng { get; set; }
 
         /// <summary>是否已解鎖（已抵達過）</summary>
@@ -110,8 +113,11 @@ namespace backend.Models
         /// <summary>是否為夜晚限定景點</summary>
         public bool is_night_only { get; set; }
 
-        /// <summary>未解鎖時顯示的迷霧提示文字</summary>
+        /// <summary>未解鎖時顯示在迷霧上的提示文字（地點代號，例如「湖心亭的倒影」）；已解鎖為 null</summary>
         public string fog_hint { get; set; }
+
+        /// <summary>迷霧範圍半徑（公尺），未解鎖時才有；前端以 lat/lng 為中心畫這個範圍的迷霧。已解鎖為 null</summary>
+        public double? fog_radius_m { get; set; }
 
         /// <summary>節點所屬第幾天。新資料表沒有 day_index 欄位，目前固定為 1。</summary>
         public int day_index { get; set; }
@@ -119,14 +125,12 @@ namespace backend.Models
         /// <summary>包含的子節點代號列表</summary>
         public List<int> child_node_ids { get; set; }
 
-        /// <summary>已解鎖時顯示的景點圖片網址</summary>
+        /// <summary>要顯示的圖片（完整網址）：已解鎖是景點照片，未解鎖是這一站照片的迷霧版（還沒做好或沒有照片時是通用迷霧圖）</summary>
         public string image_url { get; set; }
 
-        /// <summary>
-        /// 未解鎖時顯示的剪影圖片（相對路徑，例如 /images/silhouettes/generated/xxx.png，前端接在後端網址後面）。
-        /// 背景透明、剪影為單一深色，可以用 BlendMode.srcIn 換顏色；還沒產生剪影時為 null
-        /// </summary>
-        public string silhouette_image_url { get; set; }
+        /// <summary>內部用：這一站的迷霧圖路徑（fog 表），不回傳給前端</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string fog_image { get; set; }
 
         /// <summary>節點順序，地圖上畫連線用</summary>
         public int node_order { get; set; }

@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-09-30 ・ 共 89 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/swagger`
+更新日期：2026-09-30 ・ 共 87 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/swagger`
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。
 
@@ -12,14 +12,14 @@
 | 登入 | 先呼叫 `POST /api/Auth/Login` 取得 token，之後在標頭帶 `Authorization: Bearer <token>`。「需要登入」的 API 沒帶會回 401 |
 | 回傳格式 | 全部包在 `{ "isSuccess": true/false, "message": "說明", "Result": 資料 }`；失敗時看 `message` |
 | 欄位命名 | 跟 C# 屬性同名（`story_id`、`isSuccess`、`Result`），不會自動轉成小駝峰 |
-| 圖片網址 | `/` 開頭的（例如剪影 `silhouette_image_url`）是後端上的檔案，要接在**伺服器網址**後面；`http` 開頭的（例如景點照片 `image_url`）直接用 |
+| 圖片網址 | `/` 開頭的（例如上傳的檔案）是後端上的檔案，要接在**伺服器網址**後面；`http` 開頭的（例如景點照片 `image_url`）直接用 |
 | 很久才回應的 API | 劇本生成（`GenerateGameStory`、`GenerateByText`）可能要好幾分鐘，請把逾時設長並顯示等待畫面；VLOG 合成送出後用 Status 輪詢 |
 
 ## 狀態說明
 
 | 狀態 | 意思 | 數量 |
 |---|---|---|
-| ✅ 實測可用 | 實際打過或有自動化測試，正常 | 75 |
+| ✅ 實測可用 | 實際打過或有自動化測試，正常 | 73 |
 | ⚠️ 卡在 AI 服務 | 後端正常，卡在配璇的 AI 服務（AI 的 Neo4j 沒開、CUDA 錯誤、未知的 node_type） | 5 |
 | 🔧 隊友改寫中 | 隊友改寫中，合併後再測 | 5 |
 | 🛠 管理員用 | 管理員同步資料用 | 4 |
@@ -70,11 +70,11 @@
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 地圖、收集進度、剪影 | `GET /api/Map/{story_id}` | ✅ 實測可用 | 節點的 silhouette_image_url 是相對路徑（/images/...），要接在伺服器網址後面；image_url 是完整網址，直接用。未解鎖顯示剪影、解鎖後顯示照片 |
+| 地圖、收集進度、迷霧提示 | `GET /api/Map/{story_id}` | ✅ 實測可用 | 迷霧由後端處理，前端照欄位顯示：未解鎖的站 location_name 是地點代號、image_url 是這一站照片的霧化版（若隱若現，還沒做好時先給通用迷霧圖）、lat/lng 是迷霧中心，以它為中心畫半徑 fog_radius_m 公尺的迷霧；解鎖後才是真正的站名、照片與座標 |
 | 目前位置 | `POST /api/Map/Location` | ✅ 實測可用 | 不用登入 |
-| 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 |  |
-| 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 |  |
-| 開始導航 | `POST /api/Map/Navigate` | ✅ 實測可用 |  |
+| 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 | 要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開 |
+| 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 | 還在迷霧中的站回傳 403 |
+| 開始導航 | `POST /api/Map/Navigate` | ✅ 實測可用 | 還在迷霧中的站回傳 403（避免洩漏精確位置） |
 | 交通規劃 | `POST /api/Route/Plan` | ✅ 實測可用 | 帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來） |
 | 查看任務 | `POST /api/Task/List` | 🔧 隊友改寫中 |  |
 | 周邊好去處 | `GET /api/Map/{story_id}/Nearby` | ✅ 實測可用 |  |
@@ -176,13 +176,6 @@
 | `GET /api/Map/Node/{node_id}/Interact` | 取得指定節點的 NPC 隨機互動內容 | 需要 | ✅ 實測可用 | node_id（路徑，integer） |
 | `GET /api/Map/{story_id}` | 取得指定劇本的地圖資訊 | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 | `GET /api/Map/{story_id}/Nearby` | 取得指定劇本周邊的推薦去處 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；category（查詢，string） |
-
-### 剪影（2）
-
-| API | 名稱 | 登入 | 狀態 | 參數 |
-|---|---|---|---|---|
-| `GET /api/Silhouette` | 取得所有剪影圖片清單 | 不用 | ✅ 實測可用 |  |
-| `POST /api/Silhouette/Story/{story_id}/Generate` | 為劇本每個節點產生地圖用的剪影（劇本生成後會自動在背景執行，這支用來補做或查看結果） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 
 ### 交通與景點（11）
 

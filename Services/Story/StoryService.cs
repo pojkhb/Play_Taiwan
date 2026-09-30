@@ -10,8 +10,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 
 namespace backend.Services
@@ -23,47 +21,18 @@ namespace backend.Services
         private readonly ValhallaService _valhallaService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly BadgeService _badgeService;
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly ILogger<StoryService> _logger;
+        private readonly FogGenerationQueue _fogQueue;
 
 
         public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory,
-                            BadgeService badgeService, IServiceScopeFactory scopeFactory, ILogger<StoryService> logger)
+                            BadgeService badgeService, FogGenerationQueue fogQueue)
         {
             _dao = dao;
             _neo4jService = neo4jService;
             _valhallaService = valhallaService;
             _httpClientFactory = httpClientFactory;
             _badgeService = badgeService;
-            _scopeFactory = scopeFactory;
-            _logger = logger;
-        }
-
-
-        /// <summary>
-        /// 劇本存好後在背景產生地圖用的剪影（要下載每個景點的照片，不擋住劇本回應）。
-        /// 失敗只記 log，之後可以用 POST /api/Silhouette/Story/{story_id}/Generate 補做。
-        /// </summary>
-        private void QueueSilhouetteGeneration(IEnumerable<int> storyIds)
-        {
-            List<int> ids = storyIds.ToList();
-            _ = Task.Run(async () =>
-            {
-                using IServiceScope scope = _scopeFactory.CreateScope();
-                var silhouettes = scope.ServiceProvider.GetRequiredService<SilhouetteService>();
-                foreach (int storyId in ids)
-                {
-                    try
-                    {
-                        SilhouetteGenerateResult r = await silhouettes.GenerateForStoryAsync(storyId);
-                        _logger.LogInformation("劇本 {StoryId} 剪影產生完成：新做 {Generated}、沿用 {Reused}", storyId, r.generated, r.reused);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.LogWarning(e, "劇本 {StoryId} 剪影產生失敗", storyId);
-                    }
-                }
-            });
+            _fogQueue = fogQueue;
         }
 
 
@@ -127,7 +96,7 @@ namespace backend.Services
         {
             int storyId = await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
             await _badgeService.RefreshStoryCategoriesAsync(storyId);
-            QueueSilhouetteGeneration(new[] { storyId });
+            _fogQueue.Enqueue(storyId, force: true);   // 在背景把每一站的照片做成迷霧圖
             return storyId;
         }
 
@@ -637,7 +606,9 @@ namespace backend.Services
                 }
             }
 
-            QueueSilhouetteGeneration(results.Select(r => r.story_id));
+            foreach (GameStoryResult r in results)
+                _fogQueue.Enqueue(r.story_id, force: true);   // 在背景把每一站的照片做成迷霧圖
+
             return results;
         }
 

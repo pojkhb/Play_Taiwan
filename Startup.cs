@@ -135,9 +135,10 @@ namespace backend
             services.AddScoped<Services.HistoryService>();
             services.AddScoped<dao.HistoryDao>();
             #endregion
-            #region S14-剪影圖片
-            services.AddScoped<Services.SilhouetteService>();
-            services.AddScoped<dao.SilhouetteDao>();
+            #region S14-地圖迷霧圖
+            services.AddScoped<Services.FogService>();
+            services.AddScoped<dao.FogDao>();
+            services.AddSingleton<Services.FogGenerationQueue>();
             #endregion
             #region S15-明信片主檔
             services.AddScoped<Services.PostcardCatalogService>();

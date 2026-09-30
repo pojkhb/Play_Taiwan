@@ -31,6 +31,10 @@ namespace backend.Controllers
             _service = service;
         }
 
+        /// <summary>還在迷霧中的站：回傳 403</summary>
+        private ObjectResult Locked<T>(NodeLockedException e) =>
+            StatusCode(403, new ResultViewModel<T> { isSuccess = false, message = e.Message, Result = default });
+
         #region 取得地圖
 
         /// <summary>
@@ -38,6 +42,14 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 對應「地圖」頁面，顯示地點探索度、已收集節點與路線。
+        ///
+        /// 迷霧由後端處理，前端照欄位顯示即可：
+        ///
+        /// - 已解鎖（is_unlocked = true）：location_name 是站名、image_url 是景點照片、lat/lng 是精確位置
+        /// - 未解鎖（is_unlocked = false）：location_name 是迷霧提示（地點代號）、image_url 是迷霧圖、
+        ///   lat/lng 是迷霧中心（大概位置），請以它為中心畫半徑 fog_radius_m 公尺的迷霧；真正的點在這個範圍內
+        ///
+        /// 未解鎖的站不能查看詳情、互動、導航或打卡，會回傳 403。
         ///
         /// Request 範例：
         ///
@@ -52,7 +64,7 @@ namespace backend.Controllers
         {
             try
             {
-                MapResponse result = _service.GetMap(story_id, User);
+                MapResponse result = _service.GetMap(story_id, User, $"{Request.Scheme}://{Request.Host}");
 
                 return Ok(new ResultViewModel<MapResponse>
                 {
@@ -131,6 +143,10 @@ namespace backend.Controllers
                     Result = null
                 });
             }
+            catch (NodeLockedException e)
+            {
+                return Locked<NodeDetailResponse>(e);
+            }
             catch (InvalidOperationException e)
             {
                 return BadRequest(new ResultViewModel<NodeDetailResponse>
@@ -177,7 +193,7 @@ namespace backend.Controllers
             try
             {
                 NodeDetailResponse result =
-                    _service.GetNodeDetail(node_id);
+                    _service.GetNodeDetail(node_id, User);
 
                 return Ok(new ResultViewModel<NodeDetailResponse>
                 {
@@ -185,6 +201,10 @@ namespace backend.Controllers
                     message = "查詢成功",
                     Result = result
                 });
+            }
+            catch (NodeLockedException e)
+            {
+                return Locked<NodeDetailResponse>(e);
             }
             catch (Exception e)
             {
@@ -223,7 +243,7 @@ namespace backend.Controllers
             try
             {
                 NpcInteractionResponse result =
-                    _service.GetNpcInteraction(node_id);
+                    _service.GetNpcInteraction(node_id, User);
 
                 return Ok(new ResultViewModel<NpcInteractionResponse>
                 {
@@ -231,6 +251,10 @@ namespace backend.Controllers
                     message = "查詢成功",
                     Result = result
                 });
+            }
+            catch (NodeLockedException e)
+            {
+                return Locked<NpcInteractionResponse>(e);
             }
             catch (Exception e)
             {
@@ -272,7 +296,7 @@ namespace backend.Controllers
             try
             {
                 NavigationResponse result =
-                    _service.GetNavigation(req);
+                    _service.GetNavigation(req, User);
 
                 return Ok(new ResultViewModel<NavigationResponse>
                 {
@@ -280,6 +304,10 @@ namespace backend.Controllers
                     message = "查詢成功",
                     Result = result
                 });
+            }
+            catch (NodeLockedException e)
+            {
+                return Locked<NavigationResponse>(e);
             }
             catch (Exception e)
             {

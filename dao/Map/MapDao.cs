@@ -29,7 +29,7 @@ namespace backend.dao
 
         // story_node(Neo4j UUID) -> place_type(UUID + 名稱) -> place(名稱) 的暫時橋接。
         // place_type 同一個景點依任務類型會有多筆、place 也可能同名多筆，都先收斂成一筆，避免節點重複。
-        private const string PlaceBridgeJoin = @"
+        internal const string PlaceBridgeJoin = @"
             LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt
                    ON pt.place_id = sn.place_id
             LEFT JOIN place p
@@ -39,6 +39,7 @@ namespace backend.dao
         #region 取得地圖節點
         /// <summary>
         /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依 ss_current 統一計算。
+        /// fog_image 是這一站景點照片做成的迷霧圖（fog 表用照片網址的 SHA-1 對應），還沒做好時為 null。
         /// </summary>
         public List<MapNode> GetStoryNodes(int storyId)
         {
@@ -52,15 +53,11 @@ namespace backend.dao
                     sn.sn_title                  AS location_name,
                     COALESCE(p.p_latitude, 0)    AS lat,
                     COALESCE(p.p_longitude, 0)   AS lng,
-                    p.p_image                    AS image_url,
-                    (SELECT si.si_silhouette_image
-                       FROM story_node_silhouette sns
-                       INNER JOIN silhouette si ON si.si_id = sns.si_id
-                      WHERE sns.sn_id = sn.sn_id
-                      ORDER BY sns.sns_order, sns.sns_id
-                      LIMIT 1)                   AS silhouette_image_url
+                    NULLIF(p.p_image, '')        AS image_url,
+                    f.fog_image                  AS fog_image
                 FROM story_node sn
                 {PlaceBridgeJoin}
+                LEFT JOIN fog f ON f.fog_source_key = SHA1(NULLIF(p.p_image, ''))
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
             ";
@@ -94,6 +91,53 @@ namespace backend.dao
             {
                 conn.Open();
                 return conn.ExecuteScalar<int>(sql, new { auId, storyId });
+            }
+        }
+
+        /// <summary>節點的站序與玩家在該劇本的進度，判斷這一站是否還在迷霧中用；找不到節點回傳 null</summary>
+        public NodeProgress GetNodeProgress(int auId, int nodeId)
+        {
+            string sql = @"
+                SELECT sn.s_id      AS story_id,
+                       sn.sn_order  AS node_order,
+                       (SELECT COALESCE(MAX(ss.ss_current), 0)
+                          FROM story_session ss
+                         WHERE ss.au_id = @auId AND ss.s_id = sn.s_id) AS current_order
+                FROM story_node sn
+                WHERE sn.sn_id = @nodeId;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.QueryFirstOrDefault<NodeProgress>(sql, new { auId, nodeId });
+            }
+        }
+
+        public class NodeProgress
+        {
+            public int story_id { get; set; }
+            public int node_order { get; set; }
+            public int current_order { get; set; }
+        }
+        #endregion
+
+        #region 迷霧圖
+        /// <summary>通用迷霧圖（fog 表 is_default = 1 的那張）：景點沒有照片、或迷霧圖還沒做好時用；沒有資料時回傳 null</summary>
+        public string GetDefaultFogImage()
+        {
+            string sql = @"
+                SELECT fog_image
+                FROM fog
+                WHERE is_default = 1
+                ORDER BY fog_id
+                LIMIT 1;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<string>(sql);
             }
         }
         #endregion

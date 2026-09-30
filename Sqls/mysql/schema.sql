@@ -462,20 +462,21 @@ CREATE TABLE `record_media` (
   PRIMARY KEY (`media_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='vlog素材表';
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `silhouette`;
+DROP TABLE IF EXISTS `fog`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `silhouette` (
-  `si_id` int NOT NULL AUTO_INCREMENT COMMENT '剪影流水號',
-  `si_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '剪影名稱',
-  `si_type` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '剪影類型',
-  `si_silhouette_image` text COLLATE utf8mb4_general_ci COMMENT '未解鎖時顯示的剪影網址',
-  `si_image_url` text COLLATE utf8mb4_general_ci COMMENT '解鎖後顯示的正常圖片網址',
-  `si_hint` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '剪影預設提示文字',
+CREATE TABLE `fog` (
+  `fog_id` int NOT NULL AUTO_INCREMENT COMMENT '迷霧圖流水號',
+  `fog_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '迷霧圖名稱',
+  `fog_image` text COLLATE utf8mb4_general_ci NOT NULL COMMENT '迷霧圖網址：/ 開頭是後端 wwwroot 的檔案，也可以填完整網址',
+  `fog_source_image` text COLLATE utf8mb4_general_ci COMMENT '做成這張迷霧圖的原始景點照片網址；NULL＝通用迷霧圖',
+  `fog_source_key` char(40) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '原始照片網址的 SHA-1，同一張照片只做一次迷霧圖',
+  `is_default` tinyint NOT NULL DEFAULT '0' COMMENT '1＝景點沒有照片（或迷霧圖還沒做好）時用的通用迷霧圖',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
-  PRIMARY KEY (`si_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='剪影主表，剪影素材可跨劇本節點重複使用';
+  PRIMARY KEY (`fog_id`) USING BTREE,
+  UNIQUE KEY `uk_fog_source_key` (`fog_source_key`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='地圖迷霧圖：未解鎖的站顯示景點照片的霧化版（取代原本的剪影資料表）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `store`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -551,28 +552,6 @@ CREATE TABLE `story_node` (
   KEY `idx_sn_s_id` (`s_id`) USING BTREE,
   KEY `idx_sn_place_id` (`place_id`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本節點';
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `story_node_silhouette`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `story_node_silhouette` (
-  `sns_id` int NOT NULL AUTO_INCREMENT COMMENT '劇本節點剪影流水號',
-  `sn_id` int NOT NULL COMMENT '所屬劇本節點ID',
-  `si_id` int NOT NULL COMMENT '剪影ID',
-  `sns_order` int NOT NULL DEFAULT '0' COMMENT '顯示順序',
-  `target_type` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '點擊後要抓哪些資料：place、nearby_place、npc、task、hidden_level',
-  `target_id` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '點擊後對應的資料ID（依 target_type 指向不同資料表，無外鍵約束）',
-  `is_clickable` tinyint NOT NULL DEFAULT '1' COMMENT '未解鎖時是否可點擊：1＝可、0＝不可',
-  `hint_override` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '此節點專用提示',
-  `sns_popup` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '此節點專用卡片標題',
-  `sns_popup_text` text COLLATE utf8mb4_general_ci COMMENT '此節點專用卡片內容',
-  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
-  PRIMARY KEY (`sns_id`) USING BTREE,
-  UNIQUE KEY `uk_sns_node_silhouette` (`sn_id`,`si_id`) USING BTREE,
-  KEY `idx_sns_sn_id` (`sn_id`) USING BTREE,
-  KEY `idx_sns_si_id` (`si_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本節點與剪影的關聯表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `story_node_transit`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

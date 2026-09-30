@@ -35,6 +35,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
     public static readonly string RepoRoot = FindRepoRoot();
 
     private readonly string _database = $"play_taiwan_test_{Guid.NewGuid():N}";
+
+    /// <summary>測試產生的迷霧圖放這裡（不寫進專案的 wwwroot），跑完刪掉</summary>
+    public string FogRoot { get; } = Path.Combine(Path.GetTempPath(), $"play_taiwan_test_fog_{Guid.NewGuid():N}");
     private readonly string _serverConnection;
     private int _nextUserId = 1000;
 
@@ -78,6 +81,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["MetroSync:Enabled"] = "false",
             ["SmtpSettings:Server"] = "127.0.0.1",   // 寄信一律失敗，測試不會寄出真的信（註冊、忘記密碼）
             ["SmtpSettings:Port"] = "1",
+            ["Fog:GeneratedRoot"] = FogRoot,
         }));
         builder.ConfigureTestServices(services =>
             services.ConfigureAll<HttpClientFactoryOptions>(options =>
@@ -114,6 +118,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
         using var conn = new MySqlConnection(_serverConnection);
         await conn.OpenAsync();
         await conn.ExecuteAsync($"DROP DATABASE IF EXISTS `{_database}`;");
+
+        if (Directory.Exists(FogRoot))
+            Directory.Delete(FogRoot, recursive: true);
     }
 
     #endregion
@@ -160,14 +167,15 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
         await conn.ExecuteAsync(sql, param);
     }
 
-    /// <summary>給景點一張照片：由 FakeAi 提供圖片內容（天空 + 高塔），並寫進 place.p_image，回傳照片網址</summary>
+    /// <summary>1×1 的 PNG，當作景點照片的內容</summary>
+    public static readonly byte[] TinyPng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+
+    /// <summary>給景點一張照片：由 FakeAi 提供圖片內容，並寫進 place.p_image，回傳照片網址</summary>
     public async Task<string> GivePlacePhotoAsync(string placeName)
     {
         string url = $"https://img.test/{Guid.NewGuid():N}.png";
-        using var photo = TrafficSystem.Tests.Silhouette.SilhouetteImageHelperTests.TowerPhoto(240, 200);
-        using var ms = new MemoryStream();
-        await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(photo, ms);
-        FakeAi.Images[url] = ms.ToArray();
+        FakeAi.Images[url] = TinyPng;
         await ExecuteAsync("UPDATE place SET p_image = @url WHERE p_name = @placeName;", new { url, placeName });
         return url;
     }

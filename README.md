@@ -33,6 +33,7 @@
 | 劇本 | 劇本詳情、確認開始遊玩、結束劇本 | `/api/Story/*` |
 | 解謎地圖 | 地圖節點（未解鎖顯示剪影）、抵達打卡、導航、周邊推薦 | `/api/Map/*` |
 | 景點剪影 | 用景點照片產生去背實心剪影，地圖上未解鎖的節點顯示剪影 | `/api/Silhouette/*` |
+| 解謎地圖 | 地圖節點、抵達打卡、導航、周邊推薦。迷霧由後端處理：未解鎖的站只回傳地點代號、景點照片的霧化版與大概位置，而且不能查看、導航或打卡 | `/api/Map/*` |
 | NPC 語音 | 劇情前傳與任意文字轉語音 | `/api/Npc/*` |
 | 任務 | 任務清單、答題、提示、隱藏關卡 | `/api/Task/*` |
 | 交通規劃 | 等時圈可到達景點、多點路線規劃（步行／自行車／機車／汽車／公車／捷運）、公車即時到站 | `/api/Route/*`、`/api/Bus/*`、`/api/Metro/*` |
@@ -81,9 +82,15 @@
 ├── ViewModels/         API 請求與回應格式
 ├── Middleware/         JWT 驗證、例外處理
 ├── Extensions/         擴充方法
+<<<<<<< HEAD
 ├── util/               共用工具（設定、雜湊、剪影影像處理…）
 ├── Sqls/mysql/         MySQL 建表與初始資料
 ├── wwwroot/            靜態檔案（背景音樂、剪影、上傳檔案）
+=======
+├── util/               共用工具（設定、雜湊…）
+├── Sqls/mysql/         MySQL 建表與初始資料
+├── wwwroot/            靜態檔案（背景音樂、迷霧圖、上傳檔案）
+>>>>>>> db5237c (迷霧)
 ├── tests/              單元測試與 API 整合測試
 ├── docs/               文件（API 清單、Valhalla 架設…）
 ├── .github/workflows/  CI 設定
@@ -116,11 +123,21 @@ cd Play_Taiwan
 ```bash
 mysql -u root -p -e "CREATE DATABASE play_taiwan_db CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
 mysql -u root -p play_taiwan_db < Sqls/mysql/schema.sql            # 所有資料表
+<<<<<<< HEAD
 mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型等基本資料
 ```
 
 公車與捷運資料有兩種來源，擇一即可：
 
+=======
+mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型、迷霧圖等基本資料
+```
+
+> 已經建好的資料庫如果還有 `silhouette`、`story_node_silhouette` 兩張表，執行一次 `Sqls/mysql/20260930_silhouette_to_fog.sql`，換成迷霧圖表 `fog`。
+
+公車與捷運資料有兩種來源，擇一即可：
+
+>>>>>>> db5237c (迷霧)
 - 直接匯入 `Sqls/mysql/BusData_Taichung.sql`（臺中市公車 + 全台台灣好行）與 `Sqls/mysql/MetroData.sql`（捷運）
 - 設定 TDX 金鑰，由後端自動從 TDX 同步（見[設定檔說明](#設定檔說明)）
 
@@ -185,6 +202,10 @@ dotnet run
 | `AppSettings:tdx_client_id`、`tdx_client_secret` | TDX 交通資料金鑰 | 同步公車、捷運時需要 |
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |
+<<<<<<< HEAD
+=======
+| `Fog:RadiusMeters` | 地圖迷霧範圍的半徑（公尺），預設 300 | |
+>>>>>>> db5237c (迷霧)
 
 ---
 
@@ -215,7 +236,11 @@ dotnet test tests/TrafficSystem.Tests
 | 登入 | 先呼叫 `POST /api/Auth/Login` 取得 token，之後在標頭帶 `Authorization: Bearer <token>` |
 | 回傳格式 | `{ "isSuccess": true, "message": "說明", "Result": 資料 }`，失敗時看 `message` |
 | 欄位命名 | 跟 C# 屬性同名（例如 `story_id`、`isSuccess`），不會轉成小駝峰 |
+<<<<<<< HEAD
 | 圖片網址 | `/` 開頭的是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+=======
+| 圖片網址 | `/` 開頭的（例如上傳的檔案）是後端上的檔案，要接在伺服器網址後面；`http` 開頭的直接使用 |
+>>>>>>> db5237c (迷霧)
 | 很久才回應的 API | 劇本生成可能要好幾分鐘，前端請把逾時設長；Vlog 合成送出後用 Status 輪詢 |
 
 ---

@@ -21,6 +21,10 @@ INSERT INTO `type` VALUES (0,''),(1,'GPS  區域定位型'),(2,'跨關集結型'
 /*!40000 ALTER TABLE `narrative_tone` DISABLE KEYS */;
 INSERT INTO `narrative_tone` VALUES (1,'幽默詼諧','輕鬆有梗、節奏明快，可以用一點自嘲或誇飾，讓人會心一笑',1,'2026-09-24 21:20:17','2026-09-24 21:20:17'),(2,'質感專業','沉穩精準、用詞講究，強調選材、工法與店家堅持，像生活風格雜誌的介紹',1,'2026-09-24 21:20:17','2026-09-24 21:20:17'),(3,'溫情走心','溫暖真誠、有畫面感，從人與人的故事切入，讓人想起某個值得回去的地方',1,'2026-09-24 21:20:17','2026-09-24 21:20:17');
 /*!40000 ALTER TABLE `narrative_tone` ENABLE KEYS */;
+
+/*!40000 ALTER TABLE `fog` DISABLE KEYS */;
+INSERT INTO `fog` (`fog_id`, `fog_name`, `fog_image`, `is_default`) VALUES (1,'預設迷霧','/images/fog/default_fog.png',1);
+/*!40000 ALTER TABLE `fog` ENABLE KEYS */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

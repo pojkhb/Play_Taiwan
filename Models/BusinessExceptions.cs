@@ -24,4 +24,14 @@ namespace backend.Models
     {
         public NotFoundException(string message) : base(message) { }
     }
+
+    /// <summary>
+    /// 地圖節點還在迷霧中（尚未解鎖），不能查看、互動、導航或打卡。
+    /// Controller 轉成 HTTP 403 回應。
+    /// </summary>
+    public class NodeLockedException : System.Exception
+    {
+        public NodeLockedException()
+            : base("這一站還在迷霧中，請先完成前一站。") { }
+    }
 }

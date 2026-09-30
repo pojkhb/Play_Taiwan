@@ -257,7 +257,7 @@ namespace backend.dao
         public StoryDetailResponse GetDetail(int storyId)
         {
             string storySql = @"
-                SELECT s_id, story_title, story_prologue, story_synopsis, is_night_mode
+                SELECT s_id, story_title, story_prologue, story_synopsis, is_night_mode, is_favorite
                 FROM story
                 WHERE s_id = @storyId AND is_active = 1;
             ";
@@ -296,6 +296,7 @@ namespace backend.dao
                     preface = string.IsNullOrEmpty(prologue) ? synopsis : prologue,
                     synopsis = synopsis,
                     is_night_mode = Convert.ToInt32(story.is_night_mode) == 1,
+                    is_favorite = Convert.ToInt32(story.is_favorite) == 1,
                     nodes = new List<NodeDetail>(),
                     route_nodes = new List<StoryOptionResponse.RouteNode>()
                 };
@@ -328,6 +329,91 @@ namespace backend.dao
 
                 return result;
             }
+        }
+        #endregion
+
+
+
+        #region 加入行事曆
+        public class StoryCalendarInfo
+        {
+            public string story_title { get; set; }
+            public string story_synopsis { get; set; }
+            public string story_prologue { get; set; }
+            public string city_name { get; set; }
+            public string district_name { get; set; }
+            public int is_night_mode { get; set; }
+            public int node_count { get; set; }
+            public string first_place_name { get; set; }
+            public string first_place_address { get; set; }
+        }
+
+        /// <summary>
+        /// 行事曆要用的劇本資料。地點只帶第一站（集合點，本來就是開放的），其他站還在迷霧中不帶出。
+        /// 找不到劇本回傳 null。
+        /// </summary>
+        public async Task<StoryCalendarInfo> GetCalendarInfoAsync(int storyId)
+        {
+            string sql = $@"
+                SELECT s.story_title, s.story_synopsis, s.story_prologue, s.city_name, s.district_name, s.is_night_mode,
+                       (SELECT COUNT(*) FROM story_node n WHERE n.s_id = s.s_id) AS node_count,
+                       first_stop.p_name AS first_place_name,
+                       first_stop.p_address AS first_place_address
+                FROM story s
+                LEFT JOIN (
+                    SELECT p.p_name, p.p_address
+                    FROM story_node sn
+                    {PlaceImageJoin}
+                    WHERE sn.s_id = @storyId
+                    ORDER BY sn.sn_order
+                    LIMIT 1
+                ) first_stop ON TRUE
+                WHERE s.s_id = @storyId AND s.is_active = 1;
+            ";
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return await conn.QueryFirstOrDefaultAsync<StoryCalendarInfo>(sql, new { storyId });
+        }
+        #endregion
+
+
+
+        #region 喜愛的劇本
+        /// <summary>設定或取消喜愛；只能改自己的劇本。找不到劇本（或不是自己的）回傳 false</summary>
+        public async Task<bool> SetFavoriteAsync(int auId, int storyId, bool isFavorite)
+        {
+            const string sql = @"
+                UPDATE story SET is_favorite = @favorite
+                WHERE s_id = @storyId AND au_id = @auId AND is_active = 1;
+                SELECT COUNT(*) FROM story WHERE s_id = @storyId AND au_id = @auId AND is_active = 1;
+            ";
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return await conn.ExecuteScalarAsync<int>(sql, new { auId, storyId, favorite = isFavorite ? 1 : 0 }) > 0;
+        }
+
+        /// <summary>使用者喜愛的劇本，最新建立的在前面</summary>
+        public async Task<List<FavoriteStoryItem>> GetFavoriteStoriesAsync(int auId)
+        {
+            string sql = $@"
+                SELECT s.s_id AS story_id, s.story_title AS title, s.story_synopsis AS synopsis,
+                       s.city_name, s.district_name, (s.is_night_mode = 1) AS is_night_mode, s.created_at,
+                       (SELECT COUNT(*) FROM story_node n WHERE n.s_id = s.s_id) AS node_count,
+                       EXISTS (SELECT 1 FROM story_session ss
+                                WHERE ss.au_id = s.au_id AND ss.s_id = s.s_id AND ss.ss_status = 'completed') AS is_completed,
+                       (SELECT NULLIF(p.p_image, '')
+                          FROM story_node sn
+                          {PlaceImageJoin}
+                         WHERE sn.s_id = s.s_id
+                         ORDER BY sn.sn_order
+                         LIMIT 1) AS cover_image_url
+                FROM story s
+                WHERE s.au_id = @auId AND s.is_favorite = 1 AND s.is_active = 1
+                ORDER BY s.created_at DESC, s.s_id DESC;
+            ";
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<FavoriteStoryItem>(sql, new { auId })).ToList();
         }
         #endregion
 

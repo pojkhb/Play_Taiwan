@@ -522,10 +522,12 @@ CREATE TABLE `story` (
   `story_postcards` int DEFAULT NULL COMMENT '預期可以獲得明信片數量',
   `is_active` tinyint NOT NULL DEFAULT '1' COMMENT '劇本是否啟用',
   `is_night_mode` tinyint NOT NULL DEFAULT '2' COMMENT '是否為夜間劇本(白天=0，夜間=1)',
+  `is_favorite` tinyint NOT NULL DEFAULT '0' COMMENT '是否為使用者喜愛的劇本：1＝喜愛、0＝否',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '劇本建立時間',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '劇本最後更新時間',
   PRIMARY KEY (`s_id`) USING BTREE,
-  KEY `idx_story_au_id` (`au_id`) USING BTREE
+  KEY `idx_story_au_id` (`au_id`) USING BTREE,
+  KEY `idx_story_au_favorite` (`au_id`,`is_favorite`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `story_node`;

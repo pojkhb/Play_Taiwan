@@ -327,7 +327,15 @@ namespace backend.Services
             client.Timeout = TimeSpan.FromSeconds(30);
 
             var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-            var response = await client.PostAsync($"{_baseUrl}/{action}", content);
+            HttpResponseMessage response;
+            try
+            {
+                response = await client.PostAsync($"{_baseUrl}/{action}", content);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new Exception($"無法連線到交通路網服務 Valhalla（{_baseUrl}），請確認 Docker 的 valhalla_tw 容器有啟動（見 docs/valhalla-setup.md）", ex);
+            }
             string json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

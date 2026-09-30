@@ -153,17 +153,14 @@ namespace backend.Controllers
                     throw new Exception("AI Agent 服務回傳的內容為空");
 
 
-                string recommendationId = _service.SaveAgentRecommendation(
-                    auId.ToString(), req.city_name, req.town_name ?? "", geoResult.lat.Value, geoResult.lng.Value, agentResult);
-
-
+                // 新資料庫沒有 md_agent_recommendation 表，推薦結果不存檔，直接回傳（recommendation_id 固定為 null）
                 return Ok(new ResultViewModel<SpinScriptResult>
                 {
                     isSuccess = true,
                     message = "推薦生成成功",
                     Result = new SpinScriptResult
                     {
-                        recommendation_id = recommendationId,
+                        recommendation_id = null,
                         agent_result = agentResult
                     }
                 });
@@ -289,7 +286,6 @@ namespace backend.Controllers
                 double lng = geoResult.lng ?? 0;
 
 
-                string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
 
 
                 int storyCount = req.story_count > 0 ? req.story_count : 1;
@@ -625,37 +621,10 @@ namespace backend.Controllers
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
 
 
-                var payload = new { user_prompt = req.user_prompt };
-
-
                 var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromMinutes(10);
+                client.Timeout = TimeSpan.FromMinutes(1);   // 單次請求的逾時；整個生成最多等 TextBlueprintTimeout
 
-
-                var jsonContent = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
-                var response = await client.PostAsync($"{AiServiceConfig.BaseUrl}/api/api/admin/generate_script_blueprint_by_text", jsonContent);
-
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    string errContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"外部 AI 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
-                }
-
-
-                string responseString = await response.Content.ReadAsStringAsync();
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-
-                GenerateScriptBlueprintByTextResponse aiResult;
-                try
-                {
-                    aiResult = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(responseString, options);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"反序列化失敗: {ex.Message}");
-                }
+                GenerateScriptBlueprintByTextResponse aiResult = await RunTextBlueprintJobAsync(client, req.user_prompt);
 
 
                 if (aiResult?.data == null)
@@ -664,7 +633,6 @@ namespace backend.Controllers
 
                 string cityName = aiResult.parsed_intent?.city_name ?? "";
                 string townName = aiResult.parsed_intent?.town_name ?? "";
-                string regionId = _service.FindRegionIdByName(cityName, townName) ?? "";
 
 
                 int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
@@ -691,7 +659,54 @@ namespace backend.Controllers
             }
         }
         #endregion
-         #region 交通等時圈：依交通方式查詢可到達的景點與真實交通時間（Valhalla）
+         private const string TextBlueprintPath = "/api/api/admin/generate_script_blueprint_by_text";
+        private static readonly TimeSpan TextBlueprintTimeout = TimeSpan.FromMinutes(10);
+
+        /// <summary>輪詢 AI 工作的間隔，測試時可以調短</summary>
+        internal static TimeSpan TextBlueprintPollInterval = TimeSpan.FromSeconds(3);
+
+        /// <summary>
+        /// 「遊你說了算」的 AI 端點是非同步的：送出後立刻回傳 job_id，劇本在背景生成；
+        /// 這裡每隔幾秒查一次 GET {path}/{job_id}，拿到 data 就回傳，status = error 就把 AI 給的原因丟出來。
+        /// </summary>
+        private static async Task<GenerateScriptBlueprintByTextResponse> RunTextBlueprintJobAsync(HttpClient client, string userPrompt)
+        {
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var content = new StringContent(JsonSerializer.Serialize(new { user_prompt = userPrompt }), System.Text.Encoding.UTF8, "application/json");
+
+            using HttpResponseMessage submit = await client.PostAsync(AiServiceConfig.Url(TextBlueprintPath), content);
+            string body = await submit.Content.ReadAsStringAsync();
+            if (!submit.IsSuccessStatusCode)
+                throw new Exception($"外部 AI 服務回應錯誤 (Status: {(int)submit.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
+
+            GenerateScriptBlueprintByTextResponse job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, options);
+            if (job?.data != null) return job;   // AI 若直接回傳結果就不用輪詢
+            if (string.IsNullOrWhiteSpace(job?.job_id))
+                throw new Exception($"AI 服務沒有回傳 job_id：{VlogAiGateway.AiErrorMessage(body)}");
+
+            DateTime deadline = DateTime.UtcNow + TextBlueprintTimeout;
+            while (DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(TextBlueprintPollInterval);
+
+                using HttpResponseMessage poll = await client.GetAsync(AiServiceConfig.Url($"{TextBlueprintPath}/{Uri.EscapeDataString(job.job_id)}"));
+                body = await poll.Content.ReadAsStringAsync();
+                if (!poll.IsSuccessStatusCode)
+                    throw new Exception($"查詢 AI 劇本生成進度失敗 (Status: {(int)poll.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
+
+                job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, options);
+                if (job?.data != null) return job;
+
+                string status = (job?.status ?? "").Trim().ToLowerInvariant();
+                if (status is "error" or "failed" or "failure")
+                    throw new Exception($"AI 劇本生成失敗（{job.stage}）：{job.error}");
+            }
+
+            throw new Exception($"AI 劇本生成超過 {TextBlueprintTimeout.TotalMinutes} 分鐘仍未完成");
+        }
+
+
+        #region 交通等時圈：依交通方式查詢可到達的景點與真實交通時間（Valhalla）
         /// <summary>
         /// 依中心點與交通方式，找出可到達的景點，並回傳每個景點的真實交通時間、距離、所在圈層。
         /// </summary>

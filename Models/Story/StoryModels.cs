@@ -122,7 +122,10 @@ namespace backend.Models
         /// <summary>已解鎖時顯示的景點圖片網址</summary>
         public string image_url { get; set; }
 
-        /// <summary>未解鎖時顯示的剪影圖片網址</summary>
+        /// <summary>
+        /// 未解鎖時顯示的剪影圖片（相對路徑，例如 /images/silhouettes/generated/xxx.png，前端接在後端網址後面）。
+        /// 背景透明、剪影為單一深色，可以用 BlendMode.srcIn 換顏色；還沒產生剪影時為 null
+        /// </summary>
         public string silhouette_image_url { get; set; }
 
         /// <summary>節點順序，地圖上畫連線用</summary>

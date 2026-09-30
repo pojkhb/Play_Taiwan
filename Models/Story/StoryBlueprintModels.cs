@@ -148,6 +148,9 @@ namespace backend.Models
 
         /// <summary>此節點 NPC 名稱（目前為空字串）</summary>
         public string npc_name { get; set; }
+
+        /// <summary>景點照片（完整網址），劇本檔案館與地圖解鎖後用同一張；景點沒有照片時為 null</summary>
+        public string image_url { get; set; }
     }
     public class AgentOrchestrateRequest
 {
@@ -252,7 +255,18 @@ public class ScriptBlueprintSimple
 }
 public class GenerateScriptBlueprintByTextResponse
 {
+    /// <summary>processing（生成中）、error（失敗）；完成時 data 有值</summary>
     public string status { get; set; }
+
+    /// <summary>AI 背景工作代號，送出後用它查進度</summary>
+    public string job_id { get; set; }
+
+    /// <summary>目前進行到的階段，例如「查詢 Neo4j 地點」</summary>
+    public string stage { get; set; }
+
+    /// <summary>status = error 時的原因</summary>
+    public string error { get; set; }
+
     public ParsedIntent parsed_intent { get; set; }
     public ScriptBlueprintData data { get; set; }
 }

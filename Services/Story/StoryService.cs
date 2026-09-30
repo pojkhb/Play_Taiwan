@@ -10,6 +10,8 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 
 namespace backend.Services
@@ -21,15 +23,47 @@ namespace backend.Services
         private readonly ValhallaService _valhallaService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly BadgeService _badgeService;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ILogger<StoryService> _logger;
 
 
-        public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory, BadgeService badgeService)
+        public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory,
+                            BadgeService badgeService, IServiceScopeFactory scopeFactory, ILogger<StoryService> logger)
         {
             _dao = dao;
             _neo4jService = neo4jService;
             _valhallaService = valhallaService;
             _httpClientFactory = httpClientFactory;
             _badgeService = badgeService;
+            _scopeFactory = scopeFactory;
+            _logger = logger;
+        }
+
+
+        /// <summary>
+        /// 劇本存好後在背景產生地圖用的剪影（要下載每個景點的照片，不擋住劇本回應）。
+        /// 失敗只記 log，之後可以用 POST /api/Silhouette/Story/{story_id}/Generate 補做。
+        /// </summary>
+        private void QueueSilhouetteGeneration(IEnumerable<int> storyIds)
+        {
+            List<int> ids = storyIds.ToList();
+            _ = Task.Run(async () =>
+            {
+                using IServiceScope scope = _scopeFactory.CreateScope();
+                var silhouettes = scope.ServiceProvider.GetRequiredService<SilhouetteService>();
+                foreach (int storyId in ids)
+                {
+                    try
+                    {
+                        SilhouetteGenerateResult r = await silhouettes.GenerateForStoryAsync(storyId);
+                        _logger.LogInformation("劇本 {StoryId} 剪影產生完成：新做 {Generated}、沿用 {Reused}", storyId, r.generated, r.reused);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.LogWarning(e, "劇本 {StoryId} 剪影產生失敗", storyId);
+                    }
+                }
+            });
         }
 
 
@@ -99,6 +133,7 @@ namespace backend.Services
         {
             int storyId = await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
             await _badgeService.RefreshStoryCategoriesAsync(storyId);
+            QueueSilhouetteGeneration(new[] { storyId });
             return storyId;
         }
 
@@ -655,9 +690,14 @@ namespace backend.Services
             // ── 5. 寫入資料庫（回填 story_id、sn_id、task_db_id；有選公車時一併寫入節點間的直達公車）──
             await _dao.SaveGameStoriesAsync(auId, req.preferences, results, planBusTransit);
 
-            // ── 6. 可抽的勳章類別；把公車方案（含經過的站牌）掛回每個節點 ──
+            // ── 6. 可抽的勳章類別、景點照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
+            Dictionary<int, string> images = await _dao.GetNodeImagesAsync(results.Select(r => r.story_id));
+
             foreach (GameStoryResult result in results)
             {
+                foreach (GameStoryNode node in result.nodes)
+                    node.image_url = images.TryGetValue(node.sn_id, out string image) ? image : null;
+
                 result.story.story_badge = await _badgeService.RefreshStoryCategoriesAsync(result.story_id);
 
                 List<BusTransitLeg> legs = planBusTransit
@@ -670,6 +710,7 @@ namespace backend.Services
                 }
             }
 
+            QueueSilhouetteGeneration(results.Select(r => r.story_id));
             return results;
         }
 

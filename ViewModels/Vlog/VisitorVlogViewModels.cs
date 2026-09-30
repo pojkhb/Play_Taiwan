@@ -24,7 +24,7 @@ namespace backend.ViewModels
         /// <summary>遊玩時長，例如「2.5小時」</summary>
         public string play_time { get; set; }
 
-        /// <summary>這次遊玩拍的照片總數；0 張不能合成影片</summary>
+        /// <summary>可以放進影片的照片總數（玩家拍的 + 沒拍的站補上的景點照片）；0 張不能合成影片</summary>
         public int photo_count { get; set; }
 
         /// <summary>走過的景點（依劇本順序），含每個景點的照片數</summary>
@@ -68,7 +68,11 @@ namespace backend.ViewModels
         /// <summary>這個景點的照片在 image_zip 裡的檔名（Preview 時為空，只看 photo_count）</summary>
         public List<string> images { get; set; }
 
+        /// <summary>這個景點放進影片的照片數</summary>
         public int photo_count { get; set; }
+
+        /// <summary>玩家在這站沒有照片，影片改用景點照片</summary>
+        public bool uses_place_photo { get; set; }
     }
 
     /// <summary>送給外部 AI /api/visitor/vlog/preview 的單一景點</summary>

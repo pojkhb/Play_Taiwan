@@ -73,6 +73,9 @@ namespace backend.dao
             public decimal? lat { get; set; }
             public decimal? lng { get; set; }
 
+            /// <summary>景點照片（place.p_image），玩家在這站沒拍照時用來補 VLOG 素材</summary>
+            public string place_image { get; set; }
+
             /// <summary>玩家在這個節點第一次作答的時間</summary>
             public DateTime? first_at { get; set; }
 
@@ -93,6 +96,7 @@ namespace backend.dao
             return (await conn.QueryAsync<SpotRow>(@"
                 SELECT sn.sn_id, sn.sn_order, sn.sn_title, sn.location_codename, sn.is_hidden,
                        pt.place_name, p.p_address, p.p_latitude AS lat, p.p_longitude AS lng,
+                       NULLIF(p.p_image, '') AS place_image,
                        r.first_at, r.last_at, IFNULL(r.task_count, 0) AS task_count
                 FROM story_node sn
                 LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt

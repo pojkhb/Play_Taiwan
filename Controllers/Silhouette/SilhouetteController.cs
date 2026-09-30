@@ -173,5 +173,45 @@ namespace backend.Controllers
         }
 
         #endregion
+
+        #region 4. 為劇本節點產生剪影
+
+        /// <summary>
+        /// 為劇本每個節點產生地圖用的剪影（劇本生成後會自動在背景執行，這支用來補做或查看結果）。
+        /// </summary>
+        /// <remarks>
+        /// 用景點照片（地圖解鎖後顯示的同一張）做去背實心剪影：背景透明、建築物填成深色，
+        /// 存成靜態檔 `/images/silhouettes/generated/xxx.png`，並連到節點。
+        /// 地圖 `GET /api/Map/{story_id}` 的每個節點會帶 `silhouette_image_url`，前端直接接在後端網址後面顯示。
+        ///
+        /// 同一張照片的剪影跨劇本重用；節點已經有剪影就略過，可以重複呼叫。
+        /// `area_ratio` 接近 1 代表照片沒有天空（例如空拍），剪影會是一整塊。
+        ///
+        ///     POST /api/Silhouette/Story/1/Generate
+        /// </remarks>
+        [Authorize]
+        [HttpPost]
+        [Route("Story/{story_id:int}/Generate")]
+        [ProducesResponseType(typeof(ResultViewModel<SilhouetteGenerateResult>), 200)]
+        public async Task<IActionResult> GenerateForStory(int story_id)
+        {
+            try
+            {
+                SilhouetteGenerateResult result = await _service.GenerateForStoryAsync(story_id);
+                return Ok(new ResultViewModel<SilhouetteGenerateResult>
+                {
+                    isSuccess = true,
+                    message = $"新產生 {result.generated} 張、沿用 {result.reused} 張剪影",
+                    Result = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "產生劇本剪影失敗，story_id: {StoryId}", story_id);
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = ex.Message, Result = null });
+            }
+        }
+
+        #endregion
     }
 }

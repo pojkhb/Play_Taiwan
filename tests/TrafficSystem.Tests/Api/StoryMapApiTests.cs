@@ -31,6 +31,19 @@ public class StoryMapApiTests
     }
 
     [Fact]
+    public async Task 劇本詳情帶景點照片_劇本檔案館用()
+    {
+        int user = _api.NewUserId();
+        string withPhoto = $"有照片的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, withPhoto, noPhoto);
+        string photoUrl = await _api.GivePlacePhotoAsync(withPhoto);
+
+        StoryDetailResponse detail = (await (await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
+
+        Assert.Equal(new[] { photoUrl, null }, detail.nodes.Select(n => n.image_url));
+    }
+
+    [Fact]
     public async Task 完整劇本詳情可以查詢()
     {
         int user = _api.NewUserId();

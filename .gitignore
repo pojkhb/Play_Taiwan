@@ -44,3 +44,5 @@ appsettings.json
 openapi_full.json
 openapi.json
 prompt/
+# 地圖剪影：由景點照片自動產生（POST /api/Silhouette/Story/{id}/Generate），每個環境自己產生，不進版控
+wwwroot/images/silhouettes/generated/*.png

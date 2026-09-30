@@ -227,6 +227,32 @@ namespace backend.dao
 
 
 
+        /// <summary>
+        /// story_node(Neo4j UUID) → place_type(名稱) → place(照片)，跟 MapDao 的橋接方式相同，
+        /// 劇本檔案館、劇本詳情、地圖顯示的都是同一張照片。
+        /// </summary>
+        private const string PlaceImageJoin = @"
+            LEFT JOIN (SELECT place_id, MIN(place_name) AS place_name FROM place_type GROUP BY place_id) pt
+                   ON pt.place_id = sn.place_id
+            LEFT JOIN place p
+                   ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
+        ";
+
+        /// <summary>劇本各節點的景點照片：sn_id → 照片網址（沒有照片的節點不會出現）</summary>
+        public async Task<Dictionary<int, string>> GetNodeImagesAsync(IEnumerable<int> storyIds)
+        {
+            var ids = storyIds.Distinct().ToList();
+            if (ids.Count == 0) return new Dictionary<int, string>();
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            var rows = await conn.QueryAsync<(int sn_id, string image_url)>($@"
+                SELECT sn.sn_id, NULLIF(p.p_image, '') AS image_url
+                FROM story_node sn
+                {PlaceImageJoin}
+                WHERE sn.s_id IN @ids;", new { ids });
+            return rows.Where(r => r.image_url != null).ToDictionary(r => r.sn_id, r => r.image_url);
+        }
+
         #region 劇本詳情 (包含對應節點輸出)
         public StoryDetailResponse GetDetail(int storyId)
         {
@@ -237,13 +263,15 @@ namespace backend.dao
             ";
 
             // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
-            string nodeSql = @"
+            string nodeSql = $@"
                 SELECT
-                    sn_id, sn_order, sn_title,
-                    location_codename, sn_opening_text, sn_success_text
-                FROM story_node
-                WHERE s_id = @storyId
-                ORDER BY sn_order;
+                    sn.sn_id, sn.sn_order, sn.sn_title,
+                    sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
+                    NULLIF(p.p_image, '') AS image_url
+                FROM story_node sn
+                {PlaceImageJoin}
+                WHERE sn.s_id = @storyId
+                ORDER BY sn.sn_order;
             ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))
@@ -284,7 +312,8 @@ namespace backend.dao
                         location_codename = (node.location_codename as string) ?? "",
                         opening = (node.sn_opening_text as string) ?? "",
                         success = (node.sn_success_text as string) ?? "",
-                        npc_name = ""
+                        npc_name = "",
+                        image_url = node.image_url as string
                     });
 
                     result.route_nodes.Add(new StoryOptionResponse.RouteNode

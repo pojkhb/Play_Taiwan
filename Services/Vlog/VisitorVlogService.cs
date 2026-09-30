@@ -54,13 +54,16 @@ namespace backend.Services
             string playTime = PlayTime(session, material.rows);
             int tasksDone = material.rows.Sum(r => r.task_count);
 
+            // AI 規定 visit_time 必須是字串；玩家在這站沒有作答紀錄時，用開始遊玩的時間代替
+            string fallbackTime = (session?.started_at ?? session?.last_played_at ?? DateTime.Now).ToString("yyyy-MM-dd HH:mm");
+
             var payload = new
             {
                 spot_history = material.spots.Select(s => new SpotHistoryItem
                 {
                     spot_name = s.spot_name,
                     location_codename = s.location_codename,
-                    visit_time = s.visit_time
+                    visit_time = s.visit_time ?? fallbackTime
                 }),
                 player_play_time = playTime,
                 game_tasks_completed = tasksDone > 0 ? $"完成 {tasksDone} 個任務" : "完成解謎與尋寶任務"
@@ -119,7 +122,9 @@ namespace backend.Services
 
             PlayMaterial material = await CollectAsync(auId, req.story_id);
             if (material.photos.Count == 0)
-                throw new Exception("這次遊玩沒有拍到任何照片，無法合成影片");
+                throw new Exception("這次遊玩沒有照片，景點也沒有照片，無法合成影片");
+
+            byte[] bgm = _ai.LoadBgm();   // 找不到背景音樂就先擋下，不把 VLOG 標成合成失敗
 
             List<(string entryName, string url)> entries = NameZipEntries(material.photos);
             string spotMetaJson = JsonSerializer.Serialize(material.spots, MetaJsonOptions);
@@ -132,7 +137,7 @@ namespace backend.Services
             try
             {
                 byte[] zip = await _ai.BuildZipAsync(entries);
-                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, null, spotMetaJson);
+                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, bgm, spotMetaJson);
             }
             catch (Exception e)
             {
@@ -246,7 +251,11 @@ namespace backend.Services
             public List<(VisitorVlogSpot spot, string url)> photos;
         }
 
-        /// <summary>景點清單（隱藏節點只有玩家真的去過才算）＋ 這次遊玩的照片（去重、排除影片與錄音）</summary>
+        /// <summary>
+        /// 景點清單（隱藏節點只有玩家真的去過才算）＋ 影片素材照片：
+        /// 先用這次遊玩拍的照片（record_media、answer_media_url，去重、排除影片與錄音），
+        /// 玩家在某站沒有照片時補上該景點的照片（place.p_image）
+        /// </summary>
         private async Task<PlayMaterial> CollectAsync(int auId, int storyId)
         {
             List<VisitorVlogDao.SpotRow> rows = await _dao.GetSpotsAsync(auId, storyId);
@@ -278,6 +287,16 @@ namespace backend.Services
                 if (!VlogAiGateway.LooksLikeImage(m.url) || !seen.Add(m.url)) continue;
                 spotByNode.TryGetValue(m.node_id ?? 0, out VisitorVlogSpot spot);
                 photos.Add((spot, m.url));
+            }
+
+            // 玩家在這站沒有照片時（沒拍、或還沒有答題紀錄），補上景點照片，讓每一站在影片裡都有畫面
+            var covered = photos.Where(p => p.spot != null).Select(p => p.spot).ToHashSet();
+            foreach (var r in rows)
+            {
+                if (!spotByNode.TryGetValue(r.sn_id, out VisitorVlogSpot spot) || covered.Contains(spot)) continue;
+                if (string.IsNullOrWhiteSpace(r.place_image) || !seen.Add(r.place_image)) continue;
+                photos.Add((spot, r.place_image));
+                spot.uses_place_photo = true;
             }
 
             foreach (var g in photos.Where(p => p.spot != null).GroupBy(p => p.spot))

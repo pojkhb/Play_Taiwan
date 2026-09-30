@@ -7,7 +7,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using backend.dao;
 using backend.Models;
 using backend.ViewModels;
@@ -18,7 +17,7 @@ namespace backend.Services
     /// <summary>
     /// 商家 VLOG：
     /// 1. Preview：店家名稱、營業時間、地址、敘事語氣、推廣資訊 → AI 旁白草稿、推薦配文、TAG；照片存進 merchant_media_asset。
-    /// 2. CreateFinal：商家確認旁白後，把專案照片打包成 zip（+ 背景音樂）送去合成影片。
+    /// 2. CreateFinal：商家確認旁白後，把專案照片打包成 zip，附上背景音樂送去合成影片。
     /// 3. Status：輪詢合成進度，完成時寫回影片網址。
     /// </summary>
     public class MerchantVlogService
@@ -27,13 +26,11 @@ namespace backend.Services
         public const int MaxImages = 30;
         public const long MaxImageBytes = 20 * 1024 * 1024;
 
-        private readonly IConfiguration _configuration;
         private readonly VlogDao _dao;
         private readonly VlogAiGateway _ai;
 
-        public MerchantVlogService(IConfiguration configuration, VlogDao dao, VlogAiGateway ai)
+        public MerchantVlogService(VlogDao dao, VlogAiGateway ai)
         {
-            _configuration = configuration;
             _dao = dao;
             _ai = ai;
         }
@@ -208,6 +205,8 @@ namespace backend.Services
             if (urls.Count == 0)
                 throw new Exception("這個專案還沒有照片，請先在 Preview 上傳");
 
+            byte[] bgm = _ai.LoadBgm();   // 找不到背景音樂就先擋下，不把專案標成合成失敗
+
             string caption = req.caption ?? media.mm_text;
             string hashtags = req.hashtags != null ? string.Join(",", VlogAiGateway.ToHashtags(req.hashtags)) : media.mm_hashtage;
 
@@ -215,7 +214,7 @@ namespace backend.Services
             try
             {
                 byte[] zip = await _ai.BuildZipAsync(urls.Select((url, i) => ($"{i + 1:D2}{VlogAiGateway.ImageExtension(url)}", url)));
-                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, LoadBgm(), null);
+                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, bgm, null);
             }
             catch (Exception e)
             {
@@ -232,14 +231,6 @@ namespace backend.Services
                 status = 2,
                 status_text = VlogAiGateway.StatusText(2)
             };
-        }
-
-        /// <summary>預設背景音樂；檔案不存在就不附（由 AI 服務決定配樂）</summary>
-        private byte[] LoadBgm()
-        {
-            string bgmPath = _configuration["MerchantVlogSettings:DefaultBgmPath"]
-                             ?? Path.Combine("wwwroot", "bgm", "default_bgm.mp3");
-            return File.Exists(bgmPath) ? File.ReadAllBytes(bgmPath) : null;
         }
 
         #endregion

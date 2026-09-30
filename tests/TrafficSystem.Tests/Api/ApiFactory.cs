@@ -12,7 +12,10 @@ using backend;
 using Dapper;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.IdentityModel.Tokens;
 using MySql.Data.MySqlClient;
 
@@ -61,6 +64,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
         return dir?.FullName ?? throw new InvalidOperationException("找不到 TrafficSystem.csproj");
     }
 
+    /// <summary>後端往外打的 HTTP（AI 服務等）全部由它回應，不會真的連網路</summary>
+    public FakeAiService FakeAi { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -71,6 +77,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["BusSync:Enabled"] = "false",     // 測試時不要在背景同步公車、捷運資料
             ["MetroSync:Enabled"] = "false",
         }));
+        builder.ConfigureTestServices(services =>
+            services.ConfigureAll<HttpClientFactoryOptions>(options =>
+                options.HttpMessageHandlerBuilderActions.Add(handler => handler.PrimaryHandler = FakeAi)));
     }
 
     #region 建立 / 刪除測試資料庫
@@ -147,6 +156,18 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
     {
         using var conn = new MySqlConnection(ConnectionString);
         await conn.ExecuteAsync(sql, param);
+    }
+
+    /// <summary>給景點一張照片：由 FakeAi 提供圖片內容（天空 + 高塔），並寫進 place.p_image，回傳照片網址</summary>
+    public async Task<string> GivePlacePhotoAsync(string placeName)
+    {
+        string url = $"https://img.test/{Guid.NewGuid():N}.png";
+        using var photo = TrafficSystem.Tests.Silhouette.SilhouetteImageHelperTests.TowerPhoto(240, 200);
+        using var ms = new MemoryStream();
+        await SixLabors.ImageSharp.ImageExtensions.SaveAsPngAsync(photo, ms);
+        FakeAi.Images[url] = ms.ToArray();
+        await ExecuteAsync("UPDATE place SET p_image = @url WHERE p_name = @placeName;", new { url, placeName });
+        return url;
     }
 
     /// <summary>

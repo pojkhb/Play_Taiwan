@@ -202,6 +202,9 @@ namespace backend.ViewModels
         /// <summary>地點代號（劇情中對這個地點的暗號/別稱）</summary>
         public string location_codename { get; set; }
 
+        /// <summary>景點照片（完整網址），劇本檔案館的車票顯示用；景點沒有照片時為 null</summary>
+        public string image_url { get; set; }
+
         /// <summary>此節點包含的任務類型名稱，多個以半形逗號分隔</summary>
         public string sn_task_type { get; set; }
 

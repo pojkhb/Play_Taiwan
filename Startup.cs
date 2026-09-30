@@ -109,6 +109,7 @@ namespace backend
             #region S07-劇本生成 (RAG+LLM)
             services.AddScoped<Services.StoryService>();
             services.AddScoped<dao.StoryDao>();
+            services.AddScoped<Services.NpcVoiceService>();
             #endregion
             #region S08-地圖/節點/導航
             services.AddScoped<Services.MapService>();

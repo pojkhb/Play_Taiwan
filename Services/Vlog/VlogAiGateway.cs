@@ -1,6 +1,7 @@
 // 檔案路徑：System\Services\Vlog\VlogAiGateway.cs
 // 商家 VLOG 與遊客 VLOG 共用：把照片打包成 zip、送出影片合成、查詢合成進度。
 // 外部 AI 服務端點：POST /api/visitor/vlog/create_final、GET /api/check_status/{task_id}。
+// create_final 的 bgm_file 是必填，預設用 wwwroot/bgm/default_bgm.mp3（可用 VlogSettings:BgmPath 換）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,6 +13,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using backend.utils;
 using backend.ViewModels;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 
 namespace backend.Services
 {
@@ -33,10 +36,31 @@ namespace backend.Services
         private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _environment;
 
-        public VlogAiGateway(IHttpClientFactory httpClientFactory)
+        public VlogAiGateway(IHttpClientFactory httpClientFactory, IConfiguration configuration, IWebHostEnvironment environment)
         {
             _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
+            _environment = environment;
+        }
+
+        /// <summary>
+        /// 影片合成用的背景音樂（AI 服務的 bgm_file 是必填）。
+        /// 預設 wwwroot/bgm/default_bgm.mp3；VlogSettings:BgmPath 可以換成其他檔案（相對路徑以專案根目錄為準）。
+        /// 找不到就丟出錯誤，呼叫端要在送出合成前先呼叫，避免把專案標成合成失敗。
+        /// </summary>
+        public byte[] LoadBgm()
+        {
+            string configured = _configuration["VlogSettings:BgmPath"];
+            string path = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(_environment.WebRootPath, "bgm", "default_bgm.mp3")
+                : Path.IsPathRooted(configured) ? configured : Path.Combine(_environment.ContentRootPath, configured);
+
+            if (!File.Exists(path))
+                throw new Exception($"找不到影片背景音樂檔：{path}（請放一個 mp3，或設定 VlogSettings:BgmPath）");
+            return File.ReadAllBytes(path);
         }
 
         public HttpClient CreateClient(TimeSpan timeout)
@@ -51,7 +75,7 @@ namespace backend.Services
         {
             string body = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"{apiName}失敗（HTTP {(int)response.StatusCode}）：{Truncate(body)}");
+                throw new Exception($"{apiName}失敗（HTTP {(int)response.StatusCode}）：{AiErrorMessage(body)}");
 
             try
             {
@@ -65,9 +89,12 @@ namespace backend.Services
 
         #region 送出影片合成 / 查詢進度
 
-        /// <summary>送出正式影片合成任務，回傳外部 task_id</summary>
+        /// <summary>送出正式影片合成任務，回傳外部 task_id。bgm 用 <see cref="LoadBgm"/> 取得</summary>
         public async Task<VlogCreateFinalApiResponse> CreateFinalAsync(string finalScript, byte[] imageZip, byte[] bgm, string spotMetaJson)
         {
+            if (bgm == null || bgm.Length == 0)
+                throw new ArgumentException("缺少背景音樂（AI 服務的 bgm_file 是必填）", nameof(bgm));
+
             using var form = new MultipartFormDataContent
             {
                 { new StringContent(finalScript), "final_script" }
@@ -77,12 +104,9 @@ namespace backend.Services
             zipContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/zip");
             form.Add(zipContent, "image_zip", "images.zip");
 
-            if (bgm != null)
-            {
-                var bgmContent = new ByteArrayContent(bgm);
-                bgmContent.Headers.ContentType = MediaTypeHeaderValue.Parse("audio/mpeg");
-                form.Add(bgmContent, "bgm_file", "bgm.mp3");
-            }
+            var bgmContent = new ByteArrayContent(bgm);
+            bgmContent.Headers.ContentType = MediaTypeHeaderValue.Parse("audio/mpeg");
+            form.Add(bgmContent, "bgm_file", "bgm.mp3");
 
             if (!string.IsNullOrWhiteSpace(spotMetaJson))
                 form.Add(new StringContent(spotMetaJson), "spot_meta_json");
@@ -141,6 +165,7 @@ namespace backend.Services
         public async Task<byte[]> BuildZipAsync(IEnumerable<(string entryName, string url)> entries)
         {
             using HttpClient client = CreateClient(TimeSpan.FromMinutes(2));
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PlayTaiwan/1.0 (vlog)");   // Wikimedia 等圖庫會擋沒有 User-Agent 的下載
             using var zipStream = new MemoryStream();
             using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
             {
@@ -233,6 +258,41 @@ namespace backend.Services
             4 => "失敗",
             _ => "未知"
         };
+
+        /// <summary>
+        /// AI 服務的錯誤回應取出人看得懂的訊息：{"message": ...}，或 FastAPI 驗證錯誤 {"detail": [{"loc": [...], "msg": ...}]}；
+        /// 都不是就回傳原始內容（截斷）
+        /// </summary>
+        public static string AiErrorMessage(string body)
+        {
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(body);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("message", out JsonElement m) && m.ValueKind == JsonValueKind.String)
+                        return m.GetString();
+                    if (root.TryGetProperty("detail", out JsonElement d))
+                    {
+                        if (d.ValueKind == JsonValueKind.String) return d.GetString();
+                        if (d.ValueKind == JsonValueKind.Array)
+                            return string.Join("；", d.EnumerateArray().Select(e =>
+                            {
+                                string field = e.TryGetProperty("loc", out JsonElement loc) && loc.ValueKind == JsonValueKind.Array
+                                    ? loc.EnumerateArray().LastOrDefault().ToString() : "";
+                                string msg = e.TryGetProperty("msg", out JsonElement mm) ? mm.GetString() : e.ToString();
+                                return string.IsNullOrEmpty(field) ? msg : $"{field}: {msg}";
+                            }));
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // 不是 JSON，回傳原文
+            }
+            return Truncate(body);
+        }
 
         private static string Truncate(string s) => s == null ? "" : s.Length > 500 ? s.Substring(0, 500) + "…" : s;
     }

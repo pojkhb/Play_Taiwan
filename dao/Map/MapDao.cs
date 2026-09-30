@@ -52,7 +52,13 @@ namespace backend.dao
                     sn.sn_title                  AS location_name,
                     COALESCE(p.p_latitude, 0)    AS lat,
                     COALESCE(p.p_longitude, 0)   AS lng,
-                    p.p_image                    AS image_url
+                    p.p_image                    AS image_url,
+                    (SELECT si.si_silhouette_image
+                       FROM story_node_silhouette sns
+                       INNER JOIN silhouette si ON si.si_id = sns.si_id
+                      WHERE sns.sn_id = sn.sn_id
+                      ORDER BY sns.sns_order, sns.sns_id
+                      LIMIT 1)                   AS silhouette_image_url
                 FROM story_node sn
                 {PlaceBridgeJoin}
                 WHERE sn.s_id = @storyId

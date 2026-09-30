@@ -167,20 +167,6 @@ namespace backend.Models
 
         /// <summary>此節點對應的任務代號，沒有任務時為 null</summary>
         public int? task_id { get; set; }
-
-        /// <summary>回顧故事的網址（目前為 null）</summary>
-        public string review_story_url { get; set; }
-    }
-
-    // ===================== 故事結尾 / 回顧 =====================
-    public class StoryEndingResponse
-    {
-        public string story_id { get; set; }                          // 故事代號
-        public string title { get; set; }                               // 故事標題
-        public int walked_steps { get; set; }                            // 步行步數
-        public string task_completion_ratio { get; set; }                 // 任務完成比例
-        public string postcard_completion_ratio { get; set; }              // 收集明信片比例
-        public string ending_type { get; set; }                             // 結尾類型：完美結局/一般結局
     }
 
     // ===================== 歷史紀錄 (History) =====================
@@ -202,14 +188,8 @@ namespace backend.Models
         /// <summary>故事所屬地區名稱</summary>
         public string region { get; set; }
 
-        /// <summary>路線節點預覽，依順序包含各節點的景點名稱</summary>
-        public List<string> route_summary { get; set; }
-
         /// <summary>使用者完成獲得的 Vlog 代號，關聯 au_vlog.av_id，尚未生成則為 null</summary>
         public int? vlog_id { get; set; }
-
-        /// <summary>明信片回顧頁面的連結，若無則為 null。</summary>
-        public string postcard_review_url { get; set; }
 
         /// <summary>探索總覽：這趟旅程經過的景點名稱清單</summary>
         public List<string> spots { get; set; }

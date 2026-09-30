@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-09-30 ・ 共 87 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/swagger`
+更新日期：2026-09-30 ・ 共 92 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/swagger`
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。
 
@@ -19,7 +19,7 @@
 
 | 狀態 | 意思 | 數量 |
 |---|---|---|
-| ✅ 實測可用 | 實際打過或有自動化測試，正常 | 73 |
+| ✅ 實測可用 | 實際打過或有自動化測試，正常 | 78 |
 | ⚠️ 卡在 AI 服務 | 後端正常，卡在配璇的 AI 服務（AI 的 Neo4j 沒開、CUDA 錯誤、未知的 node_type） | 5 |
 | 🔧 隊友改寫中 | 隊友改寫中，合併後再測 | 5 |
 | 🛠 管理員用 | 管理員同步資料用 | 4 |
@@ -57,6 +57,9 @@
 |---|---|---|---|
 | 三份劇本（標題、前傳、照片、模糊線索、預計獲得） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 同上方說明 |
 | 重新查詢劇本內容 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | 9/30 起多了 is_night_mode（日夜）與每站 task_type（任務類型），原本的 FullDetail 已合併進來 |
+| 加入 Google 行事曆 | `POST /api/Story/{story_id}/Calendar` | ✅ 實測可用 | 回傳 google_calendar_url，前端用 url_launcher 打開，使用者按「儲存」就加進自己的 Google 行事曆，不需要授權。body 可省略（預設明天 10:00，夜間劇本 19:00）。地點只放第一站，其他站在迷霧中不會出現 |
+| 喜愛／取消喜愛 | `POST /api/Story/{story_id}/Favorite` | ✅ 實測可用 | body：{ "is_favorite": true/false }。只能設定自己的劇本，劇本詳情會帶 is_favorite |
+| 我喜愛的劇本 | `GET /api/Story/Favorites` | ✅ 實測可用 | 每筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完 |
 
 ### 五、劇情前傳
 
@@ -101,6 +104,8 @@
 |---|---|---|---|
 | 通關紀錄 | `GET /api/History` | ✅ 實測可用 |  |
 | 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 |  |
+| 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
+| 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音 |
 | 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
 | Vlog 旁白草稿 | `POST /api/VisitorVlog/Preview` | ⚠️ 卡在 AI 服務 | AI 端目前 CUDA 錯誤（9/30 重測仍是 no kernel image is available） |
 | Vlog 合成 | `POST /api/VisitorVlog/CreateFinal` | ✅ 實測可用 | 照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url |
@@ -149,14 +154,17 @@
 | `POST /api/Story/GenerateGameStory` | 依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫 | 需要 | ⚠️ 卡在 AI 服務 | JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preference |
 | `POST /api/Story/spin` | 接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推 | 需要 | ⚠️ 卡在 AI 服務 | JSON：input_text（string）、emotion_label（string）、city_name（string）、town_name（string） |
 
-### 劇本（4）
+### 劇本（7）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
 | `POST /api/Story/Confirm` | 玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1）， 並自動把其 | 需要 | ✅ 實測可用 | JSON：story_id（integer） |
 | `GET /api/Story/CurrentPlaying` | 查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆） | 需要 | ✅ 實測可用 |  |
 | `POST /api/Story/EndStory` | 玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行（is_playing = 0） | 需要 | ✅ 實測可用 | JSON：story_id（integer） |
+| `GET /api/Story/Favorites` | 我喜愛的劇本清單（最新建立的在前面） | 需要 | ✅ 實測可用 |  |
+| `POST /api/Story/{story_id}/Calendar` | 把劇本加入 Google 行事曆：回傳 Google 行事曆的新增活動連結 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：start_time（string）、duration_minutes（integer） |
 | `GET /api/Story/{story_id}/Detail` | 取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
+| `POST /api/Story/{story_id}/Favorite` | 把劇本加入或取消喜愛 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：is_favorite（boolean） |
 
 ### NPC 語音（2）
 
@@ -229,12 +237,14 @@
 | `POST /api/Badge/Draw` | 完成劇本後抽一枚勳章，一個劇本只能抽一次 | 需要 | ✅ 實測可用 | JSON：story_id（integer） |
 | `GET /api/Badge/Status` | 取得系統所有徽章，依系列分組，並標示當前探員是否已擁有該徽章 | 需要 | ✅ 實測可用 |  |
 
-### 過往旅途（2）
+### 過往旅途（4）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
 | `GET /api/History` | 取得目前探員的所有過往劇本清單 | 需要 | ✅ 實測可用 |  |
 | `GET /api/History/{story_id}` | 取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單) | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
+| `GET /api/History/{story_id}/Recap` | 劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白 | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
+| `POST /api/History/{story_id}/Recap/Narration` | 產生回顧旁白的語音（mp3），回傳 audio_url | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：voice（string） |
 
 ### 遊客 VLOG（3）
 

@@ -44,6 +44,9 @@ appsettings.json
 
 # 地圖迷霧圖：由景點照片自動產生，每個環境自己產生，不進版控
 wwwroot/images/fog/generated/
+
+# 劇本回顧的旁白語音：由 AI 服務產生後存在後端，每個環境自己產生，不進版控
+wwwroot/audio/narration/
 openapi_full.json
 openapi.json
 prompt/

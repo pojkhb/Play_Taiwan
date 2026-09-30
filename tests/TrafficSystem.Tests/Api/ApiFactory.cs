@@ -82,7 +82,6 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["SmtpSettings:Server"] = "127.0.0.1",   // 寄信一律失敗，測試不會寄出真的信（註冊、忘記密碼）
             ["SmtpSettings:Port"] = "1",
             ["Fog:GeneratedRoot"] = FogRoot,
-            ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
         }));
         builder.ConfigureTestServices(services =>
             services.ConfigureAll<HttpClientFactoryOptions>(options =>

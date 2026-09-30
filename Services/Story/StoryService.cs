@@ -6,7 +6,6 @@ using backend.dao;
 using backend.Models;
 using backend.ViewModels;
 using backend.utils;
-using backend.util;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -88,85 +87,6 @@ namespace backend.Services
         {
             return _dao.GetCurrentPlayingStory(auId);
         }
-
-
-        #region 喜愛的劇本
-
-        /// <summary>設定或取消喜愛；只能改自己的劇本</summary>
-        public async Task SetFavoriteAsync(int auId, int storyId, bool isFavorite)
-        {
-            if (!await _dao.SetFavoriteAsync(auId, storyId, isFavorite))
-                throw new KeyNotFoundException("找不到此劇本：" + storyId);
-        }
-
-        public Task<List<FavoriteStoryItem>> GetFavoriteStoriesAsync(int auId) => _dao.GetFavoriteStoriesAsync(auId);
-
-        #endregion
-
-
-        #region 加入 Google 行事曆
-
-        /// <summary>沒指定遊玩時間時，每站估 40 分鐘</summary>
-        private const int MinutesPerStop = 40;
-
-        /// <summary>
-        /// 產生把劇本加入 Google 行事曆的連結。地點只放第一站（集合點），其他站還在迷霧中不會出現。
-        /// </summary>
-        public async Task<StoryCalendarResponse> BuildCalendarEventAsync(int storyId, StoryCalendarRequest req)
-        {
-            StoryDao.StoryCalendarInfo info = await _dao.GetCalendarInfoAsync(storyId)
-                ?? throw new KeyNotFoundException("找不到此劇本：" + storyId);
-
-            if (req?.duration_minutes is int requested && (requested < 30 || requested > 1440))
-                throw new ArgumentException("遊玩時間請介於 30～1440 分鐘");
-
-            bool night = info.is_night_mode == 1;
-            DateTime start = req?.start_time is DateTime t ? ToTaiwanTime(t) : DefaultCalendarStart(night, DateTime.UtcNow.AddHours(8));
-            int minutes = req?.duration_minutes ?? Math.Max(60, info.node_count * MinutesPerStop);
-            DateTime end = start.AddMinutes(minutes);
-
-            string area = $"{info.city_name}{info.district_name}";
-            string location = string.Join(" ", new[] { info.first_place_name, info.first_place_address }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            if (location == "") location = area;
-
-            string synopsis = (string.IsNullOrWhiteSpace(info.story_synopsis) ? info.story_prologue : info.story_synopsis)?.Trim() ?? "";
-            if (synopsis.Length > 300) synopsis = synopsis[..300] + "…";
-
-            var lines = new List<string>();
-            if (synopsis != "") lines.AddRange(new[] { synopsis, "" });
-            if (area != "") lines.Add($"地區：{area}");
-            lines.Add($"共 {info.node_count} 站・{(night ? "夜間劇本" : "白天劇本")}");
-            if (!string.IsNullOrWhiteSpace(info.first_place_name)) lines.Add($"集合點：第一站 {info.first_place_name}");
-            lines.AddRange(new[] { "", "出發時打開 Play Taiwan，選這個劇本開始遊玩。其他站還在迷霧中，要到現場解謎才會揭曉。" });
-            string details = string.Join("\n", lines);
-
-            string title = $"Play Taiwan｜{info.story_title}";
-
-            return new StoryCalendarResponse
-            {
-                google_calendar_url = GoogleCalendarLink.Build(title, start, end, details, location),
-                title = title,
-                start_time = start,
-                end_time = end,
-                location = location,
-                details = details
-            };
-        }
-
-        /// <summary>沒指定出發時間時：明天早上 10:00，夜間劇本晚上 19:00（台灣時間）</summary>
-        internal static DateTime DefaultCalendarStart(bool night, DateTime taiwanNow) =>
-            DateTime.SpecifyKind(taiwanNow.Date.AddDays(1).AddHours(night ? 19 : 10), DateTimeKind.Unspecified);
-
-        /// <summary>前端應該傳台灣時間；如果帶了時區（Z 或 +08:00）就換算回台灣時間</summary>
-        private static DateTime ToTaiwanTime(DateTime t) => DateTime.SpecifyKind(t.Kind switch
-        {
-            DateTimeKind.Utc => t.AddHours(8),
-            DateTimeKind.Local => t.ToUniversalTime().AddHours(8),
-            _ => t
-        }, DateTimeKind.Unspecified);
-
-
-        #endregion
 
 
         #region 存入 AI 生成的劇本（遊你說算）

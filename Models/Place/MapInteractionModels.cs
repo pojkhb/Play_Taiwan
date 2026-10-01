@@ -19,11 +19,14 @@ namespace backend.Models
         public string scene_image_url { get; set; }
 
         // NPC
-        /// <summary>NPC 代號</summary>
+        /// <summary>NPC 代號（npc.npc_id）；劇本沒有 NPC 時為 "NPC-DEFAULT"</summary>
         public string npc_id { get; set; }
 
-        /// <summary>NPC 名稱</summary>
+        /// <summary>NPC 名稱；劇本沒有 NPC 時為「旅遊引導員」</summary>
         public string npc_name { get; set; }
+
+        /// <summary>NPC 身分／角色設定，例如「在城南說了四十年故事的老說書人」；劇本沒有 NPC 時為 null</summary>
+        public string npc_role { get; set; }
 
         /// <summary>NPC 頭像圖片網址</summary>
         public string npc_avatar_url { get; set; }

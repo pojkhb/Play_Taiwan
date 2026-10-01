@@ -38,6 +38,15 @@ namespace backend.dao
                    ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
         ";
 
+        // 節點的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC（AI 生成劇本時一起產生）
+        private const string NpcJoin = @"
+            LEFT JOIN story s ON s.s_id = sn.s_id
+            LEFT JOIN npc n ON n.npc_id = COALESCE(sn.npc_id, s.npc_id)
+        ";
+
+        /// <summary>劇本沒有 NPC（AI 沒有產生）時，畫面上顯示的 NPC 名稱</summary>
+        public const string DefaultNpcName = "旅遊引導員";
+
         #region 取得地圖節點
         /// <summary>
         /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依 ss_current 統一計算，座標由 MapService 依 place_id 補上。
@@ -257,13 +266,15 @@ namespace backend.dao
                     p.p_summary        AS summary,
                     p.p_introduction   AS introduction,
                     p.p_open_time      AS opening_hours,
+                    n.npc_name         AS npc_name,
                     MIN(t.task_id)     AS task_id
                 FROM story_node sn
                 {PlaceBridgeJoin}
+                {NpcJoin}
                 LEFT JOIN task t ON t.node_id = sn.sn_id
                 WHERE sn.sn_id = @nodeId
                 GROUP BY sn.sn_id, sn.sn_title, sn.sn_opening_text,
-                         p.p_summary, p.p_introduction, p.p_open_time
+                         p.p_summary, p.p_introduction, p.p_open_time, n.npc_name
                 LIMIT 1;
             ";
 
@@ -287,7 +298,7 @@ namespace backend.dao
                 {
                     node_id = (int)row.node_id,
                     location_name = (row.location_name as string) ?? "",
-                    npc_name = "旅遊引導員",
+                    npc_name = (row.npc_name as string) ?? DefaultNpcName,
                     intro_story = introStory,
                     opening_hours = row.opening_hours as string,
                     nearby_food = new List<string>(),
@@ -299,21 +310,24 @@ namespace backend.dao
 
         #region 取得 NPC 互動
         /// <summary>
-        /// 新資料庫沒有 NPC 主表（story_node.npc_id 只是一個裸的整數），
-        /// 因此 NPC 畫面仍由節點與景點資料組出來。
+        /// NPC 畫面：NPC 名稱與身分來自 npc 表（AI 生成劇本時產生），台詞是這一站的開場白，
+        /// 景點介紹與照片來自景點資料。劇本沒有 NPC 時用預設的「旅遊引導員」。
         /// </summary>
         public NpcInteractionResponse GetRandomNpcInteraction(int nodeId)
         {
             string sql = $@"
                 SELECT
                     sn.sn_id           AS node_id,
-                    sn.npc_id          AS npc_id,
+                    n.npc_id           AS npc_id,
+                    n.npc_name         AS npc_name,
+                    n.npc_role         AS npc_role,
                     sn.sn_title        AS location_name,
                     sn.sn_opening_text AS opening_text,
                     p.p_summary        AS summary,
                     p.p_image          AS image_url
                 FROM story_node sn
                 {PlaceBridgeJoin}
+                {NpcJoin}
                 WHERE sn.sn_id = @nodeId
                 LIMIT 1;
             ";
@@ -342,7 +356,8 @@ namespace backend.dao
                     location_subtitle = row.summary as string,
                     scene_image_url = row.image_url as string,
                     npc_id = row.npc_id == null ? "NPC-DEFAULT" : row.npc_id.ToString(),
-                    npc_name = "旅遊引導員",
+                    npc_name = (row.npc_name as string) ?? DefaultNpcName,
+                    npc_role = row.npc_role as string,
                     npc_avatar_url = null,
                     npc_dialogue = dialogue,
                     emotion = "normal",

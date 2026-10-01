@@ -1,5 +1,5 @@
 // 檔案路徑：System\ViewModels\Story\GameStoryViewModels.cs
-// 劇本 + 任務一次生成（AI service /api/v1/generate），一次生成多份劇本讓使用者挑
+// 劇本 + 任務一次生成（AI service /api/stories/tasks/batch），一次生成多份劇本讓使用者挑
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -79,7 +79,7 @@ namespace backend.ViewModels
     #endregion
 
 
-    #region 後端 → AI service（/api/v1/generate 的 request）
+    #region 後端 → AI service（/api/stories/tasks/batch 的 request，AI 規格 StoryTaskRequest）
 
     public class AiGameStoryRequest
     {
@@ -140,7 +140,7 @@ namespace backend.ViewModels
     #endregion
 
 
-    #region AI service → 後端（/api/v1/generate 的 response）
+    #region AI service → 後端（/api/stories/tasks/batch 的 response，AI 規格 StoryTaskResponse）
 
     public class AiGameStoryResponse
     {
@@ -216,6 +216,28 @@ namespace backend.ViewModels
 
         /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天</summary>
         public int is_night_mode { get; set; }
+
+        /// <summary>
+        /// 劇本的 NPC（AI 回傳 story.npc，每一站都由這個 NPC 說開場白與成功台詞）。
+        /// AI 沒有回傳時為 null，地圖互動畫面改用預設的「旅遊引導員」
+        /// </summary>
+        public GameStoryNpc npc { get; set; }
+    }
+
+    /// <summary>劇本 NPC</summary>
+    public class GameStoryNpc
+    {
+        /// <summary>寫入資料庫後的 NPC 代號（npc.npc_id），AI 不用回傳</summary>
+        public int? npc_id { get; set; }
+
+        /// <summary>NPC 名稱，例如「說書人阿明」</summary>
+        public string npc_name { get; set; }
+
+        /// <summary>NPC 身分／角色設定，例如「在城南說了四十年故事的老說書人」</summary>
+        public string npc_role { get; set; }
+
+        /// <summary>NPC 自我介紹（劇本開始時對玩家說的話）</summary>
+        public string npc_intro { get; set; }
     }
 
     /// <summary>劇本節點（景點）</summary>
@@ -230,7 +252,7 @@ namespace backend.ViewModels
         /// <summary>景點真實名稱</summary>
         public string p_name { get; set; }
 
-        /// <summary>此節點的 NPC 代號，沒有時為 null</summary>
+        /// <summary>此節點的 NPC 代號（npc.npc_id，同一份劇本每一站都是同一個 NPC），AI 沒有回傳 NPC 時為 null</summary>
         public int? npc_id { get; set; }
 
         /// <summary>節點順序，從 1 開始</summary>

@@ -680,7 +680,7 @@ namespace backend.Controllers
  
  
  
-        #region 劇本任務一次生成（AI service /api/v1/generate）
+        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
         /// <summary>
         /// 依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。
         /// </summary>

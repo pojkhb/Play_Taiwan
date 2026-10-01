@@ -1,0 +1,26 @@
+# 不放進 Docker 建置的檔案
+
+# 建置產物
+**/bin/
+**/obj/
+TestResults/
+
+# 測試、文件、版控與開發工具設定
+tests/
+docs/
+.git/
+.github/
+.vs/
+.vscode/
+.config/
+*.md
+global.json
+
+# 本機設定（密碼）不能進映像檔
+appsettings.Development.json
+appsettings.Development.json.example
+
+# 執行時產生的檔案
+wwwroot/uploads/
+wwwroot/images/fog/generated/
+wwwroot/audio/

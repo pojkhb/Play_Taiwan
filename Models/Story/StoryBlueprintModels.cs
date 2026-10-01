@@ -105,7 +105,7 @@ namespace backend.Models
         /// <summary>是否為使用者喜愛的劇本（用 POST /api/Story/{story_id}/Favorite 設定）</summary>
         public bool is_favorite { get; set; }
 
-        /// <summary>NPC 資訊（畫面 3）</summary>
+        /// <summary>NPC 資訊（畫面 3）；AI 生成劇本時沒有產生 NPC 時為 null</summary>
         public NpcDetail npc { get; set; }
 
         /// <summary>探索總覽與地圖節點（畫面 2、4）</summary>
@@ -126,6 +126,9 @@ namespace backend.Models
 
         /// <summary>NPC 身分/角色設定</summary>
         public string role { get; set; }
+
+        /// <summary>NPC 自我介紹</summary>
+        public string intro { get; set; }
     }
 
     /// <summary>劇本中的一個節點</summary>
@@ -152,7 +155,7 @@ namespace backend.Models
         /// <summary>完成任務後的成功對話</summary>
         public string success { get; set; }
 
-        /// <summary>此節點 NPC 名稱（目前為空字串）</summary>
+        /// <summary>此節點 NPC 名稱（劇本沒有 NPC 時為空字串）</summary>
         public string npc_name { get; set; }
 
         /// <summary>此節點的任務類型，例如「文化問答型」；沒有設定時為空字串</summary>

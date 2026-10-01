@@ -494,7 +494,7 @@ namespace backend.Services
         #endregion
 
 
-        #region 劇本任務一次生成（AI service /api/v1/generate）
+        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
 
         // 任務類型代號（type.type_id）
         private const int CrossLevelTypeId = 2;         // 跨關集結型：最後一站
@@ -551,7 +551,7 @@ namespace backend.Services
         /// 1. 規劃旅遊行程：交通等時圈找出可到達的景點（含商家自建景點），抽出每份劇本的景點組合並排好順路的參觀順序
         /// 2. 判斷任務類型：照舊架構規則決定每站要出哪些題型；景點在 place_type 標有 9（商家有題庫）時，
         ///    另外必出一題商家知識問答。隨機題型依玩家紀錄調整（動態難度，見 TaskDifficultyService）
-        /// 3. 打包成一包丟給 AI service /api/v1/generate，一次拿回所有劇本
+        /// 3. 打包成一包丟給 AI service /api/stories/tasks/batch，一次拿回所有劇本
         /// 4. 補上 AI 不回傳的欄位、掛入商家題庫任務，全部寫入資料庫（同一個交易），回傳給前端挑選
         /// </summary>
         public async Task<List<GameStoryResult>> GenerateStoriesAsync(int auId, GameStoryPlan plan)
@@ -668,7 +668,6 @@ namespace backend.Services
                     node.p_name = place.p_name;
                     node.is_hidden = place.is_hidden;
                     node.is_night_only = isNightMode == 1 ? 1 : 0;
-                    node.npc_id = null;
 
                     // 只收規劃好的題型，AI 多給的丟掉
                     node.tasks = (node.tasks ?? new List<GameStoryTask>())
@@ -903,14 +902,17 @@ namespace backend.Services
         }
 
 
-        /// <summary>打包好的劇本條件一次送給 AI service /api/v1/generate，拿回所有劇本。</summary>
+        /// <summary>AI service 的劇本任務批次生成：一次送出多份劇本條件，AI 依序生成後一次回傳（取代舊的 /api/v1/generate）</summary>
+        internal const string GameStoryPath = "/api/stories/tasks/batch";
+
+        /// <summary>打包好的劇本條件一次送給 AI service，拿回所有劇本。</summary>
         private async Task<AiGameStoryResponse> RequestAiStoriesAsync(AiGameStoryRequest aiRequest)
         {
             HttpClient client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(10);
 
             var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
-            HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url("/api/v1/generate"), content);
+            HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(GameStoryPath), content);
             string responseString = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

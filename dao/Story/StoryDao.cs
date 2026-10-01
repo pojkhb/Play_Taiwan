@@ -257,21 +257,26 @@ namespace backend.dao
         public StoryDetailResponse GetDetail(int storyId)
         {
             string storySql = @"
-                SELECT s_id, story_title, story_prologue, story_synopsis, is_night_mode, is_favorite
-                FROM story
-                WHERE s_id = @storyId AND is_active = 1;
+                SELECT s.s_id, s.story_title, s.story_prologue, s.story_synopsis, s.is_night_mode, s.is_favorite,
+                       n.npc_name, n.npc_role, n.npc_intro
+                FROM story s
+                LEFT JOIN npc n ON n.npc_id = s.npc_id
+                WHERE s.s_id = @storyId AND s.is_active = 1;
             ";
 
-            // 新資料庫沒有 NPC 主表，story_node.npc_id 只是一個裸的整數，因此不再 JOIN NPC 名稱。
+            // 每一站的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC。
             // story_node 已移除 sn_hint，任務說明改取該節點第一筆任務的 task_describe。
             string nodeSql = $@"
                 SELECT
                     sn.sn_id, sn.sn_order, sn.sn_title, sn.sn_task_type,
                     sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
                     NULLIF(p.p_image, '') AS image_url,
-                    (SELECT t.task_describe FROM task t WHERE t.node_id = sn.sn_id ORDER BY t.task_id LIMIT 1) AS task_describe
+                    (SELECT t.task_describe FROM task t WHERE t.node_id = sn.sn_id ORDER BY t.task_id LIMIT 1) AS task_describe,
+                    n.npc_name
                 FROM story_node sn
                 {PlaceImageJoin}
+                LEFT JOIN story s ON s.s_id = sn.s_id
+                LEFT JOIN npc n ON n.npc_id = COALESCE(sn.npc_id, s.npc_id)
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
             ";
@@ -299,6 +304,12 @@ namespace backend.dao
                     synopsis = synopsis,
                     is_night_mode = Convert.ToInt32(story.is_night_mode) == 1,
                     is_favorite = Convert.ToInt32(story.is_favorite) == 1,
+                    npc = story.npc_name == null ? null : new NpcDetail
+                    {
+                        name = story.npc_name as string,
+                        role = story.npc_role as string,
+                        intro = story.npc_intro as string
+                    },
                     nodes = new List<NodeDetail>(),
                     route_nodes = new List<StoryOptionResponse.RouteNode>()
                 };
@@ -316,7 +327,7 @@ namespace backend.dao
                         location_codename = (node.location_codename as string) ?? "",
                         opening = (node.sn_opening_text as string) ?? "",
                         success = (node.sn_success_text as string) ?? "",
-                        npc_name = "",
+                        npc_name = (node.npc_name as string) ?? "",
                         task_type = (node.sn_task_type as string) ?? "",
                         image_url = node.image_url as string
                     });
@@ -585,9 +596,8 @@ namespace backend.dao
 
         #region GPS 定位生成：完整儲存 AI 劇本藍圖
         /// <summary>
-        /// 把 AI 產生的劇本藍圖寫進 story + story_node。
-        /// 與舊版的兩點差異：
-        /// 1. 新資料庫沒有 NPC 主表，NPC 名稱／介紹無處可存，只能放棄（story.npc_id 留 null）。
+        /// 把 AI 產生的劇本藍圖寫進 npc + story + story_node。
+        /// 1. AI 回傳的 NPC（名稱、身分、自我介紹）寫進 npc 表，劇本與每一站都掛上這個 NPC；AI 沒給 NPC 時留 null。
         /// 2. place 的主鍵是 int 自增，沒辦法再用 Neo4j uid 當主鍵。
         ///    節點仍然把 Neo4j uid 寫進 story_node.place_id（任務生成靠這個關聯），
         ///    另外把景點名稱與座標補進 place 表，避免地理資訊整個遺失。
@@ -599,11 +609,11 @@ namespace backend.dao
 
             string insertStorySql = @"
                 INSERT INTO story (
-                    au_id, city_name, district_name, sd_transport,
+                    au_id, npc_id, city_name, district_name, sd_transport,
                     story_title, story_prologue, story_synopsis,
                     story_badge, story_postcards, is_active, is_night_mode
                 ) VALUES (
-                    @auId, @cityName, @districtName, '客製化交通',
+                    @auId, @npcId, @cityName, @districtName, '客製化交通',
                     @title, @prologue, @synopsis,
                     '', @expectedPostcards, 1, @isNightMode
                 );
@@ -612,11 +622,11 @@ namespace backend.dao
 
             string insertNodeSql = @"
                 INSERT INTO story_node (
-                    s_id, place_id, sn_order, sn_title,
+                    s_id, npc_id, place_id, sn_order, sn_title,
                     is_hidden, is_night_only, is_active,
                     location_codename, sn_opening_text, sn_success_text, sn_task_type
                 ) VALUES (
-                    @storyId, @placeId, @order, @title,
+                    @storyId, @npcId, @placeId, @order, @title,
                     2, @isNightOnly, 2,
                     @codename, @opening, @success, @taskType
                 );
@@ -636,9 +646,12 @@ namespace backend.dao
                 {
                     try
                     {
+                        int? npcId = await InsertNpcAsync(conn, transaction, data.npc?.name, data.npc?.role, data.npc?.intro);
+
                         int newStoryId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
                         {
                             auId,
+                            npcId,
                             cityName = cityName ?? "",
                             districtName = districtName ?? "",
                             title = data.title ?? "專屬客製化旅程",
@@ -683,6 +696,7 @@ namespace backend.dao
                             await conn.ExecuteAsync(insertNodeSql, new
                             {
                                 storyId = newStoryId,
+                                npcId,
                                 placeId = neo4jUid,
                                 order = node.node_order,
                                 title = node.node_title ?? node.place_name ?? "",
@@ -706,7 +720,7 @@ namespace backend.dao
             }
         }
 
-        #region 劇本任務一次生成（/api/v1/generate）
+        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
 
         /// <summary>place_type + type 查出的單筆景點任務類型</summary>
         public class PlaceTaskTypeRow
@@ -882,11 +896,11 @@ namespace backend.dao
         {
             string insertStorySql = @"
                 INSERT INTO story (
-                    au_id, city_name, district_name, party_size, sd_transport,
+                    au_id, npc_id, city_name, district_name, party_size, sd_transport,
                     story_title, story_prologue, story_synopsis,
                     story_badge, story_postcards, is_active, is_night_mode
                 ) VALUES (
-                    @auId, @cityName, @districtName, @partySize, @transport,
+                    @auId, @npcId, @cityName, @districtName, @partySize, @transport,
                     @title, @prologue, @synopsis,
                     @badge, @postcards, 1, @isNightMode
                 );
@@ -941,9 +955,15 @@ namespace backend.dao
                         {
                             GameStoryInfo story = result.story;
 
+                            // AI 有回 NPC 就寫進 npc 表，劇本與每一站都掛上這個 NPC
+                            int? npcId = await InsertNpcAsync(conn, transaction, story.npc?.npc_name, story.npc?.npc_role, story.npc?.npc_intro);
+                            if (npcId == null) story.npc = null;
+                            else story.npc.npc_id = npcId;
+
                             int storyId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
                             {
                                 auId,
+                                npcId,
                                 cityName = story.city_name ?? "",
                                 districtName = story.district_name ?? "",
                                 partySize = story.party_size,
@@ -967,6 +987,7 @@ namespace backend.dao
                             foreach (GameStoryNode node in result.nodes ?? new List<GameStoryNode>())
                             {
                                 List<GameStoryTask> tasks = node.tasks ?? new List<GameStoryTask>();
+                                node.npc_id = npcId;
 
                                 node.sn_id = await conn.ExecuteScalarAsync<int>(insertNodeSql, new
                                 {
@@ -1052,6 +1073,22 @@ namespace backend.dao
         {
             if (string.IsNullOrEmpty(value) || value.Length <= maxLength) return value;
             return value.Substring(0, maxLength);
+        }
+
+        /// <summary>在同一個交易裡寫入劇本 NPC，回傳 npc_id；AI 沒給名稱時不寫、回傳 null</summary>
+        private static async Task<int?> InsertNpcAsync(MySqlConnection conn, MySqlTransaction transaction, string name, string role, string intro)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+
+            return await conn.ExecuteScalarAsync<int>(@"
+                INSERT INTO npc (npc_name, npc_role, npc_intro) VALUES (@name, @role, @intro);
+                SELECT LAST_INSERT_ID();",
+                new
+                {
+                    name = Truncate(name.Trim(), 100),
+                    role = string.IsNullOrWhiteSpace(role) ? null : Truncate(role.Trim(), 255),
+                    intro = string.IsNullOrWhiteSpace(intro) ? null : intro.Trim()
+                }, transaction);
         }
 
         #endregion

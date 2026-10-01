@@ -16,7 +16,8 @@
 - [專案結構](#專案結構)
 - [快速開始](#快速開始)
 - [設定檔說明](#設定檔說明)
-- [測試與 CI](#測試與-ci)
+- [測試與 CI/CD](#測試與-cicd)
+- [部署（Docker）](#部署docker)
 - [API 文件](#api-文件)
 - [商家模組說明](#商家模組說明)
 - [相關文件](#相關文件)
@@ -171,7 +172,7 @@ dotnet restore
 dotnet run
 ```
 
-後端固定聽 `5501` port，啟動後開啟 <http://localhost:5501/swagger> 就能看到並測試所有 API。
+後端固定聽 `5501` port，啟動後開啟 <http://localhost:5501/>（Swagger）就能看到並測試所有 API。
 
 ---
 
@@ -197,7 +198,7 @@ dotnet run
 
 ---
 
-## 測試與 CI
+## 測試與 CI/CD
 
 ```bash
 dotnet test tests/TrafficSystem.Tests
@@ -207,13 +208,47 @@ dotnet test tests/TrafficSystem.Tests
 - **API 整合測試**：會在 MySQL 建立臨時資料庫 `play_taiwan_test_*`（用 `schema.sql` + `seed_reference.sql` 建立），測完自動刪除，不會動到開發資料。MySQL 連線優先使用環境變數 `TEST_MYSQL`，沒設定時使用 `appsettings.json` 的 `AppSettings:mydb`。
 - AI 服務、ibon、地理編碼等外部請求在測試中都會被模擬，不會真的連線；寄信也不會真的寄出。
 
-**CI**：每次 push 到 `main` 或開 Pull Request，GitHub Actions（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）會自動建置、在 MySQL 8.0 容器上執行全部測試，並產出測試結果與覆蓋率報告。
+GitHub Actions（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）分兩個階段：
+
+| 階段 | 什麼時候跑 | 做什麼 |
+|---|---|---|
+| **CI**（建置與測試） | 每次 push 到 `main`、開 Pull Request | 建置後端，在 MySQL 8.0 容器上執行全部測試，產出測試結果與覆蓋率報告 |
+| **CD**（打包 Docker 映像檔） | push 到 `main` **而且測試全部通過** | 把後端打包成 Docker 映像檔，推到 GitHub Container Registry：`ghcr.io/pojkhb/play-taiwan-backend` |
+
+映像檔有兩種標籤：`latest` 永遠是 main 最新通過測試的版本；`sha-<commit>` 對應每一次 commit，要退回舊版時用。
+
+---
+
+## 部署（Docker）
+
+不用自己建置，直接拉 CI 打包好的最新版：
+
+```bash
+docker pull ghcr.io/pojkhb/play-taiwan-backend:latest
+
+docker run -d --name play-taiwan -p 5501:5501 \
+  -e "AppSettings__mydb=Server=host.docker.internal;Port=3306;Database=play_taiwan_db;User Id=root;Password=你的密碼;Charset=utf8mb4;" \
+  -e "Neo4jSettings__Uri=neo4j://host.docker.internal:7687" \
+  -e "Neo4jSettings__Password=你的 Neo4j 密碼" \
+  -e "Valhalla__BaseUrl=http://host.docker.internal:8002" \
+  -v play-taiwan-uploads:/app/wwwroot/uploads \
+  -v play-taiwan-fog:/app/wwwroot/images/fog/generated \
+  -v play-taiwan-audio:/app/wwwroot/audio \
+  ghcr.io/pojkhb/play-taiwan-backend:latest
+```
+
+- **設定用環境變數覆寫**：設定檔的 `A:B` 寫成 `A__B`，例如 `AppSettings:mydb` → `AppSettings__mydb`。可以設定的項目見[設定檔說明](#設定檔說明)。
+- **連到主機上的服務**：容器裡的 `localhost` 是容器自己，要連主機上的 MySQL、Neo4j、Valhalla 請用 `host.docker.internal`。
+- **Neo4j 要允許外部連線**：預設只聽 `localhost`，容器連不進去。要在 `neo4j.conf` 設定 `server.default_listen_address=0.0.0.0`。
+- **保存執行時產生的檔案**：上傳的照片、迷霧圖、旁白語音放在上面三個 volume，容器重建也不會不見。
+- 容器以正式環境（Production）執行、時區是台灣時間，Swagger 在 <http://localhost:5501/>。
+- 本機自己建置映像檔：`docker build -t play-taiwan-backend .`
 
 ---
 
 ## API 文件
 
-- **Swagger**：<http://localhost:5501/swagger>，每支 API 的參數與範例都在這裡。
+- **Swagger**：<http://localhost:5501/>，每支 API 的參數與範例都在這裡。
 - **API 總覽**：[docs/notion/API總覽.md](docs/notion/API總覽.md)，依 App 畫面整理每個畫面要接哪些 API，以及每支 API 目前的狀態。
 - **API 清單**：[docs/notion/API清單.csv](docs/notion/API清單.csv)，可以直接匯入 Notion 當資料庫。
 

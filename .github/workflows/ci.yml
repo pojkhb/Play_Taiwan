@@ -1,6 +1,9 @@
-# 持續整合：每次 push 到 main 或開 PR，自動建置後端並執行單元測試 + API 整合測試
-# API 整合測試會在這裡開一個 MySQL 8.0 容器，用 Sqls/mysql/schema.sql 建立測試資料庫（測完即刪）
-name: CI
+# 持續整合 + 持續交付
+# CI：每次 push 到 main 或開 PR，自動建置後端並執行單元測試 + API 整合測試
+#     API 整合測試會在這裡開一個 MySQL 8.0 容器，用 Sqls/mysql/schema.sql 建立測試資料庫（測完即刪）
+# CD：push 到 main 且測試全部通過後，自動把後端打包成 Docker 映像檔，推到 GitHub Container Registry
+#     ghcr.io/<owner>/play-taiwan-backend:latest（以及 sha-<commit> 標籤，可以回到任何一版）
+name: CI/CD
 
 on:
   push:
@@ -68,3 +71,47 @@ jobs:
           name: test-results
           path: TestResults
           retention-days: 14
+
+  docker:
+    name: 打包 Docker 映像檔（持續交付）
+    needs: test
+    # PR 只跑測試；合併進 main 才打包
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 登入 GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 產生映像檔名稱與標籤
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/play-taiwan-backend
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: 準備 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 建置並推送映像檔
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

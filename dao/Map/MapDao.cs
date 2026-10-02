@@ -38,13 +38,16 @@ namespace backend.dao
                    ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
         ";
 
-        // 節點的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC（AI 生成劇本時一起產生）
-        private const string NpcJoin = @"
+        /// <summary>預設 NPC（薯光）的代號：劇本沒有指定 NPC 時用這個</summary>
+        internal const string DefaultNpcIdSql = "(SELECT npc_id FROM npc WHERE is_default = 1 ORDER BY npc_id LIMIT 1)";
+
+        // 節點的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC，都沒有（舊劇本、AI 沒挑）就用預設 NPC
+        internal const string NpcJoin = $@"
             LEFT JOIN story s ON s.s_id = sn.s_id
-            LEFT JOIN npc n ON n.npc_id = COALESCE(sn.npc_id, s.npc_id)
+            LEFT JOIN npc n ON n.npc_id = COALESCE(sn.npc_id, s.npc_id, {DefaultNpcIdSql})
         ";
 
-        /// <summary>劇本沒有 NPC（AI 沒有產生）時，畫面上顯示的 NPC 名稱</summary>
+        /// <summary>npc 表沒有任何 NPC（還沒匯入名單）時，畫面上顯示的 NPC 名稱</summary>
         public const string DefaultNpcName = "旅遊引導員";
 
         #region 取得地圖節點
@@ -267,6 +270,7 @@ namespace backend.dao
                     p.p_introduction   AS introduction,
                     p.p_open_time      AS opening_hours,
                     n.npc_name         AS npc_name,
+                    n.npc_avatar       AS npc_avatar,
                     MIN(t.task_id)     AS task_id
                 FROM story_node sn
                 {PlaceBridgeJoin}
@@ -274,7 +278,7 @@ namespace backend.dao
                 LEFT JOIN task t ON t.node_id = sn.sn_id
                 WHERE sn.sn_id = @nodeId
                 GROUP BY sn.sn_id, sn.sn_title, sn.sn_opening_text,
-                         p.p_summary, p.p_introduction, p.p_open_time, n.npc_name
+                         p.p_summary, p.p_introduction, p.p_open_time, n.npc_name, n.npc_avatar
                 LIMIT 1;
             ";
 
@@ -299,6 +303,7 @@ namespace backend.dao
                     node_id = (int)row.node_id,
                     location_name = (row.location_name as string) ?? "",
                     npc_name = (row.npc_name as string) ?? DefaultNpcName,
+                    npc_avatar_url = row.npc_avatar as string,
                     intro_story = introStory,
                     opening_hours = row.opening_hours as string,
                     nearby_food = new List<string>(),
@@ -310,8 +315,9 @@ namespace backend.dao
 
         #region 取得 NPC 互動
         /// <summary>
-        /// NPC 畫面：NPC 名稱與身分來自 npc 表（AI 生成劇本時產生），台詞是這一站的開場白，
-        /// 景點介紹與照片來自景點資料。劇本沒有 NPC 時用預設的「旅遊引導員」。
+        /// NPC 畫面：NPC 名稱、身分、圖片、聲線來自 npc 表（劇本用了哪一位 NPC），台詞是這一站的開場白，
+        /// 景點介紹與照片來自景點資料。劇本沒有指定 NPC 時用預設的薯光。
+        /// 圖片回傳站內路徑，由 Controller 組成完整網址。
         /// </summary>
         public NpcInteractionResponse GetRandomNpcInteraction(int nodeId)
         {
@@ -321,6 +327,8 @@ namespace backend.dao
                     n.npc_id           AS npc_id,
                     n.npc_name         AS npc_name,
                     n.npc_role         AS npc_role,
+                    n.npc_avatar       AS npc_avatar,
+                    n.npc_voice        AS npc_voice,
                     sn.sn_title        AS location_name,
                     sn.sn_opening_text AS opening_text,
                     p.p_summary        AS summary,
@@ -358,7 +366,8 @@ namespace backend.dao
                     npc_id = row.npc_id == null ? "NPC-DEFAULT" : row.npc_id.ToString(),
                     npc_name = (row.npc_name as string) ?? DefaultNpcName,
                     npc_role = row.npc_role as string,
-                    npc_avatar_url = null,
+                    npc_avatar_url = row.npc_avatar as string,
+                    npc_voice = row.npc_voice as string,
                     npc_dialogue = dialogue,
                     emotion = "normal",
                     skip_button_text = "稍後再說",

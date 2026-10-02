@@ -228,15 +228,17 @@ namespace backend.Services
             string hint = task_dao.GetTaskHint(taskId);
             int hintWrongCount = TaskDifficultyService.HintUnlockWrongCount(
                 task_dao.GetTaskTypeId(taskId), _difficulty.GetPerformance(auId));
+            string npcAvatar = task_dao.GetTaskNpcAvatar(taskId);   // 站內路徑，Controller 組成完整網址
 
             if (wrongCount < hintWrongCount)
             {
-                return new TaskHintResponse { task_id = taskId.ToString(), hint_text = $"答錯 {hintWrongCount} 次後就能取得提示。", is_available = false };
+                return new TaskHintResponse { task_id = taskId.ToString(), npc_avatar_url = npcAvatar, hint_text = $"答錯 {hintWrongCount} 次後就能取得提示。", is_available = false };
             }
 
             return new TaskHintResponse
             {
                 task_id = taskId.ToString(),
+                npc_avatar_url = npcAvatar,
                 hint_text = hint ?? "目前沒有更多的提示內容了。",
                 is_available = hint != null
             };

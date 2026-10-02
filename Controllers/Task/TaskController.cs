@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -281,11 +282,14 @@ namespace backend.Controllers
         {
             try
             {
+                TaskHintResponse hint = _service.GetHint(User.GetAuId(), task_id);
+                hint.npc_avatar_url = PublicUrl.Of(Request, hint.npc_avatar_url);
+
                 return Ok(new ResultViewModel<TaskHintResponse>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetHint(User.GetAuId(), task_id)
+                    Result = hint
                 });
             }
             catch (Exception e)

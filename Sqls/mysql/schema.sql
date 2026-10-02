@@ -358,12 +358,17 @@ DROP TABLE IF EXISTS `npc`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `npc` (
   `npc_id` int NOT NULL AUTO_INCREMENT COMMENT 'NPC 流水號（story.npc_id、story_node.npc_id 對應這裡）',
-  `npc_name` varchar(100) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'NPC 名稱',
+  `npc_name` varchar(50) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'NPC 名稱（AI 生成劇本時回傳這個名字來挑 NPC）',
+  `npc_origin` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '角色原型（名字的諧音梗），例如「黑糖珍珠奶茶」',
   `npc_role` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'NPC 身分／角色設定',
   `npc_intro` text COLLATE utf8mb4_general_ci COMMENT 'NPC 自我介紹',
+  `npc_avatar` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'NPC 圖片路徑（wwwroot 底下），例如 /images/npc/shuguang.png',
+  `npc_voice` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'NPC 語音的聲線（AI 文字轉語音用），例如 zh-TW-HsiaoChenNeural',
+  `is_default` tinyint NOT NULL DEFAULT '0' COMMENT '是否為預設 NPC：劇本沒有指定 NPC 時用這個（1＝是、0＝否）',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
-  PRIMARY KEY (`npc_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本 NPC（AI 生成劇本時一起產生，每份劇本一個）';
+  PRIMARY KEY (`npc_id`) USING BTREE,
+  UNIQUE KEY `uk_npc_name` (`npc_name`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='NPC 名單（固定角色，AI 生成劇本時從這裡挑一位）';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `qrcode_coupon`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

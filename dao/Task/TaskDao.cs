@@ -120,6 +120,18 @@ namespace backend.dao
             return conn.ExecuteScalar<int?>("SELECT task_type FROM task WHERE task_id = @taskId;", new { taskId }) ?? 0;
         }
 
+        /// <summary>給提示的 NPC 圖片（站內路徑）：任務所在節點的 NPC，沒有指定時用預設 NPC</summary>
+        public string GetTaskNpcAvatar(int taskId)
+        {
+            using var conn = new MySqlConnection(mydb);
+            return conn.ExecuteScalar<string>($@"
+                SELECT n.npc_avatar
+                FROM task t
+                JOIN story_node sn ON sn.sn_id = t.node_id
+                {MapDao.NpcJoin}
+                WHERE t.task_id = @taskId;", new { taskId });
+        }
+
         #endregion
 
         #region 隱藏劇情

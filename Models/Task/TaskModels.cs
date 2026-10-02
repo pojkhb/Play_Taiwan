@@ -190,7 +190,7 @@ namespace backend.Models
     public class TaskHintResponse
     {
         public string task_id { get; set; }             // 任務代號
-        public string npc_avatar_url { get; set; }        // 提示對話框顯示的NPC頭像
+        public string npc_avatar_url { get; set; }        // 提示對話框顯示的 NPC 圖片（完整網址）：這一站的 NPC，沒有指定時是預設的薯光
         public string hint_text { get; set; }              // 提示文字內容
         public bool is_available { get; set; }              // 是否有可用的提示內容
     }

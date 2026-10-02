@@ -25,6 +25,10 @@ INSERT INTO `narrative_tone` VALUES (1,'幽默詼諧','輕鬆有梗、節奏明�
 /*!40000 ALTER TABLE `fog` DISABLE KEYS */;
 INSERT INTO `fog` (`fog_id`, `fog_name`, `fog_image`, `is_default`) VALUES (1,'預設迷霧','/images/fog/default_fog.png',1);
 /*!40000 ALTER TABLE `fog` ENABLE KEYS */;
+
+/*!40000 ALTER TABLE `npc` DISABLE KEYS */;
+INSERT INTO `npc` (`npc_id`, `npc_name`, `npc_origin`, `npc_role`, `npc_intro`, `npc_avatar`, `npc_voice`, `is_default`) VALUES (1,'薯光','番薯（曙光）','帶領旅人探索台灣的嚮導','嗨！我是薯光，曙光一出來我就出發啦！跟著我，一起把台灣的故事一站一站挖出來吧！','/images/npc/shuguang.png','zh-TW-HsiaoChenNeural',1),(2,'珍奶奶','黑糖珍珠奶茶','掌管地方數十年的記憶與失落古老配方的守密人','乖孫，來來來，奶奶這杯裡的每一顆珍珠，都藏著一段老故事和一道快失傳的古早味。','/images/npc/zhen-nainai.png','zh-TW-HsiaoChenNeural',0),(3,'阿達力','新竹貢丸（大粒）','機靈靈通的在地走透透達人，熟悉大街小巷與美食情報','欸你來對人了！哪條巷子有好吃的、哪家要排隊，問我阿達力就對啦！','/images/npc/a-da-li.png','zh-TW-YunJheNeural',0),(4,'墨先生','墨魚','博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案','在下墨先生。每張古地圖都留著前人的筆跡，且讓我們循著墨痕，找出被遺忘的歷史。','/images/npc/mo-xian-sheng.png','zh-TW-YunJheNeural',0),(5,'霓霓','芋泥（霓虹）','對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索','天黑了才是城市最美的時候！跟著我的光，一起把街角的影子畫下來吧～','/images/npc/ni-ni.png','zh-TW-HsiaoYuNeural',0),(6,'阿吉伯','淡水阿給','外冷內熱的傳統工藝老師傅，重視手作與傳承','哼，手作的東西急不來……既然來了，阿伯就教你兩手吧。','/images/npc/a-ji-bo.png','zh-TW-YunJheNeural',0);
+/*!40000 ALTER TABLE `npc` ENABLE KEYS */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

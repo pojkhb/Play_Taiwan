@@ -120,16 +120,17 @@ namespace backend.dao
             return conn.ExecuteScalar<int?>("SELECT task_type FROM task WHERE task_id = @taskId;", new { taskId }) ?? 0;
         }
 
-        /// <summary>給提示的 NPC 圖片（站內路徑）：任務所在節點的 NPC，沒有指定時用預設 NPC</summary>
-        public string GetTaskNpcAvatar(int taskId)
+        /// <summary>給提示的 NPC（名稱、圖片站內路徑）：任務所在節點的 NPC，沒有指定時用預設 NPC；查不到時兩個都是 null</summary>
+        public (string name, string avatar) GetTaskNpc(int taskId)
         {
             using var conn = new MySqlConnection(mydb);
-            return conn.ExecuteScalar<string>($@"
-                SELECT n.npc_avatar
+            var row = conn.QueryFirstOrDefault<(string, string)>($@"
+                SELECT n.npc_name, n.npc_avatar
                 FROM task t
                 JOIN story_node sn ON sn.sn_id = t.node_id
                 {MapDao.NpcJoin}
                 WHERE t.task_id = @taskId;", new { taskId });
+            return row;
         }
 
         #endregion
@@ -285,15 +286,24 @@ namespace backend.dao
             public string location_codename { get; set; }
             public string sn_opening_text { get; set; }
             public string sn_success_text { get; set; }
+
+            // 這一站的 NPC（節點沒指定時用劇本的，劇本也沒有時用預設 NPC）
+            public int? npc_id { get; set; }
+            public string npc_name { get; set; }
+            public string npc_role { get; set; }
+            public string npc_avatar { get; set; }      // 站內路徑，Controller 組成完整網址
+            public string npc_voice { get; set; }
         }
 
         public NodePlayRow GetNodePlayRow(int snId)
         {
             using var conn = new MySqlConnection(mydb);
-            return conn.QueryFirstOrDefault<NodePlayRow>(@"
-                SELECT sn_id, s_id, sn_order, sn_title, location_codename, sn_opening_text, sn_success_text
-                FROM story_node
-                WHERE sn_id = @snId;", new { snId });
+            return conn.QueryFirstOrDefault<NodePlayRow>($@"
+                SELECT sn.sn_id, sn.s_id, sn.sn_order, sn.sn_title, sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
+                       n.npc_id, n.npc_name, n.npc_role, n.npc_avatar, n.npc_voice
+                FROM story_node sn
+                {MapDao.NpcJoin}
+                WHERE sn.sn_id = @snId;", new { snId });
         }
 
         /// <summary>多個任務各自的「登入者答錯次數」與「是否有提示」</summary>

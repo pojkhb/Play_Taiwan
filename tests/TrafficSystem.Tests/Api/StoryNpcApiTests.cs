@@ -101,7 +101,7 @@ public class StoryNpcApiTests
     }
 
     [Fact]
-    public async Task 提示對話框顯示這一站NPC的圖片()
+    public async Task 提示對話框顯示這一站NPC的名稱與圖片()
     {
         int user = _api.NewUserId();
         var (storyId, firstNode) = await CreateStoryWithNpcAsync(user, "阿吉伯");
@@ -112,8 +112,42 @@ public class StoryNpcApiTests
 
         TaskHintResponse hint = (await (await _api.ClientFor(user).GetAsync($"/api/Task/{taskId}/Hint")).ReadResultAsync<TaskHintResponse>()).Result;
 
+        Assert.Equal("阿吉伯", hint.npc_name);
         Assert.StartsWith("http", hint.npc_avatar_url);
         Assert.EndsWith("/images/npc/a-ji-bo.png", hint.npc_avatar_url);
+    }
+
+    [Fact]
+    public async Task 節點遊玩畫面顯示這一站的NPC()
+    {
+        int user = _api.NewUserId();
+        HttpClient client = _api.ClientFor(user);
+        var (_, firstNode) = await CreateStoryWithNpcAsync(user, "珍奶奶");
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+
+        NodePlayResponse play = (await (await client.GetAsync($"/api/Task/Node/{firstNode}")).ReadResultAsync<NodePlayResponse>()).Result;
+
+        Assert.Equal(await NpcIdAsync("珍奶奶"), play.npc.npc_id);
+        Assert.Equal("珍奶奶", play.npc.npc_name);
+        Assert.Equal("掌管地方數十年的記憶與失落古老配方的守密人", play.npc.npc_role);
+        Assert.StartsWith("http", play.npc.npc_avatar_url);
+        Assert.EndsWith("/images/npc/zhen-nainai.png", play.npc.npc_avatar_url);
+        Assert.Equal("zh-TW-HsiaoChenNeural", play.npc.npc_voice);
+        Assert.Equal("開場", play.node.opening_text);   // 開場白就是這位 NPC 說的
+    }
+
+    [Fact]
+    public async Task 節點遊玩畫面_劇本沒有指定NPC時是薯光()
+    {
+        int user = _api.NewUserId();
+        HttpClient client = _api.ClientFor(user);
+        var (_, firstNode) = await CreateStoryWithNpcAsync(user, null);
+        await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null);
+
+        NodePlayResponse play = (await (await client.GetAsync($"/api/Task/Node/{firstNode}")).ReadResultAsync<NodePlayResponse>()).Result;
+
+        Assert.Equal("薯光", play.npc.npc_name);
+        Assert.EndsWith("/images/npc/shuguang.png", play.npc.npc_avatar_url);
     }
 
     [Fact]

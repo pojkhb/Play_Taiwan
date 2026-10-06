@@ -93,6 +93,9 @@ namespace backend.Controllers
         /// 協作解謎型的 clue_text 是自己座位的線索；hint_available 為 true 時可呼叫 GET api/Task/{task_id}/Hint 取提示；
         /// success_text 在這一站任務全部通過後才有值。
         ///
+        /// npc 是這一站說開場白、出題與完成劇情的 NPC（名稱、身分、圖片、聲線）；
+        /// 要把台詞唸出來時，把 npc.npc_voice 當成 POST api/Npc/Speak 的 voice。
+        ///
         ///     GET /api/Task/Node/5
         /// </remarks>
         [Authorize]
@@ -101,11 +104,15 @@ namespace backend.Controllers
         [ProducesResponseType(typeof(ResultViewModel<NodePlayResponse>), 200)]
         public IActionResult GetNodePlay(int node_id)
         {
+            NodePlayResponse result = _service.GetNodePlay(User.GetAuId(), node_id);
+            if (result.npc != null)
+                result.npc.npc_avatar_url = PublicUrl.Of(Request, result.npc.npc_avatar_url);
+
             return Ok(new ResultViewModel<NodePlayResponse>
             {
                 isSuccess = true,
                 message = "查詢成功",
-                Result = _service.GetNodePlay(User.GetAuId(), node_id)
+                Result = result
             });
         }
 

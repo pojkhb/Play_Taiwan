@@ -3,10 +3,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("明信片與上傳", "API 整合測試")]
+[AllureBddHierarchy("明信片與上傳", "API 整合測試")]
 public class PostcardCatalogApiTests
 {
     private readonly ApiFactory _api;

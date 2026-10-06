@@ -1,9 +1,12 @@
 // 劇本生成挑景點的演算法（StoryService）：交通方式分組、景點去重、各圈層輪流抽、多組不重複、參觀順序
 using backend.Services;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Story;
 
+[AllureSuiteHierarchy("劇本", "單元測試")]
+[AllureBddHierarchy("劇本", "單元測試")]
 public class StoryAlgorithmTests
 {
     private static ReachableAttractionNode P(string uid, string name, double lat, double lon, int ring = 1) =>

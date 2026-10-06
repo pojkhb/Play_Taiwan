@@ -3,10 +3,13 @@
 // - /api/agent/orchestrate 找不到地點：只有 {"message"} → spin 回傳失敗與原因
 using System.Net.Http.Json;
 using System.Text.Json;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("劇本", "API 整合測試")]
+[AllureBddHierarchy("劇本", "API 整合測試")]
 public class AiErrorHandlingApiTests
 {
     private readonly ApiFactory _api;

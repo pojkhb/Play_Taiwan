@@ -2,9 +2,12 @@
 using backend.Services;
 using backend.util;
 using Microsoft.AspNetCore.WebUtilities;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Story;
 
+[AllureSuiteHierarchy("劇本", "單元測試")]
+[AllureBddHierarchy("劇本", "單元測試")]
 public class CalendarTests
 {
     [Fact]

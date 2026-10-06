@@ -1,8 +1,11 @@
 // 劇本回顧旁白（StoryRecapService.BuildStoryNarration）：依各站劇情組成，超過語音上限時縮短
 using backend.Services;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Story;
 
+[AllureSuiteHierarchy("VLOG 與回顧", "單元測試")]
+[AllureBddHierarchy("VLOG 與回顧", "單元測試")]
 public class RecapNarrationTests
 {
     [Fact]

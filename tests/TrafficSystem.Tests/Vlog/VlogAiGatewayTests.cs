@@ -2,9 +2,12 @@
 using backend.Services;
 using backend.utils;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Vlog;
 
+[AllureSuiteHierarchy("VLOG 與回顧", "單元測試")]
+[AllureBddHierarchy("VLOG 與回顧", "單元測試")]
 public class VlogAiGatewayTests
 {
     #region 照片篩選

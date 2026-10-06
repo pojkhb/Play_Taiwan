@@ -1,8 +1,11 @@
 // 地圖迷霧（MapService）：哪幾站在迷霧中、迷霧中心的偏移
 using backend.Services;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Map;
 
+[AllureSuiteHierarchy("解謎地圖與迷霧", "單元測試")]
+[AllureBddHierarchy("解謎地圖與迷霧", "單元測試")]
 public class FogTests
 {
     private const double Lat = 24.1386, Lng = 120.6784;   // 臺中州廳

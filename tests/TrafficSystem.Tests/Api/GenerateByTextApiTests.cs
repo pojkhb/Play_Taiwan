@@ -2,10 +2,13 @@
 using System.Net.Http.Json;
 using backend.Controllers;
 using backend.Models;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("劇本", "API 整合測試")]
+[AllureBddHierarchy("劇本", "API 整合測試")]
 public class GenerateByTextApiTests
 {
     private readonly ApiFactory _api;

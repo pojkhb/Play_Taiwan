@@ -2,9 +2,12 @@
 using backend.dao;
 using backend.Models;
 using backend.Services;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Badge;
 
+[AllureSuiteHierarchy("勳章", "單元測試")]
+[AllureBddHierarchy("勳章", "單元測試")]
 public class BadgeRulesTests
 {
     // 從 badge 表挑出測試會用到的勳章，b_id、類別、對應物件都跟資料庫一致

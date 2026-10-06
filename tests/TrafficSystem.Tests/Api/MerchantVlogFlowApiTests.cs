@@ -4,10 +4,13 @@ using System.IO.Compression;
 using System.Net.Http.Json;
 using backend.utils;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("VLOG 與回顧", "API 整合測試")]
+[AllureBddHierarchy("VLOG 與回顧", "API 整合測試")]
 public class MerchantVlogFlowApiTests : IDisposable
 {
     private readonly ApiFactory _api;

@@ -1,10 +1,13 @@
 // 商家 / 遊客 VLOG API：不需要 AI 服務就能驗證的部分（選項、輸入檢查、權限）
 using System.Net.Http.Json;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("VLOG 與回顧", "API 整合測試")]
+[AllureBddHierarchy("VLOG 與回顧", "API 整合測試")]
 public class VlogApiTests
 {
     private readonly ApiFactory _api;

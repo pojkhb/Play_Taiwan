@@ -2,9 +2,12 @@
 using backend.util;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Map;
 
+[AllureSuiteHierarchy("解謎地圖與迷霧", "單元測試")]
+[AllureBddHierarchy("解謎地圖與迷霧", "單元測試")]
 public class FogImageHelperTests
 {
     /// <summary>左半黑、右半白的照片，看得出邊界有沒有被霧化</summary>

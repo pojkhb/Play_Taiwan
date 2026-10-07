@@ -2,9 +2,12 @@
 using backend.dao;
 using backend.Services;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Vlog;
 
+[AllureSuiteHierarchy("VLOG 與回顧", "單元測試")]
+[AllureBddHierarchy("VLOG 與回顧", "單元測試")]
 public class VisitorVlogServiceTests
 {
     #region zip 照片命名

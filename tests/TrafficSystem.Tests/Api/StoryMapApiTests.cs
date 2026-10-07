@@ -6,10 +6,13 @@ using backend.Models;
 using backend.Services;
 using backend.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("解謎地圖與迷霧", "API 整合測試")]
+[AllureBddHierarchy("解謎地圖與迷霧", "API 整合測試")]
 public class StoryMapApiTests
 {
     private readonly ApiFactory _api;

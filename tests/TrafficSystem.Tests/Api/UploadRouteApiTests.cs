@@ -1,11 +1,14 @@
-// 檔案上傳、自選地點的交通方式可用性
+// 檔案上傳（自選地點的交通方式可用性在 RouteAvailabilityApiTests）
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("明信片與上傳", "API 整合測試")]
+[AllureBddHierarchy("明信片與上傳", "API 整合測試")]
 public class UploadRouteApiTests
 {
     private readonly ApiFactory _api;
@@ -51,22 +54,5 @@ public class UploadRouteApiTests
         using var form = File("photo.jpg", "image/jpeg", new byte[] { 0xFF, 0xD8 });
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await _api.ClientFor(null).PostAsync("/api/Upload", form)).StatusCode);
-    }
-
-    [Fact]
-    public async Task 自選地點查詢交通方式可用性()
-    {
-        var points = new[]
-        {
-            new { name = "臺博館", lat = 25.0428, lng = 121.5150 },
-            new { name = "中正紀念堂", lat = 25.0346, lng = 121.5218 },
-        };
-
-        var result = await (await _api.ClientFor(_api.NewUserId()).PostAsJsonAsync("/api/Route/Availability", points)).ReadResultAsync();
-
-        Assert.True(result.isSuccess, result.message);
-        var modes = result.Result.EnumerateArray().Select(m => m.GetProperty("mode").GetString()).ToList();
-        Assert.Contains("步行", modes);
-        Assert.True(result.Result.EnumerateArray().First(m => m.GetProperty("mode").GetString() == "步行").GetProperty("enabled").GetBoolean());
     }
 }

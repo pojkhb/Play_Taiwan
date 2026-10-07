@@ -4,10 +4,13 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using backend.Models;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("帳號與身分驗證", "API 整合測試")]
+[AllureBddHierarchy("帳號與身分驗證", "API 整合測試")]
 public class AuthFlowApiTests
 {
     private readonly ApiFactory _api;

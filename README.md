@@ -127,7 +127,7 @@ mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、�
 |---|---|
 | 還有 `silhouette`、`story_node_silhouette` 兩張表 | `Sqls/mysql/20260930_silhouette_to_fog.sql`（換成迷霧圖表 `fog`） |
 | `story` 表還沒有 `is_favorite` 欄位 | `Sqls/mysql/20260930_story_favorite.sql`（劇本的「喜愛」欄位） |
-| 還沒有 `npc` 表 | `Sqls/mysql/20261001_story_npc.sql`（AI 生成的劇本 NPC） |
+| 還沒有 `npc` 表 | `Sqls/mysql/20261001_story_npc.sql`（NPC 名單：薯光等六位角色與圖片） |
 
 公車與捷運資料有兩種來源，擇一即可：
 

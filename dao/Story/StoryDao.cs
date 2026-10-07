@@ -256,15 +256,16 @@ namespace backend.dao
         #region 劇本詳情 (包含對應節點輸出)
         public StoryDetailResponse GetDetail(int storyId)
         {
-            string storySql = @"
+            // 劇本沒有指定 NPC（舊劇本、AI 沒挑）時用預設 NPC（薯光）。NPC 圖片回傳站內路徑，由 Controller 組成完整網址
+            string storySql = $@"
                 SELECT s.s_id, s.story_title, s.story_prologue, s.story_synopsis, s.is_night_mode, s.is_favorite,
-                       n.npc_name, n.npc_role, n.npc_intro
+                       n.npc_name, n.npc_role, n.npc_intro, n.npc_avatar, n.npc_voice
                 FROM story s
-                LEFT JOIN npc n ON n.npc_id = s.npc_id
+                LEFT JOIN npc n ON n.npc_id = COALESCE(s.npc_id, {MapDao.DefaultNpcIdSql})
                 WHERE s.s_id = @storyId AND s.is_active = 1;
             ";
 
-            // 每一站的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC。
+            // 每一站的 NPC：節點自己有設定就用節點的，沒有就用劇本的 NPC，再沒有就用預設 NPC。
             // story_node 已移除 sn_hint，任務說明改取該節點第一筆任務的 task_describe。
             string nodeSql = $@"
                 SELECT
@@ -275,8 +276,7 @@ namespace backend.dao
                     n.npc_name
                 FROM story_node sn
                 {PlaceImageJoin}
-                LEFT JOIN story s ON s.s_id = sn.s_id
-                LEFT JOIN npc n ON n.npc_id = COALESCE(sn.npc_id, s.npc_id)
+                {MapDao.NpcJoin}
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
             ";
@@ -308,7 +308,9 @@ namespace backend.dao
                     {
                         name = story.npc_name as string,
                         role = story.npc_role as string,
-                        intro = story.npc_intro as string
+                        intro = story.npc_intro as string,
+                        avatar_url = story.npc_avatar as string,
+                        voice = story.npc_voice as string
                     },
                     nodes = new List<NodeDetail>(),
                     route_nodes = new List<StoryOptionResponse.RouteNode>()
@@ -596,8 +598,8 @@ namespace backend.dao
 
         #region GPS 定位生成：完整儲存 AI 劇本藍圖
         /// <summary>
-        /// 把 AI 產生的劇本藍圖寫進 npc + story + story_node。
-        /// 1. AI 回傳的 NPC（名稱、身分、自我介紹）寫進 npc 表，劇本與每一站都掛上這個 NPC；AI 沒給 NPC 時留 null。
+        /// 把 AI 產生的劇本藍圖寫進 story + story_node。
+        /// 1. AI 回傳的 NPC 名稱對應到 NPC 名單（npc 表），劇本與每一站都掛上這位 NPC；名單上沒有這個名字時用預設的薯光。
         /// 2. place 的主鍵是 int 自增，沒辦法再用 Neo4j uid 當主鍵。
         ///    節點仍然把 Neo4j uid 寫進 story_node.place_id（任務生成靠這個關聯），
         ///    另外把景點名稱與座標補進 place 表，避免地理資訊整個遺失。
@@ -646,7 +648,7 @@ namespace backend.dao
                 {
                     try
                     {
-                        int? npcId = await InsertNpcAsync(conn, transaction, data.npc?.name, data.npc?.role, data.npc?.intro);
+                        int? npcId = (await ResolveNpcAsync(conn, transaction, data.npc?.name))?.npc_id;
 
                         int newStoryId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
                         {
@@ -955,10 +957,9 @@ namespace backend.dao
                         {
                             GameStoryInfo story = result.story;
 
-                            // AI 有回 NPC 就寫進 npc 表，劇本與每一站都掛上這個 NPC
-                            int? npcId = await InsertNpcAsync(conn, transaction, story.npc?.npc_name, story.npc?.npc_role, story.npc?.npc_intro);
-                            if (npcId == null) story.npc = null;
-                            else story.npc.npc_id = npcId;
+                            // AI 挑的 NPC（名單上找不到就用薯光），劇本與每一站都掛上這位 NPC；回傳的 NPC 資料以 npc 表為準
+                            story.npc = await ResolveNpcAsync(conn, transaction, story.npc?.npc_name);
+                            int? npcId = story.npc?.npc_id;
 
                             int storyId = await conn.ExecuteScalarAsync<int>(insertStorySql, new
                             {
@@ -1075,20 +1076,19 @@ namespace backend.dao
             return value.Substring(0, maxLength);
         }
 
-        /// <summary>在同一個交易裡寫入劇本 NPC，回傳 npc_id；AI 沒給名稱時不寫、回傳 null</summary>
-        private static async Task<int?> InsertNpcAsync(MySqlConnection conn, MySqlTransaction transaction, string name, string role, string intro)
+        /// <summary>
+        /// AI 挑的 NPC 名字 → NPC 名單（npc 表）裡的那一位；沒給或名字不在名單上時用預設 NPC（薯光）。
+        /// 名單是空的（還沒匯入）時回傳 null。
+        /// </summary>
+        private static async Task<GameStoryNpc> ResolveNpcAsync(MySqlConnection conn, MySqlTransaction transaction, string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return null;
-
-            return await conn.ExecuteScalarAsync<int>(@"
-                INSERT INTO npc (npc_name, npc_role, npc_intro) VALUES (@name, @role, @intro);
-                SELECT LAST_INSERT_ID();",
-                new
-                {
-                    name = Truncate(name.Trim(), 100),
-                    role = string.IsNullOrWhiteSpace(role) ? null : Truncate(role.Trim(), 255),
-                    intro = string.IsNullOrWhiteSpace(intro) ? null : intro.Trim()
-                }, transaction);
+            return await conn.QueryFirstOrDefaultAsync<GameStoryNpc>(@"
+                SELECT npc_id, npc_name, npc_role, npc_intro, npc_avatar AS npc_avatar_url, npc_voice
+                FROM npc
+                WHERE npc_name = @name OR is_default = 1
+                ORDER BY npc_name = @name DESC, npc_id
+                LIMIT 1;",
+                new { name = name?.Trim() ?? "" }, transaction);
         }
 
         #endregion

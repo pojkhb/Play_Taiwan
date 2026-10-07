@@ -19,17 +19,20 @@ namespace backend.Models
         public string scene_image_url { get; set; }
 
         // NPC
-        /// <summary>NPC 代號（npc.npc_id）；劇本沒有 NPC 時為 "NPC-DEFAULT"</summary>
+        /// <summary>NPC 代號（npc.npc_id）；劇本沒有指定 NPC 時是預設的薯光</summary>
         public string npc_id { get; set; }
 
-        /// <summary>NPC 名稱；劇本沒有 NPC 時為「旅遊引導員」</summary>
+        /// <summary>NPC 名稱，例如「墨先生」</summary>
         public string npc_name { get; set; }
 
-        /// <summary>NPC 身分／角色設定，例如「在城南說了四十年故事的老說書人」；劇本沒有 NPC 時為 null</summary>
+        /// <summary>NPC 身分／角色設定，例如「博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案」</summary>
         public string npc_role { get; set; }
 
-        /// <summary>NPC 頭像圖片網址</summary>
+        /// <summary>NPC 圖片（完整網址）</summary>
         public string npc_avatar_url { get; set; }
+
+        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
+        public string npc_voice { get; set; }
 
         // 對話
         /// <summary>NPC 對話內容</summary>

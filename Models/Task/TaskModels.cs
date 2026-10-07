@@ -149,9 +149,20 @@ namespace backend.Models
     public class NodePlayResponse
     {
         public NodePlayNode node { get; set; }
+        public NodePlayNpc npc { get; set; }                 // 這一站說開場白、出題、說完成劇情的 NPC
         public int my_seat_no { get; set; }                  // 登入者的座位（協作解謎看的線索），沒有隊伍的擁有者為 1
         public NodeProgress progress { get; set; }
         public List<NodePlayTask> tasks { get; set; } = new();
+    }
+
+    /// <summary>這一站的 NPC（節點沒指定時用劇本的 NPC，劇本也沒有時用預設的薯光）</summary>
+    public class NodePlayNpc
+    {
+        public int? npc_id { get; set; }               // npc.npc_id；NPC 名單還沒匯入時為 null
+        public string npc_name { get; set; }           // 例如「墨先生」
+        public string npc_role { get; set; }           // 身分／角色設定
+        public string npc_avatar_url { get; set; }     // NPC 圖片（完整網址）
+        public string npc_voice { get; set; }          // 語音聲線，台詞轉語音時傳給 POST api/Npc/Speak 的 voice
     }
 
     public class NodePlayNode
@@ -190,7 +201,8 @@ namespace backend.Models
     public class TaskHintResponse
     {
         public string task_id { get; set; }             // 任務代號
-        public string npc_avatar_url { get; set; }        // 提示對話框顯示的NPC頭像
+        public string npc_name { get; set; }              // 給提示的 NPC 名稱：這一站的 NPC，沒有指定時是預設的薯光
+        public string npc_avatar_url { get; set; }        // 提示對話框顯示的 NPC 圖片（完整網址）
         public string hint_text { get; set; }              // 提示文字內容
         public bool is_available { get; set; }              // 是否有可用的提示內容
     }

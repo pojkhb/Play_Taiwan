@@ -35,7 +35,7 @@ namespace backend.Controllers
         ///
         ///     POST /api/Npc/Prologue/3?voice=zh-TW-YunJheNeural
         ///
-        /// `voice` 可省略，預設 zh-TW-HsiaoChenNeural（女聲）。
+        /// `voice` 可省略，預設用這個劇本 NPC 的聲線（劇本詳情的 npc.voice）。
         /// </remarks>
         [HttpPost]
         [Route("Prologue/{story_id:int}")]

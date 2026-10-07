@@ -220,26 +220,33 @@ namespace backend.ViewModels
         public int is_night_mode { get; set; }
 
         /// <summary>
-        /// 劇本的 NPC（AI 回傳 story.npc，每一站都由這個 NPC 說開場白與成功台詞）。
-        /// AI 沒有回傳時為 null，地圖互動畫面改用預設的「旅遊引導員」
+        /// 劇本的 NPC，每一站都由這個 NPC 說開場白與成功台詞。
+        /// AI 從 NPC 名單（npc 表）挑一位，回傳 story.npc.npc_name 即可；沒挑或名字不在名單上時用預設的薯光。
+        /// 其他欄位由後端從 npc 表帶出
         /// </summary>
         public GameStoryNpc npc { get; set; }
     }
 
-    /// <summary>劇本 NPC</summary>
+    /// <summary>劇本 NPC（名單見 npc 表）</summary>
     public class GameStoryNpc
     {
-        /// <summary>寫入資料庫後的 NPC 代號（npc.npc_id），AI 不用回傳</summary>
+        /// <summary>NPC 代號（npc.npc_id）</summary>
         public int? npc_id { get; set; }
 
-        /// <summary>NPC 名稱，例如「說書人阿明」</summary>
+        /// <summary>NPC 名稱，例如「墨先生」；AI 只要回傳這個欄位</summary>
         public string npc_name { get; set; }
 
-        /// <summary>NPC 身分／角色設定，例如「在城南說了四十年故事的老說書人」</summary>
+        /// <summary>NPC 身分／角色設定</summary>
         public string npc_role { get; set; }
 
         /// <summary>NPC 自我介紹（劇本開始時對玩家說的話）</summary>
         public string npc_intro { get; set; }
+
+        /// <summary>NPC 圖片（完整網址）</summary>
+        public string npc_avatar_url { get; set; }
+
+        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
+        public string npc_voice { get; set; }
     }
 
     /// <summary>劇本節點（景點）</summary>
@@ -254,7 +261,7 @@ namespace backend.ViewModels
         /// <summary>景點真實名稱</summary>
         public string p_name { get; set; }
 
-        /// <summary>此節點的 NPC 代號（npc.npc_id，同一份劇本每一站都是同一個 NPC），AI 沒有回傳 NPC 時為 null</summary>
+        /// <summary>此節點的 NPC 代號（npc.npc_id，同一份劇本每一站都是同一個 NPC）</summary>
         public int? npc_id { get; set; }
 
         /// <summary>節點順序，從 1 開始</summary>

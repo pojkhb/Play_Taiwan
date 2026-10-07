@@ -1,9 +1,12 @@
 // Valhalla 相關的純邏輯（ValhallaService）：交通方式對應、等時圈判斷、路線形狀解碼。不需要真的開 Valhalla。
 using backend.Services;
 using backend.ViewModels;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Valhalla;
 
+[AllureSuiteHierarchy("交通路網", "單元測試")]
+[AllureBddHierarchy("交通路網", "單元測試")]
 public class ValhallaServiceTests
 {
     #region 交通方式 → Valhalla costing

@@ -1,14 +1,19 @@
-// 劇本 NPC：AI 生成劇本時一起產生的角色，存進 npc 表；劇本詳情、地圖節點詳情與 NPC 互動都顯示這個 NPC
+// NPC 名單：薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯（seed_reference.sql）。
+// AI 生成劇本時從名單挑一位，劇本詳情、地圖節點、NPC 互動、提示對話框都顯示這位 NPC；沒有指定時用預設的薯光
+using System.Net;
 using System.Net.Http.Json;
 using backend.Controllers;
 using backend.dao;
 using backend.Models;
 using backend.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Allure.Net.Commons.Attributes;
 
 namespace TrafficSystem.Tests.Api;
 
 [Collection(ApiCollection.Name)]
+[AllureSuiteHierarchy("劇本", "API 整合測試")]
+[AllureBddHierarchy("劇本", "API 整合測試")]
 public class StoryNpcApiTests
 {
     private readonly ApiFactory _api;
@@ -20,64 +25,144 @@ public class StoryNpcApiTests
         StoryController.TextBlueprintPollInterval = TimeSpan.FromMilliseconds(20);
     }
 
-    /// <summary>給劇本一個 NPC（只掛在劇本上，節點沒有自己的 NPC），回傳 npc_id</summary>
-    private async Task<int> GiveStoryNpcAsync(int storyId, string name, string role, string intro)
+    private Task<int> NpcIdAsync(string name) =>
+        _api.QueryAsync<int>("SELECT npc_id FROM npc WHERE npc_name = @name;", new { name });
+
+    /// <summary>建立劇本並指定 NPC（只掛在劇本上，節點沒有自己的 NPC），回傳 (story_id, 第一站 node_id)</summary>
+    private async Task<(int storyId, int firstNode)> CreateStoryWithNpcAsync(int user, string npcName)
     {
-        await _api.ExecuteAsync("INSERT INTO npc (npc_name, npc_role, npc_intro) VALUES (@name, @role, @intro);", new { name, role, intro });
-        int npcId = await _api.QueryAsync<int>("SELECT MAX(npc_id) FROM npc WHERE npc_name = @name;", new { name });
-        await _api.ExecuteAsync("UPDATE story SET npc_id = @npcId WHERE s_id = @storyId;", new { npcId, storyId });
-        return npcId;
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, "台北101", "西門町");
+        if (npcName != null)
+            await _api.ExecuteAsync("UPDATE story SET npc_id = @npcId WHERE s_id = @storyId;", new { npcId = await NpcIdAsync(npcName), storyId });
+        int firstNode = await _api.QueryAsync<int>("SELECT sn_id FROM story_node WHERE s_id = @storyId ORDER BY sn_order LIMIT 1;", new { storyId });
+        return (storyId, firstNode);
     }
 
-    private async Task<int> FirstNodeIdAsync(int storyId) =>
-        await _api.QueryAsync<int>("SELECT sn_id FROM story_node WHERE s_id = @storyId ORDER BY sn_order LIMIT 1;", new { storyId });
+    [Fact]
+    public async Task 名單有六位NPC_薯光是預設_每位都有圖片可以下載()
+    {
+        Assert.Equal(6, await _api.QueryAsync<int>("SELECT COUNT(*) FROM npc;"));
+        Assert.Equal("薯光", await _api.QueryAsync<string>("SELECT npc_name FROM npc WHERE is_default = 1;"));
+
+        foreach (string avatar in new[] { "shuguang", "zhen-nainai", "a-da-li", "mo-xian-sheng", "ni-ni", "a-ji-bo" })
+        {
+            Assert.Equal(1, await _api.QueryAsync<int>("SELECT COUNT(*) FROM npc WHERE npc_avatar = @path;", new { path = $"/images/npc/{avatar}.png" }));
+            HttpResponseMessage image = await _api.CreateClient().GetAsync($"/images/npc/{avatar}.png");
+            Assert.Equal(HttpStatusCode.OK, image.StatusCode);
+            Assert.Equal("image/png", image.Content.Headers.ContentType.MediaType);
+        }
+    }
 
     [Fact]
-    public async Task 劇本有NPC時_互動與詳情顯示NPC的名字身分和自我介紹()
+    public async Task 劇本指定NPC時_互動_節點詳情_劇本詳情都顯示這位NPC()
     {
         int user = _api.NewUserId();
         HttpClient client = _api.ClientFor(user);
-        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, "台北101", "西門町");
-        int npcId = await GiveStoryNpcAsync(storyId, "說書人阿明", "在城南說了四十年故事的老說書人", "年輕人，坐下來聽我說個故事吧。");
-        int firstNode = await FirstNodeIdAsync(storyId);
+        var (storyId, firstNode) = await CreateStoryWithNpcAsync(user, "墨先生");
 
         NpcInteractionResponse interaction =
             (await (await client.GetAsync($"/api/Map/Node/{firstNode}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
-        Assert.Equal(npcId.ToString(), interaction.npc_id);
-        Assert.Equal("說書人阿明", interaction.npc_name);
-        Assert.Equal("在城南說了四十年故事的老說書人", interaction.npc_role);
+        Assert.Equal((await NpcIdAsync("墨先生")).ToString(), interaction.npc_id);
+        Assert.Equal("墨先生", interaction.npc_name);
+        Assert.Equal("博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案", interaction.npc_role);
+        Assert.StartsWith("http", interaction.npc_avatar_url);
+        Assert.EndsWith("/images/npc/mo-xian-sheng.png", interaction.npc_avatar_url);
+        Assert.Equal("zh-TW-YunJheNeural", interaction.npc_voice);
         Assert.Equal("開場", interaction.npc_dialogue);   // 台詞是這一站的開場白
 
         NodeDetailResponse node = (await (await client.GetAsync($"/api/Map/Node/{firstNode}")).ReadResultAsync<NodeDetailResponse>()).Result;
-        Assert.Equal("說書人阿明", node.npc_name);
+        Assert.Equal("墨先生", node.npc_name);
+        Assert.EndsWith("/images/npc/mo-xian-sheng.png", node.npc_avatar_url);
 
         StoryDetailResponse detail = (await (await client.GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
-        Assert.Equal("說書人阿明", detail.npc.name);
-        Assert.Equal("在城南說了四十年故事的老說書人", detail.npc.role);
-        Assert.Equal("年輕人，坐下來聽我說個故事吧。", detail.npc.intro);
-        Assert.All(detail.nodes, n => Assert.Equal("說書人阿明", n.npc_name));
+        Assert.Equal("墨先生", detail.npc.name);
+        Assert.Equal("博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案", detail.npc.role);
+        Assert.False(string.IsNullOrWhiteSpace(detail.npc.intro));
+        Assert.StartsWith("http", detail.npc.avatar_url);
+        Assert.Equal("zh-TW-YunJheNeural", detail.npc.voice);
+        Assert.All(detail.nodes, n => Assert.Equal("墨先生", n.npc_name));
     }
 
     [Fact]
-    public async Task 劇本沒有NPC時_互動顯示預設的旅遊引導員()
+    public async Task 劇本沒有指定NPC時_用預設的薯光()
     {
         int user = _api.NewUserId();
         HttpClient client = _api.ClientFor(user);
-        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, "台北101");
-        int firstNode = await FirstNodeIdAsync(storyId);
+        var (storyId, firstNode) = await CreateStoryWithNpcAsync(user, null);
 
         NpcInteractionResponse interaction =
             (await (await client.GetAsync($"/api/Map/Node/{firstNode}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
-        Assert.Equal("NPC-DEFAULT", interaction.npc_id);
-        Assert.Equal(MapDao.DefaultNpcName, interaction.npc_name);
-        Assert.Null(interaction.npc_role);
+        Assert.Equal("薯光", interaction.npc_name);
+        Assert.EndsWith("/images/npc/shuguang.png", interaction.npc_avatar_url);
 
         StoryDetailResponse detail = (await (await client.GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
-        Assert.Null(detail.npc);
-        Assert.All(detail.nodes, n => Assert.Equal("", n.npc_name));
+        Assert.Equal("薯光", detail.npc.name);
+        Assert.All(detail.nodes, n => Assert.Equal("薯光", n.npc_name));
     }
 
-    private static object CompletedWithNpc(string place1, string place2) => new
+    [Fact]
+    public async Task 提示對話框顯示這一站NPC的名稱與圖片()
+    {
+        int user = _api.NewUserId();
+        var (storyId, firstNode) = await CreateStoryWithNpcAsync(user, "阿吉伯");
+        await _api.ExecuteAsync(@"
+            INSERT INTO task (story_id, node_id, task_type, task_describe, task_hint)
+            VALUES (@storyId, @firstNode, 2, '在牌樓下集合', '看看牌樓上的字');", new { storyId, firstNode });
+        int taskId = await _api.QueryAsync<int>("SELECT MAX(task_id) FROM task WHERE node_id = @firstNode;", new { firstNode });
+
+        TaskHintResponse hint = (await (await _api.ClientFor(user).GetAsync($"/api/Task/{taskId}/Hint")).ReadResultAsync<TaskHintResponse>()).Result;
+
+        Assert.Equal("阿吉伯", hint.npc_name);
+        Assert.StartsWith("http", hint.npc_avatar_url);
+        Assert.EndsWith("/images/npc/a-ji-bo.png", hint.npc_avatar_url);
+    }
+
+    [Fact]
+    public async Task 節點遊玩畫面顯示這一站的NPC()
+    {
+        int user = _api.NewUserId();
+        HttpClient client = _api.ClientFor(user);
+        var (_, firstNode) = await CreateStoryWithNpcAsync(user, "珍奶奶");
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+
+        NodePlayResponse play = (await (await client.GetAsync($"/api/Task/Node/{firstNode}")).ReadResultAsync<NodePlayResponse>()).Result;
+
+        Assert.Equal(await NpcIdAsync("珍奶奶"), play.npc.npc_id);
+        Assert.Equal("珍奶奶", play.npc.npc_name);
+        Assert.Equal("掌管地方數十年的記憶與失落古老配方的守密人", play.npc.npc_role);
+        Assert.StartsWith("http", play.npc.npc_avatar_url);
+        Assert.EndsWith("/images/npc/zhen-nainai.png", play.npc.npc_avatar_url);
+        Assert.Equal("zh-TW-HsiaoChenNeural", play.npc.npc_voice);
+        Assert.Equal("開場", play.node.opening_text);   // 開場白就是這位 NPC 說的
+    }
+
+    [Fact]
+    public async Task 節點遊玩畫面_劇本沒有指定NPC時是薯光()
+    {
+        int user = _api.NewUserId();
+        HttpClient client = _api.ClientFor(user);
+        var (_, firstNode) = await CreateStoryWithNpcAsync(user, null);
+        await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null);
+
+        NodePlayResponse play = (await (await client.GetAsync($"/api/Task/Node/{firstNode}")).ReadResultAsync<NodePlayResponse>()).Result;
+
+        Assert.Equal("薯光", play.npc.npc_name);
+        Assert.EndsWith("/images/npc/shuguang.png", play.npc.npc_avatar_url);
+    }
+
+    [Fact]
+    public async Task 劇情前傳語音用劇本NPC的聲線()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateStoryWithNpcAsync(user, "霓霓");
+
+        HttpResponseMessage response = await _api.ClientFor(user).PostAsync($"/api/Npc/Prologue/{storyId}", null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("zh-TW-HsiaoYuNeural", _api.FakeAi.Last("/api/npc/speak").Fields["voice"]);
+    }
+
+    private static object CompletedWithNpc(string npcName, string place1, string place2) => new
     {
         job_id = FakeAiService.TextJobId,
         status = "completed",
@@ -88,7 +173,7 @@ public class StoryNpcApiTests
             preface = "一封沒有署名的信，把你帶到了城南。",
             synopsis = "沿著兩個地標找回卷軸。",
             is_night_mode = false,
-            npc = new { name = "說書人阿明", role = "在城南說了四十年故事的老說書人", intro = "年輕人，坐下來聽我說個故事吧。" },
+            npc = new { name = npcName, role = "AI 寫的身分（不採用，以名單為準）", intro = "AI 寫的自我介紹" },
             nodes = new[]
             {
                 new { node_order = 1, place_name = place1, location_codename = "白色穹頂", node_title = "穹頂下的信", task_type = "文化問答型", task_description = "找出牌樓上的字", dialogues = new { opening = "開場", success = "完成" } },
@@ -97,10 +182,12 @@ public class StoryNpcApiTests
         }
     };
 
-    [Fact]
-    public async Task 遊你說算_AI回傳的NPC存進劇本_每一站都是這個NPC()
+    [Theory]
+    [InlineData("墨先生", "墨先生")]
+    [InlineData("說書人阿明", "薯光")]   // 名字不在名單上 → 預設的薯光
+    public async Task 遊你說算_AI挑的NPC存進劇本_每一站都是這位NPC(string aiNpc, string expected)
     {
-        _api.FakeAi.TextJobPolls.Enqueue(CompletedWithNpc($"NPC測試景點A{Guid.NewGuid():N}", $"NPC測試景點B{Guid.NewGuid():N}"));
+        _api.FakeAi.TextJobPolls.Enqueue(CompletedWithNpc(aiNpc, $"NPC測試景點A{Guid.NewGuid():N}", $"NPC測試景點B{Guid.NewGuid():N}"));
         int user = _api.NewUserId();
 
         ApiResult<GenerateByTextResult> result = await (await _api.ClientFor(user)
@@ -108,22 +195,23 @@ public class StoryNpcApiTests
         Assert.True(result.isSuccess, result.message);
         int storyId = result.Result.story_id;
 
-        int? npcId = await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @storyId;", new { storyId });
-        Assert.NotNull(npcId);
-        Assert.Equal("說書人阿明", await _api.QueryAsync<string>("SELECT npc_name FROM npc WHERE npc_id = @npcId;", new { npcId }));
+        int expectedId = await NpcIdAsync(expected);
+        Assert.Equal(expectedId, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @storyId;", new { storyId }));
         Assert.Equal(0, await _api.QueryAsync<int>(
-            "SELECT COUNT(*) FROM story_node WHERE s_id = @storyId AND (npc_id IS NULL OR npc_id <> @npcId);", new { storyId, npcId }));
-
-        StoryDetailResponse detail = (await (await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
-        Assert.Equal("年輕人，坐下來聽我說個故事吧。", detail.npc.intro);
+            "SELECT COUNT(*) FROM story_node WHERE s_id = @storyId AND (npc_id IS NULL OR npc_id <> @expectedId);", new { storyId, expectedId }));
+        Assert.Equal(6, await _api.QueryAsync<int>("SELECT COUNT(*) FROM npc;"));   // 不會新增 NPC
     }
 
-    private async Task<GameStoryResult> SaveGameStoryAsync(int user, GameStoryNpc npc)
+    private async Task<GameStoryResult> SaveGameStoryAsync(int user, string aiNpcName)
     {
         var result = new GameStoryResult
         {
             story_no = 1,
-            story = new GameStoryInfo { city_name = "臺北市", district_name = "中正區", party_size = 2, story_title = "NPC 測試劇本", is_night_mode = 0, story_postcards = 2, npc = npc },
+            story = new GameStoryInfo
+            {
+                city_name = "臺北市", district_name = "中正區", party_size = 2, story_title = "NPC 測試劇本", is_night_mode = 0, story_postcards = 2,
+                npc = aiNpcName == null ? null : new GameStoryNpc { npc_name = aiNpcName }
+            },
             nodes = new List<GameStoryNode>
             {
                 new() { place_id = Guid.NewGuid().ToString(), sn_order = 1, sn_title = "第1站", sn_opening_text = "開場", tasks = new List<GameStoryTask>() },
@@ -137,31 +225,30 @@ public class StoryNpcApiTests
     }
 
     [Fact]
-    public async Task 劇本任務生成_AI回傳的NPC存進劇本並回傳NPC代號()
+    public async Task 劇本任務生成_AI挑的NPC存進劇本_回傳名單上的NPC資料()
     {
-        int user = _api.NewUserId();
+        GameStoryResult saved = await SaveGameStoryAsync(_api.NewUserId(), "霓霓");
 
-        GameStoryResult saved = await SaveGameStoryAsync(user, new GameStoryNpc { npc_name = "夜市阿婆", npc_role = "在夜市賣了五十年粉圓的阿婆", npc_intro = "囡仔，來呷一碗粉圓再出發。" });
-
-        Assert.NotNull(saved.story.npc.npc_id);
-        Assert.All(saved.nodes, n => Assert.Equal(saved.story.npc.npc_id, n.npc_id));
-        Assert.Equal(saved.story.npc.npc_id, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @id;", new { id = saved.story_id }));
-        Assert.Equal("在夜市賣了五十年粉圓的阿婆", await _api.QueryAsync<string>("SELECT npc_role FROM npc WHERE npc_id = @id;", new { id = saved.story.npc.npc_id }));
+        int niniId = await NpcIdAsync("霓霓");
+        Assert.Equal(niniId, saved.story.npc.npc_id);
+        Assert.Equal("對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索", saved.story.npc.npc_role);
+        Assert.Equal("/images/npc/ni-ni.png", saved.story.npc.npc_avatar_url);   // DAO 回傳站內路徑，Controller 再組成完整網址
+        Assert.Equal("zh-TW-HsiaoYuNeural", saved.story.npc.npc_voice);
+        Assert.All(saved.nodes, n => Assert.Equal(niniId, n.npc_id));
+        Assert.Equal(niniId, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @id;", new { id = saved.story_id }));
     }
 
-    [Fact]
-    public async Task 劇本任務生成_AI沒有回NPC或名字是空的_劇本不掛NPC()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  ")]
+    [InlineData("夜市阿婆")]
+    public async Task 劇本任務生成_AI沒挑或名字不在名單上_用預設的薯光(string aiNpcName)
     {
-        int user = _api.NewUserId();
+        GameStoryResult saved = await SaveGameStoryAsync(_api.NewUserId(), aiNpcName);
 
-        GameStoryResult withoutNpc = await SaveGameStoryAsync(user, null);
-        GameStoryResult blankName = await SaveGameStoryAsync(user, new GameStoryNpc { npc_name = "  ", npc_role = "沒有名字的角色" });
-
-        foreach (GameStoryResult saved in new[] { withoutNpc, blankName })
-        {
-            Assert.Null(saved.story.npc);
-            Assert.All(saved.nodes, n => Assert.Null(n.npc_id));
-            Assert.Null(await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @id;", new { id = saved.story_id }));
-        }
+        int shuguangId = await NpcIdAsync("薯光");
+        Assert.Equal("薯光", saved.story.npc.npc_name);
+        Assert.All(saved.nodes, n => Assert.Equal(shuguangId, n.npc_id));
+        Assert.Equal(shuguangId, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @id;", new { id = saved.story_id }));
     }
 }

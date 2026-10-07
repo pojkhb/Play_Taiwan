@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Models;
 using backend.Services;
+using backend.util;
 using backend.ViewModels;
 using System.Threading.Tasks;
 
@@ -197,6 +198,7 @@ namespace backend.Controllers
             {
                 NodeDetailResponse result =
                     _service.GetNodeDetail(node_id, User);
+                result.npc_avatar_url = PublicUrl.Of(Request, result.npc_avatar_url);
 
                 return Ok(new ResultViewModel<NodeDetailResponse>
                 {
@@ -247,6 +249,7 @@ namespace backend.Controllers
             {
                 NpcInteractionResponse result =
                     _service.GetNpcInteraction(node_id, User);
+                result.npc_avatar_url = PublicUrl.Of(Request, result.npc_avatar_url);
 
                 return Ok(new ResultViewModel<NpcInteractionResponse>
                 {

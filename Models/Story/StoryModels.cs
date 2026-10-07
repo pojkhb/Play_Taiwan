@@ -156,6 +156,9 @@ namespace backend.Models
         /// <summary>此節點出現的 NPC 名稱</summary>
         public string npc_name { get; set; }
 
+        /// <summary>NPC 圖片（完整網址）</summary>
+        public string npc_avatar_url { get; set; }
+
         /// <summary>NPC 介紹的故事內容</summary>
         public string intro_story { get; set; }
 

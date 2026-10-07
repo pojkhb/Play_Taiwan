@@ -47,13 +47,13 @@ namespace backend.Services
             return new NpcSpeakResponse { text = text, voice = voice, audio_url = VlogAiGateway.ResolveUrl(result.download_url) };
         }
 
-        /// <summary>唸劇本的劇情前傳（story_prologue，沒有時用簡介）</summary>
+        /// <summary>唸劇本的劇情前傳（story_prologue，沒有時用簡介）；沒指定聲音時用劇本 NPC 的聲線</summary>
         public async Task<NpcSpeakResponse> SpeakPrologueAsync(int storyId, string voice)
         {
             StoryDetailResponse story = _storyDao.GetDetail(storyId);   // 找不到劇本會丟出錯誤
             if (string.IsNullOrWhiteSpace(story.preface))
                 throw new Exception("這個劇本沒有劇情前傳");
-            return await SpeakAsync(story.preface, voice);
+            return await SpeakAsync(story.preface, string.IsNullOrWhiteSpace(voice) ? story.npc?.voice : voice);
         }
     }
 }

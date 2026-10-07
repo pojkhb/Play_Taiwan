@@ -58,6 +58,14 @@ namespace backend.Services
                     opening_text = node.sn_opening_text,
                     success_text = progress.all_passed ? node.sn_success_text : null
                 },
+                npc = new NodePlayNpc
+                {
+                    npc_id = node.npc_id,
+                    npc_name = node.npc_name ?? MapDao.DefaultNpcName,   // NPC 名單還沒匯入時
+                    npc_role = node.npc_role,
+                    npc_avatar_url = node.npc_avatar,                     // 站內路徑，Controller 組成完整網址
+                    npc_voice = node.npc_voice
+                },
                 my_seat_no = seatNo,
                 progress = progress,
                 tasks = tasks.Select(t =>
@@ -228,15 +236,19 @@ namespace backend.Services
             string hint = task_dao.GetTaskHint(taskId);
             int hintWrongCount = TaskDifficultyService.HintUnlockWrongCount(
                 task_dao.GetTaskTypeId(taskId), _difficulty.GetPerformance(auId));
+            var (npcName, npcAvatar) = task_dao.GetTaskNpc(taskId);   // 圖片是站內路徑，Controller 組成完整網址
+            npcName ??= MapDao.DefaultNpcName;
 
             if (wrongCount < hintWrongCount)
             {
-                return new TaskHintResponse { task_id = taskId.ToString(), hint_text = $"答錯 {hintWrongCount} 次後就能取得提示。", is_available = false };
+                return new TaskHintResponse { task_id = taskId.ToString(), npc_name = npcName, npc_avatar_url = npcAvatar, hint_text = $"答錯 {hintWrongCount} 次後就能取得提示。", is_available = false };
             }
 
             return new TaskHintResponse
             {
                 task_id = taskId.ToString(),
+                npc_name = npcName,
+                npc_avatar_url = npcAvatar,
                 hint_text = hint ?? "目前沒有更多的提示內容了。",
                 is_available = hint != null
             };

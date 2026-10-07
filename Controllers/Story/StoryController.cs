@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -229,13 +230,21 @@ namespace backend.Controllers
         {
             try
             {
-                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = _service.GetDetail(story_id) });
+                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = WithNpcUrl(_service.GetDetail(story_id)) });
             }
             catch (Exception e)
             {
                 _logger.LogError(e, "查詢劇本詳情失敗");
                 return StatusCode(500, new ResultViewModel<StoryDetailResponse> { isSuccess = false, message = e.Message, Result = null });
             }
+        }
+
+        /// <summary>NPC 圖片從站內路徑組成完整網址</summary>
+        private StoryDetailResponse WithNpcUrl(StoryDetailResponse detail)
+        {
+            if (detail?.npc != null)
+                detail.npc.avatar_url = PublicUrl.Of(Request, detail.npc.avatar_url);
+            return detail;
         }
         #endregion
 
@@ -378,7 +387,7 @@ namespace backend.Controllers
         {
             try
             {
-                StoryDetailResponse detail = _service.ConfirmStory(User.GetAuId(), req);
+                StoryDetailResponse detail = WithNpcUrl(_service.ConfirmStory(User.GetAuId(), req));
                 return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
             catch (BadRequestException e)
@@ -757,6 +766,11 @@ namespace backend.Controllers
                 }
 
                 List<GameStoryResult> result = await _service.GenerateGameStoryAsync(auId, req);
+                foreach (GameStoryResult r in result)
+                {
+                    if (r.story?.npc != null)
+                        r.story.npc.npc_avatar_url = PublicUrl.Of(Request, r.story.npc.npc_avatar_url);
+                }
 
                 return Ok(new ResultViewModel<List<GameStoryResult>>
                 {

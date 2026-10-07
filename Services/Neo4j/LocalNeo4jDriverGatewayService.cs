@@ -10,9 +10,7 @@ using Neo4j.Driver;
 namespace backend.Services.Neo4j
 {
     /// <summary>
-    /// 開發/測試用實作：用官方 Neo4j.Driver 直接連本地測試 instance 執行 Cypher。
-    /// 正式環境上線、外部 /api/neo4j/cypher 開放寫入後，改用 <see cref="RemoteNeo4jApiGatewayService"/>，
-    /// 只要改 appsettings 的 Neo4j:Mode，上層 Service 完全不用改。
+    /// 用官方 Neo4j.Driver 直接連本地 Neo4j（appsettings 的 Neo4jSettings）執行 Cypher。
     /// </summary>
     public class LocalNeo4jDriverGatewayService : INeo4jGatewayService
     {

@@ -2,13 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace backend.Models
 {
-    // 送給 Vlog API 的 Cypher 請求
-    public class Neo4jCypherRequest
-    {
-        public string query { get; set; } = "";
-        public object parameters { get; set; } = new { };
-    }
-
     // 接收景點的回傳結構
     public class AttractionNode
     {

@@ -1,7 +1,7 @@
 // 檔案路徑：System\Services\Neo4j\PlaceLookupService.cs
 // 景點座標與基本資料查詢。劇本節點（story_node.place_id）存的是 Neo4j uid，
 // 地圖、抵達、任務作答、導航都從這裡查同一份座標，避免各處來源不一致。
-// 走 INeo4jGatewayService（依 Neo4j:Mode 直連或走 API）。Neo4j 連不上或查不到這個 uid 時，
+// 走 INeo4jGatewayService（直連本地 Neo4j）。Neo4j 連不上或查不到這個 uid 時，
 // 才退回 MySQL：place_type（uid → 景點名稱）→ place（名稱 → 座標）的名稱對應，準度不如 Neo4j。
 using System;
 using System.Collections.Generic;

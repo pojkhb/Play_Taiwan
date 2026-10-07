@@ -103,7 +103,7 @@
 |---|---|
 | .NET SDK 8.0.414 | 版本見 `global.json` |
 | MySQL 8.0 | 主要資料庫 |
-| Neo4j | 商家模組用。本機開發建議用 Neo4j Desktop |
+| Neo4j | 景點資料。附近景點、劇本生成、路線規劃、商家模組都直連本機 Neo4j，建議用 Neo4j Desktop |
 | Docker Desktop + Valhalla | 交通路網。劇本生成、交通規劃會用到，架設步驟見 [docs/valhalla-setup.md](docs/valhalla-setup.md) |
 
 ### 2. 下載專案
@@ -187,8 +187,7 @@ dotnet run
 | `AppSettings:jwt_secret` | JWT 簽章金鑰 | ✅ |
 | `AppSettings:expires` | JWT 有效時間（分鐘） | ✅ |
 | `AppSettings:hash_key` | 密碼雜湊用的金鑰 | ✅ |
-| `Neo4jSettings:*` | 本機 Neo4j 連線（Uri、User、Password、Database） | 商家模組需要 |
-| `Neo4j:Mode` | `Local`：直連本機 Neo4j；`Remote`：改用 AI 服務的 `/api/neo4j/cypher` | |
+| `Neo4jSettings:*` | 本機 Neo4j 連線（Uri、User、Password、Database），所有 Neo4j 查詢都直連這裡 | 景點查詢、劇本生成、商家模組需要 |
 | `AiService:BaseUrl` | AI 服務網址 | 劇本生成、Vlog、明信片、語音需要 |
 | `Valhalla:BaseUrl` | Valhalla 網址，預設 `http://localhost:8002` | 交通功能需要 |
 | `SmtpSettings:*` | 寄信用的 SMTP 設定 | 註冊驗證信、忘記密碼需要 |

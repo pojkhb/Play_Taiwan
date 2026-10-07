@@ -5,10 +5,8 @@ namespace backend.Services.Neo4j
 {
     /// <summary>
     /// 統一把 Neo4j 查詢結果的欄位值轉成一般 .NET 型別。
-    /// 兩種 INeo4jGatewayService 實作回傳的原始型別不一樣：
     /// LocalNeo4jDriverGatewayService 用官方 Driver，值是原生 .NET 型別（string/List&lt;object&gt;…）；
-    /// RemoteNeo4jApiGatewayService 是反序列化 JSON，值會是 System.Text.Json.JsonElement。
-    /// 上層業務邏輯（PlaceVersionChainService）不應該關心目前是哪一種，統一透過這裡轉換。
+    /// 從 JSON 反序列化來的值（例如測試的假資料）會是 System.Text.Json.JsonElement，這裡兩種都接受。
     /// </summary>
     public static class Neo4jValueConverter
     {

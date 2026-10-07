@@ -1,5 +1,5 @@
-// AI 服務失敗時仍回 HTTP 200 的情況：後端要看內容判斷，不能當成成功或「查無資料」
-// - /api/neo4j/cypher 連不到 AI 自己的 Neo4j：{"status":"error"} → 附近景點改用 MySQL 的景點
+// 外部服務失敗時，後端不能當成成功或「查無資料」
+// - 本地 Neo4j 連不上 → 附近景點改用 MySQL 的景點；Neo4j 正常但查無資料 → 空清單
 // - /api/agent/orchestrate 找不到地點：只有 {"message"} → spin 回傳失敗與原因
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -15,10 +15,11 @@ public class AiErrorHandlingApiTests
     {
         _api = api;
         _api.FakeAi.Reset();
+        _api.FakeNeo4j.Reset();
     }
 
     [Fact]
-    public async Task 附近景點_AI的Neo4j連不上時改用MySQL的景點()
+    public async Task 附近景點_Neo4j連不上時改用MySQL的景點()
     {
         string near = $"近的景點{Guid.NewGuid():N}"[..14], far = $"遠的景點{Guid.NewGuid():N}"[..14];
         await _api.CreateStoryAsync(_api.NewUserId(), "臺北市", night: false, near);
@@ -37,16 +38,47 @@ public class AiErrorHandlingApiTests
     }
 
     [Fact]
+    public async Task 附近景點_Neo4j有資料時直接回傳Neo4j的景點()
+    {
+        _api.FakeNeo4j.Rows = new List<Dictionary<string, object>>
+        {
+            new() { ["name"] = "Neo4j景點A", ["lat"] = 25.031, ["lon"] = 121.501, ["distance_m"] = 120.5 },
+            new() { ["name"] = "Neo4j景點B", ["lat"] = "25.032", ["lon"] = "121.502", ["distance_m"] = 300L },   // 有些景點經緯度存成字串
+        };
+        try
+        {
+            var result = await (await _api.ClientFor(_api.NewUserId())
+                .GetAsync("/api/Story/NearbyAttractions?lat=25.03&lng=121.5&radiusKm=0.5")).ReadResultAsync();
+
+            Assert.True(result.isSuccess, result.message);
+            var items = result.Result.EnumerateArray().ToList();
+            Assert.Equal(new[] { "Neo4j景點A", "Neo4j景點B" }, items.Select(i => i.GetProperty("name").GetString()));
+            Assert.Equal(25.032, items[1].GetProperty("lat").GetDouble());
+            Assert.Contains(_api.FakeNeo4j.Queries, q => q.Contains("MATCH (a:Attraction)"));
+        }
+        finally
+        {
+            _api.FakeNeo4j.Reset();
+        }
+    }
+
+    [Fact]
     public async Task 附近景點_Neo4j正常但附近真的沒有景點時回空清單()
     {
         await _api.CreateStoryAsync(_api.NewUserId(), "臺北市", night: false, $"MySQL景點{Guid.NewGuid():N}"[..14]);
-        _api.FakeAi.Neo4jCypherResponse = new { status = "success", count = 0, data = Array.Empty<object>() };
+        _api.FakeNeo4j.Rows = new List<Dictionary<string, object>>();
+        try
+        {
+            var result = await (await _api.ClientFor(_api.NewUserId())
+                .GetAsync("/api/Story/NearbyAttractions?lat=25.03&lng=121.5&radiusKm=0.5")).ReadResultAsync();
 
-        var result = await (await _api.ClientFor(_api.NewUserId())
-            .GetAsync("/api/Story/NearbyAttractions?lat=25.03&lng=121.5&radiusKm=0.5")).ReadResultAsync();
-
-        Assert.True(result.isSuccess, result.message);
-        Assert.Empty(result.Result.EnumerateArray());
+            Assert.True(result.isSuccess, result.message);
+            Assert.Empty(result.Result.EnumerateArray());
+        }
+        finally
+        {
+            _api.FakeNeo4j.Reset();   // 其他測試預設 Neo4j 連不上
+        }
     }
 
     [Fact]

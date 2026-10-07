@@ -70,6 +70,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
     /// <summary>後端往外打的 HTTP（AI 服務等）全部由它回應，不會真的連網路</summary>
     public FakeAiService FakeAi { get; } = new();
 
+    /// <summary>後端的 Neo4j 查詢全部由它回應，不會連到本機的 Neo4j；預設是連不上</summary>
+    public FakeNeo4jGateway FakeNeo4j { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -85,8 +88,11 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
         }));
         builder.ConfigureTestServices(services =>
+        {
             services.ConfigureAll<HttpClientFactoryOptions>(options =>
-                options.HttpMessageHandlerBuilderActions.Add(handler => handler.PrimaryHandler = FakeAi)));
+                options.HttpMessageHandlerBuilderActions.Add(handler => handler.PrimaryHandler = FakeAi));
+            services.AddSingleton<backend.Services.Neo4j.INeo4jGatewayService>(FakeNeo4j);
+        });
     }
 
     #region 建立 / 刪除測試資料庫

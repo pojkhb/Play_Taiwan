@@ -116,7 +116,7 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             #endregion
             #region S09-任務答題
-            services.AddHttpClient<Services.Neo4jService>();
+            services.AddScoped<Services.Neo4jService>();
             services.AddScoped<Services.TaskService>();
             services.AddScoped<dao.TaskDao>();
             services.AddScoped<Services.ITaskVerificationService, Services.TaskVerificationService>();
@@ -211,26 +211,14 @@ namespace backend
             #region S17-商家資料維護 + QR Code（play_taiwan_db_v5：auth/store/coupon/qrcode_coupon/user_coupon/store_question/question_option）
             services.Configure<Neo4jSettings>(Configuration.GetSection("Neo4jSettings"));
 
-            // Neo4j:Mode = Local（本地測試 Driver）/ Remote（正式對外 /api/neo4j/cypher）
-            // 上層 PlaceVersionChainService 只依賴 INeo4jGatewayService，切換這裡即可，不用改業務邏輯。
-            bool useRemoteNeo4j = Configuration["Neo4j:Mode"] == "Remote";
-            if (useRemoteNeo4j)
+            // Neo4j 一律用官方 Driver 直連（Neo4jSettings），不經過 AI service 的 /api/neo4j/cypher。
+            // Neo4jService、PlaceVersionChainService、PlaceLookupService 都透過 INeo4jGatewayService 查詢。
+            services.AddSingleton<IDriver>(sp =>
             {
-                services.AddHttpClient<RemoteNeo4jApiGatewayService>(client =>
-                {
-                    client.Timeout = TimeSpan.FromSeconds(30);
-                });
-                services.AddScoped<INeo4jGatewayService>(sp => sp.GetRequiredService<RemoteNeo4jApiGatewayService>());
-            }
-            else
-            {
-                services.AddSingleton<IDriver>(sp =>
-                {
-                    Neo4jSettings config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Neo4jSettings>>().Value;
-                    return GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.User, config.Password));
-                });
-                services.AddScoped<INeo4jGatewayService, LocalNeo4jDriverGatewayService>();
-            }
+                Neo4jSettings config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Neo4jSettings>>().Value;
+                return GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.User, config.Password));
+            });
+            services.AddScoped<INeo4jGatewayService, LocalNeo4jDriverGatewayService>();
 
             services.AddScoped<PlaceVersionChainService>();
             // 景點座標查詢（劇本節點 uid → Neo4j），地圖抵達、任務作答、導航共用

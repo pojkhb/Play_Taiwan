@@ -274,14 +274,14 @@ docker run -d --name play-taiwan -p 5501:5501 \
 
 - 政府開放資料的景點節點永遠不修改。
 - 商家補充或修改的資訊寫在新的 `:Current` 版本節點，用 `[:HAS_VERSION]` 連回景點；再修改時，舊版本改標成 `:Historical`。
-- 商家自己新建的景點會多一個 `:MerchantPlace` 標籤。刪除商家時只會刪掉這種自建景點，不會動到政府資料。
+- 商家自己新建的景點會多一個 `:MerchantPlace` 標籤。註冊失敗要清理時只會刪掉這種自建景點，不會動到政府資料。
 
 **已知限制**
 
 - `store` 表沒有電話、網站欄位，`PUT /api/merchant/{sId}` 只會把名稱、地址、簡介同步到 Neo4j。
 - 景點還沒有商家版本時，`GET /api/nfc/scan/{nfcUid}` 回傳的 `merchant_override` 是 `null`，前端請改顯示 `gov_name`、`gov_address`。
-- 題目或商家被任務（`task.question_id`）引用時不能刪除，會回傳 409 與引用的 `task_id` 清單。
-- MySQL 與 Neo4j 沒有共用交易：刪除商家時，MySQL 刪除成功後才清 Neo4j，Neo4j 失敗只記 log；註冊時如果 MySQL 寫入失敗，會把剛建立的 Neo4j 景點刪掉。
+- 題目被任務（`task.question_id`）引用時不能刪除，會回傳 409 與引用的 `task_id` 清單。
+- MySQL 與 Neo4j 沒有共用交易：註冊時如果 MySQL 寫入失敗，會把剛建立的 Neo4j 景點刪掉。
 
 ---
 

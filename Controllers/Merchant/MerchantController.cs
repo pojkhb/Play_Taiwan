@@ -11,7 +11,7 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 商家專屬後台 API。
-    /// 提供商家登入／註冊、店家資料維護、刪除帳號、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
+    /// 提供商家登入／註冊、店家資料維護、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
     /// 除了登入與註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
     /// 錯誤統一由 ExceptionHandlingMiddleware 轉成 ResultViewModel（404 / 409 / 403 / 500）。
     /// </summary>
@@ -149,25 +149,6 @@ namespace backend.Controllers
             {
                 isSuccess = true,
                 message = "商家資料更新成功",
-                Result = null
-            });
-        }
-
-        /// <summary>刪除登入商家的帳號。</summary>
-        /// <remarks>
-        /// 交易內依序刪除 qrcode_coupon／user_coupon／coupon／question_option／store_question／store／auth；
-        /// 若商家題庫仍被任務引用，會回傳 409 並附上引用的 task_id 清單，不會刪除任何資料。
-        /// </remarks>
-        [Authorize(Roles = "Merchant")]
-        [HttpDelete]
-        [Route("Account")]
-        public async Task<IActionResult> DeleteAccount()
-        {
-            await _service.DeleteAccountAsync(User.GetSId());
-            return Ok(new ResultViewModel<object>
-            {
-                isSuccess = true,
-                message = "商家帳號已刪除",
                 Result = null
             });
         }

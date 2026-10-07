@@ -244,47 +244,6 @@ namespace backend.Services
         }
         #endregion
 
-        #region 刪除商家帳號
-        /// <summary>
-        /// 商家整體刪除：MySQL 端在單一 Transaction 內完成（見 MerchantDao.DeleteCascade）；
-        /// Neo4j 沒有跨資料庫交易保護，因此放在 MySQL commit 成功之後才執行，
-        /// 失敗只記 log，不影響已經完成的 MySQL 刪除結果（此階段尚未做兩階段提交）。
-        /// 刪除前先從 Neo4j 判斷是不是商家自建景點：是的話該景點不再排入行程（Neo4j 節點標成已刪除，座標保留給舊劇本）。
-        /// </summary>
-        public async Task DeleteAccountAsync(int sId)
-        {
-            MerchantDetailResponse store = _dao.GetById(sId);
-            if (store == null) throw new NotFoundException($"找不到 s_id={sId} 的商家資料");
-
-            bool selfBuiltPlace = false;
-            if (!string.IsNullOrWhiteSpace(store.store_uid))
-            {
-                try
-                {
-                    selfBuiltPlace = IsSelfBuiltPlace(await _placeService.GetCurrentVersionAsync(store.store_uid));
-                }
-                catch (System.Exception ex)
-                {
-                    _logger.LogWarning(ex, "無法從 Neo4j 判斷商家 s_id={SId} 的景點是否為自建景點，視為既有景點處理", sId);
-                }
-            }
-
-            string storeUid = _dao.DeleteCascade(sId, selfBuiltPlace);
-
-            if (!string.IsNullOrWhiteSpace(storeUid))
-            {
-                try
-                {
-                    await _placeService.DeleteMerchantVersionAsync(storeUid);
-                }
-                catch (System.Exception ex)
-                {
-                    _logger.LogError(ex, "商家 s_id={SId} 的 MySQL 資料已刪除，但清理 Neo4j uid={Uid} 失敗", sId, storeUid);
-                }
-            }
-        }
-        #endregion
-
         /// <summary>商家自建的景點在 Neo4j 身分節點帶 :MerchantPlace 標籤（政府開放資料的景點沒有）</summary>
         private static bool IsSelfBuiltPlace(PlaceCurrentInfo place)
         {

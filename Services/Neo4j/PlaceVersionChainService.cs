@@ -358,7 +358,7 @@ namespace backend.Services.Neo4j
 
         /// <summary>
         /// 刪掉剛建立、還沒被任何劇本用到的商家自建景點（身分節點與版本節點一起刪），商家註冊的 MySQL 寫入失敗時清理用。
-        /// 只刪 :MerchantPlace，政府開放資料的景點不會被刪。商家刪除帳號請用 DeleteMerchantVersionAsync（自建景點只標成已刪除）。
+        /// 只刪 :MerchantPlace，政府開放資料的景點不會被刪。
         /// </summary>
         public async Task DeleteUnusedMerchantPlaceAsync(string uid)
         {
@@ -368,44 +368,6 @@ namespace backend.Services.Neo4j
                 MATCH (a:MerchantPlace {uid: $uid})
                 OPTIONAL MATCH (a)-[:HAS_VERSION]->(v)
                 DETACH DELETE v, a", new { uid });
-        }
-
-        /// <summary>
-        /// 商家刪除帳號時清理 Neo4j 側資料：
-        /// - 若身分節點是商家自建的（:MerchantPlace），保留節點與版本（舊劇本還要用座標與名稱），
-        ///   只標成已刪除（is_deleted = true、deleted_at）；商家資料已刪，行程規劃不會再排入。
-        /// - 若是政府開放資料的景點，只刪除商家自己的 :Current 版本節點，絕對不動原始身分節點。
-        /// </summary>
-        public async Task DeleteMerchantVersionAsync(string uid)
-        {
-            if (string.IsNullOrWhiteSpace(uid)) return;
-
-            const string checkQuery = @"
-                MATCH (a {uid: $uid})
-                RETURN labels(a) AS labels
-            ";
-            var checkRows = await _gateway.ExecuteCypherAsync(checkQuery, new { uid });
-            var labels = checkRows.Count > 0
-                ? Neo4jValueConverter.AsStringList(checkRows[0].GetValueOrDefault("labels"))
-                : new List<string>();
-
-            if (labels.Contains("MerchantPlace"))
-            {
-                const string markDeletedQuery = @"
-                    MATCH (a:MerchantPlace {uid: $uid})
-                    SET a.is_deleted = true, a.deleted_at = datetime()
-                ";
-                await _gateway.ExecuteCypherAsync(markDeletedQuery, new { uid });
-            }
-            else
-            {
-                const string deleteCurrentOnlyQuery = @"
-                    MATCH (a {uid: $uid})-[:HAS_VERSION]->(v:Current)
-                    WHERE v.source = 'merchant'
-                    DETACH DELETE v
-                ";
-                await _gateway.ExecuteCypherAsync(deleteCurrentOnlyQuery, new { uid });
-            }
         }
     }
 }

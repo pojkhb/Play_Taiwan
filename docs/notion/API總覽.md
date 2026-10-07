@@ -284,7 +284,6 @@
 | `PUT /api/merchant/questions/{questionId}` | 修改題目與選項 | 不用 | ✅ 實測可用 | questionId（路徑，integer）；JSON：question_describe（string）、options（QuestionOptionInput[]） |
 | `POST /api/merchant/register` | 註冊商家 | 不用 | ✅ 實測可用 | JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、s |
 | `GET /api/merchant/register/search-place` | 搜尋既有景點 | 不用 | ✅ 實測可用 | keyword（查詢，string） |
-| `DELETE /api/merchant/{sId}` | 刪除商家帳號 | 不用 | ✅ 實測可用 | sId（路徑，integer） |
 | `GET /api/merchant/{sId}` | 查詢商家資料 | 不用 | ✅ 實測可用 | sId（路徑，integer） |
 | `PUT /api/merchant/{sId}` | 更新商家資料 | 不用 | ✅ 實測可用 | sId（路徑，integer）；JSON：store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string） |
 | `GET /api/nfc/scan/{nfcUid}` | 掃描 NFC 貼紙查詢商家與優惠券資訊 | 不用 | ✅ 實測可用 | nfcUid（路徑，string）；auId（查詢，integer） |

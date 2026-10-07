@@ -87,6 +87,8 @@ namespace backend.ViewModels
         public string district_name { get; set; }
         public int party_size { get; set; }
         public List<string> s_tag { get; set; }
+
+        /// <summary>1 = 夜間劇本、2 = 白天劇本（AI 文件定義，沒有 0）</summary>
         public int is_night_mode { get; set; }
 
         /// <summary>各份劇本的生成條件，每份各自一組景點與敘事語氣</summary>

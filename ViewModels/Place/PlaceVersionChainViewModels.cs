@@ -14,6 +14,7 @@ namespace backend.ViewModels
 
     /// <summary>
     /// 商家可自行編輯、寫入版本鏈的欄位。PUT 更新商家資料、註冊時建立新景點都共用這組欄位。
+    /// 營業時間不在版本鏈，跟政府資料一樣存成身分節點底下的 (:OperatingHours)（見 OperatingHoursRules）。
     /// </summary>
     public class MerchantPlaceFields
     {
@@ -22,25 +23,6 @@ namespace backend.ViewModels
         public string description { get; set; }
         public string phone { get; set; }
         public string website { get; set; }
-        public string opening_hours { get; set; }
-    }
-
-    /// <summary>
-    /// 商家註冊時選「都沒有，我要建立新的」景點要帶的資料：版本鏈欄位 + 座標與分類。
-    /// 地址（註冊請求的 store_city、store_town、store_address）與座標至少填一個，只填一個時後端自動轉另一個，
-    /// 轉不了才要兩個都填（見 StoreLocationService）；景點會掛到 Neo4j 的鄉鎮市區。
-    /// 分類影響任務類型判斷（Restaurant 會加地方美食型）。
-    /// </summary>
-    public class MerchantNewPlace : MerchantPlaceFields
-    {
-        /// <summary>緯度（選填，前端地圖選點取得；和 lng 要一起帶）</summary>
-        public double? lat { get; set; }
-
-        /// <summary>經度（選填）</summary>
-        public double? lng { get; set; }
-
-        /// <summary>景點分類：Attraction / Restaurant / Hotel / Event，不帶時預設 Restaurant</summary>
-        public string category { get; set; }
     }
 
     /// <summary>Neo4j 的鄉鎮市區節點（:Town），town_id 為「縣市_鄉鎮市區」。</summary>
@@ -84,11 +66,16 @@ namespace backend.ViewModels
         public string description { get; set; }
     }
 
-    /// <summary>單一營業時段，對應 Neo4j (:OperatingHours) 節點。</summary>
+    /// <summary>單一營業時段，對應 Neo4j (:OperatingHours) 節點。商家註冊填營業時間也用這個格式。</summary>
     public class PlaceOperatingHourItem
     {
+        /// <summary>Monday～Sunday</summary>
         public string day_of_week { get; set; }
+
+        /// <summary>開始時間，24 小時制 "HH:mm"，例如 "11:00"</summary>
         public string open_time { get; set; }
+
+        /// <summary>結束時間，"HH:mm"；比開始時間早代表跨夜（例如 "02:00"），營業到半夜 12 點為 "00:00"</summary>
         public string close_time { get; set; }
     }
 

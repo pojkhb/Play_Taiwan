@@ -27,10 +27,10 @@ namespace backend.dao
         /// 註冊商家：建立 auth(auth_type=2, is_active=1) + store，在同一個 Transaction 內完成。
         /// 免審核直接啟用，同時把 is_email_verified 設為 1，讓商家可以直接登入，
         /// 不用額外走一次信箱驗證流程。
-        /// newPlace 有值（商家自建景點）時，同一個交易再寫入 place_type（通用任務類型 6、7、8）。
+        /// isNewPlace（商家自建景點）時，同一個交易再寫入 place_type（通用任務類型 6、7、8）。
         /// 座標只存在 Neo4j 的自建景點節點（:MerchantPlace），行程規劃、地圖、任務位置驗證都依 uid 向 Neo4j 查。
         /// </summary>
-        public (int auId, int sId) RegisterMerchant(MerchantRegisterRequest req, string passwordHash, string storeUid, MerchantNewPlace newPlace)
+        public (int auId, int sId) RegisterMerchant(MerchantRegisterRequest req, string passwordHash, string storeUid, bool isNewPlace)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
@@ -66,11 +66,9 @@ namespace backend.dao
                     store_uid = storeUid
                 }, transaction);
 
-                if (newPlace != null)
+                if (isNewPlace)
                 {
-                    string placeName = string.IsNullOrWhiteSpace(newPlace.name) ? req.store_name : newPlace.name;
-
-                    PlaceTypeWriter.AddTypes(connection, transaction, storeUid, placeName, newPlace.category, PlaceTypeWriter.GenericTypeIds);
+                    PlaceTypeWriter.AddTypes(connection, transaction, storeUid, req.store_name, req.category, PlaceTypeWriter.GenericTypeIds);
                 }
 
                 transaction.Commit();

@@ -187,7 +187,7 @@ namespace backend.Models
         public List<NodePlayOption> options { get; set; } = new();
         public int pass { get; set; }                  // 0=未通過、1=已通過（協作隊伍共用）
         public int wrong_count { get; set; }           // 自己在這題答錯的次數
-        public bool hint_available { get; set; }       // 是否可以取提示（答錯次數達門檻、還沒通過、這題有提示；門檻依題目難易度與玩家表現）
+        public bool hint_available { get; set; }       // 是否可以取提示（還沒通過、這題有提示；選擇題要先答錯 1 次，其他題型一開始就可以）
     }
 
     /// <summary>選項（不含正確答案）</summary>

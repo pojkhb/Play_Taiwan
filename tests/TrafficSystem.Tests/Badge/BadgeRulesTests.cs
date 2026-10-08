@@ -32,7 +32,7 @@ public class BadgeRulesTests
         string[] tags = null, int[] taskTypes = null, string placeCategory = "Attraction") => new()
     {
         city_name = city,
-        is_night_mode = night ? 1 : 2,
+        is_night_mode = night ? 1 : 0,
         places = (places ?? Array.Empty<string>())
             .Select(p => new BadgeDao.StoryPlace { place_name = p, place_category = placeCategory })
             .ToList(),

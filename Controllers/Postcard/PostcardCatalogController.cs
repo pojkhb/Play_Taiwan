@@ -66,7 +66,7 @@ namespace backend.Controllers
         ///     "summary": "晨曦的秘密花園，夕陽的城市堡壘...",
         ///     "imageUrl": "https://external-ai-service.com/generated/xxx.png",
         ///     "category": "AI Generate",
-        ///     "isNightEditionDefault": false,
+        ///     "isNightEdition": false,
         ///     "sortOrder": 1,
         ///     "isActive": true
         ///   }
@@ -251,7 +251,7 @@ namespace backend.Controllers
         ///       "postcardName": "台北101 專屬明信片",
         ///       "summary": "晨曦的秘密花園...",
         ///       "imageUrl": "https://external-ai-service.com/generated/xxx.png",
-        ///       "isNightEditionDefault": false,
+        ///       "isNightEdition": false,
         ///       "category": "AI Generate",
         ///       "sortOrder": 1,
         ///       "isActive": true,

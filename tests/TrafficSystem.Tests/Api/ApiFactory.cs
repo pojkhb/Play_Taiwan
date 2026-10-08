@@ -232,7 +232,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
                                story_postcards, is_active, is_night_mode)
             VALUES (@ownerId, @city, '中正區', @title, '前情提要', '劇本簡介', @count, 1, @night);
             SELECT LAST_INSERT_ID();",
-            new { ownerId, city, title = $"測試劇本 {string.Join("、", places)}", count = places.Length, night = night ? 1 : 2 });
+            new { ownerId, city, title = $"測試劇本 {string.Join("、", places)}", count = places.Length, night = night ? 1 : 0 });
 
         for (int i = 0; i < places.Length; i++)
         {

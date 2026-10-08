@@ -28,7 +28,7 @@ public class PostcardCatalogApiTests
         _api.FakeAi.Images[imageUrl] = new byte[] { 0x89, 0x50, 0x4E, 0x47, 1, 2, 3 };
         await _api.ExecuteAsync(@"
             INSERT INTO postcard (au_id, s_id, p_name, p_summary, p_imag_url, is_night)
-            VALUES (@owner, @storyId, '測試明信片', '測試用', @imageUrl, 2);", new { owner, storyId, imageUrl });
+            VALUES (@owner, @storyId, '測試明信片', '測試用', @imageUrl, 0);", new { owner, storyId, imageUrl });
         int id = await _api.QueryAsync<int>("SELECT MAX(p_id) FROM postcard WHERE au_id = @owner;", new { owner });
         return (id, imageUrl);
     }

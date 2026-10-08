@@ -30,7 +30,7 @@ namespace backend.Models
         /// <summary>明信片圖片網址（AI 生成）</summary>
         public string p_imag_url { get; set; }
 
-        /// <summary>是否為夜間模式：1 = 是、2 = 否（注意不是 0/1）</summary>
+        /// <summary>是否為夜間版：1 = 夜間、0 = 白天</summary>
         public int is_night { get; set; }
 
         /// <summary>建立時間</summary>

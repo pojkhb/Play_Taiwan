@@ -331,6 +331,16 @@ namespace backend
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            // 反向代理（Cloudflare Tunnel / Nginx）帶來的 X-Forwarded-Proto/For 要最先套用，
+            // 後面組網址（驗證信、重設密碼、圖片網址）才會拿到 https 與真實 IP
+            app.UseForwardedHeaders(
+                new ForwardedHeadersOptions
+                {
+                    ForwardedHeaders =
+                        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                }
+            );
+
             // 集中式例外處理放在最外層：包住包含 DeveloperExceptionPage 在內的所有後續中介軟體，
             // 讓 API 不管在哪個環境，未攔截例外都統一回傳 ResultViewModel JSON，
             // 不會在本機開發時被 DeveloperExceptionPage 攔走、變成整頁 HTML 除錯畫面。
@@ -354,14 +364,6 @@ namespace backend
             {
                 endpoints.MapControllers();
             });
-
-            app.UseForwardedHeaders(
-                new ForwardedHeadersOptions
-                {
-                    ForwardedHeaders =
-                        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-                }
-            );
 
             ConfigureBusSync(app);
             ConfigureMetroSync(app);

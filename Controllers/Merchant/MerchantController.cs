@@ -11,8 +11,8 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 商家專屬後台 API。
-    /// 提供商家登入／註冊、店家資料維護、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
-    /// 除了登入與註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
+    /// 提供商家註冊、店家資料維護、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
+    /// 商家登入跟一般帳號共用 POST api/Auth/Login；除了註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
     /// 錯誤統一由 ExceptionHandlingMiddleware 轉成 ResultViewModel（404 / 409 / 403 / 500）。
     /// </summary>
     [Authorize]
@@ -21,70 +21,13 @@ namespace backend.Controllers
     public class MerchantController : ControllerBase
     {
         private readonly MerchantService _service;
-        private readonly AuthService _authService;
 
-        public MerchantController(MerchantService service, AuthService authService)
+        public MerchantController(MerchantService service)
         {
             _service = service;
-            _authService = authService;
         }
 
-        #region 1. 商家登入
-        /// <summary>
-        /// 商家登入，成功後回傳 JWT。
-        /// </summary>
-        /// <remarks>
-        /// 只接受商家帳號（auth_type = 2）且已建立店家資料；Token 帶 au_id、s_id 與 Role=Merchant，
-        /// 之後呼叫商家 API 放在 Header：Authorization: Bearer {token}。
-        ///
-        /// **Request 範例**：
-        /// ```json
-        /// {
-        ///   "auth_name": "masha-garden@example.com",
-        ///   "auth_pswd": "123456"
-        /// }
-        /// ```
-        ///
-        /// **Response 範例**：
-        /// ```json
-        /// {
-        ///   "isSuccess": true,
-        ///   "message": "登入成功",
-        ///   "Result": {
-        ///     "token": "eyJhbGciOi...",
-        ///     "au_id": 2,
-        ///     "auth_name": "瑪莎園景觀餐廳",
-        ///     "auth_type": 2,
-        ///     "account_type_name": "Merchant",
-        ///     "s_id": 2
-        ///   }
-        /// }
-        /// ```
-        /// </remarks>
-        [AllowAnonymous]
-        [HttpPost]
-        [Route("Login")]
-        [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
-        public IActionResult Login([FromBody] LoginRequest req)
-        {
-            // 登入失敗的回應方式比照 api/Auth/Login，前端可共用同一套處理
-            try
-            {
-                return Ok(new ResultViewModel<LoginResponse>
-                {
-                    isSuccess = true,
-                    message = "登入成功",
-                    Result = _authService.MerchantLogin(req)
-                });
-            }
-            catch (System.Exception e)
-            {
-                return NotFound(new ResultViewModel<LoginResponse> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-        #region 2. 商家註冊
+        #region 1. 商家註冊
         /// <summary>註冊商家。</summary>
         /// <remarks>
         /// 建立 auth(auth_type=2, 免審核直接啟用) + store。place_uid 與 new_place 二擇一：
@@ -93,7 +36,7 @@ namespace backend.Controllers
         /// 並寫入 MySQL place（座標）與 place_type（通用任務類型 6、7、8），讓這個景點能被排進劇本行程。
         /// new_place.lat / new_place.lng 必填（建議由地圖選點取得）；new_place.category 可選
         /// Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
-        /// 註冊完成後請呼叫 POST api/Merchant/Login 取得 Token。
+        /// 註冊完成後請呼叫 POST api/Auth/Login（跟一般帳號同一個登入）取得 Token。
         /// </remarks>
         [AllowAnonymous]
         [HttpPost]
@@ -111,7 +54,7 @@ namespace backend.Controllers
         }
         #endregion
 
-        #region 3. 店家資料
+        #region 2. 店家資料
         /// <summary>查詢登入商家的店家資料。</summary>
         [Authorize(Roles = "Merchant")]
         [HttpGet]
@@ -169,7 +112,7 @@ namespace backend.Controllers
         }
         #endregion
 
-        #region 4. 已經生成檔案列表 (依編輯時間新到舊排序)
+        #region 3. 已經生成檔案列表 (依編輯時間新到舊排序)
         /// <summary>
         /// 取得商家已生成的檔案清單。
         /// </summary>

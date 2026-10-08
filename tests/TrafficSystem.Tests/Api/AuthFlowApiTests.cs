@@ -1,4 +1,4 @@
-// 帳號流程：註冊 → 信箱驗證 → 登入 → 改名稱 → 改密碼 → 忘記密碼 → 重設密碼 → 登出
+// 帳號流程：註冊 → 信箱驗證 → 登入 → 改名稱 → 改密碼 → 忘記密碼 → 重設密碼 → 登出；商家也用同一個登入
 // 寄信在測試環境一律失敗（ApiFactory 把 SMTP 指到不存在的位址），驗證碼、重設碼從資料庫讀
 using System.Net;
 using System.Net.Http.Headers;
@@ -131,10 +131,101 @@ public class AuthFlowApiTests
     }
 
     [Fact]
+    public async Task 重設密碼信的連結打開是重設網頁_不會用掉重設碼()
+    {
+        var (name, email) = NewAccount();
+        await RegisterAndVerifyAsync(name, email, "OldPass1!");
+        await _api.CreateClient().PostAsJsonAsync("/api/Auth/ForgotPassword", new { Email = email });
+        string resetToken = await _api.QueryAsync<string>("SELECT pwd_reset_token FROM auth WHERE auth_email = @email;", new { email });
+
+        HttpResponseMessage page = await _api.CreateClient().GetAsync($"/api/Auth/ResetPassword?token={resetToken}");
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal("text/html", page.Content.Headers.ContentType.MediaType);
+        Assert.Contains("id='reset-form'", await page.Content.ReadAsStringAsync());
+
+        // 網頁送出的就是 POST ResetPassword；開過網頁後重設碼還能用
+        var reset = await (await _api.CreateClient().PostAsJsonAsync("/api/Auth/ResetPassword", new { Token = resetToken, NewPassword = "Reset123!" })).ReadResultAsync();
+        Assert.True(reset.isSuccess, reset.message);
+        Assert.True((await LoginAsync(email, "Reset123!")).isSuccess);
+    }
+
+    [Fact]
+    public async Task 重設碼無效時重設網頁顯示連結已失效()
+    {
+        HttpResponseMessage page = await _api.CreateClient().GetAsync("/api/Auth/ResetPassword?token=not-a-real-token");
+
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        string html = await page.Content.ReadAsStringAsync();
+        Assert.Contains("連結已失效", html);
+        Assert.DoesNotContain("id='reset-form'", html);
+    }
+
+    [Fact]
     public async Task 忘記密碼用沒註冊過的Email回傳錯誤()
     {
         var result = await (await _api.CreateClient().PostAsJsonAsync("/api/Auth/ForgotPassword", new { Email = "nobody@example.com" })).ReadResultAsync();
 
         Assert.False(result.isSuccess);
+    }
+
+    /// <summary>註冊並驗證一個帳號後改成商家帳號（auth_type = 2），withStore 時一併建立店家，回傳 (email, s_id)</summary>
+    private async Task<(string email, int? sId)> CreateMerchantAccountAsync(string password, bool withStore)
+    {
+        var (name, email) = NewAccount();
+        await RegisterAndVerifyAsync(name, email, password);
+        int auId = await _api.QueryAsync<int>("SELECT au_id FROM auth WHERE auth_email = @email;", new { email });
+        await _api.ExecuteAsync("UPDATE auth SET auth_type = 2 WHERE au_id = @auId;", new { auId });
+        if (!withStore) return (email, null);
+
+        await _api.ExecuteAsync("INSERT INTO store (au_id, store_name, store_city) VALUES (@auId, @name, '臺中市');", new { auId, name = $"測試小吃{auId}" });
+        return (email, await _api.QueryAsync<int>("SELECT s_id FROM store WHERE au_id = @auId;", new { auId }));
+    }
+
+    [Fact]
+    public async Task 商家帳號也用一般登入_Token可以直接呼叫商家API()
+    {
+        var (email, sId) = await CreateMerchantAccountAsync("Pass1234!", withStore: true);
+
+        ApiResult<LoginResponse> login = await LoginAsync(email, "Pass1234!");
+
+        Assert.True(login.isSuccess, login.message);
+        Assert.Equal(2, login.Result.auth_type);
+        Assert.Equal("Merchant", login.Result.account_type_name);
+        Assert.Equal(sId, login.Result.store_id);
+
+        var profile = await (await WithToken(login.Result.token).GetAsync("/api/Merchant/Profile")).ReadResultAsync();
+        Assert.True(profile.isSuccess, profile.message);
+    }
+
+    [Fact]
+    public async Task 商家帳號還沒有店家資料時不能登入()
+    {
+        var (email, _) = await CreateMerchantAccountAsync("Pass1234!", withStore: false);
+
+        ApiResult<LoginResponse> login = await LoginAsync(email, "Pass1234!");
+
+        Assert.False(login.isSuccess);
+        Assert.Contains("商家註冊", login.message);
+    }
+
+    [Fact]
+    public async Task 遊客登入不會帶店家代號()
+    {
+        var (name, email) = NewAccount();
+        await RegisterAndVerifyAsync(name, email, "Pass1234!");
+
+        ApiResult<LoginResponse> login = await LoginAsync(email, "Pass1234!");
+
+        Assert.True(login.isSuccess, login.message);
+        Assert.Null(login.Result.store_id);
+    }
+
+    [Fact]
+    public async Task 已經沒有獨立的商家登入()
+    {
+        HttpResponseMessage response = await _api.CreateClient().PostAsJsonAsync("/api/Merchant/Login", new { auth_name = "someone", auth_pswd = "Pass1234!" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

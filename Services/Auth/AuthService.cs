@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -40,33 +41,18 @@ namespace backend.Services
 
         #region 登入
         /// <summary>
-        /// 一般登入（遊客／商家／管理員共用）。商家帳號的 Token 會一併帶 s_id Claim，可直接呼叫商家 API。
+        /// 登入（遊客／商家／管理員共用同一個入口）。
+        /// 商家帳號必須已建立店家資料，Token 會一併帶 s_id Claim 與 Role=Merchant，可直接呼叫商家 API。
         /// </summary>
         public LoginResponse Login(LoginRequest req)
         {
             AuthAccount account = ValidateCredentials(req);
 
-            int? sId = account.auth_type == MerchantAuthType ? _dao.GetStoreIdByAuId(account.au_id) : null;
-
-            return IssueLogin(account, sId);
-        }
-
-        /// <summary>
-        /// 商家登入：只接受商家帳號（auth_type = 2）且已建立店家資料，Token 帶 au_id + s_id + Role=Merchant。
-        /// </summary>
-        public LoginResponse MerchantLogin(LoginRequest req)
-        {
-            AuthAccount account = ValidateCredentials(req);
-
-            if (account.auth_type != MerchantAuthType)
+            int? sId = null;
+            if (account.auth_type == MerchantAuthType)
             {
-                throw new UnauthorizedAccessException("此帳號不是商家帳號，請改用一般登入");
-            }
-
-            int? sId = _dao.GetStoreIdByAuId(account.au_id);
-            if (sId == null)
-            {
-                throw new UnauthorizedAccessException("找不到此帳號的商家資料，請先完成商家註冊");
+                sId = _dao.GetStoreIdByAuId(account.au_id)
+                    ?? throw new UnauthorizedAccessException("找不到此帳號的商家資料，請先完成商家註冊");
             }
 
             return IssueLogin(account, sId);
@@ -122,7 +108,7 @@ namespace backend.Services
                 auth_name = account.auth_name,
                 auth_type = account.auth_type,
                 account_type_name = GetAccountTypeName(account.auth_type),
-                s_id = sId
+                store_id = sId
             };
         }
         #endregion
@@ -147,7 +133,8 @@ namespace backend.Services
                 throw new Exception("註冊失敗，該 Email 可能已被註冊過。");
             }
 
-            string verifyUrl = $"http://localhost:5501/api/Auth/VerifyEmail?token={emailToken}";
+            // 用使用者連進來的網址（本機或對外 domain）組連結
+            string verifyUrl = PublicUrl.Of(_ipContext.Request, $"/api/Auth/VerifyEmail?token={emailToken}");
             string subject = "歡迎加入 Play Taiwan！你的探險即將開始";
             string htmlContent = $@"
                 <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
@@ -203,7 +190,8 @@ namespace backend.Services
 
             _dao.SetPasswordResetToken(account.au_id, resetToken, validMinutes: 30);
 
-            string resetUrl = $"http://localhost:5501/reset-password?token={resetToken}";
+            // 連到後端提供的重設密碼網頁（App 沒有網頁可以接這個連結）
+            string resetUrl = PublicUrl.Of(_ipContext.Request, $"/api/Auth/ResetPassword?token={resetToken}");
             string subject = "Play Taiwan - 密碼重設通知";
             string htmlContent = $@"
                 <div style='font-family: Arial; padding: 20px;'>
@@ -222,6 +210,12 @@ namespace backend.Services
         #endregion
 
         #region 依重設 Token 完成密碼重設
+        /// <summary>重設碼存在且未過期（重設密碼網頁決定要顯示表單還是失效頁）</summary>
+        public bool IsResetTokenValid(string token)
+        {
+            return !string.IsNullOrWhiteSpace(token) && _dao.GetAccountByResetToken(token) != null;
+        }
+
         public void ResetPassword(ResetPasswordRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))
@@ -340,7 +334,7 @@ namespace backend.Services
             LoginResponse profile = _dao.GetProfile(auId);
             if (profile == null) throw new Exception("找不到此帳號");
             profile.account_type_name = GetAccountTypeName(profile.auth_type);
-            profile.s_id = profile.auth_type == MerchantAuthType ? _dao.GetStoreIdByAuId(auId) : null;
+            profile.store_id = profile.auth_type == MerchantAuthType ? _dao.GetStoreIdByAuId(auId) : null;
             return profile;
         }
         #endregion

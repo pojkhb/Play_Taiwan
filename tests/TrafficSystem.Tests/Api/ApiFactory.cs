@@ -38,6 +38,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
 
     /// <summary>測試產生的迷霧圖放這裡（不寫進專案的 wwwroot），跑完刪掉</summary>
     public string FogRoot { get; } = Path.Combine(Path.GetTempPath(), $"play_taiwan_test_fog_{Guid.NewGuid():N}");
+
+    /// <summary>呼叫 AI 的 request / response 紀錄放這裡（不寫進專案的 logs/ai），跟著 FogRoot 一起刪掉</summary>
+    public string AiLogRoot => Path.Combine(FogRoot, "ai-log");
     private readonly string _serverConnection;
     private int _nextUserId = 1000;
 
@@ -86,6 +89,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["SmtpSettings:Port"] = "1",
             ["Fog:GeneratedRoot"] = FogRoot,
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
+            ["AiService:TrafficLogRoot"] = AiLogRoot,
         }));
         builder.ConfigureTestServices(services =>
         {

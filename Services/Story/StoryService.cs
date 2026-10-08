@@ -911,8 +911,7 @@ namespace backend.Services
             HttpClient client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(10);
 
-            await DumpAiRequestAsync(aiRequest);
-
+            // 送出的 request 與 AI 的 response 由 AiTrafficLogHandler 記錄在 logs/ai/{日期}/
             var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
             HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(GameStoryPath), content);
             string responseString = await response.Content.ReadAsStringAsync();
@@ -929,31 +928,6 @@ namespace backend.Services
                 throw new Exception($"AI 劇本任務回傳格式無法解析: {ex.Message}");
             }
         }
-
-        /// <summary>
-        /// 除錯用：把送給 AI 的 request 寫到專案目錄 logs/ai_story_request.json（每次覆蓋成最新一次）。
-        /// 中文不轉成 \uXXXX、加縮排方便閱讀；內容與實際送出的相同。寫檔失敗不影響生成。
-        /// </summary>
-        private static async Task DumpAiRequestAsync(AiGameStoryRequest aiRequest)
-        {
-            try
-            {
-                string dir = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "logs");
-                System.IO.Directory.CreateDirectory(dir);
-
-                string json = JsonSerializer.Serialize(aiRequest, new JsonSerializerOptions
-                {
-                    WriteIndented = true,
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                });
-                await System.IO.File.WriteAllTextAsync(System.IO.Path.Combine(dir, "ai_story_request.json"), json, Encoding.UTF8);
-            }
-            catch
-            {
-                // 除錯輸出，失敗就略過
-            }
-        }
-
 
         /// <summary>
         /// 從範圍內所有景點抽出多組景點，每組各圈層輪流隨機抽。

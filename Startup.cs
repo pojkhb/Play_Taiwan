@@ -90,6 +90,13 @@ namespace backend
             //     });
             services.AddHttpClient();
 
+            // 記錄每一次呼叫 AI Service 的 request / response（logs/ai/{日期}/），
+            // 掛在所有 IHttpClientFactory 建立的 HttpClient 上，只記錄 AiService:BaseUrl 的網址
+            services.AddTransient<AiTrafficLogHandler>();
+            services.ConfigureAll<Microsoft.Extensions.Http.HttpClientFactoryOptions>(options =>
+                options.HttpMessageHandlerBuilderActions.Add(builder =>
+                    builder.AdditionalHandlers.Add(builder.Services.GetRequiredService<AiTrafficLogHandler>())));
+
             // 若以 IIS in-process 模式代管，Kestrel 的 [RequestSizeLimit] 不會生效，
             // 需另外調高 IIS 的請求大小上限，跟 UploadController 的 MaxUploadBytes 對齊（200MB）。
             services.Configure<IISServerOptions>(options =>

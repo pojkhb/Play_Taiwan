@@ -1,6 +1,7 @@
 // 外部服務失敗時，後端不能當成成功或「查無資料」
 // - 本地 Neo4j 連不上 → 附近景點改用 MySQL 的景點；Neo4j 正常但查無資料 → 空清單
 // - /api/agent/orchestrate 找不到地點：只有 {"message"} → spin 回傳失敗與原因
+// - /api/agent/orchestrate 的 npc_dialogue 等文字欄位被 LLM 拆成陣列 → 合併成一段文字，不能整個失敗
 using System.Net.Http.Json;
 using System.Text.Json;
 using Allure.Net.Commons.Attributes;
@@ -115,5 +116,33 @@ public class AiErrorHandlingApiTests
 
         Assert.True(result.isSuccess, result.message);
         Assert.Equal("往前走 200 公尺就到了", result.Result.GetProperty("agent_result").GetProperty("phase_5_next_step").GetString());
+    }
+
+    [Fact]
+    public async Task Spin_AI把NPC對話回傳成陣列時合併成一段文字()
+    {
+        _api.FakeAi.AgentOrchestrateResponse = new
+        {
+            phase_3_graph_rag = new { },
+            phase_4_action_and_tools = new
+            {
+                script_blueprint = new
+                {
+                    theme_title = "失落的鐘聲",
+                    npc_dialogue = new object[] { "歡迎來到這裡！", new { npc_id = "npc_01", line = "找找看鐘樓下的記號。", emotion = "happy" } },
+                    task_mission = new[] { "找到鐘樓", "拍下記號" },
+                    preparation_tips = new[] { "帶水" }
+                }
+            }
+        };
+        var body = new { input_text = "想找個安靜的地方走走", city_name = "臺北市", town_name = "中正區" };
+
+        var result = await (await _api.ClientFor(_api.NewUserId()).PostAsJsonAsync("/api/Story/spin", body)).ReadResultAsync();
+
+        Assert.True(result.isSuccess, result.message);
+        var blueprint = result.Result.GetProperty("agent_result").GetProperty("phase_4_action_and_tools").GetProperty("script_blueprint");
+        Assert.Equal("失落的鐘聲", blueprint.GetProperty("theme_title").GetString());
+        Assert.Equal("歡迎來到這裡！\n找找看鐘樓下的記號。", blueprint.GetProperty("npc_dialogue").GetString());
+        Assert.Equal("找到鐘樓\n拍下記號", blueprint.GetProperty("task_mission").GetString());
     }
 }

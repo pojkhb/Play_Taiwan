@@ -256,16 +256,19 @@ public class Phase4ActionAndTools
     public string tool_2_social_share { get; set; }
 }
 
-/// <summary>單一任務腳本</summary>
+/// <summary>單一任務腳本（AI 直接用 LLM 的輸出，沒有驗證型態，文字欄位可能被拆成陣列）</summary>
 public class ScriptBlueprintSimple
 {
     /// <summary>主題標題</summary>
+    [JsonConverter(typeof(LooseStringJsonConverter))]
     public string theme_title { get; set; }
 
-    /// <summary>NPC 對話</summary>
+    /// <summary>NPC 對話（AI 偶爾回傳多句的陣列，會合併成一段，每句一行）</summary>
+    [JsonConverter(typeof(LooseStringJsonConverter))]
     public string npc_dialogue { get; set; }
 
     /// <summary>任務內容</summary>
+    [JsonConverter(typeof(LooseStringJsonConverter))]
     public string task_mission { get; set; }
 
     /// <summary>出發前準備建議</summary>

@@ -38,6 +38,19 @@ public class BadgeApiTests
         Assert.Equal(6, groups.Count);
         Assert.Equal(70, groups.Sum(g => g.badges.Count));
         Assert.DoesNotContain(groups.SelectMany(g => g.badges), b => b.is_owned);
+
+        // 順序跟勳章對照表一樣（照 b_id）；分類前面帶圖示，圖片是完整網址，前端直接顯示
+        Assert.Equal(
+            new[] { "🏝️ 島嶼城市", "🍜 台灣味", "🏛️ 台灣印記", "🐻 島嶼生靈", "🏮 老台灣", "🌙 午夜台灣" },
+            groups.Select(g => g.series_name));
+        Assert.Equal(Enumerable.Range(1, 70), groups.SelectMany(g => g.badges).Select(b => b.b_id));
+        Assert.All(groups.SelectMany(g => g.badges), b => Assert.StartsWith("http", b.b_image));
+
+        // 稱號跟圖片照對照表配對
+        BadgeItem first = groups.First().badges.First();
+        BadgeItem last = groups.Last().badges.Last();
+        Assert.Equal(("霓虹之眼", "Taipei.png"), (first.b_name, first.b_image.Split('/').Last()));
+        Assert.Equal(("月下旅人", "moonlit_traveler.png"), (last.b_name, last.b_image.Split('/').Last()));
     }
 
     [Fact]
@@ -65,8 +78,10 @@ public class BadgeApiTests
         // 第一次抽：從「台北」城市勳章或路線經過的地標裡抽一枚
         BadgeDrawResponse first = (await DrawAsync(client, storyId)).Result;
         Assert.True(first.is_new);
-        Assert.Equal(new[] { "島嶼城市", "台灣印記" }, first.categories);
+        Assert.Equal(new[] { "🏝️ 島嶼城市", "🏛️ 台灣印記" }, first.categories);
         Assert.Contains(first.badge.b_thing, new[] { "台北", "台北101", "中正紀念堂" });
+        Assert.Contains(first.badge.b_fication, first.categories);
+        Assert.StartsWith("http", first.badge.b_image);
 
         // 再抽一次：一個劇本只能抽一枚，回傳同一枚
         BadgeDrawResponse second = (await DrawAsync(client, storyId)).Result;
@@ -93,7 +108,7 @@ public class BadgeApiTests
         await PlayAndFinishAsync(client, storyId);
         BadgeDrawResponse result = (await DrawAsync(client, storyId)).Result;
 
-        Assert.Equal(new[] { "島嶼城市", "午夜台灣" }, result.categories);
+        Assert.Equal(new[] { "🏝️ 島嶼城市", "🌙 午夜台灣" }, result.categories);
         Assert.Contains(result.badge.b_fication, result.categories);
     }
 }

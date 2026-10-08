@@ -122,6 +122,8 @@ public class StoryRecapApiTests
         StoryRecapPostcard card = Assert.Single(recap.postcards);
         Assert.True(card.is_night_edition);
         Assert.Equal(1, recap.badge.badge_id);
+        Assert.Equal("🏝️ 島嶼城市", recap.badge.series);
+        Assert.StartsWith("http", recap.badge.image_url);
         Assert.Null(recap.vlog);
 
         // 沒有 Vlog：旁白依各站劇情組成，語音還沒產生

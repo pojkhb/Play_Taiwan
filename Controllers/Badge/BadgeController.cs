@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -36,6 +38,7 @@ namespace backend.Controllers
         /// <remarks>
         /// 整併原本 /api/Badge、/api/Favorite（徽章部分）、/api/Badge/Status 三支重複邏輯，
         /// 統一保留這一支，回傳格式依系列巢狀分組。
+        /// series_name 前面帶分類圖示（例如「🌙 午夜台灣」），b_image 是完整網址，前端都直接顯示。
         ///
         /// Request 範例：
         ///
@@ -49,11 +52,15 @@ namespace backend.Controllers
         {
             try
             {
+                List<BadgeSeriesGroup> groups = _service.GetBadgeCatalog(User.GetAuId());
+                foreach (BadgeItem badge in groups.SelectMany(g => g.badges))
+                    badge.b_image = PublicUrl.Of(Request, badge.b_image);
+
                 return Ok(new ResultViewModel<List<BadgeSeriesGroup>>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetBadgeCatalog(User.GetAuId()),
+                    Result = groups,
                 });
             }
             catch (Exception e)
@@ -80,6 +87,7 @@ namespace backend.Controllers
         ///
         /// 先平均抽類別、再從類別裡抽一枚，已擁有的不會再抽到。
         /// 重複呼叫會回傳當初抽到的那枚（is_new = false）；可抽的都已收集時 badge 為 null。
+        /// categories 與 badge.b_fication 前面帶分類圖示（例如「🏝️ 島嶼城市」），badge.b_image 是完整網址。
         ///
         ///     POST /api/Badge/Draw
         ///     { "story_id": 1 }
@@ -93,6 +101,9 @@ namespace backend.Controllers
             try
             {
                 BadgeDrawResponse result = await _service.DrawAsync(User.GetAuId(), request.story_id);
+                if (result.badge != null)
+                    result.badge.b_image = PublicUrl.Of(Request, result.badge.b_image);
+
                 return Ok(new ResultViewModel<BadgeDrawResponse>
                 {
                     isSuccess = true,

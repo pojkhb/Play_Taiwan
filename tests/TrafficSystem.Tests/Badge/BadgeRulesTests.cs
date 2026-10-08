@@ -48,6 +48,23 @@ public class BadgeRulesTests
     private static List<string> Things(BadgeDao.StoryFacts facts, string category) =>
         Pool(facts).Where(b => b.b_fication == category).Select(b => b.b_thing).ToList();
 
+    #region 分類圖示
+
+    [Theory]
+    [InlineData("午夜台灣", "🌙 午夜台灣")]
+    [InlineData("台灣印記", "🏛️ 台灣印記")]
+    [InlineData("台灣味", "🍜 台灣味")]
+    [InlineData("島嶼城市", "🏝️ 島嶼城市")]
+    [InlineData("島嶼生靈", "🐻 島嶼生靈")]
+    [InlineData("老台灣", "🏮 老台灣")]
+    [InlineData("新的分類", "🏆 新的分類")]   // 對照表沒有的分類用獎盃
+    public void 分類前面加上對應的圖示(string category, string expected)
+    {
+        Assert.Equal(expected, BadgeService.CategoryLabel(category));
+    }
+
+    #endregion
+
     #region 島嶼城市
 
     [Theory]

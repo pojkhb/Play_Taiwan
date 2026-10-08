@@ -35,7 +35,7 @@ namespace backend.dao
                     ab.created_at AS obtained_at
                 FROM badge b
                 LEFT JOIN au_badge ab ON ab.b_id = b.b_id AND ab.au_id = @auId
-                ORDER BY b.b_fication, b.b_id;
+                ORDER BY b.b_id;
             ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))

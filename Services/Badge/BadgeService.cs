@@ -19,6 +19,10 @@ namespace backend.Services
         }
 
         #region 取得徽章圖鑑（依 b_fication 分類分組）
+        /// <summary>
+        /// 依 b_id 排序後分組：分類依序是島嶼城市、台灣味、台灣印記、島嶼生靈、老台灣、午夜台灣，
+        /// 每個分類裡也照 b_id，跟勳章對照表的順序一致。
+        /// </summary>
         public List<BadgeSeriesGroup> GetBadgeCatalog(int auId)
         {
             List<BadgeResponse> rows = _dao.GetAllBadgeStatus(auId);
@@ -27,7 +31,7 @@ namespace backend.Services
                 .GroupBy(b => b.b_fication)
                 .Select(g => new BadgeSeriesGroup
                 {
-                    series_name = g.Key,
+                    series_name = CategoryLabel(g.Key),
                     badges = g.Select(b => new BadgeItem
                     {
                         b_id = b.b_id,
@@ -50,6 +54,23 @@ namespace backend.Services
         private const string WildlifeCategory = "島嶼生靈";
         private const string OldTaiwanCategory = "老台灣";
         private const string NightCategory = "午夜台灣";
+
+        /// <summary>
+        /// 回傳給前端的分類名稱前面加上圖示，例如「🌙 午夜台灣」，前端直接顯示。
+        /// 只用在 API 回應；資料庫、story.story_badge 與抽勳章的比對規則仍用原本的分類名稱。
+        /// </summary>
+        public static string CategoryLabel(string category) => $"{CategoryIcon(category)} {category}";
+
+        private static string CategoryIcon(string category) => category switch
+        {
+            NightCategory => "🌙",
+            LandmarkCategory => "🏛️",
+            FoodCategory => "🍜",
+            CityCategory => "🏝️",
+            WildlifeCategory => "🐻",
+            OldTaiwanCategory => "🏮",
+            _ => "🏆"
+        };
 
         /// <summary>總章不對應單一縣市，不放進劇本的抽獎池</summary>
         private const string IslandTotalThing = "臺灣島本島總章";
@@ -109,9 +130,9 @@ namespace backend.Services
                 ?? throw new Exception($"找不到劇本 story_id={storyId}");
 
             List<BadgeInfo> pool = MatchPool(facts, await _dao.GetBadgesAsync());
-            var response = new BadgeDrawResponse { story_id = storyId, categories = Categories(pool) };
+            var response = new BadgeDrawResponse { story_id = storyId, categories = Categories(pool).Select(CategoryLabel).ToList() };
 
-            response.badge = await _dao.GetStoryDrawAsync(auId, storyId);
+            response.badge = ForDisplay(await _dao.GetStoryDrawAsync(auId, storyId));
             if (response.badge != null) return response;
 
             HashSet<int> owned = (await _dao.GetOwnedBadgeIdsAsync(auId)).ToHashSet();
@@ -127,16 +148,26 @@ namespace backend.Services
 
             if (await _dao.TryInsertDrawAsync(auId, picked.b_id, storyId))
             {
-                response.badge = picked;
+                response.badge = ForDisplay(picked);
                 response.is_new = true;
                 return response;
             }
 
             // 同一個劇本同時送出兩次，以先寫入的為準
-            response.badge = await _dao.GetStoryDrawAsync(auId, storyId)
-                ?? throw new Exception("抽勳章失敗，請再試一次");
+            response.badge = ForDisplay(await _dao.GetStoryDrawAsync(auId, storyId)
+                ?? throw new Exception("抽勳章失敗，請再試一次"));
             return response;
         }
+
+        /// <summary>回傳給前端的勳章：分類前面加上圖示</summary>
+        private static BadgeInfo ForDisplay(BadgeInfo badge) => badge == null ? null : new BadgeInfo
+        {
+            b_id = badge.b_id,
+            b_name = badge.b_name,
+            b_fication = CategoryLabel(badge.b_fication),
+            b_thing = badge.b_thing,
+            b_image = badge.b_image
+        };
 
         /// <summary>劇本可抽的勳章（臺灣島本島總章除外）</summary>
         internal static List<BadgeInfo> MatchPool(BadgeDao.StoryFacts facts, List<BadgeInfo> badges)

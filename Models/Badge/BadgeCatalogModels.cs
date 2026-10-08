@@ -24,7 +24,7 @@ namespace backend.Models
     /// 分類直接用 badge.b_fication 的文字值分組，資料庫沒有獨立的系列主表。</summary>
     public class BadgeSeriesGroup
     {
-        /// <summary>勳章分類（系列）名稱</summary>
+        /// <summary>勳章分類（系列）名稱，前面帶圖示，例如「🌙 午夜台灣」</summary>
         public string series_name { get; set; }
 
         /// <summary>此分類底下的所有勳章</summary>
@@ -43,7 +43,7 @@ namespace backend.Models
         /// <summary>勳章對應的物件/達成條件說明</summary>
         public string b_thing { get; set; }
 
-        /// <summary>勳章圖片網址</summary>
+        /// <summary>勳章圖片（完整網址）</summary>
         public string b_image { get; set; }
 
         /// <summary>目前登入者是否已擁有（已解鎖）</summary>

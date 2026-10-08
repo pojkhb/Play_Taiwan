@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -164,6 +165,9 @@ namespace backend.Controllers
             try
             {
                 StoryRecapResponse result = await _recap.GetRecapAsync(User.GetAuId(), story_id, $"{Request.Scheme}://{Request.Host}");
+                if (result.badge != null)
+                    result.badge.image_url = PublicUrl.Of(Request, result.badge.image_url);
+
                 return Ok(new ResultViewModel<StoryRecapResponse> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (KeyNotFoundException e)

@@ -122,7 +122,7 @@ namespace backend.Services
                 {
                     badge_id = badge.b_id,
                     name = badge.b_name,
-                    series = badge.b_fication,
+                    series = BadgeService.CategoryLabel(badge.b_fication),
                     image_url = badge.b_image
                 },
                 vlog = vlog == null ? null : new StoryRecapVlog

@@ -1,93 +1,1555 @@
-名稱,Method,路徑,分類,對應畫面,狀態,需要登入,前端要接,參數,回傳 Result,說明,備註
-修改密碼,POST,/api/Auth/ChangePassword,帳號,登入註冊,✅ 實測可用,需要,要接,JSON：OldPassword（string）、NewPassword（string）,string,修改密碼。 需在登入狀態下，並提供舊密碼驗證。,
-忘記密碼,POST,/api/Auth/ForgotPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Email（string）,string,忘記密碼。 產生重設密碼連結並寄送至信箱，連結 30 分鐘內有效。 使用者需點擊信中連結，再呼叫 ResetPassword 端點完成密碼重設。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址；重設連結 30 分鐘內有效（9/30 修正：原本一產生就過期）
-帳號登入,POST,/api/Auth/Login,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：auth_name（string）、auth_pswd（string）,token、au_id、auth_name、auth_type、account_type_name,帳號登入。 使用帳號名稱(或信箱)與密碼進行登入，成功後同時回傳 auth_type， 供前端判斷登入後要導向探員頁面(1=Tourist)、商家後台(2=Merchant)或管理後台(3=Admin)。,
-帳號登出,POST,/api/Auth/Logout,帳號,登入註冊,✅ 實測可用,需要,要接,,string,帳號登出。 清除目前登入狀態；未來若有 Refresh Token 或登入工作階段資料表， 可在此 API 一併撤銷 Token。,
-取得目前登入帳號的資訊,GET,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,,token、au_id、auth_name、auth_type、account_type_name,"取得目前登入帳號的資訊。 對應「設定－帳號」頁面，同時可用來判斷要導向哪一種介面： account_type_name = ""Tourist"" / ""Merchant"" / ""Admin""。 需在 Header 帶登入取得的 JWT Token：Authorization: Bearer {token}。",
-更新目前登入帳號的名稱,POST,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,JSON：auth_name（string）,string,更新目前登入帳號的名稱。 對應「設定－帳號」頁面的名稱編輯功能。,
-帳號註冊,POST,/api/Auth/Register,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）、ResolvedAccountType（integer）,string,帳號註冊。 註冊新的遊客或商家帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱。 管理員身分不開放自行註冊。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址
-依重設連結 Token 完成密碼重設,POST,/api/Auth/ResetPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Token（string）、NewPassword（string）,string,依重設連結 Token 完成密碼重設。 對應 ForgotPassword 寄出的信件連結，Token 過期或不存在會回傳失敗。,
-信箱驗證與啟用帳號,GET,/api/Auth/VerifyEmail,帳號,登入註冊,✅ 實測可用,不用,不用接,token（查詢，string）,,【前端不用接】信箱驗證與啟用帳號。 前端不用接：這支是寫在驗證信裡的連結，使用者在信箱點擊後由瀏覽器直接開啟，會回傳 HTML 頁面。 供信箱內的驗證連結點擊使用。成功後會將帳號狀態改為已驗證並清空 Token； 若連結已超過 24 小時會回傳過期訊息。,前端不用接：註冊驗證信裡的連結會打這支，回傳 HTML 頁面
-取得首頁目前總覽資訊,GET,/api/Home/Overview,首頁,一、首頁,✅ 實測可用,需要,要接,,ho_completed_story、ho_postcard_count、ho_badge_count、ho_vlog_count、ho_recent_cards,取得首頁目前總覽資訊。 對應「首頁」頁面的目前總覽卡片，包含已完成探索數、明信片、徽章、Vlog 等統計數字。 GET /api/Home/Overview,
-接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入,POST,/api/Story/GenerateByText,劇本生成,二、出發探險,⚠️ 卡在 AI 服務,需要,要接,JSON：user_prompt（string）,story_id、detected_city、detected_town、parsed_intent、data,接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數； 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。,遊你說算。AI 在背景生成，後端每 3 秒查一次進度，最多等 10 分鐘才回應；失敗時 message 會寫卡在哪個階段
-依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫,POST,/api/Story/GenerateGameStory,劇本生成,"二、出發探險, 三、組隊集結",⚠️ 卡在 AI 服務,需要,要接,JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、is_night_mode（integer）,清單，每筆：story_id、story_no、nt_name、story、nodes,依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。 3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複）與一種敘事語氣（narrative_tone）。 景點已去除重複，交通圈只算步行/腳踏車/機車/汽車；同樣的條件每次生成的景點組合都不同。 每個景點可出的任務類型來自 place_type 表；查不到時預設「創意攝影型、文化問答型、協作解謎型」， 1 人時不出協作解謎型。 回傳陣列，每一份都有自己的 story_id；使用者選定後用那份的 story_id 呼叫 Confirm 開始遊玩。 transportation 有選「公車」、「客運」或「台灣好行」時，會找出相鄰節點之間,一次生成 3 份劇本（劇本檔案館的 3 張車票）。會呼叫 AI，可能要好幾分鐘，前端請把逾時設長並顯示等待畫面。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支。節點有 image_url（車票照片）與 location_codename（模糊線索）
-接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推,POST,/api/Story/spin,劇本生成,—,⚠️ 卡在 AI 服務,需要,要接,JSON：input_text（string）、emotion_label（string）、city_name（string）、town_name（string）,recommendation_id、agent_result,接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推薦附近地點與任務，並存入資料庫。 跟舊版差異：舊版是「生成多節點完整劇本」；這支是「單一地點即時推薦 + 單一任務」， 回傳結構完全不同（含行事曆同步連結、社群分享連結），存進獨立的 md_agent_recommendation 表， 不寫入 md_story/md_story_node。,AI 找不到地點時 isSuccess=false，message 是 AI 給的原因（例如「附近沒有符合您當下心情的地點」）
-玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1）， 並自動把其,POST,/api/Story/Confirm,劇本,五、劇情前傳,✅ 實測可用,需要,要接,JSON：story_id（integer）,story_id、title、preface、synopsis、is_night_mode、is_favorite、npc、nodes、subtitle、route_nodes,玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1）， 並自動把其他劇本重置為未進行（假設同一時間只允許一份劇本進行中）。,
-查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆）,GET,/api/Story/CurrentPlaying,劇本,"一、首頁, 六、解謎地圖",✅ 實測可用,需要,要接,,story_id、title、current_order,查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆）。 GET /api/Story/CurrentPlaying,
-玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行（is_playing = 0）,POST,/api/Story/EndStory,劇本,七、任務完成,✅ 實測可用,需要,要接,JSON：story_id（integer）,string,玩家完成或退出劇本時呼叫，把該劇本的進行狀態改回未進行（is_playing = 0）。,把劇本標成完成（首頁總覽、過往旅途、抽徽章都以這個為準）
-我喜愛的劇本清單（最新建立的在前面）,GET,/api/Story/Favorites,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,,清單，每筆：story_id、title、synopsis、city_name、district_name、node_count、is_night_mode、cover_image_url、is_completed、created_at,我喜愛的劇本清單（最新建立的在前面）。 每一筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完。 想排時間出發時，用 POST /api/Story/{story_id}/Calendar 加入 Google 行事曆。,每筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完
-把劇本加入 Google 行事曆：回傳 Google 行事曆的新增活動連結,POST,/api/Story/{story_id}/Calendar,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：start_time（string）、duration_minutes（integer）,google_calendar_url、title、start_time、end_time、location、details,把劇本加入 Google 行事曆：回傳 Google 行事曆的新增活動連結。 前端拿到 google_calendar_url 後直接打開（例如 Flutter 的 url_launcher），會開啟 Google 日曆 App 或網頁， 標題、時間、地點、說明都已經填好，使用者按「儲存」就加進自己的行事曆，不需要 Google 帳號授權。 - start_time：預計出發時間（台灣時間，不用帶時區）；不帶時預設明天早上 10:00，夜間劇本晚上 19:00 - duration_minutes：預計遊玩多久（30～1440 分鐘）；不帶時依站數估算，每站 40 分鐘 - 地點只放第一站（集合點），其他站還在迷霧中，不會出現在行事曆 - Request body 可以省略，全部用預設值,回傳 google_calendar_url，前端用 url_launcher 打開，使用者按「儲存」就加進自己的 Google 行事曆，不需要授權。body 可省略（預設明天 10:00，夜間劇本 19:00）。地點只放第一站，其他站在迷霧中不會出現
-取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）,GET,/api/Story/{story_id}/Detail,劇本,"四、劇本檔案館, 五、劇情前傳",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、preface、synopsis、is_night_mode、is_favorite、npc、nodes、subtitle、route_nodes,取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）。 GET /api/Story/{story_id}/Detail,9/30 起多了 is_night_mode（日夜）與每站 task_type（任務類型），原本的 FullDetail 已合併進來
-把劇本加入或取消喜愛,POST,/api/Story/{story_id}/Favorite,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：is_favorite（boolean）,object,把劇本加入或取消喜愛。 只能設定自己的劇本；別人的劇本或不存在的劇本回傳 404。劇本詳情（Detail）會帶 is_favorite。,"body：{ ""is_favorite"": true/false }。只能設定自己的劇本，劇本詳情會帶 is_favorite"
-劇情前傳語音：唸指定劇本的前傳,POST,/api/Npc/Prologue/{story_id},NPC 語音,五、劇情前傳,✅ 實測可用,需要,要接,story_id（路徑，integer）；voice（查詢，string）,text、voice、audio_url,劇情前傳語音：唸指定劇本的前傳。 對應「劇情前傳」畫面，前端不用自己傳文字。回傳的 audio_url 是 mp3，直接播放。 POST /api/Npc/Prologue/3?voice=zh-TW-YunJheNeural voice 可省略，預設 zh-TW-HsiaoChenNeural（女聲）。,回傳 audio_url（mp3），直接播放。voice 可省略
-NPC 說話：任意文字轉語音（節點對話、任務說明等）,POST,/api/Npc/Speak,NPC 語音,"五、劇情前傳, 六、解謎地圖",✅ 實測可用,需要,要接,JSON：text（string）、voice（string）,text、voice、audio_url,NPC 說話：任意文字轉語音（節點對話、任務說明等）。,
-取得使用者現在所在位置,POST,/api/Map/Location,解謎地圖,六、解謎地圖,✅ 實測可用,不用,要接,JSON：lat（number）、lng（number）、accuracy（number）,lat、lng、accuracy、city_name、district_name、received_at,取得使用者現在所在位置,不用登入
-取得前往指定節點的導航資訊,POST,/api/Map/Navigate,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,JSON：node_id（integer）,maps_deeplink_url,"取得前往指定節點的導航資訊。 對應「地圖」頁面節點彈窗的「開始導航」按鈕。 POST /api/Map/Navigate { ""node_id"": 1 }",還在迷霧中的站回傳 403（避免洩漏精確位置）
-取得指定節點的詳細內容,GET,/api/Map/Node/{node_id},解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）,node_id、location_name、npc_name、intro_story、opening_hours、nearby_food、task_id,取得指定節點的詳細內容。 對應「地圖」頁面節點彈窗（如臺南孔廟）的詳情內容。 GET /api/Map/Node/{node_id},還在迷霧中的站回傳 403
-使用 GPS 座標確認探員已抵達指定節點,POST,/api/Map/Node/{node_id}/Arrive,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）；lat（查詢，number）；lng（查詢，number）,node_id、location_name、npc_name、intro_story、opening_hours、nearby_food、task_id,使用 GPS 座標確認探員已抵達指定節點。 對應「地圖」頁面點擊節點後的抵達解鎖流程，成功後解鎖該節點詳情。 POST /api/Map/Node/{node_id}/Arrive?lat=25.0330&lng=121.5654,要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開
-取得指定節點的 NPC 隨機互動內容,GET,/api/Map/Node/{node_id}/Interact,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）,node_id、location_name、location_subtitle、scene_image_url、npc_id、npc_name、npc_avatar_url、npc_dialogue、emotion、skip_button_text、next_task_id,取得指定節點的 NPC 隨機互動內容。 對應「地圖」頁面節點彈窗中「回顧劇情」等 NPC 對話內容。 GET /api/Map/Node/{node_id}/Interact,還在迷霧中的站回傳 403
-取得指定劇本的地圖資訊,GET,/api/Map/{story_id},解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、unlocked_node_count、total_node_count、postcard_unlocked_count、postcard_total_count、nodes、day_index、total_days,取得指定劇本的地圖資訊。 對應「地圖」頁面，顯示地點探索度、已收集節點與路線。 迷霧由後端處理，前端照欄位顯示即可： - 已解鎖（is_unlocked = true）：location_name 是站名、image_url 是景點照片、lat/lng 是精確位置 - 未解鎖（is_unlocked = false）：location_name 是迷霧提示（地點代號）、image_url 是迷霧圖、 lat/lng 是迷霧中心（大概位置），請以它為中心畫半徑 fog_radius_m 公尺的迷霧；真正的點在這個範圍內 未解鎖的站不能查看詳情、互動、導航或打卡，會回傳 403。 GET /api/Map/{story_id},迷霧由後端處理，前端照欄位顯示：未解鎖的站 location_name 是地點代號、image_url 是這一站照片的霧化版（若隱若現，還沒做好時先給通用迷霧圖）、lat/lng 是迷霧中心，以它為中心畫半徑 fog_radius_m 公尺的迷霧；解鎖後才是真正的站名、照片與座標
-取得指定劇本周邊的推薦去處,GET,/api/Map/{story_id}/Nearby,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,story_id（路徑，integer）；category（查詢，string）,清單，每筆：place_id、category、type、name、address、open_time、photo_urls、maps_deeplink_url、lat、lng,取得指定劇本周邊的推薦去處。 對應「周邊好去」頁面，依「飲食」「其他」等分類回傳附近推薦地點。 GET /api/Map/{story_id}/Nearby?category=飲食,
-查詢座標附近的公車站牌，以及每個站牌經過的路線（含台灣好行）,GET,/api/Bus/Nearby,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radius（查詢，integer）,清單，每筆：bs_id、stop_name、lat、lng、distance_m、routes,查詢座標附近的公車站牌，以及每個站牌經過的路線（含台灣好行）。 GET /api/Bus/Nearby?lat=24.1477&lng=120.6736&radius=500,
-取得公車路線詳情：去程/返程的完整站牌、路線線形、起站發車時間,GET,/api/Bus/Route/{br_id},交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,br_id（路徑，integer）,br_id、route_uid、route_name、route_type、route_type_name、city_name、departure_stop_name、destination_stop_name、fare_desc、route_map_url、headway_desc、tripper、patterns,取得公車路線詳情：去程/返程的完整站牌、路線線形、起站發車時間。 br_id 可從 Nearby、TaiwanTrip 或劇本的公車方案取得。 GET /api/Bus/Route/12,
-查詢站牌的即時到站時間（每條路線還有幾分鐘到）,GET,/api/Bus/Stop/{bs_id}/Arrivals,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,bs_id（路徑，integer）,清單，每筆：route_name、sub_route_name、direction、estimate_minutes、status_text、next_bus_time,查詢站牌的即時到站時間（每條路線還有幾分鐘到）。 直接查詢 TDX 即時資料，不存資料庫，前端要顯示時再呼叫即可（建議 30 秒以上更新一次）。 GET /api/Bus/Stop/123/Arrivals,
-取得全台營運中的台灣好行路線列表,GET,/api/Bus/TaiwanTrip,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：br_id、route_name、city_name、departure_stop_name、destination_stop_name、fare_desc、theme、cover_image、stop_count,取得全台營運中的台灣好行路線列表。 GET /api/Bus/TaiwanTrip,
-取得座標附近的捷運路線（含車站與線形），在地圖上畫捷運路網用,GET,/api/Metro/Lines,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radius_km（查詢，number）,清單，每筆：ml_id、system_name、line_no、line_name、line_color、stations、shape,取得座標附近的捷運路線（含車站與線形），在地圖上畫捷運路網用。 只要路線有任一車站在 radius_km 內就會回傳整條路線。 GET /api/Metro/Lines?lat=24.1635&lng=120.6474&radius_km=10,
-查詢各交通方式在這一帶能不能用（前端用來決定勾選框要不要反灰）,GET,/api/Route/Availability,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；story_id（查詢，integer）,清單，每筆：mode、enabled、reason、nearest_name、nearest_distance_m、color,查詢各交通方式在這一帶能不能用（前端用來決定勾選框要不要反灰）。 步行、腳踏車、機車、汽車一律可用。 公車：起點或任一節點 600 公尺內有公車站牌（且已匯入該縣市公車資料）才可用。 捷運：至少兩個地點步行 15 分鐘（1 公里）內有捷運站才可用；只查單一座標時該點附近有站即可。 帶 story_id 時會一併檢查劇本所有節點；lat/lng 是使用者目前位置（起點），可不帶。 GET /api/Route/Availability?lat=24.1372&lng=120.6869&story_id=12,
-查詢各交通方式在這些地點能不能用（自選地點、沒有劇本時用）,POST,/api/Route/Availability,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：mode、enabled、reason、nearest_name、nearest_distance_m、color,查詢各交通方式在這些地點能不能用（自選地點、沒有劇本時用）。 規則同 GET /api/Route/Availability，body 放起點與要去的所有點。,
-規劃劇本交通路線：起點 → 依序經過每個節點（去程）→ 回到起點（返程）,POST,/api/Route/Plan,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,JSON：story_id（integer）、start（RoutePoint）、points（RoutePoint[]）、transportation（string[]）、include_return（boolean）,story_id、story_title、start、stops、legs、outbound_minutes、return_minutes、total_minutes、total_distance_km、modes_used、warnings,規劃劇本交通路線：起點 → 依序經過每個節點（去程）→ 回到起點（返程）。 每一段會把勾選的交通方式都算一次，採用最快的方案（公車/捷運含步行到站與候車時間）， 其他方案放在 options 讓使用者切換。 - 步行、腳踏車、機車、汽車：實際道路路線（腳踏車優先走自行車道） - 公車：起訖點附近站牌之間的直達路線，含上下車站、經過的站牌 - 捷運：可轉乘，含上下車站、轉乘站、經過的車站，線條用該路線代表色 segments 的 coordinates 已依行進方向排序，前端沿線畫箭頭即可表示方向； direction 是「去程」或「返程」。在這一帶不能用的公車/捷運會自動略過並放進 warnings。 （劇本）： （自選地點）：,帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來）
-取得可以規劃交通路線的劇本（含節點座標與建議起點）,GET,/api/Route/Stories,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：story_id、story_title、city_name、district_name、node_count、suggested_start、nodes,取得可以規劃交通路線的劇本（含節點座標與建議起點）。 回傳自己的劇本（新的在前）；自己還沒有劇本時回傳最近的劇本，方便用測試帳號展示。 GET /api/Route/Stories,
-依使用者 GPS 座標，透過 Neo4j 查詢半徑範圍內的景點，依距離由近到遠排序,GET,/api/Story/NearbyAttractions,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radiusKm（查詢，number）,清單，每筆：name、lat、lon、distance_m,依使用者 GPS 座標，透過 Neo4j 查詢半徑範圍內的景點，依距離由近到遠排序。 資料來源：Neo4j 開放資料（全台灣景點，跟劇本/遊戲進度無關，資料量大且座標準確）。 適合用途：地圖探索、景點推薦，這種不需要綁定特定劇本節點的通用查詢。 查無結果時代表「這附近真的沒有登錄在 Neo4j 的景點」，可視為正常情況。 GET /api/Story/NearbyAttractions?lat=22.9908&lng=120.2034&radiusKm=1,AI 的 Neo4j 連不上時，自動改用 MySQL place 表的景點（原本的 Story/NearbyPlaces 已合併進來）
-依中心點與交通方式，找出可到達的景點，並回傳每個景點的真實交通時間、距離、所在圈層,POST,/api/Story/ReachableAttractions,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、transportation（string[]）、contour_minutes（integer[]）、include_polygons（boolean）,center_lat、center_lng、contour_minutes、total_reachable、attractions、isochrones,依中心點與交通方式，找出可到達的景點，並回傳每個景點的真實交通時間、距離、所在圈層。 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。 交通方式可複選，每個景點取最快可到達的那一種；公車/捷運不列入計算。 重複的景點（同名且相近、或座標幾乎相同）會合併成一筆。 一律以整天行程計算（10/20/30 分鐘圈），範圍內各圈層輪流隨機抽 8 個景點，每次呼叫結果都不同； 抽完後依順路的參觀順序排好（從中心點出發，不走回頭路）。,
-送出任務答案並取得答題結果,POST,/api/Task/Answer,任務,"六、解謎地圖, 七、任務完成",🔧 隊友改寫中,不用,要接,JSON：task_id（integer）、gps_lon（number）、gps_lat（number）、selected_option_key（string）、text_answer（string）、photo_url（string）、video_url（string）、audio_url（string）,,"送出任務答案並取得答題結果。 提交前會先驗證玩家目前 GPS 位置是否在任務地點附近（與 List 共用同一套位置驗證）， 通過後才依任務類型自動分發到對應的驗證邏輯 （文化問答/拍照打卡/短片演繹/採訪蒐證/計數推理/跨關集結/QR Code）。 POST /api/Task/Answer { ""task_id"": 1, ""gps_lat"": 22.997, ""gps_lon"": 120.20239, ""selected_option_key"": ""A"" }",
-/api/Task/Generate,POST,/api/Task/Generate,任務,"六、解謎地圖, 七、任務完成",🔧 隊友改寫中,不用,要接,JSON：story_id（string）、node_id（string）、player_count（integer）,,,
-依玩家目前 GPS 座標檢查是否觸發隱藏關卡,POST,/api/Task/HiddenLevel/Check,任務,"六、解謎地圖, 七、任務完成",🔧 隊友改寫中,不用,要接,ep_id（查詢，string）；lat（查詢，number）；lng（查詢，number）；region_id（查詢，string）,,依玩家目前 GPS 座標檢查是否觸發隱藏關卡。 建議由 MapController 的玩家位置回報流程內部呼叫，不對前端開放主動查詢，避免玩家猜位置。 POST /api/Task/HiddenLevel/Check?ep_id=EP001&lat=22.99&lng=120.20&region_id=region_tainan_centralwest,
-/api/Task/List,POST,/api/Task/List,任務,"六、解謎地圖, 七、任務完成",🔧 隊友改寫中,不用,要接,JSON：node_id（string）、gps_lon（number）、gps_lat（number）、player_index（integer）,,,
-取得指定任務的提示內容,GET,/api/Task/{task_id}/Hint,任務,"六、解謎地圖, 七、任務完成",🔧 隊友改寫中,不用,要接,task_id（路徑，string）；ep_id（查詢，string）,,取得指定任務的提示內容。 後端依探員實際答錯次數自動決定提示階段。 答錯一次顯示第一階段提示；答錯兩次則顯示更明確的第二階段提示。 GET /api/Task/task_confucius_001/Hint?ep_id=EP_DDBFC8C8,
-上傳檔案（照片、影片、錄音），回傳檔案網址,POST,/api/Upload,上傳,七、任務完成,✅ 實測可用,需要,要接,表單：file（檔案）,string,上傳檔案（照片、影片、錄音），回傳檔案網址。 使用 multipart/form-data，欄位名稱為 file，上限 200MB。 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。,
-取得所有明信片主檔清單,GET,/api/PostcardCatalog,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,,清單，每筆：PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,取得所有明信片主檔清單。 依 sort_order 排序，回傳所有 is_active = 1 的明信片主檔。可用 category 篩選分類。,
-呼叫外部服務生成 AI 明信片並存入資料庫,POST,/api/PostcardCatalog/GenerateAi,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,表單：user_image（檔案）、spot_name（string）、user_prompt（string）、story_id（integer）、node_id（integer）、is_night_edition（boolean）,p_id、au_id、s_id、sn_id、p_name、p_summary、p_imag_url、is_night、created_at、updated_at,呼叫外部服務生成 AI 明信片並存入資料庫。 接收前端上傳的照片與提示詞，轉發至外部 AI 服務生成明信片， 直接把外部服務回傳的圖片「網址」存入 md_postcard.image_url（不再下載轉 Base64）， 同時將此明信片綁定給發起請求的探員。必須帶 Token（後端會從 Token 解析 ep_id）。 ⚠️ 請求格式注意：必須使用 multipart/form-data，不能使用一般的 JSON。 （multipart/form-data 欄位）： *(註：imageUrl 現在是外部服務的圖片連結，前端可直接使用， 也可以改用 by-story/{story_id} 取得清單後，用 {postcard_id}/image 顯示圖片， 該端點會自動轉址至真正的圖片網址)*,multipart/form-data：user_image（照片）、spot_name、story_id、node_id。任務完成後由前端呼叫
-透過 postcard_id 送出明信片至 ibon 列印，取得取件碼,POST,/api/PostcardCatalog/Print,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,JSON：postcard_id（integer）,ibon_pickup_code、pdf_url、deadline、qrcode_base64,透過 postcard_id 送出明信片至 ibon 列印，取得取件碼。 傳入明信片 ID (postcard_id)，後端會撈取該張明信片的圖片網址並下載實際位元組， 透過本機背景執行的 Python 微服務 (127.0.0.1:9000) 上傳至 ibon，回傳真實的取件碼與 QR Code。,需要 ibon 列印微服務（IbonPrinterSettings:ApiUrl，預設 127.0.0.1:9000）
-紀錄使用者已將該劇本的明信片分享至社群平台,POST,/api/PostcardCatalog/Share,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,JSON：story_id（integer）、platform（string）,string,紀錄使用者已將該劇本的明信片分享至社群平台。 技術說明：實際將圖片貼上 IG 或 FB 的動作，必須由前端呼叫原生的 Share Intent 完成。 此 API 僅提供前端在「完成分享動作後」呼叫，供後端紀錄分享次數或發放獎勵。,
-取得指定劇本 (story_id) 所擁有的「所有」明信片主檔,GET,/api/PostcardCatalog/by-story/{storyId},明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,storyId（路徑，integer）,清單，每筆：PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,取得指定劇本 (story_id) 所擁有的「所有」明信片主檔。 同一個 story_id 可能生成過多次明信片，此 API 回傳全部清單（依 sort_order 排序）。 要顯示某一張的圖片時，從回傳結果取出 postcardId，改打 {postcardId}/image 顯示。,
-依明信片識別碼 (postcard_id) 取得單一明信片主檔資料,GET,/api/PostcardCatalog/{id},明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,id（路徑，integer）,PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,依明信片識別碼 (postcard_id) 取得單一明信片主檔資料。 查無資料時回傳 404：,
-刪除明信片主檔,POST,/api/PostcardCatalog/{id}/Delete,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,id（路徑，integer）,boolean,刪除明信片主檔。 依 postcard_id 從 postcard 刪除該筆資料，只能刪自己的明信片。此操作為實體刪除，無法復原。,
-依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址,GET,/api/PostcardCatalog/{id}/image,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,直接當圖片網址,id（路徑，integer）,,【前端不用接：直接當圖片網址】依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址。 資料庫現在直接儲存圖片的外部連結（不再是 Base64），此 API 會查出該連結後直接轉址， 瀏覽器/前端會自動跟隨轉址載入真正的圖片，後端不再代理下載與回傳位元組。 前端一樣可以把此 API 當作 HTML 圖片網址使用： Response：302 Redirect 至真實圖片網址。 查無資料時回傳 404 純文字：找不到該明信片的圖片,
-完成劇本後抽一枚勳章，一個劇本只能抽一次,POST,/api/Badge/Draw,徽章,七、任務完成,✅ 實測可用,需要,要接,JSON：story_id（integer）,story_id、categories、is_new、badge,"完成劇本後抽一枚勳章，一個劇本只能抽一次。 可抽的類別依劇本內容決定，生成劇本時就會寫在 story_badge（劇本卡片「預計獲得」）： - 島嶼城市：劇本所在縣市的那一枚 - 台灣印記：路線經過的地標（台北101、赤崁樓、日月潭…） - 台灣味：有地方美食型任務、餐廳、夜市/市場，或偏好選了「美食」 - 島嶼生靈：經過動物園、國家公園、森林、步道、濕地等 - 老台灣：經過老街、市場、眷村、古厝、故居等 - 午夜台灣：只有夜間劇本能抽 先平均抽類別、再從類別裡抽一枚，已擁有的不會再抽到。 重複呼叫會回傳當初抽到的那枚（is_new = false）；可抽的都已收集時 badge 為 null。 POST /api/Badge/Draw { ""story_id"": 1 }",要先呼叫 EndStory 把劇本標成完成才能抽；一個劇本只能抽一次，重抽回傳同一枚（is_new=false）
-取得系統所有徽章，依系列分組，並標示當前探員是否已擁有該徽章,GET,/api/Badge/Status,徽章,"一、首頁, 八、徽章收藏",✅ 實測可用,需要,要接,,清單，每筆：series_name、badges,取得系統所有徽章，依系列分組，並標示當前探員是否已擁有該徽章。 整併原本 /api/Badge、/api/Favorite（徽章部分）、/api/Badge/Status 三支重複邏輯， 統一保留這一支，回傳格式依系列巢狀分組。 GET /api/Badge/Status,
-取得目前探員的所有過往劇本清單,GET,/api/History,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,,清單，每筆：story_id、title、synopsis、completed_date、region、vlog_id、spots,取得目前探員的所有過往劇本清單。 對應「過往」頁面的收藏館列表，顯示已完成的劇本卷。 GET /api/History,
-取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單),GET,/api/History/{story_id},過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、synopsis、completed_date、region、vlog_id、spots,取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單)。 對應「過往－卷」頁面，顯示完成日期、故事大綱以及探索總覽(Spots)。 GET /api/History/story_tainan_001,
-劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白,GET,/api/History/{story_id}/Recap,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、prologue、synopsis、city_name、district_name、is_night_mode、started_at、completed_at、play_minutes、stats、nodes、postcards、badge…,劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白。 對應「過往旅途」點進某個劇本的回顧頁。只能看自己玩完的劇本，還沒玩完回傳 400。 - nodes：每一站的真正景點與照片、章節標題、到站與完成時的劇情、玩家在這站拍的照片、任務作答結果（玩完了迷霧都已散開） - postcards、badge、vlog：這趟拿到的明信片、抽到的勳章、做好的 Vlog - stats：站數、作答數、答對數、照片數、明信片數 - narration：旁白。text 直接顯示；audio_url 是 mp3，還沒產生過時為 null， 使用者按播放時呼叫 POST /api/History/{story_id}/Recap/Narration 產生（第一次要等幾秒，之後直接回傳） 旁白來源 narration.source：vlog＝玩家確認過的 Vlog 旁白；story＝依各站劇情自動組成。,只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration
-產生回顧旁白的語音（mp3），回傳 audio_url,POST,/api/History/{story_id}/Recap/Narration,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：voice（string）,source、text、audio_url,產生回顧旁白的語音（mp3），回傳 audio_url。 使用者按下播放時呼叫。第一次會交給 AI 服務轉成語音（要等幾秒），之後同一段旁白直接回傳存好的檔案。 body 可省略；voice 可換聲音，預設 zh-TW-HsiaoChenNeural。,按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音
-送出確認後的旁白，後端打包照片與景點資料送去合成影片,POST,/api/VisitorVlog/CreateFinal,遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]）,av_id、story_id、task_id、photo_count、status、status_text,送出確認後的旁白，後端打包照片與景點資料送去合成影片。 回傳的 task_id 要保存好，輪詢 Status 時帶回來。,照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url
-遊戲結束後，依 story_id 產生 VLOG 旁白草稿,POST,/api/VisitorVlog/Preview,遊客 VLOG,九、過往旅途,⚠️ 卡在 AI 服務,需要,要接,JSON：story_id（integer）,av_id、story_id、story_title、play_time、photo_count、spots、script、promo_copy、seo_keywords、itinerary,遊戲結束後，依 story_id 產生 VLOG 旁白草稿。 後端會從資料庫組出玩家走過的景點、遊玩時長、任務數，交給 AI 產生旁白。 回傳的 script 給玩家確認或修改，改完送到 CreateFinal。 photo_count 為 0 時無法合成影片，前端可以先提示玩家。,AI 端目前 CUDA 錯誤（9/30 重測仍是 no kernel image is available）
-查詢這個劇本的 VLOG（影片、旁白、宣傳文案）,GET,/api/VisitorVlog/Status/{story_id},遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,story_id（路徑，integer）；task_id（查詢，string）,av_id、story_id、status、status_text、title、final_script、promo_copy、seo_keywords、video_url、thumbnail、error_message、updated_at,查詢這個劇本的 VLOG（影片、旁白、宣傳文案）。 status：1=待處理、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 處理中時要帶 CreateFinal 回傳的 task_id 才會向 AI 更新進度，建議每 5–10 秒輪詢一次； 不帶 task_id 只回傳資料庫目前的紀錄（例如從歷史紀錄頁查看已完成的影片）。 GET /api/VisitorVlog/Status/1?task_id=xxxx,
-取得商家已生成的檔案清單,GET,/api/Merchant/Files,商家 VLOG,商家端,✅ 實測可用,需要,要接,,,取得商家已生成的檔案清單。 對應商家首頁的「近期檔案」列表，後端會自動依編輯時間 (updated_at) 從新到舊排序回傳。 GET /api/Merchant/Files,
-修改登入商家的「店家名稱」,POST,/api/Merchant/StoreName,商家 VLOG,商家端,✅ 實測可用,需要,要接,JSON：store_name（string）,,修改登入商家的「店家名稱」。 對應設定頁面中的「預設資訊－店家名稱」修改與儲存功能。,
-商家確認旁白後，把專案照片打包送去合成影片,POST,/api/MerchantVlog/CreateFinal,商家 VLOG,商家端,✅ 實測可用,需要,要接,JSON：mm_id（integer）、final_script（string）、caption（string）、hashtags（string[]）,mm_id、task_id、status、status_text,商家確認旁白後，把專案照片打包送去合成影片。 送出後用 Status/{mm_id} 輪詢進度。,自動附上背景音樂 wwwroot/bgm/default_bgm.mp3
-輸入店家資訊與照片，產生 AI 旁白草稿、推薦配文、TAG,POST,/api/MerchantVlog/Preview,商家 VLOG,商家端,⚠️ 卡在 AI 服務,需要,要接,表單：mm_id（integer）、store_name（string）、open_time（string）、address（string）、nt_id（integer）、promo_text（string）、images（檔案[]）,mm_id、store_name、open_time、address、tone_name、script、caption、hashtags、target_audience、image_urls,輸入店家資訊與照片，產生 AI 旁白草稿、推薦配文、TAG。 multipart/form-data。對應「生成（輸入資訊）」頁面。 - store_name、address 不填會帶商家資訊表的資料 - images 可重複多次（多張照片），順序就是影片中的順序；新專案至少一張 - 想換語氣重新產生：帶同一個 mm_id 再呼叫一次，不帶 images 就沿用已上傳的照片 回傳的 script 給商家確認或修改，改完送到 CreateFinal。,multipart/form-data；images 可重複放多張。AI 會先到它自己的 Neo4j 查店家，查不到就回「不進行幻覺補全」；AI 端 Neo4j 目前沒開
-查詢商家 VLOG 專案：影片、推薦配文、TAG,GET,/api/MerchantVlog/Status/{mm_id},商家 VLOG,商家端,✅ 實測可用,需要,要接,mm_id（路徑，integer）,mm_id、status、status_text、title、caption、hashtags、video_url、thumbnail、error_message、updated_at,查詢商家 VLOG 專案：影片、推薦配文、TAG。 status：1=草稿、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 處理中時每次呼叫都會向 AI 服務查一次進度，建議每 5–10 秒輪詢一次。,
-取得可選的敘事語氣（例如幽默詼諧、質感專業、溫情走心）,GET,/api/MerchantVlog/Tones,商家 VLOG,商家端,✅ 實測可用,需要,要接,,清單，每筆：nt_id、nt_name、nt_prompt,取得可選的敘事語氣（例如幽默詼諧、質感專業、溫情走心）。,
-核銷優惠券,POST,/api/coupons/{couponId}/redeem,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,couponId（路徑，integer）；JSON：au_id（integer）,,核銷優惠券。 更新 user_coupon.is_used/used_at，並遞增 nfc_coupon.used_count。,本機資料庫的表叫 qrcode_coupon(qr_uid)，程式與 schema.sql 是 nfc_coupon(nfc_uid)，組內要先統一，否則本機會報「nfc_coupon 不存在」
-查詢商家列表,GET,/api/merchant,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,keyword（查詢，string）；page（查詢，integer）；page_size（查詢，integer）,,查詢商家列表。,
-查詢商家優惠券列表,GET,/api/merchant/coupons,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,storeId（查詢，integer）,,查詢商家優惠券列表。,
-新增優惠券,POST,/api/merchant/coupons,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,JSON：s_id（integer）、coupon_code（string）、coupon_name（string）、discount_commodity（string）、discount_type（string）、discount_value（number）、valid_from（string）、valid_to（string）,,新增優惠券。,
-刪除優惠券,DELETE,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,couponId（路徑，integer）,,刪除優惠券。 交易內依序刪除 nfc_coupon → user_coupon → coupon。,本機資料庫的表叫 qrcode_coupon(qr_uid)，程式與 schema.sql 是 nfc_coupon(nfc_uid)，組內要先統一，否則本機會報「nfc_coupon 不存在」
-查詢單筆優惠券,GET,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,couponId（路徑，integer）,,查詢單筆優惠券。,
-修改優惠券,PUT,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,couponId（路徑，integer）；JSON：coupon_code（string）、coupon_name（string）、discount_commodity（string）、discount_type（string）、discount_value（number）、valid_from（string）、valid_to（string）,,修改優惠券。,
-上下架優惠券,PATCH,/api/merchant/coupons/{couponId}/status,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,couponId（路徑，integer）；JSON：status（string）,,上下架優惠券。,
-綁定 NFC 貼紙與優惠券,POST,/api/merchant/nfc/bind,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,JSON：nfc_uid（string）、coupon_id（integer）,,綁定 NFC 貼紙與優惠券。 商家掃描到 NFC 貼紙 UID 後呼叫；同一張貼紙重複綁定會回傳 409。,本機資料庫的表叫 qrcode_coupon(qr_uid)，程式與 schema.sql 是 nfc_coupon(nfc_uid)，組內要先統一，否則本機會報「nfc_coupon 不存在」
-查詢商家題庫列表,GET,/api/merchant/questions,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,storeId（查詢，integer）,,查詢商家題庫列表。,
-新增題目,POST,/api/merchant/questions,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,JSON：store_id（integer）、question_describe（string）、options（QuestionOptionInput[]）,,新增題目。 含選項，選項中須至少一個 is_correct=1。,
-刪除題目,DELETE,/api/merchant/questions/{questionId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,questionId（路徑，integer）,,刪除題目。 刪除前檢查是否有任務引用這一題；若有，回傳 409 並附上引用的 task_id 清單。,
-修改題目與選項,PUT,/api/merchant/questions/{questionId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,questionId（路徑，integer）；JSON：question_describe（string）、options（QuestionOptionInput[]）,,修改題目與選項。 整包覆蓋選項：舊選項會先被刪除，再依 request 內容重新建立。,
-註冊商家,POST,/api/merchant/register,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、place_uid（string）、new_place（MerchantPlaceFields）,,"註冊商家。 建立 auth(auth_type=2, 免審核直接啟用) + store。place_uid 與 new_place 二擇一： 選擇既有景點時帶 place_uid（由 GET api/merchant/register/search-place 取得）； 選「都沒有，我要建立新的」時帶 new_place，後端會在 Neo4j 建立新的身分節點與版本節點。",需要 Neo4j 的 playtaiwandb 資料庫（本機已建好：Place.uid、Version.version_id 唯一約束）。9/30 修正：Email 重複註冊失敗時不再在 Neo4j 留下孤兒景點
-搜尋既有景點,GET,/api/merchant/register/search-place,商家後台與優惠券,商家端,✅ 實測可用,不用,要接,keyword（查詢，string）,,搜尋既有景點。 用店名/地址做模糊比對，回傳候選清單供商家在註冊畫面挑選；查無結果代表可能要建立新景點。,需要 Neo4j 的 playtaiwandb 資料庫（本機已建好：Place.uid、Version.version_id 唯一約束）
-刪除商家帳號,DELETE,/api/merchant/{sId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,sId（路徑，integer）,,刪除商家帳號。 交易內依序刪除 nfc_coupon／user_coupon／coupon／question_option／store_question／store／auth； 若商家題庫仍被任務引用，會回傳 409 並附上引用的 task_id 清單，不會刪除任何資料。,需要 Neo4j 的 playtaiwandb 資料庫（本機已建好：Place.uid、Version.version_id 唯一約束）。本機資料庫的表叫 qrcode_coupon(qr_uid)，程式與 schema.sql 是 nfc_coupon(nfc_uid)，組內要先統一，否則本機會報「nfc_coupon 不存在」
-查詢商家資料,GET,/api/merchant/{sId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,sId（路徑，integer）,,查詢商家資料。,
-更新商家資料,PUT,/api/merchant/{sId},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,sId（路徑，integer）；JSON：store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）,,更新商家資料。 同時會在 Neo4j 建立新的版本節點，讓 NFC 掃描回傳的商家資訊跟著更新。,需要 Neo4j 的 playtaiwandb 資料庫（本機已建好：Place.uid、Version.version_id 唯一約束）
-掃描 NFC 貼紙查詢商家與優惠券資訊,GET,/api/nfc/scan/{nfcUid},商家後台與優惠券,商家端,✅ 實測可用,不用,要接,nfcUid（路徑，string）；auId（查詢，integer）,,掃描 NFC 貼紙查詢商家與優惠券資訊。 商家資訊來自 Neo4j（含版本鏈覆蓋後的最新內容），優惠券資訊來自 MySQL； 帶入 auId 時，若尚未領取過此優惠券會同時寫入 user_coupon 領取紀錄。,需要 Neo4j 的 playtaiwandb 資料庫（本機已建好：Place.uid、Version.version_id 唯一約束）。本機資料庫的表叫 qrcode_coupon(qr_uid)，程式與 schema.sql 是 nfc_coupon(nfc_uid)，組內要先統一，否則本機會報「nfc_coupon 不存在」
-重算景點附近的公車站牌（生成劇本規劃公車用）,POST,/api/Bus/PlaceStops/Build,管理員,後台管理,🛠 管理員用,需要,不用接,scope（查詢，string）,scope、place_count、place_with_stop_count、pair_count、used_valhalla、elapsed_seconds,【前端不用接】（管理員）重算景點附近的公車站牌（生成劇本規劃公車用）。 前端不用接：系統每天同步完會自動重算。 scope 傳縣市（臺中市）只算該縣市站牌；傳「台灣好行」只算好行沿線站牌。 需要 AI service（Neo4j 景點資料）可以連線；步行距離優先用 Valhalla 計算。 POST /api/Bus/PlaceStops/Build?scope=臺中市,
-從 TDX 同步某縣市的市區公車,POST,/api/Bus/Sync/City/{city},管理員,後台管理,🛠 管理員用,需要,不用接,city（路徑，string）,source、route_count、sub_route_count、pattern_count、rebuilt_pattern_count、stop_count、trip_count、deactivated_route_count、elapsed_seconds,【前端不用接】（管理員）從 TDX 同步某縣市的市區公車。 前端不用接：系統每天會自動同步，這支是管理員手動補跑用，約需 1 分鐘。 city 可傳中文（臺中市、台中市）或 TDX 參數（Taichung）。 POST /api/Bus/Sync/City/臺中市,
-從 TDX 同步全台台灣好行,POST,/api/Bus/Sync/TaiwanTrip,管理員,後台管理,🛠 管理員用,需要,不用接,,source、route_count、sub_route_count、pattern_count、rebuilt_pattern_count、stop_count、trip_count、deactivated_route_count、elapsed_seconds,【前端不用接】（管理員）從 TDX 同步全台台灣好行。 前端不用接：系統每天會自動同步，這支是管理員手動補跑用。 POST /api/Bus/Sync/TaiwanTrip,
-從 TDX 同步一個捷運系統,POST,/api/Metro/Sync/{system},管理員,後台管理,🛠 管理員用,需要,不用接,system（路徑，string）,rail_system、system_name、line_count、station_count、link_count、shape_count、estimated_line_count、elapsed_seconds,【前端不用接】（管理員）從 TDX 同步一個捷運系統。 前端不用接：系統每週會自動同步，這支是管理員手動補跑用。 system：TRTC=臺北捷運、NTMC=新北捷運、TYMC=桃園機場捷運、TMRT=臺中捷運、 KRTC=高雄捷運、KLRT=高雄輕軌、NTDLRT=淡海輕軌、NTALRT=安坑輕軌 POST /api/Metro/Sync/TMRT,
+名稱,Method,路徑,分類,對應畫面,狀態,需要登入,前端要接,參數,回傳 Result,Request JSON,回傳 JSON（Result）,說明,備註
+修改密碼,POST,/api/Auth/ChangePassword,帳號,登入註冊,✅ 實測可用,需要,要接,JSON：OldPassword（string）、NewPassword（string）,string,"{
+  ""OldPassword"": ""string"",
+  ""NewPassword"": ""string""
+}","""string""",修改密碼。 需在登入狀態下，並提供舊密碼驗證。,
+忘記密碼,POST,/api/Auth/ForgotPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Email（string）,string,"{
+  ""Email"": ""string""
+}","""string""",忘記密碼。 產生重設密碼連結並寄送至信箱，連結 30 分鐘內有效。 使用者需點擊信中連結，再呼叫 ResetPassword 端點完成密碼重設。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址；重設連結 30 分鐘內有效（9/30 修正：原本一產生就過期）
+帳號登入,POST,/api/Auth/Login,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：auth_name（string）、auth_pswd（string）,token、au_id、auth_name、auth_type、account_type_name、s_id,"{
+  ""auth_name"": ""string"",
+  ""auth_pswd"": ""string""
+}","{
+  ""token"": ""string"",
+  ""au_id"": 0,
+  ""auth_name"": ""string"",
+  ""auth_type"": 0,
+  ""account_type_name"": ""string"",
+  ""s_id"": 0
+}",帳號登入。 使用帳號名稱(或信箱)與密碼進行登入，成功後同時回傳 auth_type， 供前端判斷登入後要導向探員頁面(1=Tourist)、商家後台(2=Merchant)或管理後台(3=Admin)。,
+帳號登出,POST,/api/Auth/Logout,帳號,登入註冊,✅ 實測可用,需要,要接,,string,,"""string""",帳號登出。 清除目前登入狀態；未來若有 Refresh Token 或登入工作階段資料表， 可在此 API 一併撤銷 Token。,
+取得目前登入帳號的資訊,GET,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,,token、au_id、auth_name、auth_type、account_type_name、s_id,,"{
+  ""token"": ""string"",
+  ""au_id"": 0,
+  ""auth_name"": ""string"",
+  ""auth_type"": 0,
+  ""account_type_name"": ""string"",
+  ""s_id"": 0
+}","取得目前登入帳號的資訊。 對應「設定－帳號」頁面，同時可用來判斷要導向哪一種介面： account_type_name = ""Tourist"" / ""Merchant"" / ""Admin""。 需在 Header 帶登入取得的 JWT Token：Authorization: Bearer {token}。",
+更新目前登入帳號的名稱,POST,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,JSON：auth_name（string）,string,"{
+  ""auth_name"": ""string""
+}","""string""",更新目前登入帳號的名稱。 對應「設定－帳號」頁面的名稱編輯功能。,
+帳號註冊,POST,/api/Auth/Register,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）、ResolvedAccountType（integer）,string,"{
+  ""Username"": ""string"",
+  ""Email"": ""string"",
+  ""Password"": ""string"",
+  ""Birthday"": ""2026-10-07T12:00:00"",
+  ""Gender"": ""string"",
+  ""AccountType"": 0,
+  ""ResolvedAccountType"": 0
+}","""string""",帳號註冊。 註冊新的遊客或商家帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱。 管理員身分不開放自行註冊。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址
+依重設連結 Token 完成密碼重設,POST,/api/Auth/ResetPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Token（string）、NewPassword（string）,string,"{
+  ""Token"": ""string"",
+  ""NewPassword"": ""string""
+}","""string""",依重設連結 Token 完成密碼重設。 對應 ForgotPassword 寄出的信件連結，Token 過期或不存在會回傳失敗。,
+信箱驗證與啟用帳號,GET,/api/Auth/VerifyEmail,帳號,登入註冊,✅ 實測可用,不用,不用接,token（查詢，string）,,,（回傳 HTML 頁面，不是 JSON：使用者點信裡的連結後直接在瀏覽器顯示）,【前端不用接】信箱驗證與啟用帳號。 前端不用接：這支是寫在驗證信裡的連結，使用者在信箱點擊後由瀏覽器直接開啟，會回傳 HTML 頁面。 供信箱內的驗證連結點擊使用。成功後會將帳號狀態改為已驗證並清空 Token； 若連結已超過 24 小時會回傳過期訊息。,前端不用接：註冊驗證信裡的連結會打這支，回傳 HTML 頁面
+取得首頁目前總覽資訊,GET,/api/Home/Overview,首頁,一、首頁,✅ 實測可用,需要,要接,,ho_completed_story、ho_postcard_count、ho_badge_count、ho_vlog_count、ho_recent_cards,,"{
+  ""ho_completed_story"": 0,
+  ""ho_postcard_count"": 0,
+  ""ho_badge_count"": 0,
+  ""ho_vlog_count"": 0,
+  ""ho_recent_cards"": [
+    {
+      ""hc_id"": 0,
+      ""hc_type"": ""string"",
+      ""hc_title"": ""string"",
+      ""hc_image"": ""string""
+    }
+  ]
+}",取得首頁目前總覽資訊。 對應「首頁」頁面的目前總覽卡片，包含已完成探索數、明信片、徽章、Vlog 等統計數字。 GET /api/Home/Overview,
+接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入,POST,/api/Story/GenerateByText,劇本生成,二、出發探險,⚠️ 卡在 AI 服務,需要,要接,JSON：user_prompt（string）,story_id、detected_city、detected_town、parsed_intent、data,"{
+  ""user_prompt"": ""string""
+}","{
+  ""story_id"": 0,
+  ""detected_city"": ""string"",
+  ""detected_town"": ""string"",
+  ""parsed_intent"": {
+    ""city_name"": ""string"",
+    ""town_name"": ""string"",
+    ""traveler_count"": 0,
+    ""preferences"": [
+      ""string""
+    ],
+    ""transportation"": [
+      ""string""
+    ],
+    ""node_count"": 0,
+    ""is_night"": false
+  },
+  ""data"": {
+    ""title"": ""string"",
+    ""preface"": ""string"",
+    ""synopsis"": ""string"",
+    ""is_night_mode"": false,
+    ""npc"": {
+      ""name"": ""string"",
+      ""role"": ""string"",
+      ""intro"": ""string""
+    },
+    ""nodes"": [
+      {
+        ""node_order"": 0,
+        ""place_name"": ""string"",
+        ""location_codename"": ""string"",
+        ""node_title"": ""string"",
+        ""task_type"": ""string"",
+        ""task_description"": ""string"",
+        ""dialogues"": {
+          ""opening"": ""string"",
+          ""success"": ""string""
+        }
+      }
+    ]
+  }
+}",接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數； 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。,遊你說算。AI 在背景生成，後端每 3 秒查一次進度，最多等 10 分鐘才回應；失敗時 message 會寫卡在哪個階段
+依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫,POST,/api/Story/GenerateGameStory,劇本生成,"二、出發探險, 三、組隊集結",⚠️ 卡在 AI 服務,需要,要接,JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、is_night_mode（integer）,清單，每筆：story_id、story_no、nt_name、story、nodes,"{
+  ""lat"": 0.0,
+  ""lng"": 0.0,
+  ""city_name"": ""string"",
+  ""town_name"": ""string"",
+  ""party_size"": 0,
+  ""transportation"": [
+    ""string""
+  ],
+  ""preferences"": [
+    ""string""
+  ],
+  ""is_night_mode"": 0
+}","[{""story_id"":0,""story_no"":0,""nt_name"":""string"",""story"":{""city_name"":""string"",""district_name"":""string"",""party_size"":0,""sd_transport"":[""string""],""story_title"":""string"",""story_prologue"":""string"",""story_synopsis"":""string"",""story_badge"":[""string""],""story_postcards"":0,""is_night_mode"":0,""npc"":{""npc_id"":0,""npc_name"":""string"",""npc_role"":""string"",""npc_intro"":""string"",""npc_avatar_url"":""string"",""npc_voice"":""string""}},""nodes"":[{""sn_id"":0,""place_id"":""string"",""p_name"":""string"",""npc_id"":0,""sn_order"":0,""sn_title"":""string"",""location_codename"":""string"",""image_url"":""string"",""sn_task_type"":""string"",""is_hidden"":0,""is_night_only"":0,""sn_opening_text"":""string"",""sn_success_text"":""string"",""tasks"":[{""task_id"":0,""task_type"":0,""type_name"":""string"",""question_id"":0,""task_describe"":""string"",""task_hint"":""string"",""correct_answer"":""string"",""task_option"":[{}],""task_clue"":[{}]}],""transit"":[{""from_sn_id"":0,""to_sn_id"":0,""leg_order"":0,""route_name"":""string"",""sub_route_name"":""string"",""route_type"":0,""route_type_name"":""string"",""tripper_theme"":""string"",""headsign"":""string"",""board_stop_name"":""string"",""alight_stop_name"":""string"",""stop_count"":0,""est_ride_minutes"":0.0,""stops"":[{}],""coordinates"":[[0.0]]}]}]}]",依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。 流程： 1. 規劃旅遊行程：3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複） 與一種敘事語氣（narrative_tone）。景點已去除重複，交通圈只算步行/腳踏車/機車/汽車； 同樣的條件每次生成的景點組合都不同。 2. 判斷任務類型：每站固定出創意攝影型；最後一站加跨關集結型；餐廳類加地方美食型； 2 人以上加協作解謎型；再從景點可出的文化問答型／景點猜猜樂／e人訪談型（place_type）隨機抽一題。 景點在 place_type 標有 9（商家新增題目時自動標記）時，另外必出一題商家知識問答 （直接引用題庫，不經 ,一次生成 3 份劇本（劇本檔案館的 3 張車票）。會呼叫 AI，可能要好幾分鐘，前端請把逾時設長並顯示等待畫面。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支。節點有 image_url（車票照片）與 location_codename（模糊線索）；story.npc 是這份劇本的 NPC（名稱、身分、圖片、聲線）
+接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推,POST,/api/Story/spin,劇本生成,—,⚠️ 卡在 AI 服務,需要,要接,JSON：input_text（string）、emotion_label（string）、city_name（string）、town_name（string）,recommendation_id、agent_result,"{
+  ""input_text"": ""string"",
+  ""emotion_label"": ""string"",
+  ""city_name"": ""string"",
+  ""town_name"": ""string""
+}","{
+  ""recommendation_id"": ""string"",
+  ""agent_result"": {
+    ""phase_1_perception"": {
+      ""voice_input"": ""string"",
+      ""emotion_detected"": ""string""
+    },
+    ""phase_2_cognition"": {
+      ""agent_thought_process"": ""string"",
+      ""extracted_tags"": [
+        ""string""
+      ]
+    },
+    ""phase_3_graph_rag"": {
+      ""recommended_spot"": {
+        ""name"": ""string"",
+        ""address"": ""string"",
+        ""description"": ""string"",
+        ""tags"": [
+          ""string""
+        ],
+        ""distance_m"": 0.0
+      }
+    },
+    ""phase_4_action_and_tools"": {
+      ""script_blueprint"": {
+        ""theme_title"": ""string"",
+        ""npc_dialogue"": ""string"",
+        ""task_mission"": ""string"",
+        ""preparation_tips"": [
+          ""string""
+        ]
+      },
+      ""tool_1_calendar_sync"": ""string"",
+      ""tool_2_social_share"": ""string""
+    },
+    ""phase_5_next_step"": ""string""
+  }
+}",接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推薦附近地點與任務，並存入資料庫。 跟舊版差異：舊版是「生成多節點完整劇本」；這支是「單一地點即時推薦 + 單一任務」， 回傳結構完全不同（含行事曆同步連結、社群分享連結），存進獨立的 md_agent_recommendation 表， 不寫入 md_story/md_story_node。,AI 找不到地點時 isSuccess=false，message 是 AI 給的原因（例如「附近沒有符合您當下心情的地點」）
+玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1）， 並自動把其,POST,/api/Story/Confirm,劇本,五、劇情前傳,✅ 實測可用,需要,要接,JSON：story_id（integer）,story_id、title、preface、synopsis、is_night_mode、is_favorite、npc、nodes、subtitle、route_nodes,"{
+  ""story_id"": 0
+}","{
+  ""story_id"": 0,
+  ""title"": ""string"",
+  ""preface"": ""string"",
+  ""synopsis"": ""string"",
+  ""is_night_mode"": false,
+  ""is_favorite"": false,
+  ""npc"": {
+    ""name"": ""string"",
+    ""role"": ""string"",
+    ""intro"": ""string"",
+    ""avatar_url"": ""string"",
+    ""voice"": ""string""
+  },
+  ""nodes"": [
+    {
+      ""order"": 0,
+      ""place_name"": ""string"",
+      ""task_description"": ""string"",
+      ""opening_dialogue"": ""string"",
+      ""location_codename"": ""string"",
+      ""opening"": ""string"",
+      ""success"": ""string"",
+      ""npc_name"": ""string"",
+      ""task_type"": ""string"",
+      ""image_url"": ""string""
+    }
+  ],
+  ""subtitle"": ""string"",
+  ""route_nodes"": [
+    {
+      ""node_id"": 0,
+      ""location_name"": ""string"",
+      ""node_order"": 0
+    }
+  ]
+}",玩家確認選擇指定的劇本卷，準備進入探索地圖。會將此劇本標記為「正在遊玩中」（is_playing = 1）， 並自動把其他劇本重置為未進行（假設同一時間只允許一份劇本進行中）。 只有劇本擁有者或協作隊員可以確認（403），找不到劇本 404。,
+查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆）,GET,/api/Story/CurrentPlaying,劇本,"一、首頁, 六、解謎地圖",✅ 實測可用,需要,要接,,story_id、title、current_order,,"{
+  ""story_id"": 0,
+  ""title"": ""string"",
+  ""current_order"": 0
+}",查詢目前正在進行中的劇本是哪一個（is_playing = 1 的那筆）。 GET /api/Story/CurrentPlaying,
+玩家完成或退出劇本時呼叫，把自己在這份劇本的遊玩紀錄（story_session）標成完成,POST,/api/Story/EndStory,劇本,七、任務完成,✅ 實測可用,需要,要接,JSON：story_id（integer）,string,"{
+  ""story_id"": 0
+}","""string""",玩家完成或退出劇本時呼叫，把自己在這份劇本的遊玩紀錄（story_session）標成完成。 劇本擁有者、協作隊員或有遊玩紀錄的人都可以呼叫。沒按過確認開始（沒有遊玩紀錄）時一樣回成功，但不會補建完成紀錄。 劇本擁有者結束時，進行中的協作隊伍一併標成完成。,把劇本標成完成（首頁總覽、過往旅途、抽徽章都以這個為準）
+我喜愛的劇本清單（最新建立的在前面）,GET,/api/Story/Favorites,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,,清單，每筆：story_id、title、synopsis、city_name、district_name、node_count、is_night_mode、cover_image_url、is_completed、created_at,,"[
+  {
+    ""story_id"": 0,
+    ""title"": ""string"",
+    ""synopsis"": ""string"",
+    ""city_name"": ""string"",
+    ""district_name"": ""string"",
+    ""node_count"": 0,
+    ""is_night_mode"": false,
+    ""cover_image_url"": ""string"",
+    ""is_completed"": false,
+    ""created_at"": ""2026-10-07T12:00:00""
+  }
+]",我喜愛的劇本清單（最新建立的在前面）。 每一筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完。 想排時間出發時，用 POST /api/Story/{story_id}/Calendar 加入 Google 行事曆。,每筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完
+把劇本加入 Google 行事曆：回傳 Google 行事曆的新增活動連結,POST,/api/Story/{story_id}/Calendar,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：start_time（string）、duration_minutes（integer）,google_calendar_url、title、start_time、end_time、location、details,"{
+  ""start_time"": ""2026-10-07T12:00:00"",
+  ""duration_minutes"": 0
+}","{
+  ""google_calendar_url"": ""string"",
+  ""title"": ""string"",
+  ""start_time"": ""2026-10-07T12:00:00"",
+  ""end_time"": ""2026-10-07T12:00:00"",
+  ""location"": ""string"",
+  ""details"": ""string""
+}",把劇本加入 Google 行事曆：回傳 Google 行事曆的新增活動連結。 前端拿到 google_calendar_url 後直接打開（例如 Flutter 的 url_launcher），會開啟 Google 日曆 App 或網頁， 標題、時間、地點、說明都已經填好，使用者按「儲存」就加進自己的行事曆，不需要 Google 帳號授權。 - start_time：預計出發時間（台灣時間，不用帶時區）；不帶時預設明天早上 10:00，夜間劇本晚上 19:00 - duration_minutes：預計遊玩多久（30～1440 分鐘）；不帶時依站數估算，每站 40 分鐘 - 地點只放第一站（集合點），其他站還在迷霧中，不會出現在行事曆 - Request body 可以省略，全部用預設值,回傳 google_calendar_url，前端用 url_launcher 打開，使用者按「儲存」就加進自己的 Google 行事曆，不需要授權。body 可省略（預設明天 10:00，夜間劇本 19:00）。地點只放第一站，其他站在迷霧中不會出現
+取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）,GET,/api/Story/{story_id}/Detail,劇本,"四、劇本檔案館, 五、劇情前傳",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、preface、synopsis、is_night_mode、is_favorite、npc、nodes、subtitle、route_nodes,,"{
+  ""story_id"": 0,
+  ""title"": ""string"",
+  ""preface"": ""string"",
+  ""synopsis"": ""string"",
+  ""is_night_mode"": false,
+  ""is_favorite"": false,
+  ""npc"": {
+    ""name"": ""string"",
+    ""role"": ""string"",
+    ""intro"": ""string"",
+    ""avatar_url"": ""string"",
+    ""voice"": ""string""
+  },
+  ""nodes"": [
+    {
+      ""order"": 0,
+      ""place_name"": ""string"",
+      ""task_description"": ""string"",
+      ""opening_dialogue"": ""string"",
+      ""location_codename"": ""string"",
+      ""opening"": ""string"",
+      ""success"": ""string"",
+      ""npc_name"": ""string"",
+      ""task_type"": ""string"",
+      ""image_url"": ""string""
+    }
+  ],
+  ""subtitle"": ""string"",
+  ""route_nodes"": [
+    {
+      ""node_id"": 0,
+      ""location_name"": ""string"",
+      ""node_order"": 0
+    }
+  ]
+}",取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）。 GET /api/Story/{story_id}/Detail,npc：劇本的 NPC（name、role、intro、avatar_url、voice），沒指定時是預設的薯光；每站有 npc_name 與 task_type（任務類型）；is_night_mode 是日夜
+把劇本加入或取消喜愛,POST,/api/Story/{story_id}/Favorite,劇本,四、劇本檔案館,✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：is_favorite（boolean）,object,"{
+  ""is_favorite"": false
+}",null,把劇本加入或取消喜愛。 只能設定自己的劇本；別人的劇本或不存在的劇本回傳 404。劇本詳情（Detail）會帶 is_favorite。,"body：{ ""is_favorite"": true/false }。只能設定自己的劇本，劇本詳情會帶 is_favorite"
+取消協作隊伍（限劇本擁有者）,POST,/api/Pair/Cancel,組隊,三、組隊集結,⬜ 未實測,需要,要接,JSON：story_id（integer）,,"{
+  ""story_id"": 0
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,取消協作隊伍（限劇本擁有者）。 隊伍改成 cancelled，配對碼失效，其他隊員在這份劇本的遊玩狀態改成暫停。,
+產生配對碼（限劇本擁有者）,POST,/api/Pair/Code,組隊,三、組隊集結,⬜ 未實測,需要,要接,JSON：story_id（integer）,pair_id、story_id、story_title、pair_code、pair_status、expires_at、expires_in_seconds、party_size、member_count、my_seat_no、is_host、members,"{
+  ""story_id"": 0
+}","{
+  ""pair_id"": 0,
+  ""story_id"": 0,
+  ""story_title"": ""string"",
+  ""pair_code"": ""string"",
+  ""pair_status"": ""string"",
+  ""expires_at"": ""2026-10-07T12:00:00"",
+  ""expires_in_seconds"": 0,
+  ""party_size"": 0,
+  ""member_count"": 0,
+  ""my_seat_no"": 0,
+  ""is_host"": false,
+  ""members"": [
+    {
+      ""au_id"": 0,
+      ""auth_name"": ""string"",
+      ""seat_no"": 0,
+      ""is_host"": false,
+      ""joined_at"": ""2026-10-07T12:00:00""
+    }
+  ]
+}",產生配對碼（限劇本擁有者）。 - 還沒有隊伍：建立隊伍，擁有者坐 1 號座位，回傳新的四位數配對碼 - 配對碼仍在有效期內：回傳原本的配對碼（不會換號） - 配對碼逾期，或隊伍鎖定後有人退出：重新開放並給一組新配對碼，已加入的成員維持原座位 - 隊伍已滿：409；單人劇本（party_size 小於 2）：409,劇本擁有者產生四位數配對碼，有效期內重複呼叫回傳同一組；單人劇本或隊伍已滿回 409
+輸入配對碼加入協作隊伍,POST,/api/Pair/Join,組隊,三、組隊集結,⬜ 未實測,需要,要接,JSON：pair_code（string）,pair_id、story_id、story_title、pair_code、pair_status、expires_at、expires_in_seconds、party_size、member_count、my_seat_no、is_host、members,"{
+  ""pair_code"": ""string""
+}","{
+  ""pair_id"": 0,
+  ""story_id"": 0,
+  ""story_title"": ""string"",
+  ""pair_code"": ""string"",
+  ""pair_status"": ""string"",
+  ""expires_at"": ""2026-10-07T12:00:00"",
+  ""expires_in_seconds"": 0,
+  ""party_size"": 0,
+  ""member_count"": 0,
+  ""my_seat_no"": 0,
+  ""is_host"": false,
+  ""members"": [
+    {
+      ""au_id"": 0,
+      ""auth_name"": ""string"",
+      ""seat_no"": 0,
+      ""is_host"": false,
+      ""joined_at"": ""2026-10-07T12:00:00""
+    }
+  ]
+}",輸入配對碼加入協作隊伍。 加入後坐最小的空座位，這份劇本同時設為自己進行中的劇本（同確認開始）；已經是成員時直接回傳隊伍資訊。 配對碼錯誤或逾期：404；隊伍已滿：409。,輸入配對碼加入，坐最小的空座位，同時把這份劇本設為自己進行中的劇本；配對碼錯誤或逾期 404、已滿 409
+隊員退出協作隊伍,POST,/api/Pair/Leave,組隊,三、組隊集結,⬜ 未實測,需要,要接,JSON：story_id（integer）,,"{
+  ""story_id"": 0
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,隊員退出協作隊伍。 隊長（劇本擁有者）不能退出，請改用取消隊伍；退出後這份劇本的遊玩狀態改成暫停。,
+查詢劇本目前的協作隊伍（限擁有者與隊員）,GET,/api/Pair/Story/{story_id},組隊,三、組隊集結,⬜ 未實測,需要,要接,story_id（路徑，integer）,pair_id、story_id、story_title、pair_code、pair_status、expires_at、expires_in_seconds、party_size、member_count、my_seat_no、is_host、members,,"{
+  ""pair_id"": 0,
+  ""story_id"": 0,
+  ""story_title"": ""string"",
+  ""pair_code"": ""string"",
+  ""pair_status"": ""string"",
+  ""expires_at"": ""2026-10-07T12:00:00"",
+  ""expires_in_seconds"": 0,
+  ""party_size"": 0,
+  ""member_count"": 0,
+  ""my_seat_no"": 0,
+  ""is_host"": false,
+  ""members"": [
+    {
+      ""au_id"": 0,
+      ""auth_name"": ""string"",
+      ""seat_no"": 0,
+      ""is_host"": false,
+      ""joined_at"": ""2026-10-07T12:00:00""
+    }
+  ]
+}",查詢劇本目前的協作隊伍（限擁有者與隊員）。 隊長等待隊員加入時可輪詢這支；回傳成員與座位、自己的座位（my_seat_no）、配對碼剩餘秒數。 還沒有隊伍時 Result 為 null。 GET /api/Pair/Story/1,隊長等待隊員時輪詢這支：成員、座位、my_seat_no、配對碼剩餘秒數；還沒組隊時 Result 為 null
+劇情前傳語音：唸指定劇本的前傳,POST,/api/Npc/Prologue/{story_id},NPC 語音,五、劇情前傳,✅ 實測可用,需要,要接,story_id（路徑，integer）；voice（查詢，string）,text、voice、audio_url,,"{
+  ""text"": ""string"",
+  ""voice"": ""string"",
+  ""audio_url"": ""string""
+}",劇情前傳語音：唸指定劇本的前傳。 對應「劇情前傳」畫面，前端不用自己傳文字。回傳的 audio_url 是 mp3，直接播放。 POST /api/Npc/Prologue/3?voice=zh-TW-YunJheNeural voice 可省略，預設用這個劇本 NPC 的聲線（劇本詳情的 npc.voice）。,回傳 audio_url（mp3），直接播放。voice 可省略，預設用劇本 NPC 的聲線
+NPC 說話：任意文字轉語音（節點對話、任務說明等）,POST,/api/Npc/Speak,NPC 語音,"五、劇情前傳, 六、解謎地圖",✅ 實測可用,需要,要接,JSON：text（string）、voice（string）,text、voice、audio_url,"{
+  ""text"": ""string"",
+  ""voice"": ""string""
+}","{
+  ""text"": ""string"",
+  ""voice"": ""string"",
+  ""audio_url"": ""string""
+}",NPC 說話：任意文字轉語音（節點對話、任務說明等）。,voice 帶 NPC 的聲線（劇本詳情 npc.voice、NPC 互動 npc_voice、節點遊玩畫面 npc.npc_voice），NPC 就會用自己的聲音說話
+取得使用者現在所在位置,POST,/api/Map/Location,解謎地圖,六、解謎地圖,✅ 實測可用,不用,要接,JSON：lat（number）、lng（number）、accuracy（number）,lat、lng、accuracy、city_name、district_name、received_at,"{
+  ""lat"": 0.0,
+  ""lng"": 0.0,
+  ""accuracy"": 0.0
+}","{
+  ""lat"": 0.0,
+  ""lng"": 0.0,
+  ""accuracy"": 0.0,
+  ""city_name"": ""string"",
+  ""district_name"": ""string"",
+  ""received_at"": ""2026-10-07T12:00:00""
+}",取得使用者現在所在位置,不用登入
+取得前往指定節點的導航資訊,POST,/api/Map/Navigate,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,JSON：node_id（integer）,maps_deeplink_url,"{
+  ""node_id"": 0
+}","{
+  ""maps_deeplink_url"": ""string""
+}","取得前往指定節點的導航資訊。 對應「地圖」頁面節點彈窗的「開始導航」按鈕。 POST /api/Map/Navigate { ""node_id"": 1 }",還在迷霧中的站回傳 403（避免洩漏精確位置）
+取得指定節點的詳細內容,GET,/api/Map/Node/{node_id},解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）,node_id、location_name、npc_name、npc_avatar_url、intro_story、opening_hours、nearby_food、task_id,,"{
+  ""node_id"": 0,
+  ""location_name"": ""string"",
+  ""npc_name"": ""string"",
+  ""npc_avatar_url"": ""string"",
+  ""intro_story"": ""string"",
+  ""opening_hours"": ""string"",
+  ""nearby_food"": [
+    ""string""
+  ],
+  ""task_id"": 0
+}",取得指定節點的詳細內容。 對應「地圖」頁面節點彈窗（如臺南孔廟）的詳情內容。 GET /api/Map/Node/{node_id},還在迷霧中的站回傳 403。npc_name、npc_avatar_url 是這一站的 NPC
+使用 GPS 座標確認探員已抵達指定節點,POST,/api/Map/Node/{node_id}/Arrive,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）；lat（查詢，number）；lng（查詢，number）,node_id、location_name、npc_name、npc_avatar_url、intro_story、opening_hours、nearby_food、task_id,,"{
+  ""node_id"": 0,
+  ""location_name"": ""string"",
+  ""npc_name"": ""string"",
+  ""npc_avatar_url"": ""string"",
+  ""intro_story"": ""string"",
+  ""opening_hours"": ""string"",
+  ""nearby_food"": [
+    ""string""
+  ],
+  ""task_id"": 0
+}",使用 GPS 座標確認探員已抵達指定節點。 對應「地圖」頁面點擊節點後的抵達解鎖流程，成功後解鎖該節點詳情。 只有劇本擁有者或協作隊員可以抵達（403）；只能抵達已解鎖的站（還在迷霧中回 403），且要在景點 200 公尺內（400）。 解鎖進度是協作隊伍全隊共用的。 POST /api/Map/Node/{node_id}/Arrive?lat=25.0330&lng=121.5654,要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開
+取得指定節點的 NPC 隨機互動內容,GET,/api/Map/Node/{node_id}/Interact,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,node_id（路徑，integer）,node_id、location_name、location_subtitle、scene_image_url、npc_id、npc_name、npc_role、npc_avatar_url、npc_voice、npc_dialogue、emotion、skip_button_text、next_task_id,,"{
+  ""node_id"": 0,
+  ""location_name"": ""string"",
+  ""location_subtitle"": ""string"",
+  ""scene_image_url"": ""string"",
+  ""npc_id"": ""string"",
+  ""npc_name"": ""string"",
+  ""npc_role"": ""string"",
+  ""npc_avatar_url"": ""string"",
+  ""npc_voice"": ""string"",
+  ""npc_dialogue"": ""string"",
+  ""emotion"": ""string"",
+  ""skip_button_text"": ""string"",
+  ""next_task_id"": ""string""
+}",取得指定節點的 NPC 隨機互動內容。 對應「地圖」頁面節點彈窗中「回顧劇情」等 NPC 對話內容。 GET /api/Map/Node/{node_id}/Interact,還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url、npc_voice 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白
+取得指定劇本的地圖資訊,GET,/api/Map/{story_id},解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、unlocked_node_count、total_node_count、postcard_unlocked_count、postcard_total_count、nodes、day_index、total_days,,"{
+  ""story_id"": 0,
+  ""unlocked_node_count"": 0,
+  ""total_node_count"": 0,
+  ""postcard_unlocked_count"": 0,
+  ""postcard_total_count"": 0,
+  ""nodes"": [
+    {
+      ""node_id"": 0,
+      ""location_name"": ""string"",
+      ""lat"": 0.0,
+      ""lng"": 0.0,
+      ""is_unlocked"": false,
+      ""is_completed"": false,
+      ""is_night_only"": false,
+      ""fog_hint"": ""string"",
+      ""fog_radius_m"": 0.0,
+      ""day_index"": 0,
+      ""child_node_ids"": [
+        0
+      ],
+      ""image_url"": ""string"",
+      ""node_order"": 0
+    }
+  ],
+  ""day_index"": 0,
+  ""total_days"": 0
+}",取得指定劇本的地圖資訊。 對應「地圖」頁面，顯示地點探索度、已收集節點與路線。 只有劇本擁有者或協作隊員可以查看（403）；節點座標依景點 uid 向 Neo4j 查。 迷霧由後端處理，前端照欄位顯示即可： - 已解鎖（is_unlocked = true）：location_name 是站名、image_url 是景點照片、lat/lng 是精確位置 - 未解鎖（is_unlocked = false）：location_name 是迷霧提示（地點代號）、image_url 是迷霧圖、 lat/lng 是迷霧中心（大概位置），請以它為中心畫半徑 fog_radius_m 公尺的迷霧；真正的點在這個範圍內 未解鎖的站不能查看詳情、互動、導航或打卡，會回傳 403。 GET /api/Map/{story_id},迷霧由後端處理，前端照欄位顯示：未解鎖的站 location_name 是地點代號、image_url 是這一站照片的霧化版（若隱若現，還沒做好時先給通用迷霧圖）、lat/lng 是迷霧中心，以它為中心畫半徑 fog_radius_m 公尺的迷霧；解鎖後才是真正的站名、照片與座標
+取得指定劇本周邊的推薦去處,GET,/api/Map/{story_id}/Nearby,解謎地圖,六、解謎地圖,✅ 實測可用,需要,要接,story_id（路徑，integer）；category（查詢，string）,清單，每筆：place_id、category、type、name、address、open_time、photo_urls、maps_deeplink_url、lat、lng,,"[
+  {
+    ""place_id"": 0,
+    ""category"": ""string"",
+    ""type"": ""string"",
+    ""name"": ""string"",
+    ""address"": ""string"",
+    ""open_time"": ""string"",
+    ""photo_urls"": [
+      ""string""
+    ],
+    ""maps_deeplink_url"": ""string"",
+    ""lat"": 0.0,
+    ""lng"": 0.0
+  }
+]",取得指定劇本周邊的推薦去處。 對應「周邊好去」頁面，依「飲食」「其他」等分類回傳附近推薦地點。 GET /api/Map/{story_id}/Nearby?category=飲食,
+查詢座標附近的公車站牌，以及每個站牌經過的路線（含台灣好行）,GET,/api/Bus/Nearby,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radius（查詢，integer）,清單，每筆：bs_id、stop_name、lat、lng、distance_m、routes,,"[
+  {
+    ""bs_id"": 0,
+    ""stop_name"": ""string"",
+    ""lat"": 0.0,
+    ""lng"": 0.0,
+    ""distance_m"": 0,
+    ""routes"": [
+      {
+        ""br_id"": 0,
+        ""route_name"": ""string"",
+        ""route_type"": 0,
+        ""route_type_name"": ""string""
+      }
+    ]
+  }
+]",查詢座標附近的公車站牌，以及每個站牌經過的路線（含台灣好行）。 GET /api/Bus/Nearby?lat=24.1477&lng=120.6736&radius=500,
+取得公車路線詳情：去程/返程的完整站牌、路線線形、起站發車時間,GET,/api/Bus/Route/{br_id},交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,br_id（路徑，integer）,br_id、route_uid、route_name、route_type、route_type_name、city_name、departure_stop_name、destination_stop_name、fare_desc、route_map_url、headway_desc、tripper、patterns,,"{
+  ""br_id"": 0,
+  ""route_uid"": ""string"",
+  ""route_name"": ""string"",
+  ""route_type"": 0,
+  ""route_type_name"": ""string"",
+  ""city_name"": ""string"",
+  ""departure_stop_name"": ""string"",
+  ""destination_stop_name"": ""string"",
+  ""fare_desc"": ""string"",
+  ""route_map_url"": ""string"",
+  ""headway_desc"": ""string"",
+  ""tripper"": {
+    ""theme"": ""string"",
+    ""introduction"": ""string"",
+    ""cover_image"": ""string"",
+    ""website_url"": ""string""
+  },
+  ""patterns"": [
+    {
+      ""brp_id"": 0,
+      ""sub_route_name"": ""string"",
+      ""direction"": 0,
+      ""direction_name"": ""string"",
+      ""headsign"": ""string"",
+      ""stops"": [
+        {
+          ""bs_id"": 0,
+          ""stop_sequence"": 0,
+          ""stop_name"": ""string"",
+          ""lat"": 0.0,
+          ""lng"": 0.0
+        }
+      ],
+      ""shape"": [
+        [
+          0.0
+        ]
+      ],
+      ""departures"": [
+        {
+          ""service_days"": ""string"",
+          ""times"": [
+            ""string""
+          ]
+        }
+      ]
+    }
+  ]
+}",取得公車路線詳情：去程/返程的完整站牌、路線線形、起站發車時間。 br_id 可從 Nearby、TaiwanTrip 或劇本的公車方案取得。 GET /api/Bus/Route/12,
+查詢站牌的即時到站時間（每條路線還有幾分鐘到）,GET,/api/Bus/Stop/{bs_id}/Arrivals,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,bs_id（路徑，integer）,清單，每筆：route_name、sub_route_name、direction、estimate_minutes、status_text、next_bus_time,,"[
+  {
+    ""route_name"": ""string"",
+    ""sub_route_name"": ""string"",
+    ""direction"": 0,
+    ""estimate_minutes"": 0,
+    ""status_text"": ""string"",
+    ""next_bus_time"": ""string""
+  }
+]",查詢站牌的即時到站時間（每條路線還有幾分鐘到）。 直接查詢 TDX 即時資料，不存資料庫，前端要顯示時再呼叫即可（建議 30 秒以上更新一次）。 GET /api/Bus/Stop/123/Arrivals,
+取得全台營運中的台灣好行路線列表,GET,/api/Bus/TaiwanTrip,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：br_id、route_name、city_name、departure_stop_name、destination_stop_name、fare_desc、theme、cover_image、stop_count,,"[
+  {
+    ""br_id"": 0,
+    ""route_name"": ""string"",
+    ""city_name"": ""string"",
+    ""departure_stop_name"": ""string"",
+    ""destination_stop_name"": ""string"",
+    ""fare_desc"": ""string"",
+    ""theme"": ""string"",
+    ""cover_image"": ""string"",
+    ""stop_count"": 0
+  }
+]",取得全台營運中的台灣好行路線列表。 GET /api/Bus/TaiwanTrip,
+取得座標附近的捷運路線（含車站與線形），在地圖上畫捷運路網用,GET,/api/Metro/Lines,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radius_km（查詢，number）,清單，每筆：ml_id、system_name、line_no、line_name、line_color、stations、shape,,"[
+  {
+    ""ml_id"": 0,
+    ""system_name"": ""string"",
+    ""line_no"": ""string"",
+    ""line_name"": ""string"",
+    ""line_color"": ""string"",
+    ""stations"": [
+      {
+        ""mst_id"": 0,
+        ""station_code"": ""string"",
+        ""station_name"": ""string"",
+        ""lat"": 0.0,
+        ""lng"": 0.0
+      }
+    ],
+    ""shape"": [
+      [
+        [
+          0.0
+        ]
+      ]
+    ]
+  }
+]",取得座標附近的捷運路線（含車站與線形），在地圖上畫捷運路網用。 只要路線有任一車站在 radius_km 內就會回傳整條路線。 GET /api/Metro/Lines?lat=24.1635&lng=120.6474&radius_km=10,
+查詢各交通方式在這一帶能不能用（前端用來決定勾選框要不要反灰）,GET,/api/Route/Availability,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；story_id（查詢，integer）,清單，每筆：mode、enabled、reason、nearest_name、nearest_distance_m、color,,"[
+  {
+    ""mode"": ""string"",
+    ""enabled"": false,
+    ""reason"": ""string"",
+    ""nearest_name"": ""string"",
+    ""nearest_distance_m"": 0,
+    ""color"": ""string""
+  }
+]",查詢各交通方式在這一帶能不能用（前端用來決定勾選框要不要反灰）。 步行、腳踏車、機車、汽車一律可用。 公車：起點或任一節點 600 公尺內有公車站牌（且已匯入該縣市公車資料）才可用。 捷運：至少兩個地點步行 15 分鐘（1 公里）內有捷運站才可用；只查單一座標時該點附近有站即可。 帶 story_id 時會一併檢查劇本所有節點；lat/lng 是使用者目前位置（起點），可不帶。 GET /api/Route/Availability?lat=24.1372&lng=120.6869&story_id=12,
+查詢各交通方式在這些地點能不能用（自選地點、沒有劇本時用）,POST,/api/Route/Availability,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：mode、enabled、reason、nearest_name、nearest_distance_m、color,"[
+  {
+    ""lat"": 0.0,
+    ""lng"": 0.0,
+    ""name"": ""string""
+  }
+]","[
+  {
+    ""mode"": ""string"",
+    ""enabled"": false,
+    ""reason"": ""string"",
+    ""nearest_name"": ""string"",
+    ""nearest_distance_m"": 0,
+    ""color"": ""string""
+  }
+]",查詢各交通方式在這些地點能不能用（自選地點、沒有劇本時用）。 規則同 GET /api/Route/Availability，body 放起點與要去的所有點。,
+規劃劇本交通路線：起點 → 依序經過每個節點（去程）→ 回到起點（返程）,POST,/api/Route/Plan,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,JSON：story_id（integer）、start（RoutePoint）、points（RoutePoint[]）、transportation（string[]）、include_return（boolean）,story_id、story_title、start、stops、legs、outbound_minutes、return_minutes、total_minutes、total_distance_km、modes_used、warnings,"{
+  ""story_id"": 0,
+  ""start"": {
+    ""lat"": 0.0,
+    ""lng"": 0.0,
+    ""name"": ""string""
+  },
+  ""points"": [
+    {
+      ""lat"": 0.0,
+      ""lng"": 0.0,
+      ""name"": ""string""
+    }
+  ],
+  ""transportation"": [
+    ""string""
+  ],
+  ""include_return"": false
+}","{
+  ""story_id"": 0,
+  ""story_title"": ""string"",
+  ""start"": {
+    ""lat"": 0.0,
+    ""lng"": 0.0,
+    ""name"": ""string""
+  },
+  ""stops"": [
+    {
+      ""sn_id"": 0,
+      ""order"": 0,
+      ""name"": ""string"",
+      ""title"": ""string"",
+      ""lat"": 0.0,
+      ""lng"": 0.0
+    }
+  ],
+  ""legs"": [
+    {
+      ""leg_order"": 0,
+      ""direction"": ""string"",
+      ""from_name"": ""string"",
+      ""to_name"": ""string"",
+      ""mode"": ""string"",
+      ""minutes"": 0.0,
+      ""distance_km"": 0.0,
+      ""summary"": ""string"",
+      ""segments"": [
+        {
+          ""mode"": ""string"",
+          ""color"": ""string"",
+          ""minutes"": 0.0,
+          ""wait_minutes"": 0.0,
+          ""distance_km"": 0.0,
+          ""coordinates"": [
+            [
+              0.0
+            ]
+          ],
+          ""route_name"": ""string"",
+          ""route_type_name"": ""string"",
+          ""headsign"": ""string"",
+          ""board_name"": ""string"",
+          ""alight_name"": ""string"",
+          ""stop_count"": 0,
+          ""stops"": [
+            {}
+          ],
+          ""instruction"": ""string""
+        }
+      ],
+      ""options"": [
+        {
+          ""mode"": ""string"",
+          ""minutes"": 0.0,
+          ""distance_km"": 0.0,
+          ""summary"": ""string"",
+          ""is_chosen"": false,
+          ""segments"": [
+            {}
+          ]
+        }
+      ]
+    }
+  ],
+  ""outbound_minutes"": 0.0,
+  ""return_minutes"": 0.0,
+  ""total_minutes"": 0.0,
+  ""total_distance_km"": 0.0,
+  ""modes_used"": [
+    ""string""
+  ],
+  ""warnings"": [
+    ""string""
+  ]
+}",規劃劇本交通路線：起點 → 依序經過每個節點（去程）→ 回到起點（返程）。 每一段會把勾選的交通方式都算一次，採用最快的方案（公車/捷運含步行到站與候車時間）， 其他方案放在 options 讓使用者切換。 - 步行、腳踏車、機車、汽車：實際道路路線（腳踏車優先走自行車道） - 公車：起訖點附近站牌之間的直達路線，含上下車站、經過的站牌 - 捷運：可轉乘，含上下車站、轉乘站、經過的車站，線條用該路線代表色 segments 的 coordinates 已依行進方向排序，前端沿線畫箭頭即可表示方向； direction 是「去程」或「返程」。在這一帶不能用的公車/捷運會自動略過並放進 warnings。 （劇本）： （自選地點）：,帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來）
+取得可以規劃交通路線的劇本（含節點座標與建議起點）,GET,/api/Route/Stories,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,,清單，每筆：story_id、story_title、city_name、district_name、node_count、suggested_start、nodes,,"[
+  {
+    ""story_id"": 0,
+    ""story_title"": ""string"",
+    ""city_name"": ""string"",
+    ""district_name"": ""string"",
+    ""node_count"": 0,
+    ""suggested_start"": {
+      ""lat"": 0.0,
+      ""lng"": 0.0,
+      ""name"": ""string""
+    },
+    ""nodes"": [
+      {
+        ""sn_id"": 0,
+        ""order"": 0,
+        ""name"": ""string"",
+        ""title"": ""string"",
+        ""lat"": 0.0,
+        ""lng"": 0.0
+      }
+    ]
+  }
+]",取得可以規劃交通路線的劇本（含節點座標與建議起點）。 回傳自己的劇本（新的在前）；自己還沒有劇本時回傳最近的劇本，方便用測試帳號展示。 GET /api/Route/Stories,
+依使用者 GPS 座標，透過 Neo4j 查詢半徑範圍內的景點，依距離由近到遠排序,GET,/api/Story/NearbyAttractions,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,lat（查詢，number）；lng（查詢，number）；radiusKm（查詢，number）,清單，每筆：name、lat、lon、distance_m,,"[
+  {
+    ""name"": ""string"",
+    ""lat"": 0.0,
+    ""lon"": 0.0,
+    ""distance_m"": 0.0
+  }
+]",依使用者 GPS 座標，透過 Neo4j 查詢半徑範圍內的景點，依距離由近到遠排序。 資料來源：Neo4j 開放資料（全台灣景點，跟劇本/遊戲進度無關，資料量大且座標準確）。 適合用途：地圖探索、景點推薦，這種不需要綁定特定劇本節點的通用查詢。 查無結果時代表「這附近真的沒有登錄在 Neo4j 的景點」，可視為正常情況。 GET /api/Story/NearbyAttractions?lat=22.9908&lng=120.2034&radiusKm=1,本機 Neo4j 連不上時，自動改用 MySQL place 表的景點（原本的 Story/NearbyPlaces 已合併進來）
+依中心點與交通方式，找出可到達的景點，並回傳每個景點的真實交通時間、距離、所在圈層,POST,/api/Story/ReachableAttractions,交通與景點,六、解謎地圖,✅ 實測可用,需要,要接,JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、transportation（string[]）、contour_minutes（integer[]）、include_polygons（boolean）,center_lat、center_lng、contour_minutes、total_reachable、attractions、isochrones,"{
+  ""lat"": 0.0,
+  ""lng"": 0.0,
+  ""city_name"": ""string"",
+  ""town_name"": ""string"",
+  ""transportation"": [
+    ""string""
+  ],
+  ""contour_minutes"": [
+    0
+  ],
+  ""include_polygons"": false
+}","{
+  ""center_lat"": 0.0,
+  ""center_lng"": 0.0,
+  ""contour_minutes"": [
+    0
+  ],
+  ""total_reachable"": 0,
+  ""attractions"": [
+    {
+      ""uid"": ""string"",
+      ""name"": ""string"",
+      ""lat"": 0.0,
+      ""lon"": 0.0,
+      ""distance_m"": 0.0,
+      ""travel_minutes"": 0.0,
+      ""travel_distance_km"": 0.0,
+      ""reachable_by"": ""string"",
+      ""ring"": 0,
+      ""reachable_minutes"": 0
+    }
+  ],
+  ""isochrones"": [
+    {
+      ""transport"": ""string"",
+      ""costing"": ""string"",
+      ""minutes"": 0,
+      ""polygons"": [
+        [
+          [
+            [
+              0.0
+            ]
+          ]
+        ]
+      ]
+    }
+  ]
+}",依中心點與交通方式，找出可到達的景點，並回傳每個景點的真實交通時間、距離、所在圈層。 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。 交通方式可複選，每個景點取最快可到達的那一種；公車/捷運不列入計算。 重複的景點（同名且相近、或座標幾乎相同）會合併成一筆。 一律以整天行程計算（10/20/30 分鐘圈），範圍內各圈層輪流隨機抽 8 個景點，每次呼叫結果都不同； 抽完後依順路的參觀順序排好（從中心點出發，不走回頭路）。,
+送出任務答案並取得答題結果,POST,/api/Task/Answer,任務,"六、解謎地圖, 七、任務完成",⬜ 未實測,需要,要接,JSON：task_id（integer）、gps_lon（number）、gps_lat（number）、selected_option_key（string）、text_answer（string）、photo_url（string）、video_url（string）、audio_url（string）,,"{
+  ""task_id"": 0,
+  ""gps_lon"": 0.0,
+  ""gps_lat"": 0.0,
+  ""selected_option_key"": ""string"",
+  ""text_answer"": ""string"",
+  ""photo_url"": ""string"",
+  ""video_url"": ""string"",
+  ""audio_url"": ""string""
+}","{
+  ""is_correct"": false,
+  ""pass"": 0,
+  ""is_pending_review"": false,
+  ""feedback_message"": ""string"",
+  ""node_progress"": {
+    ""story_id"": 0,
+    ""node_order"": 0,
+    ""current_order"": 0
+  },
+  ""node_completed"": false,
+  ""story_completed"": false
+}",送出任務答案並取得答題結果。 只有劇本擁有者或該劇本協作隊伍的成員可以作答（403）；這一站要已被隊伍抵達過（409）； 玩家目前 GPS 位置要在任務地點 200 公尺內（400）。通過後依任務類型驗證答案， 要帶哪個作答欄位見節點遊玩畫面（GET api/Task/Node/{node_id}）每一題的 answer_mode， 沒帶時回 400 且不算答錯：text → text_answer、choice → selected_option_key、photo → photo_url、 audio_or_video → audio_url 或 video_url、gps 不用帶。 每次作答都寫入 user_task_record；答對時 task.pass 設為 1（已通過，協作隊伍共用）。 回應帶回這一站的進度（node_progress）、這一站是否完成（node_comple,GPS 要在任務地點 200 公尺內；要帶哪個作答欄位看 GET /api/Task/Node/{node_id} 每題的 answer_mode
+測試用：直接對指定劇本或節點逐題呼叫 AI 生成任務,POST,/api/Task/Generate,任務,"六、解謎地圖, 七、任務完成",🗑 舊版（不用接）,不用,不用接,JSON：story_id（string）、node_id（string）、player_count（integer）,,"{
+  ""story_id"": ""string"",
+  ""node_id"": ""string"",
+  ""player_count"": 0
+}","[
+  {
+    ""task_id"": 0,
+    ""story_id"": ""string"",
+    ""node_id"": ""string"",
+    ""task_place_id"": ""string"",
+    ""type_id"": 0,
+    ""task_type"": ""string"",
+    ""task_describe"": ""string"",
+    ""clue_text"": ""string"",
+    ""pass"": 0,
+    ""options"": [
+      {
+        ""option_key"": ""string"",
+        ""option_text"": ""string"",
+        ""option_url"": ""string""
+      }
+    ],
+    ""media_urls"": [
+      ""string""
+    ]
+  }
+]",【前端不用接】測試用：直接對指定劇本或節點逐題呼叫 AI 生成任務。 前端不用接：正式流程的任務在 POST api/Story/GenerateGameStory 規劃行程時就判斷好任務類型，連同劇本一次交給 AI 生成並寫入資料庫，前端不需要另外呼叫這支。 這支只給後端測試單一節點的任務生成：node_id 有值時只生成該節點，否則生成整份劇本（story_id）的所有節點， 寫入 task / task_option / task_clue。,
+依玩家目前 GPS 座標檢查是否觸發隱藏關卡,POST,/api/Task/HiddenLevel/Check,任務,"六、解謎地圖, 七、任務完成",❌ 目前不能用,不用,要接,ep_id（查詢，string）；lat（查詢，number）；lng（查詢，number）；region_id（查詢，string）,,,"{
+  ""triggered"": false,
+  ""hidden_level_id"": ""string"",
+  ""title"": ""string"",
+  ""cultural_background"": ""string"",
+  ""content"": ""string"",
+  ""reward_badge_id"": ""string"",
+  ""reward_postcard_id"": ""string""
+}",依玩家目前 GPS 座標檢查是否觸發隱藏關卡。 建議由 MapController 的玩家位置回報流程內部呼叫，不對前端開放主動查詢，避免玩家猜位置。 POST /api/Task/HiddenLevel/Check?ep_id=EP001&lat=22.99&lng=120.20&region_id=region_tainan_centralwest,查的 md_hidden_level、ep_hidden_level_unlock 不在 schema.sql 裡，目前會出錯（組員的程式）
+取得節點的任務清單（已由 GET api/Task/Node/{node_id} 取代）,POST,/api/Task/List,任務,"六、解謎地圖, 七、任務完成",🗑 舊版（不用接）,需要,不用接,JSON：node_id（string）、gps_lon（number）、gps_lat（number）,,"{
+  ""node_id"": ""string"",
+  ""gps_lon"": 0.0,
+  ""gps_lat"": 0.0
+}","[
+  {
+    ""task_id"": 0,
+    ""story_id"": ""string"",
+    ""node_id"": ""string"",
+    ""task_place_id"": ""string"",
+    ""type_id"": 0,
+    ""task_type"": ""string"",
+    ""task_describe"": ""string"",
+    ""clue_text"": ""string"",
+    ""pass"": 0,
+    ""options"": [
+      {
+        ""option_key"": ""string"",
+        ""option_text"": ""string"",
+        ""option_url"": ""string""
+      }
+    ],
+    ""media_urls"": [
+      ""string""
+    ]
+  }
+]","【前端不用接】取得節點的任務清單（已由 GET api/Task/Node/{node_id} 取代）。 前端不用接：請改用 GET api/Task/Node/{node_id}，一次拿到節點劇情、進度、作答方式與提示狀態，且不用每次帶 GPS。 需要登入。只有劇本擁有者或該劇本協作隊伍的成員可以查看（其他人 403），並須位於任務地點附近。 協作解謎型（type_id=5）的 clue_text 依登入者在隊伍中的座位決定（擁有者還沒組隊時當 1 號座位）， 前端不需要、也不能指定座位。 POST /api/Task/List { ""node_id"": ""5"", ""gps_lat"": 24.1385, ""gps_lon"": 120.6784 }",
+節點遊玩畫面：一次取得這一站的劇情、自己的座位、進度與每一題的作答方式與狀態,GET,/api/Task/Node/{node_id},任務,"六、解謎地圖, 七、任務完成",✅ 實測可用,需要,要接,node_id（路徑，integer）,node、npc、my_seat_no、progress、tasks,,"{
+  ""node"": {
+    ""node_id"": 0,
+    ""story_id"": 0,
+    ""node_order"": 0,
+    ""title"": ""string"",
+    ""location_codename"": ""string"",
+    ""opening_text"": ""string"",
+    ""success_text"": ""string""
+  },
+  ""npc"": {
+    ""npc_id"": 0,
+    ""npc_name"": ""string"",
+    ""npc_role"": ""string"",
+    ""npc_avatar_url"": ""string"",
+    ""npc_voice"": ""string""
+  },
+  ""my_seat_no"": 0,
+  ""progress"": {
+    ""passed"": 0,
+    ""total"": 0,
+    ""all_passed"": false
+  },
+  ""tasks"": [
+    {
+      ""task_id"": 0,
+      ""type_id"": 0,
+      ""type_name"": ""string"",
+      ""answer_mode"": ""string"",
+      ""task_describe"": ""string"",
+      ""clue_text"": ""string"",
+      ""options"": [
+        {
+          ""option_key"": ""string"",
+          ""option_text"": ""string"",
+          ""option_url"": ""string""
+        }
+      ],
+      ""pass"": 0,
+      ""wrong_count"": 0,
+      ""hint_available"": false
+    }
+  ]
+}",節點遊玩畫面：一次取得這一站的劇情、自己的座位、進度與每一題的作答方式與狀態。 需要登入。只有劇本擁有者或協作隊員可以查看（其他人 403）；這一站要已被隊伍抵達過 （先呼叫 POST api/Map/Node/{node_id}/Arrive），否則 409。查看不用帶 GPS，作答時才檢查位置。 每一題的 answer_mode 決定前端顯示哪種輸入、作答（POST api/Task/Answer）時帶哪個欄位： - choice：selected_option_key - text：text_answer - photo：photo_url（先用 api/Upload 上傳取得網址） - audio_or_video：audio_url 或 video_url - gps：不用帶作答欄位，在現場送出即可 協作解謎型的 clue_text 是自己座位的線索；hint_available,取代舊的 Task/List。要先 Arrive 抵達這一站（否則 409）；npc 是說開場白、出題的 NPC（名稱、身分、圖片、聲線）；每題的 answer_mode 決定作答時帶哪個欄位
+取得登入者在目前所在鄉鎮市區的題型解鎖進度（產生劇本前顯示用）,GET,/api/Task/Progress,任務,"二、出發探險, 三、組隊集結",⬜ 未實測,需要,要接,lat（查詢，number）；lng（查詢，number）,city_name、district_name、is_first_visit、unlocked_types、locked_types,,"{
+  ""city_name"": ""string"",
+  ""district_name"": ""string"",
+  ""is_first_visit"": false,
+  ""unlocked_types"": [
+    {
+      ""type_id"": 0,
+      ""type_name"": ""string"",
+      ""unlock_hint"": ""string""
+    }
+  ],
+  ""locked_types"": [
+    {
+      ""type_id"": 0,
+      ""type_name"": ""string"",
+      ""unlock_hint"": ""string""
+    }
+  ]
+}",取得登入者在目前所在鄉鎮市區的題型解鎖進度（產生劇本前顯示用）。 需要登入。後端用座標找出所在的縣市／鄉鎮市區（Neo4j 最近景點的行政區，查不到時用反向地理編碼）， 再看登入者有沒有在這個區抵達過任何一站（或在這個區作答過）。 第一次到的區，產生劇本時這個區的景點不會出 e人訪談型，locked_types 會列出並附上解鎖條件（unlock_hint）； 在這個區抵達任一站後就解鎖。查不到所在區時 city_name、district_name 為 null，並當作第一次到。 GET /api/Task/Progress?lat=24.1437&lng=120.6736,產生劇本前顯示：第一次到的鄉鎮市區不出 e人訪談型，locked_types 附解鎖條件
+取得指定任務的提示內容,GET,/api/Task/{task_id}/Hint,任務,"六、解謎地圖, 七、任務完成",✅ 實測可用,需要,要接,task_id（路徑，integer）,,,"{
+  ""task_id"": ""string"",
+  ""npc_name"": ""string"",
+  ""npc_avatar_url"": ""string"",
+  ""hint_text"": ""string"",
+  ""is_available"": false
+}",取得指定任務的提示內容。 後端依登入者（JWT）在此任務的實際答錯次數（user_task_record）決定是否給提示： 答錯次數達到門檻後回傳 task.task_hint，還沒達到時 is_available 為 false。 門檻＝題目難易度（協作解謎 0 次、文化問答／商家知識問答／圖像地理猜謎 1 次、景點猜猜樂 2 次） 加上登入者最近的答題表現（常卡關 -1、很順利 +1），最少 0 次、選擇題最多 2 次； 沒有對錯的題型（跨關集結、創意攝影、地方美食、e人訪談）一開始就能看。 GET /api/Task/1/Hint,答錯次數達門檻才會給提示（門檻依題目難易度與玩家表現）；npc_name、npc_avatar_url 是給提示的 NPC
+上傳檔案（照片、影片、錄音），回傳檔案網址,POST,/api/Upload,上傳,七、任務完成,✅ 實測可用,需要,要接,表單：file（檔案）,string,,"""string""",上傳檔案（照片、影片、錄音），回傳檔案網址。 使用 multipart/form-data，欄位名稱為 file，上限 200MB。 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。,
+取得所有明信片主檔清單,GET,/api/PostcardCatalog,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,,清單，每筆：PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,,"[
+  {
+    ""PostcardId"": 0,
+    ""StoryId"": 0,
+    ""NodeId"": 0,
+    ""PostcardName"": ""string"",
+    ""Summary"": ""string"",
+    ""ImageUrl"": ""string"",
+    ""IsNightEdition"": false,
+    ""CreatedAt"": ""2026-10-07T12:00:00"",
+    ""UpdatedAt"": ""2026-10-07T12:00:00""
+  }
+]",取得所有明信片主檔清單。 依 sort_order 排序，回傳所有 is_active = 1 的明信片主檔。可用 category 篩選分類。,
+呼叫外部服務生成 AI 明信片並存入資料庫,POST,/api/PostcardCatalog/GenerateAi,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,表單：user_image（檔案）、spot_name（string）、user_prompt（string）、story_id（integer）、node_id（integer）、is_night_edition（boolean）,p_id、au_id、s_id、sn_id、p_name、p_summary、p_imag_url、is_night、created_at、updated_at,,"{
+  ""p_id"": 0,
+  ""au_id"": 0,
+  ""s_id"": 0,
+  ""sn_id"": 0,
+  ""p_name"": ""string"",
+  ""p_summary"": ""string"",
+  ""p_imag_url"": ""string"",
+  ""is_night"": 0,
+  ""created_at"": ""2026-10-07T12:00:00"",
+  ""updated_at"": ""2026-10-07T12:00:00""
+}",呼叫外部服務生成 AI 明信片並存入資料庫。 接收前端上傳的照片與提示詞，轉發至外部 AI 服務生成明信片， 直接把外部服務回傳的圖片「網址」存入 md_postcard.image_url（不再下載轉 Base64）， 同時將此明信片綁定給發起請求的探員。必須帶 Token（後端會從 Token 解析 ep_id）。 ⚠️ 請求格式注意：必須使用 multipart/form-data，不能使用一般的 JSON。 （multipart/form-data 欄位）： *(註：imageUrl 現在是外部服務的圖片連結，前端可直接使用， 也可以改用 by-story/{story_id} 取得清單後，用 {postcard_id}/image 顯示圖片， 該端點會自動轉址至真正的圖片網址)*,multipart/form-data：user_image（照片）、spot_name、story_id、node_id。任務完成後由前端呼叫
+透過 postcard_id 送出明信片至 ibon 列印，取得取件碼,POST,/api/PostcardCatalog/Print,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,JSON：postcard_id（integer）,ibon_pickup_code、pdf_url、deadline、qrcode_base64,"{
+  ""postcard_id"": 0
+}","{
+  ""ibon_pickup_code"": ""string"",
+  ""pdf_url"": ""string"",
+  ""deadline"": ""string"",
+  ""qrcode_base64"": ""string""
+}",透過 postcard_id 送出明信片至 ibon 列印，取得取件碼。 傳入明信片 ID (postcard_id)，後端會撈取該張明信片的圖片網址並下載實際位元組， 透過本機背景執行的 Python 微服務 (127.0.0.1:9000) 上傳至 ibon，回傳真實的取件碼與 QR Code。,需要 ibon 列印微服務（IbonPrinterSettings:ApiUrl，預設 127.0.0.1:9000）
+紀錄使用者已將該劇本的明信片分享至社群平台,POST,/api/PostcardCatalog/Share,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,JSON：story_id（integer）、platform（string）,string,"{
+  ""story_id"": 0,
+  ""platform"": ""string""
+}","""string""",紀錄使用者已將該劇本的明信片分享至社群平台。 技術說明：實際將圖片貼上 IG 或 FB 的動作，必須由前端呼叫原生的 Share Intent 完成。 此 API 僅提供前端在「完成分享動作後」呼叫，供後端紀錄分享次數或發放獎勵。,
+取得指定劇本 (story_id) 所擁有的「所有」明信片主檔,GET,/api/PostcardCatalog/by-story/{storyId},明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,storyId（路徑，integer）,清單，每筆：PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,,"[
+  {
+    ""PostcardId"": 0,
+    ""StoryId"": 0,
+    ""NodeId"": 0,
+    ""PostcardName"": ""string"",
+    ""Summary"": ""string"",
+    ""ImageUrl"": ""string"",
+    ""IsNightEdition"": false,
+    ""CreatedAt"": ""2026-10-07T12:00:00"",
+    ""UpdatedAt"": ""2026-10-07T12:00:00""
+  }
+]",取得指定劇本 (story_id) 所擁有的「所有」明信片主檔。 同一個 story_id 可能生成過多次明信片，此 API 回傳全部清單（依 sort_order 排序）。 要顯示某一張的圖片時，從回傳結果取出 postcardId，改打 {postcardId}/image 顯示。,
+依明信片識別碼 (postcard_id) 取得單一明信片主檔資料,GET,/api/PostcardCatalog/{id},明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,要接,id（路徑，integer）,PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,,"{
+  ""PostcardId"": 0,
+  ""StoryId"": 0,
+  ""NodeId"": 0,
+  ""PostcardName"": ""string"",
+  ""Summary"": ""string"",
+  ""ImageUrl"": ""string"",
+  ""IsNightEdition"": false,
+  ""CreatedAt"": ""2026-10-07T12:00:00"",
+  ""UpdatedAt"": ""2026-10-07T12:00:00""
+}",依明信片識別碼 (postcard_id) 取得單一明信片主檔資料。 查無資料時回傳 404：,
+刪除明信片主檔,POST,/api/PostcardCatalog/{id}/Delete,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,id（路徑，integer）,boolean,,false,刪除明信片主檔。 依 postcard_id 從 postcard 刪除該筆資料，只能刪自己的明信片。此操作為實體刪除，無法復原。,
+依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址,GET,/api/PostcardCatalog/{id}/image,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,不用,直接當圖片網址,id（路徑，integer）,,,（302 轉址到圖片網址，不是 JSON：直接當 <img> 的網址）,【前端不用接：直接當圖片網址】依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址。 資料庫現在直接儲存圖片的外部連結（不再是 Base64），此 API 會查出該連結後直接轉址， 瀏覽器/前端會自動跟隨轉址載入真正的圖片，後端不再代理下載與回傳位元組。 前端一樣可以把此 API 當作 HTML 圖片網址使用： Response：302 Redirect 至真實圖片網址。 查無資料時回傳 404 純文字：找不到該明信片的圖片,
+完成劇本後抽一枚勳章，一個劇本只能抽一次,POST,/api/Badge/Draw,徽章,七、任務完成,✅ 實測可用,需要,要接,JSON：story_id（integer）,story_id、categories、is_new、badge,"{
+  ""story_id"": 0
+}","{
+  ""story_id"": 0,
+  ""categories"": [
+    ""string""
+  ],
+  ""is_new"": false,
+  ""badge"": {
+    ""b_id"": 0,
+    ""b_name"": ""string"",
+    ""b_fication"": ""string"",
+    ""b_thing"": ""string"",
+    ""b_image"": ""string""
+  }
+}","完成劇本後抽一枚勳章，一個劇本只能抽一次。 可抽的類別依劇本內容決定，生成劇本時就會寫在 story_badge（劇本卡片「預計獲得」）： - 島嶼城市：劇本所在縣市的那一枚 - 台灣印記：路線經過的地標（台北101、赤崁樓、日月潭…） - 台灣味：有地方美食型任務、餐廳、夜市/市場，或偏好選了「美食」 - 島嶼生靈：經過動物園、國家公園、森林、步道、濕地等 - 老台灣：經過老街、市場、眷村、古厝、故居等 - 午夜台灣：只有夜間劇本能抽 先平均抽類別、再從類別裡抽一枚，已擁有的不會再抽到。 重複呼叫會回傳當初抽到的那枚（is_new = false）；可抽的都已收集時 badge 為 null。 POST /api/Badge/Draw { ""story_id"": 1 }",要先呼叫 EndStory 把劇本標成完成才能抽；一個劇本只能抽一次，重抽回傳同一枚（is_new=false）
+取得系統所有徽章，依系列分組，並標示當前探員是否已擁有該徽章,GET,/api/Badge/Status,徽章,"一、首頁, 八、徽章收藏",✅ 實測可用,需要,要接,,清單，每筆：series_name、badges,,"[
+  {
+    ""series_name"": ""string"",
+    ""badges"": [
+      {
+        ""b_id"": 0,
+        ""b_name"": ""string"",
+        ""b_thing"": ""string"",
+        ""b_image"": ""string"",
+        ""is_owned"": false,
+        ""obtained_at"": ""2026-10-07T12:00:00""
+      }
+    ]
+  }
+]",取得系統所有徽章，依系列分組，並標示當前探員是否已擁有該徽章。 整併原本 /api/Badge、/api/Favorite（徽章部分）、/api/Badge/Status 三支重複邏輯， 統一保留這一支，回傳格式依系列巢狀分組。 GET /api/Badge/Status,
+取得目前探員的所有過往劇本清單,GET,/api/History,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,,清單，每筆：story_id、title、synopsis、completed_date、region、vlog_id、spots,,"[
+  {
+    ""story_id"": 0,
+    ""title"": ""string"",
+    ""synopsis"": ""string"",
+    ""completed_date"": ""2026-10-07T12:00:00"",
+    ""region"": ""string"",
+    ""vlog_id"": 0,
+    ""spots"": [
+      ""string""
+    ]
+  }
+]",取得目前探員的所有過往劇本清單。 對應「過往」頁面的收藏館列表，顯示已完成的劇本卷。 GET /api/History,
+取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單),GET,/api/History/{story_id},過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、synopsis、completed_date、region、vlog_id、spots,,"{
+  ""story_id"": 0,
+  ""title"": ""string"",
+  ""synopsis"": ""string"",
+  ""completed_date"": ""2026-10-07T12:00:00"",
+  ""region"": ""string"",
+  ""vlog_id"": 0,
+  ""spots"": [
+    ""string""
+  ]
+}",取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單)。 對應「過往－卷」頁面，顯示完成日期、故事大綱以及探索總覽(Spots)。 GET /api/History/story_tainan_001,
+劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白,GET,/api/History/{story_id}/Recap,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）,story_id、title、prologue、synopsis、city_name、district_name、is_night_mode、started_at、completed_at、play_minutes、stats、nodes、postcards、badge…,,"{
+  ""story_id"": 0,
+  ""title"": ""string"",
+  ""prologue"": ""string"",
+  ""synopsis"": ""string"",
+  ""city_name"": ""string"",
+  ""district_name"": ""string"",
+  ""is_night_mode"": false,
+  ""started_at"": ""2026-10-07T12:00:00"",
+  ""completed_at"": ""2026-10-07T12:00:00"",
+  ""play_minutes"": 0,
+  ""stats"": {
+    ""node_count"": 0,
+    ""tasks_answered"": 0,
+    ""tasks_correct"": 0,
+    ""photo_count"": 0,
+    ""postcard_count"": 0
+  },
+  ""nodes"": [
+    {
+      ""node_id"": 0,
+      ""order"": 0,
+      ""chapter_title"": ""string"",
+      ""location_codename"": ""string"",
+      ""place_name"": ""string"",
+      ""place_image_url"": ""string"",
+      ""opening_text"": ""string"",
+      ""success_text"": ""string"",
+      ""photos"": [
+        ""string""
+      ],
+      ""tasks"": [
+        {
+          ""task_id"": 0,
+          ""type_name"": ""string"",
+          ""question"": ""string"",
+          ""answered"": false,
+          ""is_correct"": false
+        }
+      ]
+    }
+  ],
+  ""postcards"": [
+    {
+      ""postcard_id"": 0,
+      ""name"": ""string"",
+      ""image_url"": ""string"",
+      ""is_night_edition"": false
+    }
+  ],
+  ""badge"": {
+    ""badge_id"": 0,
+    ""name"": ""string"",
+    ""series"": ""string"",
+    ""image_url"": ""string""
+  },
+  ""vlog"": {
+    ""vlog_id"": 0,
+    ""status"": 0,
+    ""video_url"": ""string"",
+    ""thumbnail_url"": ""string""
+  },
+  ""narration"": {
+    ""source"": ""string"",
+    ""text"": ""string"",
+    ""audio_url"": ""string""
+  }
+}",劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白。 對應「過往旅途」點進某個劇本的回顧頁。只能看自己玩完的劇本，還沒玩完回傳 400。 - nodes：每一站的真正景點與照片、章節標題、到站與完成時的劇情、玩家在這站拍的照片、任務作答結果（玩完了迷霧都已散開） - postcards、badge、vlog：這趟拿到的明信片、抽到的勳章、做好的 Vlog - stats：站數、作答數、答對數、照片數、明信片數 - narration：旁白。text 直接顯示；audio_url 是 mp3，還沒產生過時為 null， 使用者按播放時呼叫 POST /api/History/{story_id}/Recap/Narration 產生（第一次要等幾秒，之後直接回傳） 旁白來源 narration.source：vlog＝玩家確認過的 Vlog 旁白；story＝依各站劇情自動組成。,只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration
+產生回顧旁白的語音（mp3），回傳 audio_url,POST,/api/History/{story_id}/Recap/Narration,過往旅途,"一、首頁, 九、過往旅途",✅ 實測可用,需要,要接,story_id（路徑，integer）；JSON：voice（string）,source、text、audio_url,"{
+  ""voice"": ""string""
+}","{
+  ""source"": ""string"",
+  ""text"": ""string"",
+  ""audio_url"": ""string""
+}",產生回顧旁白的語音（mp3），回傳 audio_url。 使用者按下播放時呼叫。第一次會交給 AI 服務轉成語音（要等幾秒），之後同一段旁白直接回傳存好的檔案。 body 可省略；voice 可換聲音，預設 zh-TW-HsiaoChenNeural。,按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音
+送出確認後的旁白，後端打包照片與景點資料送去合成影片,POST,/api/VisitorVlog/CreateFinal,遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]）,av_id、story_id、task_id、photo_count、status、status_text,"{
+  ""story_id"": 0,
+  ""final_script"": ""string"",
+  ""promo_copy"": ""string"",
+  ""seo_keywords"": [
+    ""string""
+  ]
+}","{
+  ""av_id"": 0,
+  ""story_id"": 0,
+  ""task_id"": ""string"",
+  ""photo_count"": 0,
+  ""status"": 0,
+  ""status_text"": ""string""
+}",送出確認後的旁白，後端打包照片與景點資料送去合成影片。 回傳的 task_id 要保存好，輪詢 Status 時帶回來。,照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url
+遊戲結束後，依 story_id 產生 VLOG 旁白草稿,POST,/api/VisitorVlog/Preview,遊客 VLOG,九、過往旅途,⚠️ 卡在 AI 服務,需要,要接,JSON：story_id（integer）,av_id、story_id、story_title、play_time、photo_count、spots、script、promo_copy、seo_keywords、itinerary,"{
+  ""story_id"": 0
+}","{
+  ""av_id"": 0,
+  ""story_id"": 0,
+  ""story_title"": ""string"",
+  ""play_time"": ""string"",
+  ""photo_count"": 0,
+  ""spots"": [
+    {
+      ""order"": 0,
+      ""spot_name"": ""string"",
+      ""location_codename"": ""string"",
+      ""node_title"": ""string"",
+      ""address"": ""string"",
+      ""lat"": 0.0,
+      ""lng"": 0.0,
+      ""visit_time"": ""string"",
+      ""images"": [
+        ""string""
+      ],
+      ""photo_count"": 0,
+      ""uses_place_photo"": false
+    }
+  ],
+  ""script"": ""string"",
+  ""promo_copy"": ""string"",
+  ""seo_keywords"": [
+    ""string""
+  ],
+  ""itinerary"": [
+    {
+      ""spot_name"": ""string"",
+      ""location_codename"": ""string"",
+      ""visit_time"": ""string"",
+      ""db_description"": ""string""
+    }
+  ]
+}",遊戲結束後，依 story_id 產生 VLOG 旁白草稿。 後端會從資料庫組出玩家走過的景點、遊玩時長、任務數，交給 AI 產生旁白。 回傳的 script 給玩家確認或修改，改完送到 CreateFinal。 photo_count 為 0 時無法合成影片，前端可以先提示玩家。,後端已用模擬 AI 測過；AI 服務 10/6 連不上（502），9/30 時 AI 端是 CUDA 錯誤
+查詢這個劇本的 VLOG（影片、旁白、宣傳文案）,GET,/api/VisitorVlog/Status/{story_id},遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,story_id（路徑，integer）；task_id（查詢，string）,av_id、story_id、status、status_text、title、final_script、promo_copy、seo_keywords、video_url、thumbnail、error_message、updated_at,,"{
+  ""av_id"": 0,
+  ""story_id"": 0,
+  ""status"": 0,
+  ""status_text"": ""string"",
+  ""title"": ""string"",
+  ""final_script"": ""string"",
+  ""promo_copy"": ""string"",
+  ""seo_keywords"": [
+    ""string""
+  ],
+  ""video_url"": ""string"",
+  ""thumbnail"": ""string"",
+  ""error_message"": ""string"",
+  ""updated_at"": ""2026-10-07T12:00:00""
+}",查詢這個劇本的 VLOG（影片、旁白、宣傳文案）。 status：1=待處理、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 處理中時要帶 CreateFinal 回傳的 task_id 才會向 AI 更新進度，建議每 5–10 秒輪詢一次； 不帶 task_id 只回傳資料庫目前的紀錄（例如從歷史紀錄頁查看已完成的影片）。 GET /api/VisitorVlog/Status/1?task_id=xxxx,
+查詢商家列表（限管理員）,GET,/api/Merchant/List,商家帳號,商家端,⬜ 未實測,需要,要接,keyword（查詢，string）；page（查詢，integer）；page_size（查詢，integer）,items、total、page、page_size,,"{
+  ""items"": [
+    {
+      ""s_id"": 0,
+      ""au_id"": 0,
+      ""store_name"": ""string"",
+      ""store_dec"": ""string"",
+      ""store_address"": ""string"",
+      ""store_city"": ""string"",
+      ""store_town"": ""string"",
+      ""store_uid"": ""string"",
+      ""auth_name"": ""string"",
+      ""auth_email"": ""string"",
+      ""is_active"": false
+    }
+  ],
+  ""total"": 0,
+  ""page"": 0,
+  ""page_size"": 0
+}",查詢商家列表（限管理員）。,限管理員
+商家登入，成功後回傳 JWT,POST,/api/Merchant/Login,商家帳號,商家端,⬜ 未實測,不用,要接,JSON：auth_name（string）、auth_pswd（string）,token、au_id、auth_name、auth_type、account_type_name、s_id,"{
+  ""auth_name"": ""string"",
+  ""auth_pswd"": ""string""
+}","{
+  ""token"": ""string"",
+  ""au_id"": 0,
+  ""auth_name"": ""string"",
+  ""auth_type"": 0,
+  ""account_type_name"": ""string"",
+  ""s_id"": 0
+}",商家登入，成功後回傳 JWT。 只接受商家帳號（auth_type = 2）且已建立店家資料；Token 帶 au_id、s_id 與 Role=Merchant， 之後呼叫商家 API 放在 Header：Authorization: Bearer {token}。,商家專用登入（auth_type=2），Token 帶 s_id 與 Role=Merchant
+查詢登入商家的店家資料,GET,/api/Merchant/Profile,商家帳號,商家端,⬜ 未實測,需要,要接,,s_id、au_id、store_name、store_dec、store_address、store_city、store_town、store_uid、auth_name、auth_email、is_active,,"{
+  ""s_id"": 0,
+  ""au_id"": 0,
+  ""store_name"": ""string"",
+  ""store_dec"": ""string"",
+  ""store_address"": ""string"",
+  ""store_city"": ""string"",
+  ""store_town"": ""string"",
+  ""store_uid"": ""string"",
+  ""auth_name"": ""string"",
+  ""auth_email"": ""string"",
+  ""is_active"": false
+}",查詢登入商家的店家資料。,
+更新登入商家的店家資料,PUT,/api/Merchant/Profile,商家帳號,商家端,✅ 實測可用,需要,要接,JSON：store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、lat（number）、lng（number）,,"{
+  ""store_name"": ""string"",
+  ""store_dec"": ""string"",
+  ""store_address"": ""string"",
+  ""store_city"": ""string"",
+  ""store_town"": ""string"",
+  ""lat"": 0.0,
+  ""lng"": 0.0
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,更新登入商家的店家資料。 只更新有帶值的欄位，沒帶的欄位維持原值；只改店名時帶 store_name 即可（取代原本的 StoreName API）。 同時會在 Neo4j 建立新的版本節點，讓 QR Code 掃描回傳的商家資訊跟著更新。,只更新有帶值的欄位（取代舊的 StoreName API）；同時在 Neo4j 建立新版本節點
+註冊商家,POST,/api/Merchant/Register,商家帳號,商家端,⬜ 未實測,不用,要接,JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、place_uid（string）、new_place（MerchantNewPlace）,au_id、s_id、store_uid,"{
+  ""auth_name"": ""string"",
+  ""auth_email"": ""string"",
+  ""auth_pswd"": ""string"",
+  ""store_name"": ""string"",
+  ""store_dec"": ""string"",
+  ""store_address"": ""string"",
+  ""store_city"": ""string"",
+  ""store_town"": ""string"",
+  ""place_uid"": ""string"",
+  ""new_place"": {
+    ""name"": ""string"",
+    ""address"": ""string"",
+    ""description"": ""string"",
+    ""phone"": ""string"",
+    ""website"": ""string"",
+    ""opening_hours"": ""string"",
+    ""lat"": 0.0,
+    ""lng"": 0.0,
+    ""category"": ""string""
+  }
+}","{
+  ""au_id"": 0,
+  ""s_id"": 0,
+  ""store_uid"": ""string""
+}","註冊商家。 建立 auth(auth_type=2, 免審核直接啟用) + store。place_uid 與 new_place 二擇一： 選擇既有景點時帶 place_uid（由 GET api/merchant/register/search-place 取得）； 選「都沒有，我要建立新的」時帶 new_place，後端會在 Neo4j 建立新的身分節點與版本節點， 並寫入 MySQL place（座標）與 place_type（通用任務類型 6、7、8），讓這個景點能被排進劇本行程。 new_place.lat / new_place.lng 必填（建議由地圖選點取得）；new_place.category 可選 Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。 註冊完成後",place_uid 與 new_place 二擇一；需要 Neo4j 的 playtaiwandb。Email 重複註冊失敗時不會在 Neo4j 留下孤兒景點
+地址轉座標（自建景點表單自動帶出座標用）,GET,/api/merchant/register/address-to-location,商家帳號,商家端,⬜ 未實測,不用,要接,store_city（查詢，string）；store_town（查詢，string）；store_address（查詢，string）,store_city、store_town、store_address、full_address、lat、lng,,"{
+  ""store_city"": ""string"",
+  ""store_town"": ""string"",
+  ""store_address"": ""string"",
+  ""full_address"": ""string"",
+  ""lat"": 0.0,
+  ""lng"": 0.0
+}",地址轉座標（自建景點表單自動帶出座標用）。 不用登入（註冊畫面使用）。用「縣市＋鄉鎮市區＋地址」轉座標（TDX 內政部門牌資料），回傳的欄位名稱與註冊請求相同，可直接填回表單。 store_city、store_town 可以不帶，由地址開頭判斷；有帶時地址要在該鄉鎮市區內。 對不到門牌時回 400，這時請商家地址與座標兩個都填。 GET /api/merchant/register/address-to-location?store_city=臺中市&store_town=西區&store_address=英才路600號,不用登入（註冊畫面用），TDX 門牌資料；對不到時回 400
+座標轉地址（自建景點表單自動帶出地址用）,GET,/api/merchant/register/location-to-address,商家帳號,商家端,⬜ 未實測,不用,要接,lat（查詢，number）；lng（查詢，number）,store_city、store_town、store_address、full_address、lat、lng,,"{
+  ""store_city"": ""string"",
+  ""store_town"": ""string"",
+  ""store_address"": ""string"",
+  ""full_address"": ""string"",
+  ""lat"": 0.0,
+  ""lng"": 0.0
+}",座標轉地址（自建景點表單自動帶出地址用）。 不用登入（註冊畫面使用）。找座標最近的門牌當地址（TDX 內政部門牌資料），連同縣市、鄉鎮市區一起回傳，座標維持原本的值。 300 公尺內沒有門牌時回 400，這時請商家地址與座標兩個都填。 GET /api/merchant/register/location-to-address?lat=24.14152&lng=120.66569,不用登入（註冊畫面用），300 公尺內沒有門牌時回 400
+搜尋既有景點,GET,/api/merchant/register/search-place,商家帳號,商家端,✅ 實測可用,不用,要接,keyword（查詢，string）,,,"[
+  {
+    ""uid"": ""string"",
+    ""name"": ""string"",
+    ""address"": ""string"",
+    ""type"": ""string""
+  }
+]",搜尋既有景點。 用店名/地址做模糊比對，回傳候選清單供商家在註冊畫面挑選；查無結果代表可能要建立新景點。,需要 Neo4j 的 playtaiwandb 資料庫（Place.uid、Version.version_id 唯一約束）
+取得商家已生成的檔案清單,GET,/api/Merchant/Files,商家 VLOG,商家端,✅ 實測可用,需要,要接,,清單，每筆：mm_id、mm_title、mm_video_url、mm_status、updated_at,,"[
+  {
+    ""mm_id"": 0,
+    ""mm_title"": ""string"",
+    ""mm_video_url"": ""string"",
+    ""mm_status"": 0,
+    ""updated_at"": ""2026-10-07T12:00:00""
+  }
+]",取得商家已生成的檔案清單。 對應商家首頁的「近期檔案」列表，後端會自動依編輯時間 (updated_at) 從新到舊排序回傳。 GET /api/Merchant/Files,
+商家確認旁白後，把專案照片打包送去合成影片,POST,/api/MerchantVlog/CreateFinal,商家 VLOG,商家端,✅ 實測可用,需要,要接,JSON：mm_id（integer）、final_script（string）、caption（string）、hashtags（string[]）,mm_id、task_id、status、status_text,"{
+  ""mm_id"": 0,
+  ""final_script"": ""string"",
+  ""caption"": ""string"",
+  ""hashtags"": [
+    ""string""
+  ]
+}","{
+  ""mm_id"": 0,
+  ""task_id"": ""string"",
+  ""status"": 0,
+  ""status_text"": ""string""
+}",商家確認旁白後，把專案照片打包送去合成影片。 送出後用 Status/{mm_id} 輪詢進度。,自動附上背景音樂 wwwroot/bgm/default_bgm.mp3
+輸入店家資訊與照片，產生 AI 旁白草稿、推薦配文、TAG,POST,/api/MerchantVlog/Preview,商家 VLOG,商家端,⚠️ 卡在 AI 服務,需要,要接,表單：mm_id（integer）、store_name（string）、open_time（string）、address（string）、nt_id（integer）、promo_text（string）、images（檔案[]）,mm_id、store_name、open_time、address、tone_name、script、caption、hashtags、target_audience、image_urls,,"{
+  ""mm_id"": 0,
+  ""store_name"": ""string"",
+  ""open_time"": ""string"",
+  ""address"": ""string"",
+  ""tone_name"": ""string"",
+  ""script"": ""string"",
+  ""caption"": ""string"",
+  ""hashtags"": [
+    ""string""
+  ],
+  ""target_audience"": [
+    ""string""
+  ],
+  ""image_urls"": [
+    ""string""
+  ]
+}",輸入店家資訊與照片，產生 AI 旁白草稿、推薦配文、TAG。 multipart/form-data。對應「生成（輸入資訊）」頁面。 - store_name、address 不填會帶商家資訊表的資料 - images 可重複多次（多張照片），順序就是影片中的順序；新專案至少一張 - 想換語氣重新產生：帶同一個 mm_id 再呼叫一次，不帶 images 就沿用已上傳的照片 回傳的 script 給商家確認或修改，改完送到 CreateFinal。,multipart/form-data；images 可重複放多張。AI 會先到它自己的 Neo4j 查店家，查不到就回「不進行幻覺補全」；AI 端 Neo4j 目前沒開
+查詢商家 VLOG 專案：影片、推薦配文、TAG,GET,/api/MerchantVlog/Status/{mm_id},商家 VLOG,商家端,✅ 實測可用,需要,要接,mm_id（路徑，integer）,mm_id、status、status_text、title、caption、hashtags、video_url、thumbnail、error_message、updated_at,,"{
+  ""mm_id"": 0,
+  ""status"": 0,
+  ""status_text"": ""string"",
+  ""title"": ""string"",
+  ""caption"": ""string"",
+  ""hashtags"": [
+    ""string""
+  ],
+  ""video_url"": ""string"",
+  ""thumbnail"": ""string"",
+  ""error_message"": ""string"",
+  ""updated_at"": ""2026-10-07T12:00:00""
+}",查詢商家 VLOG 專案：影片、推薦配文、TAG。 status：1=草稿、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 處理中時每次呼叫都會向 AI 服務查一次進度，建議每 5–10 秒輪詢一次。,
+取得可選的敘事語氣（例如幽默詼諧、質感專業、溫情走心）,GET,/api/MerchantVlog/Tones,商家 VLOG,商家端,✅ 實測可用,需要,要接,,清單，每筆：nt_id、nt_name、nt_prompt,,"[
+  {
+    ""nt_id"": 0,
+    ""nt_name"": ""string"",
+    ""nt_prompt"": ""string""
+  }
+]",取得可選的敘事語氣（例如幽默詼諧、質感專業、溫情走心）。,
+核銷優惠券,POST,/api/coupons/{couponId}/redeem,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）,,,null（Result 沒有內容，看 isSuccess 與 message 即可）,核銷優惠券。 核銷登入者（JWT 的 au_id）自己領取的優惠券：更新 user_coupon.is_used/used_at， 並遞增 qrcode_coupon.used_count。不需要 request body。,需要商家登入
+查詢登入商家的優惠券列表,GET,/api/merchant/coupons,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,,,,"[
+  {
+    ""coupon_id"": 0,
+    ""s_id"": 0,
+    ""coupon_code"": ""string"",
+    ""coupon_name"": ""string"",
+    ""discount_commodity"": ""string"",
+    ""discount_type"": ""string"",
+    ""discount_value"": 0.0,
+    ""valid_from"": ""2026-10-07T12:00:00"",
+    ""valid_to"": ""2026-10-07T12:00:00"",
+    ""status"": ""string""
+  }
+]",查詢登入商家的優惠券列表。,
+新增優惠券,POST,/api/merchant/coupons,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,JSON：coupon_code（string）、coupon_name（string）、discount_commodity（string）、discount_type（string）、discount_value（number）、valid_from（string）、valid_to（string）,,"{
+  ""coupon_code"": ""string"",
+  ""coupon_name"": ""string"",
+  ""discount_commodity"": ""string"",
+  ""discount_type"": ""string"",
+  ""discount_value"": 0.0,
+  ""valid_from"": ""2026-10-07T12:00:00"",
+  ""valid_to"": ""2026-10-07T12:00:00""
+}","{
+  ""coupon_id"": 0
+}",新增優惠券。,
+刪除優惠券,DELETE,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）,,,,刪除優惠券。 交易內依序刪除 qrcode_coupon → user_coupon → coupon。,需要商家登入
+查詢單筆優惠券,GET,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）,,,"{
+  ""coupon_id"": 0,
+  ""s_id"": 0,
+  ""coupon_code"": ""string"",
+  ""coupon_name"": ""string"",
+  ""discount_commodity"": ""string"",
+  ""discount_type"": ""string"",
+  ""discount_value"": 0.0,
+  ""valid_from"": ""2026-10-07T12:00:00"",
+  ""valid_to"": ""2026-10-07T12:00:00"",
+  ""status"": ""string""
+}",查詢單筆優惠券。,
+修改優惠券,PUT,/api/merchant/coupons/{couponId},商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）；JSON：coupon_code（string）、coupon_name（string）、discount_commodity（string）、discount_type（string）、discount_value（number）、valid_from（string）、valid_to（string）,,"{
+  ""coupon_code"": ""string"",
+  ""coupon_name"": ""string"",
+  ""discount_commodity"": ""string"",
+  ""discount_type"": ""string"",
+  ""discount_value"": 0.0,
+  ""valid_from"": ""2026-10-07T12:00:00"",
+  ""valid_to"": ""2026-10-07T12:00:00""
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,修改優惠券。,
+上下架優惠券,PATCH,/api/merchant/coupons/{couponId}/status,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）；JSON：status（string）,,"{
+  ""status"": ""string""
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,上下架優惠券。,
+綁定 QR Code 與優惠券,POST,/api/merchant/qrcode/bind,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,JSON：qr_uid（string）、coupon_id（integer）,,"{
+  ""qr_uid"": ""string"",
+  ""coupon_id"": 0
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,綁定 QR Code 與優惠券。 商家掃描到 QR Code 的 qr_uid 後呼叫；優惠券必須是自己店家的， 同一個 QR Code 重複綁定會回傳 409。,優惠券要是自己店家的；同一個 QR Code 重複綁定回 409
+查詢登入商家的題庫列表,GET,/api/merchant/questions,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,,,,"[
+  {
+    ""question_id"": 0,
+    ""store_id"": 0,
+    ""question_describe"": ""string"",
+    ""options"": [
+      {
+        ""option_id"": 0,
+        ""option_context"": ""string"",
+        ""option_url"": ""string"",
+        ""is_correct"": false,
+        ""option_key"": ""string""
+      }
+    ]
+  }
+]",查詢登入商家的題庫列表。,
+新增題目,POST,/api/merchant/questions,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,JSON：question_describe（string）、options（QuestionOptionInput[]）,,"{
+  ""question_describe"": ""string"",
+  ""options"": [
+    {
+      ""option_context"": ""string"",
+      ""option_url"": ""string"",
+      ""is_correct"": false,
+      ""option_key"": ""string""
+    }
+  ]
+}","{
+  ""question_id"": 0
+}","新增題目。 含選項，選項中須至少一個 is_correct=1。 新增後會在 place_type 標上 (店家景點 uid, 9)，之後生成劇本排到這個景點時必出一題商家知識問答； 題目全部刪除後會自動移除這個標記。",
+刪除題目,DELETE,/api/merchant/questions/{questionId},商家後台與優惠券,商家端,✅ 實測可用,需要,要接,questionId（路徑，integer）,,,,刪除題目。 刪除前檢查是否有任務引用這一題；若有，回傳 409 並附上引用的 task_id 清單。,
+修改題目與選項,PUT,/api/merchant/questions/{questionId},商家後台與優惠券,商家端,✅ 實測可用,需要,要接,questionId（路徑，integer）；JSON：question_describe（string）、options（QuestionOptionInput[]）,,"{
+  ""question_describe"": ""string"",
+  ""options"": [
+    {
+      ""option_context"": ""string"",
+      ""option_url"": ""string"",
+      ""is_correct"": false,
+      ""option_key"": ""string""
+    }
+  ]
+}",null（Result 沒有內容，看 isSuccess 與 message 即可）,修改題目與選項。 整包覆蓋選項：舊選項會先被刪除，再依 request 內容重新建立。,
+掃描 QR Code 查詢商家與優惠券資訊,GET,/api/qrcode/scan/{qrUid},商家後台與優惠券,商家端,⬜ 未實測,不用,要接,qrUid（路徑，string）,,,"{
+  ""coupon"": {
+    ""coupon_id"": 0,
+    ""s_id"": 0,
+    ""coupon_code"": ""string"",
+    ""coupon_name"": ""string"",
+    ""discount_commodity"": ""string"",
+    ""discount_type"": ""string"",
+    ""discount_value"": 0.0,
+    ""valid_from"": ""2026-10-07T12:00:00"",
+    ""valid_to"": ""2026-10-07T12:00:00"",
+    ""status"": ""string""
+  },
+  ""merchant_place"": {
+    ""uid"": ""string"",
+    ""identity_labels"": [
+      ""string""
+    ],
+    ""gov_name"": ""string"",
+    ""gov_description"": ""string"",
+    ""gov_address"": ""string"",
+    ""gov_lat"": 0.0,
+    ""gov_lon"": 0.0,
+    ""gov_status"": ""string"",
+    ""gov_phone"": ""string"",
+    ""gov_website"": ""string"",
+    ""gov_ticket_info"": ""string"",
+    ""gov_travel_info"": ""string"",
+    ""categories"": [
+      ""string""
+    ],
+    ""city"": ""string"",
+    ""town"": ""string"",
+    ""images"": [
+      {
+        ""url"": ""string"",
+        ""description"": ""string""
+      }
+    ],
+    ""operating_hours"": [
+      {
+        ""day_of_week"": ""string"",
+        ""open_time"": ""string"",
+        ""close_time"": ""string""
+      }
+    ],
+    ""hotel_classes"": [
+      ""string""
+    ],
+    ""merchant_override"": {
+      ""key"": null
+    }
+  },
+  ""is_newly_claimed"": false
+}",掃描 QR Code 查詢商家與優惠券資訊。 商家資訊來自 Neo4j（含版本鏈覆蓋後的最新內容），優惠券資訊來自 MySQL。 不需登入也能查看；帶遊客的 JWT 時，若尚未領取過此優惠券會同時寫入 user_coupon 領取紀錄。,不用登入也能看；帶遊客 Token 時會同時領取優惠券（寫入 user_coupon）
+重算景點附近的公車站牌（生成劇本規劃公車用）,POST,/api/Bus/PlaceStops/Build,管理員,後台管理,🛠 管理員用,需要,不用接,scope（查詢，string）,scope、place_count、place_with_stop_count、pair_count、used_valhalla、elapsed_seconds,,"{
+  ""scope"": ""string"",
+  ""place_count"": 0,
+  ""place_with_stop_count"": 0,
+  ""pair_count"": 0,
+  ""used_valhalla"": false,
+  ""elapsed_seconds"": 0.0
+}",【前端不用接】（管理員）重算景點附近的公車站牌（生成劇本規劃公車用）。 前端不用接：系統每天同步完會自動重算。 scope 傳縣市（臺中市）只算該縣市站牌；傳「台灣好行」只算好行沿線站牌。 需要 AI service（Neo4j 景點資料）可以連線；步行距離優先用 Valhalla 計算。 POST /api/Bus/PlaceStops/Build?scope=臺中市,
+從 TDX 同步某縣市的市區公車,POST,/api/Bus/Sync/City/{city},管理員,後台管理,🛠 管理員用,需要,不用接,city（路徑，string）,source、route_count、sub_route_count、pattern_count、rebuilt_pattern_count、stop_count、trip_count、deactivated_route_count、elapsed_seconds,,"{
+  ""source"": ""string"",
+  ""route_count"": 0,
+  ""sub_route_count"": 0,
+  ""pattern_count"": 0,
+  ""rebuilt_pattern_count"": 0,
+  ""stop_count"": 0,
+  ""trip_count"": 0,
+  ""deactivated_route_count"": 0,
+  ""elapsed_seconds"": 0.0
+}",【前端不用接】（管理員）從 TDX 同步某縣市的市區公車。 前端不用接：系統每天會自動同步，這支是管理員手動補跑用，約需 1 分鐘。 city 可傳中文（臺中市、台中市）或 TDX 參數（Taichung）。 POST /api/Bus/Sync/City/臺中市,
+從 TDX 同步全台台灣好行,POST,/api/Bus/Sync/TaiwanTrip,管理員,後台管理,🛠 管理員用,需要,不用接,,source、route_count、sub_route_count、pattern_count、rebuilt_pattern_count、stop_count、trip_count、deactivated_route_count、elapsed_seconds,,"{
+  ""source"": ""string"",
+  ""route_count"": 0,
+  ""sub_route_count"": 0,
+  ""pattern_count"": 0,
+  ""rebuilt_pattern_count"": 0,
+  ""stop_count"": 0,
+  ""trip_count"": 0,
+  ""deactivated_route_count"": 0,
+  ""elapsed_seconds"": 0.0
+}",【前端不用接】（管理員）從 TDX 同步全台台灣好行。 前端不用接：系統每天會自動同步，這支是管理員手動補跑用。 POST /api/Bus/Sync/TaiwanTrip,
+從 TDX 同步一個捷運系統,POST,/api/Metro/Sync/{system},管理員,後台管理,🛠 管理員用,需要,不用接,system（路徑，string）,rail_system、system_name、line_count、station_count、link_count、shape_count、estimated_line_count、elapsed_seconds,,"{
+  ""rail_system"": ""string"",
+  ""system_name"": ""string"",
+  ""line_count"": 0,
+  ""station_count"": 0,
+  ""link_count"": 0,
+  ""shape_count"": 0,
+  ""estimated_line_count"": 0,
+  ""elapsed_seconds"": 0.0
+}",【前端不用接】（管理員）從 TDX 同步一個捷運系統。 前端不用接：系統每週會自動同步，這支是管理員手動補跑用。 system：TRTC=臺北捷運、NTMC=新北捷運、TYMC=桃園機場捷運、TMRT=臺中捷運、 KRTC=高雄捷運、KLRT=高雄輕軌、NTDLRT=淡海輕軌、NTALRT=安坑輕軌 POST /api/Metro/Sync/TMRT,

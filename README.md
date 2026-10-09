@@ -192,6 +192,7 @@ dotnet run
 | `AiService:BaseUrl` | AI 服務網址 | 劇本生成、Vlog、明信片、語音需要 |
 | `Valhalla:BaseUrl` | Valhalla 網址，預設 `http://localhost:8002` | 交通功能需要 |
 | `SmtpSettings:*` | 寄信用的 SMTP 設定 | 註冊驗證信、忘記密碼需要 |
+| `PublicBaseUrl` | 驗證信、忘記密碼信裡連結用的後端網址（例如 `https://playtaiwan.example.com`）。不設定時用 App 呼叫後端時的網址 | 有正式網域時再設 |
 | `AppSettings:tdx_client_id`、`tdx_client_secret` | TDX 交通資料金鑰 | 同步公車、捷運時需要 |
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |

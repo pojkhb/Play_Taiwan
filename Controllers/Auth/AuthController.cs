@@ -2,10 +2,12 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
 using backend.ViewModels;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace backend.Controllers
@@ -21,16 +23,23 @@ namespace backend.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly AuthService _service;
         private readonly VisitorVlogService _visitorVlogService;
+        private readonly IConfiguration _configuration;
 
         public AuthController(
             ILogger<AuthController> logger,
             AuthService service,
-            VisitorVlogService visitorVlogService)
+            VisitorVlogService visitorVlogService,
+            IConfiguration configuration)
         {
             _logger = logger;
             _service = service;
             _visitorVlogService = visitorVlogService;
+            _configuration = configuration;
         }
+
+        /// <summary>信件連結用的網址：設定 PublicBaseUrl 時用它，否則用這次請求的網址（App 連後端用的位址）</summary>
+        private string SiteBaseUrl() =>
+            AuthService.ResolveBaseUrl(_configuration["PublicBaseUrl"], $"{Request.Scheme}://{Request.Host}");
 
         #region 登入
 
@@ -265,7 +274,7 @@ namespace backend.Controllers
         {
             try
             {
-                await _service.RegisterAsync(req);
+                await _service.RegisterAsync(req, SiteBaseUrl());
 
                 return Ok(new ResultViewModel<string>
                 {
@@ -325,20 +334,25 @@ namespace backend.Controllers
             }
         }
 
-        private static string BuildVerifyResultPage(bool success, string title, string message)
-        {
-            string accentColor = success ? "#28a745" : "#dc3545";
-            string icon = success
-                ? "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#28a745'/><path d='M7 12.5L10.2 15.7L17 8.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"
-                : "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#dc3545'/><path d='M8 8L16 16M16 8L8 16' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+        private static string BuildVerifyResultPage(bool success, string title, string message) =>
+            BuildPage(title, $"<div class='icon'>{ResultIcon(success)}</div><h1>{Html(title)}</h1><p>{Html(message)}</p>", success ? "#28a745" : "#dc3545");
 
+        private static string ResultIcon(bool success) => success
+            ? "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#28a745'/><path d='M7 12.5L10.2 15.7L17 8.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"
+            : "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#dc3545'/><path d='M8 8L16 16M16 8L8 16' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+
+        private static string Html(string text) => System.Net.WebUtility.HtmlEncode(text ?? "");
+
+        /// <summary>信件連結打開的頁面（信箱驗證、重設密碼）共用的版面</summary>
+        private static string BuildPage(string title, string cardHtml, string accentColor, string script = "")
+        {
             return $@"
 <!DOCTYPE html>
 <html lang='zh-Hant'>
 <head>
 <meta charset='UTF-8' />
 <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-<title>{title} - Play Taiwan</title>
+<title>{Html(title)} - Play Taiwan</title>
 <style>
     body {{
         margin: 0;
@@ -357,44 +371,29 @@ namespace backend.Controllers
         max-width: 420px;
         width: 90%;
         text-align: center;
+        box-sizing: border-box;
     }}
-    .icon {{
-        margin-bottom: 20px;
-    }}
-    h1 {{
-        margin: 0 0 12px;
-        font-size: 24px;
-        color: #1a1a1a;
-    }}
-    p {{
-        margin: 0;
-        font-size: 15px;
-        color: #555;
-        line-height: 1.6;
-    }}
-    .brand {{
-        margin-top: 32px;
-        font-size: 13px;
-        color: #aaa;
-        letter-spacing: 0.5px;
-    }}
-    .accent-bar {{
-        height: 4px;
-        width: 48px;
-        margin: 20px auto 0;
-        border-radius: 2px;
-        background-color: {accentColor};
-    }}
+    .icon {{ margin-bottom: 20px; }}
+    h1 {{ margin: 0 0 12px; font-size: 24px; color: #1a1a1a; }}
+    p {{ margin: 0; font-size: 15px; color: #555; line-height: 1.6; }}
+    form {{ text-align: left; margin-top: 20px; }}
+    label {{ display: block; font-size: 14px; color: #333; margin: 14px 0 6px; }}
+    input {{ width: 100%; box-sizing: border-box; padding: 11px 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }}
+    input:focus {{ outline: none; border-color: {accentColor}; }}
+    button {{ width: 100%; margin-top: 22px; padding: 12px; font-size: 16px; color: #fff; background: {accentColor}; border: 0; border-radius: 8px; cursor: pointer; }}
+    button:disabled {{ opacity: .6; cursor: default; }}
+    .error {{ color: #dc3545; font-size: 14px; margin-top: 12px; min-height: 20px; }}
+    .brand {{ margin-top: 32px; font-size: 13px; color: #aaa; letter-spacing: 0.5px; }}
+    .accent-bar {{ height: 4px; width: 48px; margin: 20px auto 0; border-radius: 2px; background-color: {accentColor}; }}
 </style>
 </head>
 <body>
-    <div class='card'>
-        <div class='icon'>{icon}</div>
-        <h1>{title}</h1>
-        <p>{message}</p>
+    <div class='card' id='card'>
+        {cardHtml}
         <div class='accent-bar'></div>
         <div class='brand'>PLAY TAIWAN</div>
     </div>
+    {script}
 </body>
 </html>";
         }
@@ -408,7 +407,8 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 產生重設密碼連結並寄送至信箱，連結 30 分鐘內有效。
-        /// 使用者需點擊信中連結，再呼叫 ResetPassword 端點完成密碼重設。
+        /// 使用者點信中的連結會打開後端的重設密碼頁（/reset-password），在頁面上輸入新密碼即可，前端不用另外做畫面。
+        /// 連結的網址是 App 呼叫這支 API 時用的後端位址；有設定 PublicBaseUrl 時改用設定的網址。
         ///
         /// **Request 範例**：
         /// ```json
@@ -424,7 +424,7 @@ namespace backend.Controllers
         {
             try
             {
-                await _service.ForgotPasswordAsync(req.Email);
+                await _service.ForgotPasswordAsync(req.Email, SiteBaseUrl());
                 return Ok(new ResultViewModel<string>
                 {
                     isSuccess = true,
@@ -488,6 +488,76 @@ namespace backend.Controllers
                 });
             }
         }
+
+        /// <summary>
+        /// 【前端不用接】重設密碼頁：忘記密碼信裡的連結打開的網頁。
+        /// </summary>
+        /// <remarks>
+        /// **前端不用接**：使用者點忘記密碼信裡的連結，瀏覽器會打開這個頁面（回傳 HTML，不是 JSON）。
+        /// 頁面上輸入兩次新密碼，送出時呼叫 POST /api/Auth/ResetPassword，結果直接顯示在頁面上。
+        /// 連結已用過或超過 30 分鐘時，打開就會顯示「連結無效或已過期」。
+        /// </remarks>
+        /// <param name="token">忘記密碼信裡的重設碼</param>
+        /// <response code="200">回傳 HTML 頁面</response>
+        [AllowAnonymous]
+        [HttpGet("~/reset-password")]
+        public IActionResult ResetPasswordPage([FromQuery] string token)
+        {
+            const string title = "重設密碼";
+
+            // 重設碼是 32 個十六進位字元（Guid N 格式），其他格式直接當無效，也避免把奇怪的內容放進頁面
+            if (token == null || !Regex.IsMatch(token, "^[0-9a-fA-F]{32}$") || !_service.IsResetTokenValid(token))
+            {
+                return Content(BuildVerifyResultPage(false, "連結無效或已過期", "這個重設密碼連結已經用過或超過 30 分鐘，請回到 App 重新申請「忘記密碼」。"),
+                    "text/html", System.Text.Encoding.UTF8);
+            }
+
+            string card = $@"<h1>{title}</h1>
+        <p>請輸入新的密碼</p>
+        <form id='form' autocomplete='off'>
+            <label for='pw'>新密碼</label>
+            <input id='pw' type='password' autocomplete='new-password' required />
+            <label for='pw2'>再輸入一次新密碼</label>
+            <input id='pw2' type='password' autocomplete='new-password' required />
+            <div class='error' id='err'></div>
+            <button id='btn' type='submit'>確認重設</button>
+        </form>";
+
+            string successCard = BuildCardHtml(true, "密碼重設成功", "請回到 App，用新密碼登入。");
+            string script = $@"<script>
+    (function () {{
+        var token = '{token}';
+        var form = document.getElementById('form'), err = document.getElementById('err'), btn = document.getElementById('btn');
+        form.addEventListener('submit', function (e) {{
+            e.preventDefault();
+            var pw = document.getElementById('pw').value, pw2 = document.getElementById('pw2').value;
+            if (!pw.trim()) {{ err.textContent = '請輸入新密碼'; return; }}
+            if (pw !== pw2) {{ err.textContent = '兩次輸入的密碼不一樣'; return; }}
+            err.textContent = ''; btn.disabled = true; btn.textContent = '處理中…';
+            fetch('/api/Auth/ResetPassword', {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ Token: token, NewPassword: pw }})
+            }}).then(function (r) {{ return r.json(); }}).then(function (res) {{
+                if (res.isSuccess) {{
+                    document.getElementById('card').innerHTML = {System.Text.Json.JsonSerializer.Serialize(successCard)};
+                }} else {{
+                    err.textContent = res.message || '重設失敗，請重新申請忘記密碼';
+                    btn.disabled = false; btn.textContent = '確認重設';
+                }}
+            }}).catch(function () {{
+                err.textContent = '連不上伺服器，請稍後再試';
+                btn.disabled = false; btn.textContent = '確認重設';
+            }});
+        }});
+    }})();
+    </script>";
+
+            return Content(BuildPage(title, card, "#d9534f", script), "text/html", System.Text.Encoding.UTF8);
+        }
+
+        private static string BuildCardHtml(bool success, string title, string message) =>
+            $"<div class='icon'>{ResultIcon(success)}</div><h1>{Html(title)}</h1><p>{Html(message)}</p><div class='accent-bar'></div><div class='brand'>PLAY TAIWAN</div>";
 
         #endregion
 

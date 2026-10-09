@@ -127,8 +127,24 @@ namespace backend.Services
         }
         #endregion
 
+        #region 信件裡的連結網址
+
+        /// <summary>
+        /// 信件連結要用的網址：有設定 PublicBaseUrl（例如正式網域）就用它，否則用 App 呼叫後端時的網址
+        /// （例如 http://192.168.1.5:5501），手機打開信件時才連得到；兩個都沒有時才用 localhost。
+        /// </summary>
+        internal static string ResolveBaseUrl(string configuredBaseUrl, string requestBaseUrl)
+        {
+            string url = !string.IsNullOrWhiteSpace(configuredBaseUrl) ? configuredBaseUrl
+                       : !string.IsNullOrWhiteSpace(requestBaseUrl) ? requestBaseUrl
+                       : "http://localhost:5501";
+            return url.Trim().TrimEnd('/');
+        }
+
+        #endregion
+
         #region 註冊
-        public async Task RegisterAsync(RegisterRequest req)
+        public async Task RegisterAsync(RegisterRequest req, string siteBaseUrl)
         {
             if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             {
@@ -147,7 +163,7 @@ namespace backend.Services
                 throw new Exception("註冊失敗，該 Email 可能已被註冊過。");
             }
 
-            string verifyUrl = $"http://localhost:5501/api/Auth/VerifyEmail?token={emailToken}";
+            string verifyUrl = $"{siteBaseUrl}/api/Auth/VerifyEmail?token={emailToken}";
             string subject = "歡迎加入 Play Taiwan！你的探險即將開始";
             string htmlContent = $@"
                 <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
@@ -192,7 +208,7 @@ namespace backend.Services
         #endregion
 
         #region 忘記密碼 (寄送重設連結)
-        public async Task ForgotPasswordAsync(string email)
+        public async Task ForgotPasswordAsync(string email, string siteBaseUrl)
         {
             if (string.IsNullOrWhiteSpace(email)) throw new Exception("請提供 Email");
 
@@ -203,7 +219,7 @@ namespace backend.Services
 
             _dao.SetPasswordResetToken(account.au_id, resetToken, validMinutes: 30);
 
-            string resetUrl = $"http://localhost:5501/reset-password?token={resetToken}";
+            string resetUrl = $"{siteBaseUrl}/reset-password?token={resetToken}";   // 打開是重設密碼頁（AuthController.ResetPasswordPage）
             string subject = "Play Taiwan - 密碼重設通知";
             string htmlContent = $@"
                 <div style='font-family: Arial; padding: 20px;'>
@@ -222,6 +238,11 @@ namespace backend.Services
         #endregion
 
         #region 依重設 Token 完成密碼重設
+
+        /// <summary>重設連結還能不能用（存在且沒過期）；重設密碼頁打開時先檢查，過期就直接告訴使用者</summary>
+        public bool IsResetTokenValid(string token) =>
+            !string.IsNullOrWhiteSpace(token) && _dao.GetAccountByResetToken(token) != null;
+
         public void ResetPassword(ResetPasswordRequest req)
         {
             if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.NewPassword))

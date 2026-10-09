@@ -131,6 +131,41 @@ public class AuthFlowApiTests
     }
 
     [Fact]
+    public async Task 點忘記密碼信的連結會打開重設密碼頁_用過的連結顯示已失效()
+    {
+        var (name, email) = NewAccount();
+        await RegisterAndVerifyAsync(name, email, "OldPass1!");
+        await _api.CreateClient().PostAsJsonAsync("/api/Auth/ForgotPassword", new { Email = email });
+        string resetToken = await _api.QueryAsync<string>("SELECT pwd_reset_token FROM auth WHERE auth_email = @email;", new { email });
+
+        HttpResponseMessage page = await _api.CreateClient().GetAsync($"/reset-password?token={resetToken}");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        Assert.Equal("text/html", page.Content.Headers.ContentType.MediaType);
+        string html = await page.Content.ReadAsStringAsync();
+        Assert.Contains("確認重設", html);
+        Assert.Contains($"'{resetToken}'", html);                  // 頁面送出時帶這個重設碼
+        Assert.Contains("/api/Auth/ResetPassword", html);
+
+        await _api.CreateClient().PostAsJsonAsync("/api/Auth/ResetPassword", new { Token = resetToken, NewPassword = "Reset123!" });
+        string used = await (await _api.CreateClient().GetAsync($"/reset-password?token={resetToken}")).Content.ReadAsStringAsync();
+        Assert.Contains("連結無效或已過期", used);
+        Assert.DoesNotContain("確認重設", used);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-a-token")]
+    [InlineData("%3Cscript%3Ealert(1)%3C%2Fscript%3E")]
+    [InlineData("0123456789abcdef0123456789abcdef")]   // 格式對但不存在
+    public async Task 重設密碼頁_亂打的連結顯示無效(string token)
+    {
+        string html = await (await _api.CreateClient().GetAsync($"/reset-password?token={token}")).Content.ReadAsStringAsync();
+
+        Assert.Contains("連結無效或已過期", html);
+        Assert.DoesNotContain("<script>alert", html);
+    }
+
+    [Fact]
     public async Task 忘記密碼用沒註冊過的Email回傳錯誤()
     {
         var result = await (await _api.CreateClient().PostAsJsonAsync("/api/Auth/ForgotPassword", new { Email = "nobody@example.com" })).ReadResultAsync();

@@ -23,13 +23,16 @@ namespace backend.Controllers
     {
         private readonly ILogger<MapController> _logger;
         private readonly MapService _service;
+        private readonly NearbyFoodService _nearbyFood;
 
         public MapController(
             ILogger<MapController> logger,
-            MapService service)
+            MapService service,
+            NearbyFoodService nearbyFood)
         {
             _logger = logger;
             _service = service;
+            _nearbyFood = nearbyFood;
         }
 
         /// <summary>還在迷霧中的站：回傳 403</summary>
@@ -374,6 +377,47 @@ namespace backend.Controllers
                     message = e.Message,
                     Result = null
                 });
+            }
+        }
+
+        #endregion
+
+        #region 用餐時間推播：附近美食
+
+        /// <summary>
+        /// 用餐時間推播：使用者目前位置附近的美食。
+        /// </summary>
+        /// <remarks>
+        /// 推播由前端用手機本機通知排程（例如 11:30、17:30 跳出「午餐時間到了，看看附近有什麼好吃的？」），
+        /// 不需要伺服器推播，iOS 也不需要 Apple 開發者帳號。使用者點開通知後，帶目前 GPS 呼叫這支。
+        ///
+        /// - meal：現在是哪一餐（台灣時間）：早餐、午餐、下午茶、晚餐、宵夜
+        /// - message：可以直接顯示的一句話，例如「午餐時間到了！附近 350 公尺有「山河魯肉飯」，還有優惠券可以領」
+        /// - places：有 QR Code 優惠券的店家排前面，其餘由近到遠；已知目前沒營業的不列出，
+        ///   營業時間沒有資料時 is_open_now 為 null
+        /// - radius_m：搜尋半徑（公尺），預設 800，範圍 100～3000；limit：最多幾間，預設 10，最多 30
+        ///
+        /// 餐廳來自 Neo4j 的政府開放資料（AI service 連不上時改用 MySQL 的美食資料）與商家自建的餐廳。
+        ///
+        ///     GET /api/Map/NearbyFood?lat=24.1477&amp;lng=120.6736&amp;radius_m=800
+        /// </remarks>
+        [HttpGet("NearbyFood")]
+        [ProducesResponseType(typeof(ResultViewModel<NearbyFoodResponse>), 200)]
+        public async Task<IActionResult> NearbyFood([FromQuery] double lat, [FromQuery] double lng, [FromQuery] int? radius_m, [FromQuery] int? limit)
+        {
+            try
+            {
+                NearbyFoodResponse result = await _nearbyFood.GetNearbyFoodAsync(lat, lng, radius_m, limit);
+                return Ok(new ResultViewModel<NearbyFoodResponse> { isSuccess = true, message = "查詢成功", Result = result });
+            }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<NearbyFoodResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "附近美食查詢失敗，lat: {Lat}, lng: {Lng}", lat, lng);
+                return StatusCode(500, new ResultViewModel<NearbyFoodResponse> { isSuccess = false, message = e.Message, Result = null });
             }
         }
 

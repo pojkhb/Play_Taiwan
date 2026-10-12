@@ -176,6 +176,7 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             services.AddScoped<Services.GeocodingService>();
             services.AddScoped<Services.NearbyFoodService>();   // 用餐時間推播：附近美食
+            services.AddScoped<Services.NearbyPlaceService>();  // 周邊好去：依使用者目前位置推薦
             services.AddScoped<dao.NearbyFoodDao>();
             #endregion
             #region 商家 / 遊客 VLOG

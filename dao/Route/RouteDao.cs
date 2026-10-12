@@ -34,6 +34,9 @@ namespace backend.dao
             public string story_title { get; set; }
             public string city_name { get; set; }
             public string district_name { get; set; }
+
+            /// <summary>生成劇本時使用者選的交通方式，逗號分隔（story.sd_transport）</summary>
+            public string sd_transport { get; set; }
         }
 
         public class NodeRow
@@ -43,31 +46,61 @@ namespace backend.dao
             public int sn_order { get; set; }
             public string sn_title { get; set; }
             public string place_id { get; set; }
+            public string location_codename { get; set; }
         }
 
         public async Task<StoryRow> GetStoryAsync(int storyId)
         {
             using var conn = Open();
             return await conn.QueryFirstOrDefaultAsync<StoryRow>(@"
-                SELECT s_id, au_id, story_title, city_name, district_name
+                SELECT s_id, au_id, story_title, city_name, district_name, sd_transport
                 FROM story WHERE s_id = @storyId;", new { storyId });
         }
 
-        /// <summary>使用者自己的劇本（有節點的），新的在前；自己沒有劇本時回傳最近的公開劇本（測試帳號也能看到測試資料）</summary>
+        /// <summary>
+        /// 使用者能玩的劇本（自己的，或協作隊伍的；有節點的），新的在前。
+        /// 不回傳別人的劇本：路線會帶出景點的真實位置，別人的劇本不能看。
+        /// </summary>
         public async Task<List<StoryRow>> GetStoriesAsync(int auId, int limit)
         {
-            const string sql = @"
+            using var conn = Open();
+            return (await conn.QueryAsync<StoryRow>(@"
                 SELECT s.s_id, s.au_id, s.story_title, s.city_name, s.district_name
                 FROM story s
-                WHERE s.is_active = 1 AND (@auId = 0 OR s.au_id = @auId)
+                WHERE s.is_active = 1
+                  AND (s.au_id = @auId
+                       OR EXISTS (SELECT 1
+                                  FROM story_pair_member pm
+                                  INNER JOIN story_pair_session ps ON ps.pair_id = pm.pair_id
+                                  WHERE pm.au_id = @auId AND ps.s_id = s.s_id AND ps.pair_status <> 'cancelled'))
                   AND EXISTS (SELECT 1 FROM story_node sn WHERE sn.s_id = s.s_id)
                 ORDER BY s.created_at DESC, s.s_id DESC
-                LIMIT @limit;";
+                LIMIT @limit;", new { auId, limit })).ToList();
+        }
 
+        /// <summary>登入者在這份劇本的進度（協作隊伍全隊共用，規則見 TeamProgress）</summary>
+        public class StoryProgress
+        {
+            /// <summary>能不能玩這份劇本：劇本擁有者或協作隊員</summary>
+            public bool can_play { get; set; }
+
+            /// <summary>隊伍最遠抵達第幾站，還沒抵達過為 0</summary>
+            public int arrived_order { get; set; }
+
+            /// <summary>目前這一關是第幾站；站序不超過它的站才是解鎖的</summary>
+            public int stage_order { get; set; }
+        }
+
+        public async Task<StoryProgress> GetProgressAsync(int auId, int storyId)
+        {
             using var conn = Open();
-            var own = (await conn.QueryAsync<StoryRow>(sql, new { auId, limit })).ToList();
-            if (own.Count > 0 || auId == 0) return own;
-            return (await conn.QueryAsync<StoryRow>(sql, new { auId = 0, limit })).ToList();
+            await conn.OpenAsync();
+            return new StoryProgress
+            {
+                can_play = TeamProgress.CanPlay(conn, auId, storyId),
+                arrived_order = TeamProgress.GetCurrentNodeOrder(conn, auId, storyId),
+                stage_order = TeamProgress.GetStageOrder(conn, auId, storyId)
+            };
         }
 
         public async Task<List<NodeRow>> GetStoryNodesAsync(IEnumerable<int> storyIds)
@@ -77,7 +110,7 @@ namespace backend.dao
 
             using var conn = Open();
             return (await conn.QueryAsync<NodeRow>(@"
-                SELECT sn_id, s_id, sn_order, sn_title, place_id
+                SELECT sn_id, s_id, sn_order, sn_title, place_id, location_codename
                 FROM story_node WHERE s_id IN @ids
                 ORDER BY s_id, sn_order, sn_id;", new { ids })).ToList();
         }

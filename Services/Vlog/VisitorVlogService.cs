@@ -35,10 +35,12 @@ namespace backend.Services
 
         private readonly VisitorVlogDao _dao;
         private readonly VlogAiGateway _ai;
+        private readonly Neo4j.PlaceLookupService _placeLookup;
 
-        public VisitorVlogService(VisitorVlogDao dao, VlogAiGateway ai)
+        public VisitorVlogService(VisitorVlogDao dao, VlogAiGateway ai, Neo4j.PlaceLookupService placeLookup)
         {
             _dao = dao;
+            _placeLookup = placeLookup;
             _ai = ai;
         }
 
@@ -254,11 +256,16 @@ namespace backend.Services
         /// <summary>
         /// 景點清單（隱藏節點只有玩家真的去過才算）＋ 影片素材照片：
         /// 先用這次遊玩拍的照片（record_media、answer_media_url，去重、排除影片與錄音），
-        /// 玩家在某站沒有照片時補上該景點的照片（place.p_image）
+        /// 玩家在某站沒有照片時補上該景點的照片（用景點 ID 向 Neo4j 拿）
         /// </summary>
         private async Task<PlayMaterial> CollectAsync(int auId, int storyId)
         {
             List<VisitorVlogDao.SpotRow> rows = await _dao.GetSpotsAsync(auId, storyId);
+
+            // 每一站的景點照片直接用景點 ID 向 Neo4j 拿
+            Dictionary<string, string> placeImages = await _placeLookup.GetPlaceImagesAsync(rows.Select(r => r.place_id));
+            foreach (VisitorVlogDao.SpotRow row in rows)
+                row.place_image = row.place_id != null ? placeImages.GetValueOrDefault(row.place_id) : null;
 
             var spotByNode = new Dictionary<int, VisitorVlogSpot>();
             var spots = new List<VisitorVlogSpot>();

@@ -1,5 +1,6 @@
 // 檔案路徑：System\ViewModels\Story\GameStoryViewModels.cs
 // 劇本 + 任務一次生成（AI service /api/stories/tasks/batch），一次生成多份劇本讓使用者挑
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -35,8 +36,18 @@ namespace backend.ViewModels
         /// <summary>偏好標籤，例如 ["好山好水", "美食"]</summary>
         public List<string> preferences { get; set; }
 
-        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天，不帶時預設 0</summary>
-        public int is_night_mode { get; set; }
+        /// <summary>
+        /// 最遠願意花幾分鐘到景點（10～60），不帶時預設 30。
+        /// 後端切成近、中、遠三圈（例如 45 → 15、30、45 分鐘），景點只從這個範圍內挑；
+        /// 複選交通方式時，範圍以其中最快的那一種為準
+        /// </summary>
+        public int? max_minutes { get; set; }
+
+        /// <summary>
+        /// 預計出發時間（台灣時間，例如 "2026-10-14T13:30:00"），不帶時用現在。
+        /// 後端用它估算每一站幾點到：到的時候沒開的景點會換掉，天黑（18:00）後才到的站改挑適合晚上去的景點
+        /// </summary>
+        public DateTime? start_time { get; set; }
     }
 
     /// <summary>
@@ -66,8 +77,11 @@ namespace backend.ViewModels
         /// <summary>偏好標籤</summary>
         public List<string> preferences { get; set; }
 
-        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天</summary>
-        public int is_night_mode { get; set; }
+        /// <summary>最遠願意花幾分鐘到景點，null 時用預設（ItineraryRules.DefaultMaxMinutes）</summary>
+        public int? max_minutes { get; set; }
+
+        /// <summary>預計出發時間（台灣時間），null 時用現在</summary>
+        public DateTime? start_time { get; set; }
 
         /// <summary>一次生成幾份劇本讓使用者挑</summary>
         public int story_count { get; set; }
@@ -216,7 +230,7 @@ namespace backend.ViewModels
         /// <summary>預期可獲得的明信片數量（等於節點數）</summary>
         public int story_postcards { get; set; }
 
-        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天</summary>
+        /// <summary>是否為夜間劇本：1 = 夜間、0 = 白天。由後端決定：過半數的站預計天黑後才到就是夜間劇本</summary>
         public int is_night_mode { get; set; }
 
         /// <summary>
@@ -273,7 +287,10 @@ namespace backend.ViewModels
         /// <summary>地點代號（劇情中對這個地點的暗號/別稱）</summary>
         public string location_codename { get; set; }
 
-        /// <summary>景點照片（完整網址），劇本檔案館的車票顯示用；景點沒有照片時為 null</summary>
+        /// <summary>
+        /// 這一站的圖片（完整網址），劇本檔案館的車票顯示用。剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖：
+        /// 這張照片的迷霧版，還沒做好或景點沒有照片時是通用迷霧圖。真實照片抵達後才會回傳（地圖、劇本詳情）
+        /// </summary>
         public string image_url { get; set; }
 
         /// <summary>此節點包含的任務類型名稱，多個以半形逗號分隔</summary>
@@ -282,8 +299,15 @@ namespace backend.ViewModels
         /// <summary>是否為隱藏節點：1 = 是、2 = 否</summary>
         public int is_hidden { get; set; }
 
-        /// <summary>是否僅限夜間解鎖：1 = 夜間、0 = 白天</summary>
+        /// <summary>是不是夜間站（預計天黑後才會到）：1 = 夜間、0 = 白天</summary>
         public int is_night_only { get; set; }
+
+        /// <summary>
+        /// 預計抵達時間（台灣時間）：出發時間加上車程與每站停留 40 分鐘估算。
+        /// 只在生成劇本時回傳，不存進資料庫
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DateTime? estimated_arrival { get; set; }
 
         /// <summary>抵達時的開場劇情文字</summary>
         public string sn_opening_text { get; set; }

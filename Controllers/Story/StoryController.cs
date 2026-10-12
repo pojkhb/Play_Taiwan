@@ -218,6 +218,10 @@ namespace backend.Controllers
         /// 取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC）。
         /// </summary>
         /// <remarks>
+        /// nodes[].image_url 是每一站要顯示的圖片（跟地圖同一個規則）：抵達過的站是景點照片（用景點 ID 向 Neo4j 拿）；
+        /// 還沒抵達的站是這一站照片的迷霧版，還沒做好或景點沒有照片時是通用迷霧圖。真實照片抵達後才會回傳，
+        /// 還沒抵達的站請搭配 location_codename（地點代號）顯示。
+        ///
         /// **Request 範例**：
         ///
         ///     GET /api/Story/{story_id}/Detail
@@ -226,11 +230,11 @@ namespace backend.Controllers
         [HttpGet]
         [Route("{story_id:int}/Detail")]
         [ProducesResponseType(typeof(ResultViewModel<StoryDetailResponse>), 200)]
-        public IActionResult Detail(int story_id)
+        public async Task<IActionResult> Detail(int story_id)
         {
             try
             {
-                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = WithNpcUrl(_service.GetDetail(story_id)) });
+                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = WithPublicUrls(await _service.WithPlacePhotosAsync(_service.GetDetail(story_id), User.GetAuId())) });
             }
             catch (Exception e)
             {
@@ -239,11 +243,12 @@ namespace backend.Controllers
             }
         }
 
-        /// <summary>NPC 圖片從站內路徑組成完整網址</summary>
-        private StoryDetailResponse WithNpcUrl(StoryDetailResponse detail)
+        /// <summary>NPC 圖片、每一站的迷霧圖從站內路徑組成完整網址</summary>
+        private StoryDetailResponse WithPublicUrls(StoryDetailResponse detail)
         {
             if (detail?.npc != null)
                 detail.npc.avatar_url = PublicUrl.Of(Request, detail.npc.avatar_url);
+            detail?.nodes?.ForEach(n => n.image_url = PublicUrl.Of(Request, n.image_url));
             return detail;
         }
         #endregion
@@ -294,7 +299,9 @@ namespace backend.Controllers
         /// 我喜愛的劇本清單（最新建立的在前面）。
         /// </summary>
         /// <remarks>
-        /// 每一筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完。
+        /// 每一筆有標題、簡介、地區、站數、日夜、封面、是否已玩完。
+        /// 封面 cover_image_url 是第一站的圖片：抵達過第一站是景點照片（用景點 ID 向 Neo4j 拿）；
+        /// 還沒抵達是這張照片的迷霧版，還沒做好或景點沒有照片時是通用迷霧圖。
         /// 想排時間出發時，用 POST /api/Story/{story_id}/Calendar 加入 Google 行事曆。
         /// </remarks>
         [Authorize]
@@ -306,6 +313,7 @@ namespace backend.Controllers
             try
             {
                 List<FavoriteStoryItem> result = await _service.GetFavoriteStoriesAsync(User.GetAuId());
+                result.ForEach(s => s.cover_image_url = PublicUrl.Of(Request, s.cover_image_url));
                 return Ok(new ResultViewModel<List<FavoriteStoryItem>> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -374,6 +382,8 @@ namespace backend.Controllers
         /// 只有劇本擁有者或協作隊員可以確認（403），找不到劇本 404。
         /// </summary>
         /// <remarks>
+        /// 回傳內容跟劇本詳情（Detail）一樣；nodes[].image_url 還沒抵達的站是迷霧圖，抵達過才是景點照片。
+        ///
         /// **Request 範例**：
         /// ```json
         /// { "story_id": "AI_3F2A9C1B" }
@@ -383,11 +393,11 @@ namespace backend.Controllers
         [HttpPost]
         [Route("Confirm")]
         [ProducesResponseType(typeof(ResultViewModel<StoryDetailResponse>), 200)]
-        public IActionResult Confirm([FromBody] StoryConfirmRequest req)
+        public async Task<IActionResult> Confirm([FromBody] StoryConfirmRequest req)
         {
             try
             {
-                StoryDetailResponse detail = WithNpcUrl(_service.ConfirmStory(User.GetAuId(), req));
+                StoryDetailResponse detail = WithPublicUrls(await _service.WithPlacePhotosAsync(_service.ConfirmStory(User.GetAuId(), req), User.GetAuId()));
                 return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
             catch (BadRequestException e)
@@ -512,6 +522,9 @@ namespace backend.Controllers
         /// <remarks>
         /// 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數；
         /// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
+        ///
+        /// **這支一次只會生成一份劇本**（AI 服務一次回一份），回傳的 story_id 就是那一份；
+        /// GenerateGameStory 才是一次生成三份讓使用者挑。
         ///
         /// **Request 範例**：
         /// ```json
@@ -699,6 +712,14 @@ namespace backend.Controllers
         /// 1. 規劃旅遊行程：3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複）
         ///    與一種敘事語氣（narrative_tone）。景點已去除重複，交通圈只算步行/腳踏車/機車/汽車；
         ///    同樣的條件每次生成的景點組合都不同。
+        ///    - 範圍：max_minutes 是玩家最遠願意花幾分鐘到景點（10～60，不帶預設 30），後端切成近、中、遠三圈
+        ///      （例如 45 → 15、30、45 分鐘），三圈輪流抽，遠近都有。複選交通方式時，範圍以最快的那一種為準。
+        ///      範圍內不到 3 個景點時回傳 400，message 會請玩家把時間調長或換交通方式。
+        ///    - 日夜：不用再傳 is_night_mode。後端從 start_time（預計出發時間，不帶用現在）開始，
+        ///      用車程加每站停留 40 分鐘估算每一站幾點到（回傳在 nodes[].estimated_arrival）：
+        ///      有營業時間的景點，到的時候沒開就換掉；18:00 以後才到的站是夜間站（nodes[].is_night_only = 1），
+        ///      改挑適合晚上去的景點（夜市、觀景台、老街、商圈這類），夜市這種只適合晚上的也不會排在白天。
+        ///      過半數的站是夜間站時，story.is_night_mode = 1。
         /// 2. 判斷任務類型：每站固定出創意攝影型；最後一站加跨關集結型；餐廳類加地方美食型；
         ///    2 人以上加協作解謎型；再從景點可出的文化問答型／景點猜猜樂／e人訪談型（place_type）隨機抽一題。
         ///    景點在 place_type 標有 9（商家新增題目時自動標記）時，另外必出一題商家知識問答
@@ -713,6 +734,10 @@ namespace backend.Controllers
         /// task_id 是進入節點遊玩畫面、作答時要用的任務代號；回應不含正確答案、提示與各座位線索，
         /// 抵達節點後由 GET api/Task/Node/{node_id} 取得自己座位的線索與作答方式。
         ///
+        /// nodes[].image_url 是每一站的圖片：剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖
+        /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，後端會在背景做，之後用劇本詳情 Detail 就拿得到每一站自己的迷霧圖）。
+        /// 景點照片用景點 ID 向 Neo4j 拿，真實照片抵達後才會回傳（地圖、劇本詳情）。
+        ///
         /// **Request 範例**：
         /// ```json
         /// {
@@ -721,7 +746,8 @@ namespace backend.Controllers
         ///   "party_size": 2,
         ///   "transportation": ["步行", "公車"],
         ///   "preferences": ["好山好水", "美食"],
-        ///   "is_night_mode": 0
+        ///   "max_minutes": 30,
+        ///   "start_time": "2026-10-14T13:30:00"
         /// }
         /// ```
         /// </remarks>
@@ -770,6 +796,7 @@ namespace backend.Controllers
                 {
                     if (r.story?.npc != null)
                         r.story.npc.npc_avatar_url = PublicUrl.Of(Request, r.story.npc.npc_avatar_url);
+                    r.nodes?.ForEach(n => n.image_url = PublicUrl.Of(Request, n.image_url));
                 }
 
                 return Ok(new ResultViewModel<List<GameStoryResult>>
@@ -778,6 +805,11 @@ namespace backend.Controllers
                     message = $"劇本生成成功，共 {result.Count} 份劇本",
                     Result = result
                 });
+            }
+            catch (BadRequestException e)
+            {
+                // 範圍內的景點不夠：不是系統錯誤，請玩家調整條件
+                return BadRequest(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
             catch (Exception e)
             {

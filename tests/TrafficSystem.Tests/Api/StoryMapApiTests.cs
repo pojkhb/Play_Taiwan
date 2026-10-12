@@ -5,6 +5,8 @@ using System.Text.Json;
 using backend.Models;
 using backend.Services;
 using backend.ViewModels;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Allure.Net.Commons.Attributes;
 
@@ -37,16 +39,41 @@ public class StoryMapApiTests
     }
 
     [Fact]
-    public async Task 劇本詳情帶景點照片_劇本檔案館用()
+    public async Task 劇本詳情每一站都有圖片_還沒抵達是迷霧圖_抵達後才是景點照片()
     {
         int user = _api.NewUserId();
-        string withPhoto = $"有照片的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
-        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, withPhoto, noPhoto);
-        string photoUrl = await _api.GivePlacePhotoAsync(withPhoto);
+        string first = $"第一站的景點{Guid.NewGuid():N}", second = $"第二站的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, first, second, noPhoto);
+        string[] photos = { await _api.GivePlacePhotoAsync(first), await _api.GivePlacePhotoAsync(second) };
+        HttpClient client = _api.ClientFor(user);
 
-        StoryDetailResponse detail = (await (await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
+        async Task<(StoryDetailResponse detail, string json)> DetailAsync()
+        {
+            string json = await (await client.GetAsync($"/api/Story/{storyId}/Detail")).Content.ReadAsStringAsync();
+            return (JsonSerializer.Deserialize<ApiResult<StoryDetailResponse>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)).Result, json);
+        }
 
-        Assert.Equal(new[] { photoUrl, null }, detail.nodes.Select(n => n.image_url));
+        // 還沒抵達任何一站：每一站都是迷霧圖（完整網址），沒有照片的景點也有通用迷霧圖，真實照片不會傳出去
+        var (before, beforeJson) = await DetailAsync();
+        Assert.All(before.nodes, n =>
+        {
+            Assert.StartsWith("http", n.image_url);
+            Assert.Contains("/images/fog/", n.image_url);
+        });
+        Assert.All(photos, photo => Assert.DoesNotContain(photo, beforeJson));
+
+        // 抵達第 1 站：第 1 站換成景點照片，其他站還是迷霧圖
+        int firstNode = (await GetMapAsync(user, storyId)).nodes[0].node_id;
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+
+        var (after, afterJson) = await DetailAsync();
+        Assert.Equal(photos[0], after.nodes[0].image_url);
+        Assert.All(after.nodes.Skip(1), n => Assert.Contains("/images/fog/", n.image_url));
+        Assert.DoesNotContain(photos[1], afterJson);
+
+        // 別人（沒有參與這份劇本）看到的每一站都是迷霧圖
+        string strangerJson = await (await _api.ClientFor(_api.NewUserId()).GetAsync($"/api/Story/{storyId}/Detail")).Content.ReadAsStringAsync();
+        Assert.All(photos, photo => Assert.DoesNotContain(photo, strangerJson));
     }
 
     [Fact]
@@ -152,10 +179,11 @@ public class StoryMapApiTests
 
         MapResponse map = await GetMapAsync(user, storyId);
 
-        // 第 1 站開放：真正的站名、照片、座標
+        // 第 1 站開放：站名、座標是真的；但還沒抵達，照片仍然是迷霧圖（真實照片一看就知道答案）
         MapNode open = map.nodes[0];
         Assert.Equal("第1站", open.location_name);
-        Assert.Equal(photos[0], open.image_url);
+        Assert.EndsWith("/images/fog/default_fog.png", open.image_url);
+        Assert.DoesNotContain(photos[0], JsonSerializer.Serialize(map));
         Assert.Equal(25.03, open.lat, 6);
         Assert.Null(open.fog_radius_m);
 
@@ -209,9 +237,189 @@ public class StoryMapApiTests
         MapResponse after = await GetMapAsync(user, storyId);
         Assert.Equal(new[] { true, true, false }, after.nodes.Select(n => n.is_unlocked));
         Assert.Equal("第2站", after.nodes[1].location_name);
-        Assert.Equal(photos[1], after.nodes[1].image_url);
         Assert.Equal(25.031, after.nodes[1].lat, 6);
+
+        // 照片抵達後才給：到過的第 1 站是真實照片；第 2 站解鎖了但還沒到，仍然是迷霧圖
+        Assert.Equal(photos[0], after.nodes[0].image_url);
+        Assert.Contains("/images/fog/", after.nodes[1].image_url);   // 通用迷霧圖，或背景已經做好的這一站照片迷霧版
+        Assert.DoesNotContain(photos[1], JsonSerializer.Serialize(after));
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/Map/Navigate", new { node_id = after.nodes[1].node_id })).StatusCode);
+    }
+
+    /// <summary>在這一站放一題任務，回傳 task_id</summary>
+    private async Task<int> AddTaskAsync(int storyId, int nodeId)
+    {
+        await _api.ExecuteAsync("INSERT INTO task (story_id, node_id, task_type, task_describe) VALUES (@storyId, @nodeId, 6, '這裡以前叫什麼？');",
+            new { storyId, nodeId });
+        return await _api.QueryAsync<int>("SELECT MAX(task_id) FROM task WHERE node_id = @nodeId;", new { nodeId });
+    }
+
+    [Fact]
+    public async Task 有任務的站_抵達後下一站還在迷霧中_任務全過才散開()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFoggyStoryAsync(user);
+        HttpClient client = _api.ClientFor(user);
+        MapResponse start = await GetMapAsync(user, storyId);
+        int first = start.nodes[0].node_id, second = start.nodes[1].node_id;
+        int task1 = await AddTaskAsync(storyId, first), task2 = await AddTaskAsync(storyId, first);
+
+        // 一開始：只有第 1 站是亮的
+        Assert.Equal(first, start.current_node_id);
+        Assert.Equal(new[] { true, false, false }, start.nodes.Select(n => n.is_current));
+        Assert.Equal(300, start.reveal_radius_m);
+
+        // 抵達第 1 站、只過一題：第 2 站還是迷霧，也不能直接去打卡
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{first}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+        await _api.ExecuteAsync("UPDATE task SET pass = 1 WHERE task_id = @task1;", new { task1 });
+
+        MapResponse arrived = await GetMapAsync(user, storyId);
+        Assert.Equal(new[] { true, false, false }, arrived.nodes.Select(n => n.is_unlocked));
+        Assert.Equal(new[] { true, false, false }, arrived.nodes.Select(n => n.is_arrived));
+        Assert.False(start.nodes[0].is_arrived);
+
+        // 地標名稱：還沒抵達只有代號，抵達後才有景點真實名稱
+        Assert.Equal(new[] { "代號1", "代號2", "代號3" }, start.nodes.Select(n => n.codename));
+        Assert.All(start.nodes, n => Assert.Null(n.place_name));
+        Assert.StartsWith("迷霧景點1_", arrived.nodes[0].place_name);
+        Assert.Null(arrived.nodes[1].place_name);
+        Assert.Equal(first, arrived.current_node_id);
+        Assert.Equal("代號2", arrived.nodes[1].location_name);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync($"/api/Map/Node/{second}/Arrive?lat=25.031&lng=121.5", null)).StatusCode);
+
+        // 第 1 站任務全過：第 2 站散開，變成目前這一關
+        await _api.ExecuteAsync("UPDATE task SET pass = 1 WHERE task_id = @task2;", new { task2 });
+
+        MapResponse cleared = await GetMapAsync(user, storyId);
+        Assert.Equal(new[] { true, true, false }, cleared.nodes.Select(n => n.is_unlocked));
+        Assert.Equal(new[] { false, true, false }, cleared.nodes.Select(n => n.is_current));
+        Assert.Equal(second, cleared.current_node_id);
+        Assert.True(cleared.nodes[0].is_completed);
+        Assert.Equal("第2站", cleared.nodes[1].location_name);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{second}/Arrive?lat=25.031&lng=121.5", null)).StatusCode);
+    }
+
+    [Fact]
+    public async Task 每一站都破關後_全部解鎖_沒有目前這一關()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFoggyStoryAsync(user);
+        HttpClient client = _api.ClientFor(user);
+        MapResponse map = await GetMapAsync(user, storyId);
+
+        // 沒有任務的站抵達就算破關，照順序走完三站
+        for (int i = 0; i < 3; i++)
+        {
+            int node = (await GetMapAsync(user, storyId)).nodes[i].node_id;
+            HttpResponseMessage arrive = await client.PostAsync($"/api/Map/Node/{node}/Arrive?lat={25.03 + i * 0.001}&lng=121.5", null);
+            Assert.Equal(HttpStatusCode.OK, arrive.StatusCode);
+        }
+
+        MapResponse done = await GetMapAsync(user, storyId);
+        Assert.All(done.nodes, n => Assert.True(n.is_unlocked));
+        Assert.All(done.nodes, n => Assert.False(n.is_current));
+        Assert.Null(done.current_node_id);
+        Assert.Equal(map.total_node_count, done.unlocked_node_count);
+    }
+
+    [Fact]
+    public async Task 目前這一關還沒抵達_詳情與NPC互動不給景點介紹和真實照片_抵達後才給()
+    {
+        int user = _api.NewUserId();
+        var (storyId, photos) = await CreateFoggyStoryAsync(user);
+        await _api.ExecuteAsync(@"
+            UPDATE place p
+            INNER JOIN place_type pt ON pt.place_name = p.p_name
+            INNER JOIN story_node sn ON sn.place_id = pt.place_id
+            SET p.p_introduction = '這裡是巴洛克式的百年紅磚建築', p.p_summary = '百年紅磚廳舍', p.p_open_time = '09:00-17:00'
+            WHERE sn.s_id = @storyId;", new { storyId });
+        HttpClient client = _api.ClientFor(user);
+        int first = (await GetMapAsync(user, storyId)).nodes[0].node_id;
+
+        // 第 1 站已解鎖但還沒到：看得到站名與 NPC，看不到景點介紹、營業時間、真實照片
+        NodeDetailResponse detail = (await (await client.GetAsync($"/api/Map/Node/{first}")).ReadResultAsync<NodeDetailResponse>()).Result;
+        Assert.Equal("第1站", detail.location_name);
+        Assert.Equal(MapService.NotArrivedIntro, detail.intro_story);
+        Assert.Null(detail.opening_hours);
+
+        NpcInteractionResponse npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
+        Assert.StartsWith("http", npc.scene_image_url);
+        Assert.Contains("/images/fog/", npc.scene_image_url);
+        Assert.NotEqual(photos[0], npc.scene_image_url);
+        Assert.Null(npc.location_subtitle);
+
+        // 抵達後：景點介紹、營業時間、真實照片都給
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{first}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+
+        detail = (await (await client.GetAsync($"/api/Map/Node/{first}")).ReadResultAsync<NodeDetailResponse>()).Result;
+        Assert.Equal("這裡是巴洛克式的百年紅磚建築", detail.intro_story);
+        Assert.Equal("09:00-17:00", detail.opening_hours);
+
+        npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
+        Assert.Equal(photos[0], npc.scene_image_url);
+        Assert.Equal("百年紅磚廳舍", npc.location_subtitle);
+    }
+
+    /// <summary>後端設定打開示範模式（Demo:AllowStageSkip = true）時的 HttpClient</summary>
+    private HttpClient DemoClientFor(int user)
+    {
+        HttpClient client = _api.WithWebHostBuilder(builder => builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string> { ["Demo:AllowStageSkip"] = "true" }))).CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", ApiFactory.Token(user));
+        return client;
+    }
+
+    [Fact]
+    public async Task 示範模式預設關閉_不能直接破關()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFoggyStoryAsync(user);
+        MapResponse map = await GetMapAsync(user, storyId);
+
+        Assert.False(map.demo_mode);
+        HttpClient client = _api.ClientFor(user);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync($"/api/Map/Node/{map.nodes[0].node_id}/DemoClear", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync($"/api/Map/{storyId}/DemoReset", null)).StatusCode);
+        Assert.Equal(new[] { true, false, false }, (await GetMapAsync(user, storyId)).nodes.Select(n => n.is_unlocked));
+    }
+
+    [Fact]
+    public async Task 示範模式_不用到現場也不用作答就能一關一關破_還可以重來()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFoggyStoryAsync(user);
+        HttpClient demo = DemoClientFor(user);
+        int[] nodes = (await GetMapAsync(user, storyId)).nodes.Select(n => n.node_id).ToArray();
+        await AddTaskAsync(storyId, nodes[0]);
+        await AddTaskAsync(storyId, nodes[2]);
+
+        // 不能跳關：第 3 站還在迷霧中
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.PostAsync($"/api/Map/Node/{nodes[2]}/DemoClear", null)).StatusCode);
+
+        // 破第 1 關：有任務也直接通過，第 2 站解鎖
+        MapResponse first = (await (await demo.PostAsync($"/api/Map/Node/{nodes[0]}/DemoClear", null)).ReadResultAsync<MapResponse>()).Result;
+        Assert.True(first.demo_mode);
+        Assert.Equal(new[] { true, true, false }, first.nodes.Select(n => n.is_unlocked));
+        Assert.Equal(nodes[1], first.current_node_id);
+        Assert.True(first.nodes[0].is_completed);
+        Assert.Equal("in_progress", await _api.QueryAsync<string>("SELECT ss_status FROM story_session WHERE s_id = @storyId;", new { storyId }));
+
+        // 破完三關：全部解鎖，遊玩紀錄標成完成
+        await demo.PostAsync($"/api/Map/Node/{nodes[1]}/DemoClear", null);
+        MapResponse done = (await (await demo.PostAsync($"/api/Map/Node/{nodes[2]}/DemoClear", null)).ReadResultAsync<MapResponse>()).Result;
+        Assert.All(done.nodes, n => Assert.True(n.is_unlocked));
+        Assert.Null(done.current_node_id);
+        Assert.Equal("completed", await _api.QueryAsync<string>("SELECT ss_status FROM story_session WHERE s_id = @storyId;", new { storyId }));
+
+        // 重來：回到只有第 1 站是亮的
+        MapResponse reset = (await (await demo.PostAsync($"/api/Map/{storyId}/DemoReset", null)).ReadResultAsync<MapResponse>()).Result;
+        Assert.Equal(new[] { true, false, false }, reset.nodes.Select(n => n.is_unlocked));
+        Assert.Equal(nodes[0], reset.current_node_id);
+        Assert.All(reset.nodes, n => Assert.False(n.is_arrived));
+        Assert.Equal(0, await _api.QueryAsync<int>("SELECT COUNT(*) FROM task WHERE story_id = @storyId AND pass = 1;", new { storyId }));
+
+        // 別人的劇本不能用示範破關
+        Assert.Equal(HttpStatusCode.Forbidden, (await DemoClientFor(_api.NewUserId()).PostAsync($"/api/Map/Node/{nodes[0]}/DemoClear", null)).StatusCode);
     }
 
     [Fact]
@@ -243,15 +451,19 @@ public class StoryMapApiTests
         MapResponse map = await GetMapAsync(user, storyId);
 
         Assert.Equal(3, result.generated);
-        Assert.Equal(photos[0], map.nodes[0].image_url);   // 已解鎖：原始照片
-        for (int i = 1; i < 3; i++)
+        // 三站都還沒抵達（第 1 站已解鎖也一樣）：都是自己照片的迷霧版
+        for (int i = 0; i < 3; i++)
         {
             string key = FogService.SourceKey(photos[i]);
             Assert.EndsWith($"/images/fog/generated/{key}.jpg", map.nodes[i].image_url);
             Assert.True(File.Exists(Path.Combine(_api.FogRoot, "images", "fog", "generated", key + ".jpg")));
         }
-        Assert.DoesNotContain(photos[1], JsonSerializer.Serialize(map));
+        Assert.All(photos, photo => Assert.DoesNotContain(photo, JsonSerializer.Serialize(map)));
         Assert.DoesNotContain("fog_image", JsonSerializer.Serialize(map));   // 內部欄位不回傳
+
+        // 抵達第 1 站後才換成原始照片
+        await _api.ClientFor(user).PostAsync($"/api/Map/Node/{map.nodes[0].node_id}/Arrive?lat=25.03&lng=121.5", null);
+        Assert.Equal(photos[0], (await GetMapAsync(user, storyId)).nodes[0].image_url);
     }
 
     [Fact]

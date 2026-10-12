@@ -74,6 +74,18 @@ namespace backend.Models
         /// <summary>總節點數</summary>
         public int total_node_count { get; set; }
 
+        /// <summary>目前這一關的節點代號（地圖上要亮起來的那一站）；全部破關後為 null</summary>
+        public int? current_node_id { get; set; }
+
+        /// <summary>已解鎖的站周圍迷霧散開的半徑（公尺）：前端以已解鎖站的 lat/lng 為中心，在整張地圖的迷霧上挖開這個範圍</summary>
+        public double reveal_radius_m { get; set; }
+
+        /// <summary>
+        /// 後端有沒有開示範模式（設定 Demo:AllowStageSkip）：true 時可以呼叫 POST /api/Map/Node/{node_id}/DemoClear
+        /// 不用到現場、不用作答就破關，展示用；正式環境是 false
+        /// </summary>
+        public bool demo_mode { get; set; }
+
         /// <summary>已解鎖的明信片數量</summary>
         public int postcard_unlocked_count { get; set; }
 
@@ -112,8 +124,20 @@ namespace backend.Models
         [JsonIgnore]
         public string place_id { get; set; }
 
-        /// <summary>是否已解鎖（第一站固定開放；抵達第 N 站後解鎖第 N+1 站，協作隊伍全隊共用進度）</summary>
+        /// <summary>是否已解鎖（第一站固定開放；破完第 N 站、任務全部通過後才解鎖第 N+1 站，協作隊伍全隊共用進度）</summary>
         public bool is_unlocked { get; set; }
+
+        /// <summary>是否為目前這一關（地圖上亮起來的那一站）：已解鎖但還沒破關的那一站，同一時間只有一站</summary>
+        public bool is_current { get; set; }
+
+        /// <summary>隊伍是否已經抵達過這一站（抵達後才能做這一站的任務；任務全過才算破關）</summary>
+        public bool is_arrived { get; set; }
+
+        /// <summary>地點代號（story_node.location_codename）：還沒抵達的站用代號當地標名稱；沒有設定代號時為 null</summary>
+        public string codename { get; set; }
+
+        /// <summary>景點真實名稱：隊伍抵達這一站之後才回傳，還沒抵達（含目前這一關與迷霧中的站）為 null</summary>
+        public string place_name { get; set; }
 
         /// <summary>這一站的任務是否已全部通過</summary>
         public bool is_completed { get; set; }
@@ -133,7 +157,10 @@ namespace backend.Models
         /// <summary>包含的子節點代號列表</summary>
         public List<int> child_node_ids { get; set; }
 
-        /// <summary>要顯示的圖片（完整網址）：已解鎖是景點照片，未解鎖是這一站照片的迷霧版（還沒做好或沒有照片時是通用迷霧圖）</summary>
+        /// <summary>
+        /// 要顯示的圖片（完整網址）：抵達過的站是景點照片；還沒抵達的站（迷霧中的站，以及已解鎖但還沒到的目前這一關）
+        /// 是這一站照片的迷霧版（還沒做好或沒有照片時是通用迷霧圖）。真實照片抵達後才會回傳
+        /// </summary>
         public string image_url { get; set; }
 
         /// <summary>內部用：這一站的迷霧圖路徑（fog 表），不回傳給前端</summary>
@@ -196,5 +223,36 @@ namespace backend.Models
 
         /// <summary>探索總覽：這趟旅程經過的景點名稱清單</summary>
         public List<string> spots { get; set; }
+
+        /// <summary>
+        /// 封面照片（完整網址）：玩家這趟拍的第一張照片（依站的順序）；沒拍過照片時是第一張景點照片，
+        /// 景點也都沒有照片時為 null
+        /// </summary>
+        public string cover_image_url { get; set; }
+
+        /// <summary>
+        /// 這趟的照片，依站的順序、拍攝時間排列（只有詳情回傳，列表為 null）：玩家拍的照片，
+        /// 玩家沒拍照片的站補上那一站的景點照片（is_place_photo = true）
+        /// </summary>
+        public List<HistoryPhoto> photos { get; set; }
+    }
+
+    /// <summary>過往劇本的一張照片：玩家拍的，或那一站的景點照片</summary>
+    public class HistoryPhoto
+    {
+        /// <summary>哪一站的照片（story_node.sn_id）</summary>
+        public int node_id { get; set; }
+
+        /// <summary>第幾站，從 1 開始</summary>
+        public int node_order { get; set; }
+
+        /// <summary>那一站的景點名稱，可當照片說明</summary>
+        public string place_name { get; set; }
+
+        /// <summary>照片網址（完整網址）</summary>
+        public string image_url { get; set; }
+
+        /// <summary>false＝玩家拍的照片；true＝景點照片（玩家在這一站沒拍照片，用景點 ID 向 Neo4j 拿的）</summary>
+        public bool is_place_photo { get; set; }
     }
 }

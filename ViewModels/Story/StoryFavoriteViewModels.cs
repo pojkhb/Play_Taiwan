@@ -27,8 +27,15 @@ namespace backend.ViewModels
 
         public bool is_night_mode { get; set; }
 
-        /// <summary>封面：第一站的景點照片（第一站本來就開放）；沒有照片時為 null</summary>
+        /// <summary>
+        /// 封面（完整網址）：第一站的圖片。抵達過第一站是景點照片（景點沒有照片時為 null）；
+        /// 還沒抵達是這張照片的迷霧版（還沒做好或景點沒有照片時是通用迷霧圖）
+        /// </summary>
         public string cover_image_url { get; set; }
+
+        /// <summary>內部用：第一站的景點 ID，用它向 Neo4j 拿封面照片，不回傳給前端</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string cover_place_id { get; set; }
 
         /// <summary>是否已經玩完</summary>
         public bool is_completed { get; set; }

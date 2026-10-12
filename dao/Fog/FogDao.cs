@@ -25,19 +25,19 @@ namespace backend.dao
             public string photo_url { get; set; }
         }
 
-        /// <summary>劇本每一站的景點照片（去掉重複、沒有照片的站不列）</summary>
-        public async Task<List<PlacePhoto>> GetStoryPlacePhotosAsync(int storyId)
+        /// <summary>劇本每一站的景點（景點 ID 與名稱），沒有對應景點的站不列。照片由 FogService 依景點 ID 向 Neo4j 拿</summary>
+        public async Task<List<(string place_id, string place_name)>> GetStoryPlacesAsync(int storyId)
         {
             string sql = $@"
-                SELECT MIN(p.p_name) AS place_name, p.p_image AS photo_url
+                SELECT sn.place_id, COALESCE(MIN(p.p_name), MIN(pt.place_name), MIN(sn.sn_title)) AS place_name
                 FROM story_node sn
                 {MapDao.PlaceBridgeJoin}
-                WHERE sn.s_id = @storyId AND p.p_image IS NOT NULL AND p.p_image <> ''
-                GROUP BY p.p_image;
+                WHERE sn.s_id = @storyId AND sn.place_id IS NOT NULL AND sn.place_id <> ''
+                GROUP BY sn.place_id;
             ";
 
             using var conn = new MySqlConnection(_appSettings.mydb);
-            return (await conn.QueryAsync<PlacePhoto>(sql, new { storyId })).ToList();
+            return (await conn.QueryAsync<(string place_id, string place_name)>(sql, new { storyId })).ToList();
         }
 
         /// <summary>這張照片做好的迷霧圖網址；還沒做過回傳 null</summary>

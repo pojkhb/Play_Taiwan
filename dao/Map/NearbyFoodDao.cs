@@ -55,6 +55,45 @@ namespace backend.dao
                 new { minLat, maxLat, minLon, maxLon })).ToList();
         }
 
+        /// <summary>
+        /// 範圍內美食以外的地點（景點、其他），周邊好去用；美食的判斷跟 GetFoodPlacesInBoundsAsync 相反。
+        /// 只用外框粗篩，距離由呼叫端計算。
+        /// </summary>
+        public async Task<List<FoodPlaceRow>> GetOtherPlacesInBoundsAsync(double minLat, double maxLat, double minLon, double maxLon)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<FoodPlaceRow>(@"
+                SELECT p.p_id, p.p_name, p.p_address, p.p_type,
+                       p.p_latitude AS lat, p.p_longitude AS lng,
+                       NULLIF(p.p_open_time, '') AS p_open_time, NULLIF(p.p_image, '') AS p_image,
+                       (SELECT MIN(pt.place_id) FROM place_type pt WHERE pt.place_name = p.p_name) AS uid
+                FROM place p
+                WHERE p.p_latitude BETWEEN @minLat AND @maxLat
+                  AND p.p_longitude BETWEEN @minLon AND @maxLon
+                  AND COALESCE(p.p_category, '') <> '飲食'
+                  AND NOT EXISTS (SELECT 1 FROM place_type pt
+                                  WHERE pt.place_name = p.p_name AND pt.place_category = 'Restaurant');",
+                new { minLat, maxLat, minLon, maxLon })).ToList();
+        }
+
+        /// <summary>劇本每一站對應的景點（Neo4j uid、MySQL p_id、名稱），周邊好去要把這些排除</summary>
+        public class StoryPlaceRow
+        {
+            public string uid { get; set; }
+            public int? p_id { get; set; }
+            public string name { get; set; }
+        }
+
+        public async Task<List<StoryPlaceRow>> GetStoryPlacesAsync(int storyId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<StoryPlaceRow>($@"
+                SELECT sn.place_id AS uid, p.p_id, COALESCE(p.p_name, pt.place_name) AS name
+                FROM story_node sn
+                {MapDao.PlaceBridgeJoin}
+                WHERE sn.s_id = @storyId;", new { storyId })).ToList();
+        }
+
         /// <summary>這些景點（Neo4j uid）的店家目前上架、在有效期內的優惠券，依 uid 分組</summary>
         public async Task<ILookup<string, NearbyFoodCoupon>> GetActiveCouponsAsync(IEnumerable<string> placeUids)
         {

@@ -167,8 +167,15 @@ namespace backend.Models
         /// <summary>此節點的任務類型，例如「文化問答型」；沒有設定時為空字串</summary>
         public string task_type { get; set; }
 
-        /// <summary>景點照片（完整網址），劇本檔案館與地圖解鎖後用同一張；景點沒有照片時為 null</summary>
+        /// <summary>
+        /// 這一站要顯示的圖片（完整網址），跟地圖用同一張：抵達過的站是景點照片（景點沒有照片時為 null）；
+        /// 還沒抵達的站是這張照片的迷霧版（還沒做好或景點沒有照片時是通用迷霧圖）。真實照片抵達後才會回傳
+        /// </summary>
         public string image_url { get; set; }
+
+        /// <summary>內部用：景點 ID（story_node.place_id），用它向 Neo4j 拿景點照片，不回傳給前端</summary>
+        [JsonIgnore]
+        public string place_id { get; set; }
     }
     public class AgentOrchestrateRequest
 {

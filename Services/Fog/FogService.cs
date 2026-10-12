@@ -1,6 +1,8 @@
 // 檔案路徑：System\Services\Fog\FogService.cs
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -40,15 +42,17 @@ namespace backend.Services
         public const string GeneratedFolder = "/images/fog/generated/";
 
         private readonly FogDao _dao;
+        private readonly Neo4j.PlaceLookupService _placeLookup;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<FogService> _logger;
         private readonly string _webRoot;
         private readonly string _outputRoot;
 
-        public FogService(FogDao dao, IHttpClientFactory httpClientFactory, IWebHostEnvironment environment,
+        public FogService(FogDao dao, Neo4j.PlaceLookupService placeLookup, IHttpClientFactory httpClientFactory, IWebHostEnvironment environment,
                           IConfiguration configuration, ILogger<FogService> logger)
         {
             _dao = dao;
+            _placeLookup = placeLookup;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _webRoot = environment.WebRootPath;
@@ -64,10 +68,23 @@ namespace backend.Services
         public string PhysicalPath(string sourceKey) =>
             Path.Combine(_outputRoot, "images", "fog", "generated", sourceKey + ".jpg");
 
+        /// <summary>劇本每一站的景點照片（用景點 ID 向 Neo4j 拿；同一張照片只列一次、沒有照片的站不列）</summary>
+        private async Task<List<FogDao.PlacePhoto>> GetStoryPlacePhotosAsync(int storyId)
+        {
+            var places = await _dao.GetStoryPlacesAsync(storyId);
+            var images = await _placeLookup.GetPlaceImagesAsync(places.Select(p => p.place_id));
+
+            return places
+                .Where(p => images.ContainsKey(p.place_id))
+                .GroupBy(p => images[p.place_id])
+                .Select(g => new FogDao.PlacePhoto { place_name = g.First().place_name, photo_url = g.Key })
+                .ToList();
+        }
+
         public async Task<FogGenerateResult> GenerateForStoryAsync(int storyId)
         {
             var result = new FogGenerateResult { story_id = storyId };
-            var photos = await _dao.GetStoryPlacePhotosAsync(storyId);
+            var photos = await GetStoryPlacePhotosAsync(storyId);
             if (photos.Count == 0) return result;
 
             using Image<Rgba32> texture = await Image.LoadAsync<Rgba32>(Path.Combine(_webRoot, "images", "fog", "default_fog.png"));

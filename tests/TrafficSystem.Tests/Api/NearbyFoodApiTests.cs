@@ -16,6 +16,7 @@ public class NearbyFoodApiTests
     public NearbyFoodApiTests(ApiFactory api)
     {
         _api = api;
+        _api.FakeAi.Reset();
         _api.FakeNeo4j.Reset();   // 預設模擬 Neo4j 連不上 → 只用 MySQL
     }
 
@@ -120,29 +121,43 @@ public class NearbyFoodApiTests
         var c = Center(3);
         string name = await AddPlaceAsync(c, 400, "飲食", "00:00-24:00");
         string today = DateTime.UtcNow.AddHours(8).DayOfWeek.ToString();
+        // 模擬 Neo4j 查到兩間餐廳：一間只有政府資料有，一間跟 MySQL 的是同一間
         _api.FakeNeo4j.Rows = new List<Dictionary<string, object>>
         {
-            new() { ["uid"] = "neo-food-1", ["name"] = "政府資料的麵店", ["address"] = "高雄市測試路 9 號", ["lat"] = c.lat + 250 / MetersPerDegree, ["lon"] = c.lng, ["distance_m"] = 250.0,
-                    ["image_url"] = "https://img.test/noodle.jpg", ["hours"] = new[] { new { day_of_week = today, open_time = "00:00", close_time = "23:59" } } },
-            new() { ["uid"] = "neo-food-2", ["name"] = name, ["address"] = null, ["lat"] = c.lat + 400 / MetersPerDegree, ["lon"] = c.lng, ["distance_m"] = 400.0,
-                    ["image_url"] = null, ["hours"] = Array.Empty<object>() }
+            new()
+            {
+                ["uid"] = "neo-food-1", ["name"] = "政府資料的麵店", ["address"] = "高雄市測試路 9 號",
+                ["lat"] = c.lat + 250 / MetersPerDegree, ["lon"] = c.lng, ["distance_m"] = 250.0,
+                ["image_url"] = "https://img.test/noodle.jpg",
+                ["hours"] = new List<Dictionary<string, object>>
+                {
+                    new() { ["day_of_week"] = today, ["open_time"] = "00:00", ["close_time"] = "23:59" }
+                }
+            },
+            new()
+            {
+                ["uid"] = "neo-food-2", ["name"] = name, ["address"] = null,
+                ["lat"] = c.lat + 400 / MetersPerDegree, ["lon"] = c.lng, ["distance_m"] = 400.0,
+                ["image_url"] = null, ["hours"] = new List<Dictionary<string, object>>()
+            }
         };
 
+        NearbyFoodResponse food;
         try
         {
-            NearbyFoodResponse food = await GetAsync(c);
-
-            Assert.Equal(new[] { "政府資料的麵店", name }, food.places.Select(p => p.name));
-            Assert.Equal("https://img.test/noodle.jpg", food.places[0].image_url);
-            Assert.True(food.places[0].is_open_now);
-            Assert.Equal("00:00-23:59", food.places[0].open_time);
-            Assert.Equal("高雄市測試路 1 號", food.places[1].address);   // Neo4j 沒有的資料用 MySQL 補上
-            Assert.True(food.places[1].is_open_now);                       // 營業時間也用 MySQL 補上
+            food = await GetAsync(c);
         }
         finally
         {
-            _api.FakeNeo4j.Reset();
+            _api.FakeNeo4j.Reset();   // 模擬的資料用完就還原，不影響後面的測試
         }
+
+        Assert.Equal(new[] { "政府資料的麵店", name }, food.places.Select(p => p.name));
+        Assert.Equal("https://img.test/noodle.jpg", food.places[0].image_url);
+        Assert.True(food.places[0].is_open_now);
+        Assert.Equal("00:00-23:59", food.places[0].open_time);
+        Assert.Equal("高雄市測試路 1 號", food.places[1].address);   // Neo4j 沒有的資料用 MySQL 補上
+        Assert.True(food.places[1].is_open_now);                       // 營業時間也用 MySQL 補上
     }
 
     [Fact]

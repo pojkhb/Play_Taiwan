@@ -238,21 +238,6 @@ namespace backend.dao
                    ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
         ";
 
-        /// <summary>劇本各節點的景點照片：sn_id → 照片網址（沒有照片的節點不會出現）</summary>
-        public async Task<Dictionary<int, string>> GetNodeImagesAsync(IEnumerable<int> storyIds)
-        {
-            var ids = storyIds.Distinct().ToList();
-            if (ids.Count == 0) return new Dictionary<int, string>();
-
-            using var conn = new MySqlConnection(_appSettings.mydb);
-            var rows = await conn.QueryAsync<(int sn_id, string image_url)>($@"
-                SELECT sn.sn_id, NULLIF(p.p_image, '') AS image_url
-                FROM story_node sn
-                {PlaceImageJoin}
-                WHERE sn.s_id IN @ids;", new { ids });
-            return rows.Where(r => r.image_url != null).ToDictionary(r => r.sn_id, r => r.image_url);
-        }
-
         #region 劇本詳情 (包含對應節點輸出)
         public StoryDetailResponse GetDetail(int storyId)
         {
@@ -270,12 +255,10 @@ namespace backend.dao
             string nodeSql = $@"
                 SELECT
                     sn.sn_id, sn.sn_order, sn.sn_title, sn.sn_task_type,
-                    sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
-                    NULLIF(p.p_image, '') AS image_url,
+                    sn.location_codename, sn.sn_opening_text, sn.sn_success_text, sn.place_id,
                     (SELECT t.task_describe FROM task t WHERE t.node_id = sn.sn_id ORDER BY t.task_id LIMIT 1) AS task_describe,
                     n.npc_name
                 FROM story_node sn
-                {PlaceImageJoin}
                 {MapDao.NpcJoin}
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
@@ -331,7 +314,7 @@ namespace backend.dao
                         success = (node.sn_success_text as string) ?? "",
                         npc_name = (node.npc_name as string) ?? "",
                         task_type = (node.sn_task_type as string) ?? "",
-                        image_url = node.image_url as string
+                        place_id = node.place_id as string   // 景點照片由 StoryService 依這個 ID 向 Neo4j 拿
                     });
 
                     result.route_nodes.Add(new StoryOptionResponse.RouteNode
@@ -416,12 +399,11 @@ namespace backend.dao
                        (SELECT COUNT(*) FROM story_node n WHERE n.s_id = s.s_id) AS node_count,
                        EXISTS (SELECT 1 FROM story_session ss
                                 WHERE ss.au_id = s.au_id AND ss.s_id = s.s_id AND ss.ss_status = 'completed') AS is_completed,
-                       (SELECT NULLIF(p.p_image, '')
+                       (SELECT sn.place_id
                           FROM story_node sn
-                          {PlaceImageJoin}
                          WHERE sn.s_id = s.s_id
                          ORDER BY sn.sn_order
-                         LIMIT 1) AS cover_image_url
+                         LIMIT 1) AS cover_place_id
                 FROM story s
                 WHERE s.au_id = @auId AND s.is_favorite = 1 AND s.is_active = 1
                 ORDER BY s.created_at DESC, s.s_id DESC;

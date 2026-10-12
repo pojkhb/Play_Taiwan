@@ -11,6 +11,7 @@ namespace backend.Services
 {
     /// <summary>
     /// 劇本交通路線：起點 → 各節點（去程）→ 回到起點（返程），每一段把勾選的交通方式都算一次，採用最快的。
+    /// 帶劇本時像藏寶圖一樣一關一關給：只規劃到目前這一關，還在迷霧中的站不會出現在路線裡（見 ResolveStoryAsync）。
     /// - 步行 / 腳踏車 / 機車 / 汽車：Valhalla 路線（腳踏車會走自行車道、機車不上快速道路）
     /// - 公車：附近站牌之間的直達路線（步行到站 → 候車 → 搭乘 → 步行到目的地）
     /// - 捷運：車站圖最短路徑，可轉乘（步行到站 → 候車 → 搭乘/轉乘 → 步行到目的地）
@@ -113,14 +114,15 @@ namespace backend.Services
             return result;
         }
 
-        public async Task<List<TransportAvailability>> GetAvailabilityAsync(double lat, double lng, int? storyId)
+        public async Task<List<TransportAvailability>> GetAvailabilityAsync(double lat, double lng, int? storyId, int auId)
         {
             var points = new List<RoutePoint>();
             if (lat != 0 && lng != 0) points.Add(new RoutePoint { lat = lat, lng = lng });
 
             if (storyId.HasValue)
             {
-                var (_, stops, _) = await ResolveStoryAsync(storyId.Value);
+                // 只看已解鎖的站，還在迷霧中的站不能透過「附近有什麼站」洩漏位置
+                var (_, stops, _, _) = await ResolveStoryAsync(storyId.Value, auId);
                 points.AddRange(stops.Select(s => new RoutePoint { lat = s.lat, lng = s.lng, name = s.name }));
             }
 
@@ -138,17 +140,26 @@ namespace backend.Services
 
         #region 劇本清單
 
-        /// <summary>可以規劃交通路線的劇本（含節點座標與建議起點）</summary>
+        /// <summary>可以規劃交通路線的劇本（自己能玩的；只含已解鎖節點的座標，與建議起點）</summary>
         public async Task<List<RouteStoryItem>> GetStoriesAsync(int auId)
         {
             List<RouteDao.StoryRow> stories = await _dao.GetStoriesAsync(auId, 30);
             List<RouteDao.NodeRow> nodes = await _dao.GetStoryNodesAsync(stories.Select(s => s.s_id));
-            var points = await ResolvePlacePointsAsync(nodes.Select(n => n.place_id));
+
+            var unlockedByStory = new Dictionary<int, (List<RouteDao.NodeRow> nodes, RouteDao.StoryProgress progress)>();
+            foreach (RouteDao.StoryRow s in stories)
+            {
+                RouteDao.StoryProgress progress = await _dao.GetProgressAsync(auId, s.s_id);
+                unlockedByStory[s.s_id] = (Unlocked(nodes.Where(n => n.s_id == s.s_id), progress), progress);
+            }
+
+            var points = await ResolvePlacePointsAsync(unlockedByStory.Values.SelectMany(u => u.nodes).Select(n => n.place_id));
 
             var result = new List<RouteStoryItem>();
             foreach (RouteDao.StoryRow s in stories)
             {
-                List<RouteStopPoint> stops = ToStops(nodes.Where(n => n.s_id == s.s_id), points, null);
+                var (unlocked, progress) = unlockedByStory[s.s_id];
+                List<RouteStopPoint> stops = ToStops(unlocked, points, null, progress);
                 if (stops.Count == 0) continue;
 
                 result.Add(new RouteStoryItem
@@ -157,7 +168,7 @@ namespace backend.Services
                     story_title = s.story_title,
                     city_name = s.city_name,
                     district_name = s.district_name,
-                    node_count = stops.Count,
+                    node_count = nodes.Count(n => n.s_id == s.s_id),
                     nodes = stops,
                     suggested_start = await SuggestStartAsync(stops[0])
                 });
@@ -185,7 +196,7 @@ namespace backend.Services
 
         #region 路線規劃
 
-        public async Task<RoutePlanResponse> PlanAsync(RoutePlanRequest req)
+        public async Task<RoutePlanResponse> PlanAsync(RoutePlanRequest req, int auId)
         {
             if (req == null) throw new ArgumentException("請提供規劃條件");
 
@@ -196,10 +207,15 @@ namespace backend.Services
             List<RouteStopPoint> stops;
             if (req.story_id.HasValue)
             {
-                var (story, storyStops, storyWarnings) = await ResolveStoryAsync(req.story_id.Value);
+                var (story, storyStops, storyWarnings, lockedCount) = await ResolveStoryAsync(req.story_id.Value, auId);
                 response.story_title = story.story_title;
+                response.locked_stop_count = lockedCount;
                 stops = storyStops;
                 warnings.AddRange(storyWarnings);
+
+                // 沒帶交通方式：用生成劇本時使用者自己選的那些（推薦的交通方式就是他選的）
+                if (req.transportation == null || req.transportation.Count == 0)
+                    req.transportation = StoryTransports(story.sd_transport);
             }
             else
             {
@@ -212,9 +228,18 @@ namespace backend.Services
             if (stops.Count == 0)
                 throw new ArgumentException(req.story_id.HasValue ? "這個劇本的節點都查不到座標，無法規劃路線" : "請提供至少 1 個要去的點");
 
+            // 只規劃前往目前這一關的那一段（藏寶圖）：要去的點只有目前這一關
+            bool currentOnly = req.current_only && req.story_id.HasValue;
+            int currentIndex = stops.FindIndex(s => s.is_current);
+            List<RouteStopPoint> legStops = !currentOnly ? stops
+                : currentIndex >= 0 ? new List<RouteStopPoint> { stops[currentIndex] }
+                : new List<RouteStopPoint>();
+
             RoutePoint start = req.start != null && req.start.lat != 0 && req.start.lng != 0
                 ? new RoutePoint { lat = req.start.lat, lng = req.start.lng, name = string.IsNullOrWhiteSpace(req.start.name) ? "起點" : req.start.name }
-                : req.story_id.HasValue ? await SuggestStartAsync(stops[0]) : null;
+                : currentOnly && currentIndex > 0
+                    ? new RoutePoint { lat = stops[currentIndex - 1].lat, lng = stops[currentIndex - 1].lng, name = stops[currentIndex - 1].name }   // 沒有定位：從上一站出發
+                    : req.story_id.HasValue ? await SuggestStartAsync(stops[0]) : null;
 
             if (start == null) throw new ArgumentException("請提供起點 start");
 
@@ -223,8 +248,7 @@ namespace backend.Services
 
             // ── 2. 交通方式（公車/捷運在這一帶不能用就略過）──
             List<string> modes = (req.transportation ?? new List<string>())
-                .Select(t => (t ?? "").Trim())
-                .Select(t => t == "自行車" ? TransportModes.Bicycle : t == "開車" || t == "自駕" ? TransportModes.Car : t)
+                .Select(NormalizeMode)
                 .Where(t => TransportModes.All.Contains(t))
                 .Distinct()
                 .ToList();
@@ -248,11 +272,19 @@ namespace backend.Services
 
             // ── 3. 每一段各自規劃 ──
             var waypoints = new List<(RoutePoint point, string direction)> { (start, null) };
-            waypoints.AddRange(stops.Select(s => (new RoutePoint { lat = s.lat, lng = s.lng, name = s.name }, "去程")));
-            if (req.include_return) waypoints.Add((start, "返程"));
+            waypoints.AddRange(legStops.Select(s => (new RoutePoint { lat = s.lat, lng = s.lng, name = s.name }, "去程")));
+            // 還有站在迷霧中時不規劃返程：行程還沒走完，最後一站不是現在這一站；只規劃目前這一段時也不規劃返程
+            if (req.include_return && response.locked_stop_count == 0 && !currentOnly) waypoints.Add((start, "返程"));
 
             RouteLeg[] legs = await Task.WhenAll(Enumerable.Range(1, waypoints.Count - 1).Select(i =>
                 PlanLegAsync(i, waypoints[i - 1].point, waypoints[i].point, waypoints[i].direction, modes)));
+
+            // 第 i 段的目的地是第 i 站；前往目前這一關的那一段要標出來，藏寶圖上只亮這一段
+            for (int i = 0; i < legStops.Count; i++)
+            {
+                legs[i].to_sn_id = legStops[i].sn_id;
+                legs[i].is_current = legStops[i].is_current;
+            }
 
             response.legs = legs.ToList();
             response.outbound_minutes = Math.Round(legs.Where(l => l.direction == "去程").Sum(l => l.minutes), 1);
@@ -266,6 +298,24 @@ namespace backend.Services
             return response;
         }
 
+
+        /// <summary>劇本存的交通方式（逗號或頓號分隔，例如「步行,機車」）→ 清單；看不懂的（例如「客製化交通」）略過</summary>
+        internal static List<string> StoryTransports(string sdTransport) =>
+            (sdTransport ?? "")
+                .Split(new[] { ',', '、', '，', '/', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(NormalizeMode)
+                .Where(t => TransportModes.All.Contains(t))
+                .Distinct()
+                .ToList();
+
+        /// <summary>前端幾種寫法統一成畫面上的交通方式名稱</summary>
+        internal static string NormalizeMode(string transport)
+        {
+            string t = (transport ?? "").Trim();
+            return t == "自行車" || t == "騎車" ? TransportModes.Bicycle
+                 : t == "開車" || t == "自駕" ? TransportModes.Car
+                 : t;
+        }
 
         /// <summary>一段路：每個交通方式各算一個方案，採用最快的</summary>
         private async Task<RouteLeg> PlanLegAsync(int order, RoutePoint from, RoutePoint to, string direction, List<string> modes)
@@ -611,30 +661,59 @@ namespace backend.Services
 
         #region 劇本節點座標
 
-        /// <summary>劇本與依順序排列的節點座標；查不到座標的節點略過並回傳提醒</summary>
-        private async Task<(RouteDao.StoryRow story, List<RouteStopPoint> stops, List<string> warnings)> ResolveStoryAsync(int storyId)
+        /// <summary>
+        /// 劇本與依順序排列的節點座標；查不到座標的節點略過並回傳提醒。
+        /// 只有劇本擁有者或協作隊員可以規劃；只回傳已解鎖的站（已經破關的站＋目前這一關），
+        /// 還在迷霧中的站連座標都不查，只回傳數量。解鎖規則跟地圖相同（TeamProgress.GetStageOrder）。
+        /// </summary>
+        private async Task<(RouteDao.StoryRow story, List<RouteStopPoint> stops, List<string> warnings, int lockedCount)> ResolveStoryAsync(int storyId, int auId)
         {
             RouteDao.StoryRow story = await _dao.GetStoryAsync(storyId)
                 ?? throw new ArgumentException($"找不到 story_id = {storyId} 的劇本");
 
+            RouteDao.StoryProgress progress = await _dao.GetProgressAsync(auId, storyId);
+            if (!progress.can_play)
+            {
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法規劃路線。");
+            }
+
             List<RouteDao.NodeRow> nodes = await _dao.GetStoryNodesAsync(new[] { storyId });
-            var points = await ResolvePlacePointsAsync(nodes.Select(n => n.place_id));
+            List<RouteDao.NodeRow> unlocked = Unlocked(nodes, progress);
+            var points = await ResolvePlacePointsAsync(unlocked.Select(n => n.place_id));
 
             var warnings = new List<string>();
-            List<RouteStopPoint> stops = ToStops(nodes, points, warnings);
-            return (story, stops, warnings);
+            List<RouteStopPoint> stops = ToStops(unlocked, points, warnings, progress);
+            return (story, stops, warnings, nodes.Count - unlocked.Count);
         }
 
-        private static List<RouteStopPoint> ToStops(IEnumerable<RouteDao.NodeRow> nodes, Dictionary<string, (string name, double? lat, double? lng)> points, List<string> warnings)
+        /// <summary>已解鎖的站：已經破關的站和目前這一關</summary>
+        internal static List<RouteDao.NodeRow> Unlocked(IEnumerable<RouteDao.NodeRow> nodes, RouteDao.StoryProgress progress) =>
+            nodes.Where(n => TeamProgress.IsUnlocked(n.sn_order, progress.stage_order)).ToList();
+
+        /// <summary>
+        /// 節點 → 路線上的站。站名：隊伍抵達過的站用景點真實名稱；還沒抵達的站（目前這一關）用地點代號，
+        /// 到了現場才知道是哪裡。
+        /// </summary>
+        internal static List<RouteStopPoint> ToStops(IEnumerable<RouteDao.NodeRow> nodes, Dictionary<string, (string name, double? lat, double? lng)> points,
+            List<string> warnings, RouteDao.StoryProgress progress)
         {
             var stops = new List<RouteStopPoint>();
             foreach (RouteDao.NodeRow n in nodes.OrderBy(n => n.sn_order).ThenBy(n => n.sn_id))
             {
                 if (n.place_id != null && points.TryGetValue(n.place_id, out var p) && p.lat.HasValue && p.lng.HasValue)
                 {
+                    string codename = string.IsNullOrWhiteSpace(n.location_codename) ? null : n.location_codename.Trim();
+                    bool arrived = TeamProgress.IsReached(n.sn_order, progress.arrived_order);
+
                     stops.Add(new RouteStopPoint
                     {
-                        sn_id = n.sn_id, order = stops.Count + 1, name = p.name ?? n.sn_title, title = n.sn_title, lat = p.lat.Value, lng = p.lng.Value
+                        sn_id = n.sn_id, order = stops.Count + 1,
+                        name = arrived ? p.name ?? n.sn_title : codename ?? n.sn_title,
+                        title = n.sn_title,
+                        codename = codename,
+                        is_cleared = n.sn_order < progress.stage_order,
+                        is_current = n.sn_order == progress.stage_order,
+                        lat = p.lat.Value, lng = p.lng.Value
                     });
                 }
                 else

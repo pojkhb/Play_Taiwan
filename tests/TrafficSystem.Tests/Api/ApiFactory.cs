@@ -86,6 +86,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["SmtpSettings:Port"] = "1",
             ["Fog:GeneratedRoot"] = FogRoot,
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
+            ["VisitorAnalysisAi:BaseUrl"] = "http://localhost:8001",
         }));
         builder.ConfigureTestServices(services =>
         {

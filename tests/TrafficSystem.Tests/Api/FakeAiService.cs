@@ -49,6 +49,37 @@ public class FakeAiService : HttpMessageHandler
     /// <summary>/api/agent/orchestrate（spin）要回的內容</summary>
     public object AgentOrchestrateResponse { get; set; } = AgentNoPlace;
 
+    /// <summary>FastAPI 景點清單假資料</summary>
+    public object VisitorAnalysisAttractionsResponse { get; set; } = new
+    {
+        total = 1,
+        page = 1,
+        page_size = 20,
+        items = new[]
+        {
+            new
+            {
+                name = "勤美誠品綠園道",
+                address = "臺中市西區",
+                uid = "attr-001",
+                uids = new[] { "attr-001", "attr-001b" },
+                has_analysis = true
+            }
+        }
+    };
+
+    /// <summary>FastAPI 策略生成假資料（預設模擬 not_ready，符合正式未啟用 LLM 行為）</summary>
+    public object VisitorAnalysisStrategyResponse { get; set; } = new
+    {
+        status = "not_ready",
+        message = "Ollama / Llama 尚未啟用；Qdrant RAG 尚未啟用。",
+        audience_summary = new { has_domestic = true, has_inbound = false },
+        strategies = Array.Empty<object>(),
+        sources = Array.Empty<object>(),
+        rag_status = "not_ready",
+        llm_status = "not_ready"
+    };
+
     public void Reset()
     {
         Requests.Clear();
@@ -56,6 +87,33 @@ public class FakeAiService : HttpMessageHandler
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
         AgentOrchestrateResponse = AgentNoPlace;
+        VisitorAnalysisAttractionsResponse = new
+        {
+            total = 1,
+            page = 1,
+            page_size = 20,
+            items = new[]
+            {
+                new
+                {
+                    name = "勤美誠品綠園道",
+                    address = "臺中市西區",
+                    uid = "attr-001",
+                    uids = new[] { "attr-001", "attr-001b" },
+                    has_analysis = true
+                }
+            }
+        };
+        VisitorAnalysisStrategyResponse = new
+        {
+            status = "not_ready",
+            message = "Ollama / Llama 尚未啟用；Qdrant RAG 尚未啟用。",
+            audience_summary = new { has_domestic = true, has_inbound = false },
+            strategies = Array.Empty<object>(),
+            sources = Array.Empty<object>(),
+            rag_status = "not_ready",
+            llm_status = "not_ready"
+        };
     }
 
     public Received Last(string path) => Requests.LastOrDefault(r => r.Path == path);
@@ -110,6 +168,9 @@ public class FakeAiService : HttpMessageHandler
             _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId => NextTextPoll(),
             "/api/agent/orchestrate" => AgentOrchestrateResponse,
             "/search" => new[] { new { lat = "25.0324", lon = "121.5199" } },   // Nominatim：地名 → 座標
+            // 客群分析 FastAPI（VisitorAnalysisAi）
+            "/internal/visitor-analysis/attractions" => VisitorAnalysisAttractionsResponse,
+            "/internal/visitor-analysis/strategy/generate" => VisitorAnalysisStrategyResponse,
             _ => null
         };
 

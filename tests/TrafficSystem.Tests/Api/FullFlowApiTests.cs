@@ -102,9 +102,10 @@ public class FullFlowApiTests
         int storyId = await SeedAsync(user);
         HttpClient client = _api.ClientFor(user);
 
-        // ── 1. 劇本詳情：4 站，每站有代號 ──
+        // ── 1. 劇本詳情：4 站，每站有代號；還沒抵達，每一站的圖片都是迷霧圖 ──
         StoryDetailResponse detail = await OkAsync<StoryDetailResponse>(await client.GetAsync($"/api/Story/{storyId}/Detail"));
         Assert.Equal(new[] { "紅磚醫生館", "六角樓", "白色廳舍", "老榕樹宿舍" }, detail.nodes.Select(n => n.location_codename));
+        Assert.All(detail.nodes, n => Assert.Contains("/images/fog/", n.image_url));
 
         // ── 2. 確認劇本 → 這份劇本變成進行中 ──
         await OkAsync<StoryDetailResponse>(await client.PostAsJsonAsync("/api/Story/Confirm", new { story_id = storyId }));
@@ -250,13 +251,17 @@ public class FullFlowApiTests
         HomeOverviewResponse home = await OkAsync<HomeOverviewResponse>(await client.GetAsync("/api/Home/Overview"));
         Assert.Equal((1, 1), (home.ho_completed_story, home.ho_badge_count));
 
-        // ── 15. 過往紀錄：封面是第 1 站拍的照片；詳情有這趟拍的兩張照片（錄音不算）；回顧有每一站與作答統計 ──
+        // ── 15. 過往紀錄：封面是第 1 站拍的照片；詳情有這趟拍的兩張照片（錄音不算），沒拍照片的第 3、4 站補上景點照片；
+        //        回顧有每一站與作答統計 ──
         HistoryStoryItem history = Assert.Single(await OkAsync<List<HistoryStoryItem>>(await client.GetAsync("/api/History")));
         Assert.Equal((storyId, photo1), (history.story_id, history.cover_image_url));
 
         HistoryStoryItem past = await OkAsync<HistoryStoryItem>(await client.GetAsync($"/api/History/{storyId}"));
-        Assert.Equal(new[] { photo1, photo2 }, past.photos.Select(p => p.image_url));
-        Assert.Equal(new[] { "宮原眼科", "第二市場" }, past.photos.Select(p => p.place_name));
+        Assert.Equal(new[] { photo1, photo2 }, past.photos.Where(p => !p.is_place_photo).Select(p => p.image_url));
+        Assert.Equal(new[] { "宮原眼科", "第二市場", "臺中州廳", "臺中文學館" }, past.photos.Select(p => p.place_name));
+        Assert.Equal(new[] { false, false, true, true }, past.photos.Select(p => p.is_place_photo));
+        Assert.All(past.photos.Skip(2), p => Assert.Contains("wikimedia.org", p.image_url));
+        Assert.Equal(photo1, past.cover_image_url);
         Assert.Equal(new[] { "宮原眼科", "第二市場", "臺中州廳", "臺中文學館" }, past.spots);
 
         StoryRecapResponse recap = await OkAsync<StoryRecapResponse>(await client.GetAsync($"/api/History/{storyId}/Recap"));

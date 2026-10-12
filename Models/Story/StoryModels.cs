@@ -224,17 +224,23 @@ namespace backend.Models
         /// <summary>探索總覽：這趟旅程經過的景點名稱清單</summary>
         public List<string> spots { get; set; }
 
-        /// <summary>封面照片（完整網址）：玩家這趟拍的第一張照片（依站的順序），沒拍過照片時為 null</summary>
+        /// <summary>
+        /// 封面照片（完整網址）：玩家這趟拍的第一張照片（依站的順序）；沒拍過照片時是第一張景點照片，
+        /// 景點也都沒有照片時為 null
+        /// </summary>
         public string cover_image_url { get; set; }
 
-        /// <summary>這趟玩家拍的照片，依站的順序、拍攝時間排列（只有詳情回傳，列表為 null）</summary>
+        /// <summary>
+        /// 這趟的照片，依站的順序、拍攝時間排列（只有詳情回傳，列表為 null）：玩家拍的照片，
+        /// 玩家沒拍照片的站補上那一站的景點照片（is_place_photo = true）
+        /// </summary>
         public List<HistoryPhoto> photos { get; set; }
     }
 
-    /// <summary>過往劇本裡玩家拍的一張照片</summary>
+    /// <summary>過往劇本的一張照片：玩家拍的，或那一站的景點照片</summary>
     public class HistoryPhoto
     {
-        /// <summary>在哪一站拍的（story_node.sn_id）</summary>
+        /// <summary>哪一站的照片（story_node.sn_id）</summary>
         public int node_id { get; set; }
 
         /// <summary>第幾站，從 1 開始</summary>
@@ -245,5 +251,8 @@ namespace backend.Models
 
         /// <summary>照片網址（完整網址）</summary>
         public string image_url { get; set; }
+
+        /// <summary>false＝玩家拍的照片；true＝景點照片（玩家在這一站沒拍照片，用景點 ID 向 Neo4j 拿的）</summary>
+        public bool is_place_photo { get; set; }
     }
 }

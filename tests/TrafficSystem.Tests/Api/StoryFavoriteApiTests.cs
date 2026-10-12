@@ -45,9 +45,17 @@ public class StoryFavoriteApiTests
         Assert.Equal("臺北市", item.city_name);
         Assert.Equal(2, item.node_count);
         Assert.True(item.is_night_mode);
-        Assert.Equal(cover, item.cover_image_url);   // 第一站的照片當封面
         Assert.False(item.is_completed);
         Assert.True((await DetailAsync(user, storyId)).is_favorite);
+
+        // 封面是第一站的圖片：還沒抵達是迷霧圖（完整網址），抵達後才是景點照片
+        Assert.StartsWith("http", item.cover_image_url);
+        Assert.Contains("/images/fog/", item.cover_image_url);
+        Assert.NotEqual(cover, item.cover_image_url);
+
+        int firstNode = await _api.QueryAsync<int>("SELECT sn_id FROM story_node WHERE s_id = @storyId AND sn_order = 1;", new { storyId });
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+        Assert.Equal(cover, Assert.Single(await FavoritesAsync(user)).cover_image_url);
 
         await client.PostAsJsonAsync($"/api/Story/{storyId}/Favorite", new { is_favorite = false });
         Assert.Empty(await FavoritesAsync(user));

@@ -1,4 +1,5 @@
-// 過往紀錄的照片：GET /api/History 卡片封面、GET /api/History/{story_id} 上方左右滑動的照片，都是玩家在劇本裡拍的照片
+// 過往紀錄的照片：GET /api/History 卡片封面、GET /api/History/{story_id} 上方左右滑動的照片，是玩家在劇本裡拍的照片；
+// 玩家沒拍照片的站補上那一站的景點照片（這裡 Neo4j 連不上，景點照片來自 MySQL place.p_image；Neo4j 的部分見 PlacePhotoApiTests）
 using backend.Models;
 using backend.utils;
 using Allure.Net.Commons.Attributes;
@@ -65,7 +66,7 @@ public class HistoryPhotosApiTests
         (await (await _api.ClientFor(user).GetAsync($"/api/History/{storyId}")).ReadResultAsync<HistoryStoryItem>()).Result;
 
     [Fact]
-    public async Task 過往紀錄卡片用玩家拍的第一張照片當封面_沒拍照片時是null()
+    public async Task 過往紀錄卡片用玩家拍的第一張照片當封面_沒拍照片景點也沒照片時是null()
     {
         int user = _api.NewUserId();
         var (withPhotos, nodes, _) = await CreateFinishedStoryAsync(user, DateTime.Now.AddDays(-1));
@@ -115,7 +116,7 @@ public class HistoryPhotosApiTests
     }
 
     [Fact]
-    public async Task 過往劇本詳情_沒拍照片時photos是空陣列()
+    public async Task 過往劇本詳情_沒拍照片景點也沒照片時photos是空陣列()
     {
         int user = _api.NewUserId();
         var (storyId, _, _) = await CreateFinishedStoryAsync(user, DateTime.Now);
@@ -124,5 +125,59 @@ public class HistoryPhotosApiTests
 
         Assert.Empty(detail.photos);
         Assert.Null(detail.cover_image_url);
+    }
+
+    [Fact]
+    public async Task 沒拍照片的過往劇本_封面與照片用每一站的景點照片()
+    {
+        int user = _api.NewUserId();
+        var (storyId, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        // 第 1 站的景點沒有照片；第 2、3 站有
+        string second = await _api.GivePlacePhotoAsync(places[1]);
+        string third = await _api.GivePlacePhotoAsync(places[2]);
+
+        HistoryStoryItem card = Assert.Single(await ListAsync(user));
+        HistoryStoryItem detail = await DetailAsync(user, storyId);
+
+        Assert.Equal(second, card.cover_image_url);   // 依站的順序，第一個有照片的景點
+        Assert.Equal(new[] { second, third }, detail.photos.Select(p => p.image_url));
+        Assert.Equal(new[] { 2, 3 }, detail.photos.Select(p => p.node_order));
+        Assert.Equal(new[] { nodes[1], nodes[2] }, detail.photos.Select(p => p.node_id));
+        Assert.Equal(new[] { places[1], places[2] }, detail.photos.Select(p => p.place_name));
+        Assert.All(detail.photos, p => Assert.True(p.is_place_photo));
+        Assert.Equal(second, detail.cover_image_url);
+    }
+
+    [Fact]
+    public async Task 玩家沒拍照片的站補上景點照片_封面還是玩家拍的第一張()
+    {
+        int user = _api.NewUserId();
+        var (storyId, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        string firstPlace = await _api.GivePlacePhotoAsync(places[0]);
+        await _api.GivePlacePhotoAsync(places[1]);   // 第 2 站玩家有拍，不用景點照片
+        await InsertRecordAsync(user, await InsertTaskAsync(storyId, nodes[1], 3), 30, "https://img.test/mine.jpg");
+
+        HistoryStoryItem card = Assert.Single(await ListAsync(user));
+        HistoryStoryItem detail = await DetailAsync(user, storyId);
+
+        Assert.Equal(new[] { firstPlace, "https://img.test/mine.jpg" }, detail.photos.Select(p => p.image_url));
+        Assert.Equal(new[] { true, false }, detail.photos.Select(p => p.is_place_photo));
+        Assert.Equal("https://img.test/mine.jpg", detail.cover_image_url);
+        Assert.Equal("https://img.test/mine.jpg", card.cover_image_url);
+    }
+
+    [Fact]
+    public async Task 還沒玩完的劇本不會拿到景點照片()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        string photo = await _api.GivePlacePhotoAsync(places[0]);
+        await _api.ExecuteAsync("UPDATE story_session SET ss_status = 'in_progress', ss_current = 0, completed_at = NULL WHERE s_id = @storyId AND au_id = @user;",
+            new { storyId, user });
+
+        string json = await (await _api.ClientFor(user).GetAsync($"/api/History/{storyId}")).Content.ReadAsStringAsync();
+
+        // 沒抵達的站還在迷霧中，真實照片不能從這裡流出去
+        Assert.DoesNotContain(photo, json);
     }
 }

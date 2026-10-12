@@ -128,6 +128,18 @@ namespace backend.dao
             }
         }
 
+        /// <summary>多份劇本一次查：劇本代號 → 登入者（有協作隊伍時為全隊共用）最遠抵達的節點順序。</summary>
+        public Dictionary<int, int> GetArrivedOrders(int auId, IEnumerable<int> storyIds)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return (storyIds ?? Enumerable.Empty<int>())
+                    .Distinct()
+                    .ToDictionary(storyId => storyId, storyId => TeamProgress.GetCurrentNodeOrder(conn, auId, storyId));
+            }
+        }
+
         /// <summary>目前這一關的站序（破完一站才開下一站），這一關和之前的站都是解鎖的，見 TeamProgress.GetStageOrder。</summary>
         public int GetStageOrder(int auId, int storyId)
         {

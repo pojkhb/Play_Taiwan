@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
@@ -10,11 +11,13 @@ namespace backend.Services
     {
         private readonly MerchantQrCodeDao _dao;
         private readonly PlaceVersionChainService _placeService;
+        private readonly PlaceLookupService _placeLookup;
 
-        public MerchantQrCodeService(MerchantQrCodeDao dao, PlaceVersionChainService placeService)
+        public MerchantQrCodeService(MerchantQrCodeDao dao, PlaceVersionChainService placeService, PlaceLookupService placeLookup)
         {
             _dao = dao;
             _placeService = placeService;
+            _placeLookup = placeLookup;
         }
 
         /// <summary>
@@ -39,7 +42,7 @@ namespace backend.Services
         }
 
         /// <summary>
-        /// 使用者掃描 QR Code：商家資訊來自 Neo4j（含版本鏈覆蓋後的最新內容），
+        /// 使用者掃描 QR Code：商家資訊與店家照片來自 Neo4j（含版本鏈覆蓋後的最新內容），
         /// 優惠券資訊來自 MySQL；auId 有值時同時寫入領取紀錄（已領取過則不重複寫入）。
         /// </summary>
         public async Task<QrCodeScanResponse> ScanAsync(string qrUid, int? auId)
@@ -53,6 +56,11 @@ namespace backend.Services
             PlaceCurrentInfo merchantPlace = string.IsNullOrWhiteSpace(storeUid)
                 ? null
                 : await _placeService.GetCurrentVersionAsync(storeUid);
+
+            // 店家照片直接用商家的景點 ID 向 Neo4j 拿（跟地圖、劇本同一個入口）
+            string imageUrl = string.IsNullOrWhiteSpace(storeUid)
+                ? null
+                : (await _placeLookup.GetPlaceImagesAsync(new[] { storeUid })).GetValueOrDefault(storeUid);
 
             bool isNewlyClaimed = false;
             if (auId.HasValue)
@@ -69,6 +77,7 @@ namespace backend.Services
             {
                 coupon = coupon,
                 merchant_place = merchantPlace,
+                image_url = imageUrl,
                 is_newly_claimed = isNewlyClaimed
             };
         }

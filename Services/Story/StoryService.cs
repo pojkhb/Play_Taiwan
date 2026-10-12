@@ -25,11 +25,12 @@ namespace backend.Services
         private readonly FogGenerationQueue _fogQueue;
         private readonly Neo4j.PlaceLookupService _placeLookup;
         private readonly TaskDifficultyService _difficulty;
+        private readonly MapDao _mapDao;
 
 
         public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory,
                             BadgeService badgeService, FogGenerationQueue fogQueue,
-                            Neo4j.PlaceLookupService placeLookup, TaskDifficultyService difficulty)
+                            Neo4j.PlaceLookupService placeLookup, TaskDifficultyService difficulty, MapDao mapDao)
         {
             _dao = dao;
             _neo4jService = neo4jService;
@@ -39,6 +40,7 @@ namespace backend.Services
             _fogQueue = fogQueue;
             _placeLookup = placeLookup;
             _difficulty = difficulty;
+            _mapDao = mapDao;
         }
 
 
@@ -122,28 +124,91 @@ namespace backend.Services
                 throw new KeyNotFoundException("找不到此劇本：" + storyId);
         }
 
-        /// <summary>喜愛的劇本；封面是第一站的景點照片（用景點 ID 向 Neo4j 拿）</summary>
+        /// <summary>喜愛的劇本；封面是第一站的照片：抵達過是景點照片，還沒抵達是迷霧圖（見 StationImages）</summary>
         public async Task<List<FavoriteStoryItem>> GetFavoriteStoriesAsync(int auId)
         {
             List<FavoriteStoryItem> stories = await _dao.GetFavoriteStoriesAsync(auId);
-            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(stories.Select(s => s.cover_place_id));
+            StationImages images = await GetStationImagesAsync(stories.Select(s => s.cover_place_id));
+            Dictionary<int, int> arrivedOrders = _mapDao.GetArrivedOrders(auId, stories.Select(s => s.story_id));
 
             foreach (FavoriteStoryItem story in stories)
-                story.cover_image_url = story.cover_place_id != null ? images.GetValueOrDefault(story.cover_place_id) : null;
+            {
+                bool arrived = TeamProgress.IsReached(1, arrivedOrders[story.story_id]);
+                story.cover_image_url = images.Of(story.cover_place_id, arrived);
+
+                // 有照片但迷霧圖還沒做好（例如迷霧功能上線前就生成的劇本）：在背景補做
+                if (!arrived && images.MissingFog(story.cover_place_id))
+                    _fogQueue.Enqueue(story.story_id);
+            }
 
             return stories;
         }
 
-        /// <summary>劇本詳情的每一站補上景點照片（用景點 ID 向 Neo4j 拿）</summary>
-        public async Task<StoryDetailResponse> WithPlacePhotosAsync(StoryDetailResponse detail)
+        /// <summary>
+        /// 劇本詳情的每一站補上照片：登入者（或隊伍）抵達過的站是景點照片，還沒抵達的站是迷霧圖（見 StationImages）
+        /// </summary>
+        public async Task<StoryDetailResponse> WithPlacePhotosAsync(StoryDetailResponse detail, int auId)
         {
             if (detail?.nodes == null || detail.nodes.Count == 0) return detail;
 
-            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(detail.nodes.Select(n => n.place_id));
+            StationImages images = await GetStationImagesAsync(detail.nodes.Select(n => n.place_id));
+            int arrivedOrder = _mapDao.GetArrivedOrder(auId, detail.story_id);
+            bool missingFog = false;
+
             foreach (NodeDetail node in detail.nodes)
-                node.image_url = node.place_id != null ? images.GetValueOrDefault(node.place_id) : null;
+            {
+                bool arrived = TeamProgress.IsReached(node.order, arrivedOrder);
+                node.image_url = images.Of(node.place_id, arrived);
+                missingFog |= !arrived && images.MissingFog(node.place_id);
+            }
+
+            // 有照片但迷霧圖還沒做好（例如迷霧功能上線前就生成的劇本）：在背景補做
+            if (missingFog)
+                _fogQueue.Enqueue(detail.story_id);
 
             return detail;
+        }
+
+        /// <summary>
+        /// 每一站給玩家看的照片，跟地圖同一個規則（景點是哪裡，到了現場才知道）：
+        /// 抵達過的站是景點照片（用景點 ID 向 Neo4j 拿，景點沒有照片時為 null）；
+        /// 還沒抵達的站是這張照片的迷霧版，還沒做好或景點沒有照片時是通用迷霧圖。
+        /// 迷霧圖是站內路徑，由 Controller 組成完整網址
+        /// </summary>
+        private class StationImages
+        {
+            /// <summary>景點 ID → 景點照片</summary>
+            public Dictionary<string, string> photos { get; set; }
+
+            /// <summary>景點照片 → 這張照片的迷霧圖（已經做好的才有）</summary>
+            public Dictionary<string, string> fog_images { get; set; }
+
+            /// <summary>通用迷霧圖</summary>
+            public string default_fog { get; set; }
+
+            public string Of(string placeId, bool arrived)
+            {
+                string photo = placeId != null ? photos.GetValueOrDefault(placeId) : null;
+                if (arrived) return photo;
+
+                return (photo != null ? fog_images.GetValueOrDefault(photo) : null) ?? default_fog;
+            }
+
+            /// <summary>景點有照片，但迷霧圖還沒做好</summary>
+            public bool MissingFog(string placeId) =>
+                placeId != null && photos.TryGetValue(placeId, out string photo) && !fog_images.ContainsKey(photo);
+        }
+
+        private async Task<StationImages> GetStationImagesAsync(IEnumerable<string> placeIds)
+        {
+            Dictionary<string, string> photos = await _placeLookup.GetPlaceImagesAsync(placeIds);
+
+            return new StationImages
+            {
+                photos = photos,
+                fog_images = _mapDao.GetFogImages(photos.Values),
+                default_fog = _mapDao.GetDefaultFogImage() ?? MapService.DefaultFogImage
+            };
         }
 
         #endregion
@@ -561,7 +626,8 @@ namespace backend.Services
                 party_size = req.party_size,
                 transportation = req.transportation,
                 preferences = req.preferences,
-                is_night_mode = req.is_night_mode,
+                max_minutes = req.max_minutes,
+                start_time = req.start_time,
                 story_count = StoryCount,
                 places_per_story = AttractionCount
             });
@@ -570,7 +636,9 @@ namespace backend.Services
 
         /// <summary>
         /// 劇本 + 任務一次生成（GenerateGameStory 使用；依城市／行政區生成也走這裡，由 Controller 先轉成中心點）：
-        /// 1. 規劃旅遊行程：交通等時圈找出可到達的景點（含商家自建景點），抽出每份劇本的景點組合並排好順路的參觀順序
+        /// 1. 規劃旅遊行程：交通等時圈（玩家選最遠願意花幾分鐘）找出可到達的景點（含商家自建景點），
+        ///    抽出每份劇本的景點組合、排好順路的參觀順序，再依出發時間估算每一站幾點到，把不合適的站換掉
+        ///    （到的時候沒開；天黑後才到的站改挑適合晚上的景點）。日夜由抵達時間決定，前端不用選。
         /// 2. 判斷任務類型：照舊架構規則決定每站要出哪些題型；景點在 place_type 標有 9（商家有題庫）時，
         ///    另外必出一題商家知識問答。隨機題型依玩家紀錄調整（動態難度，見 TaskDifficultyService）
         /// 3. 打包成一包丟給 AI service /api/stories/tasks/batch，一次拿回所有劇本
@@ -579,13 +647,14 @@ namespace backend.Services
         public async Task<List<GameStoryResult>> GenerateStoriesAsync(int auId, GameStoryPlan plan)
         {
             int partySize = plan.party_size > 0 ? plan.party_size : 2;
-            int isNightMode = plan.is_night_mode == 1 ? 1 : 0;   // 白天=0、夜間=1（story.is_night_mode）
             int storyCount = plan.story_count > 0 ? plan.story_count : StoryCount;
             int placesPerStory = plan.places_per_story > 0 ? plan.places_per_story : AttractionCount;
+            DateTime startTime = plan.start_time is DateTime t ? ToTaiwanTime(t) : DateTime.UtcNow.AddHours(8);
 
-            // ── 1. 規劃旅遊行程 ──
-            List<List<ReachableAttractionNode>> placeSets =
-                await PlanItinerariesAsync(plan.lat, plan.lng, plan.transportation, storyCount, placesPerStory);
+            // ── 1. 規劃旅遊行程（每一站都帶著預計抵達時間）──
+            List<List<ItineraryRules.PlannedStop>> itineraries =
+                await PlanItinerariesAsync(plan.lat, plan.lng, plan.transportation, storyCount, placesPerStory, plan.max_minutes, startTime);
+            List<List<ReachableAttractionNode>> placeSets = itineraries.Select(stops => stops.Select(s => s.place).ToList()).ToList();
 
             // ── 2. 判斷任務類型 ──
             List<string> placeIds = placeSets.SelectMany(s => s).Select(a => a.uid).Distinct().ToList();
@@ -645,7 +714,9 @@ namespace backend.Services
                 district_name = plan.town_name ?? "",
                 party_size = partySize,
                 s_tag = plan.preferences ?? new List<string>(),
-                is_night_mode = isNightMode == 1 ? 1 : 2,   // AI 文件定義 1＝夜間、2＝白天（跟 story.is_night_mode 的 0／1 不同）
+                // AI 文件定義 1＝夜間、2＝白天（跟 story.is_night_mode 的 0／1 不同）。一次送出的幾份劇本共用這個值，
+                // 所以看全部的站：過半數天黑後才到就當夜間
+                is_night_mode = MostlyNight(itineraries.SelectMany(stops => stops)) ? 1 : 2,
                 stories = conditions
             };
 
@@ -680,16 +751,23 @@ namespace backend.Services
 
                 if (nodes.Count == 0) continue;
 
+                // 這份劇本每一站規劃好的抵達時間
+                List<ItineraryRules.PlannedStop> stops = itineraries[condition.story_no - 1]
+                    .Where(s => nodes.Any(n => n.place_id == s.place.uid))
+                    .ToList();
+
                 for (int i = 0; i < nodes.Count; i++)
                 {
                     GameStoryNode node = nodes[i];
                     AiGamePlace place = condition.places.First(p => p.place_id == node.place_id);
+                    ItineraryRules.PlannedStop stop = stops.First(s => s.place.uid == node.place_id);
                     HashSet<int> plannedTypes = place.type_list.Select(t => t.type_id).ToHashSet();
 
                     node.sn_order = i + 1;
                     node.p_name = place.p_name;
                     node.is_hidden = place.is_hidden;
-                    node.is_night_only = isNightMode == 1 ? 1 : 0;
+                    node.is_night_only = stop.is_night ? 1 : 0;   // 夜間站：預計天黑後才到
+                    node.estimated_arrival = stop.arrival;
 
                     // 只收規劃好的題型，AI 多給的丟掉
                     node.tasks = (node.tasks ?? new List<GameStoryTask>())
@@ -719,7 +797,7 @@ namespace backend.Services
                 story.district_name = aiRequest.district_name;
                 story.party_size = partySize;
                 story.sd_transport = transport;
-                story.is_night_mode = isNightMode;
+                story.is_night_mode = MostlyNight(stops) ? 1 : 0;   // 白天=0、夜間=1（story.is_night_mode）
                 story.story_postcards = nodes.Count;
                 story.story_badge = new List<string>();   // 寫入資料庫後依劇本內容算出可抽的勳章類別
 
@@ -738,14 +816,15 @@ namespace backend.Services
             // 寫入資料庫（回填 story_id、sn_id、task_id；有選公車時一併寫入節點間的直達公車）
             await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit);
 
-            // ── 6. 可抽的勳章類別、景點照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
-            // 景點照片直接用景點 ID 向 Neo4j 拿
-            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(results.SelectMany(r => r.nodes).Select(n => n.place_id));
+            // ── 6. 可抽的勳章類別、每一站的照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
+            // 剛生成的劇本每一站都還沒抵達，照片一律是迷霧圖（真實照片抵達後才給，見 StationImages）。
+            // 這張照片以前做過迷霧圖就用它，沒做過先用通用迷霧圖（下面會在背景做，之後劇本詳情、地圖就會換上）
+            StationImages images = await GetStationImagesAsync(results.SelectMany(r => r.nodes).Select(n => n.place_id));
 
             foreach (GameStoryResult result in results)
             {
                 foreach (GameStoryNode node in result.nodes)
-                    node.image_url = node.place_id != null ? images.GetValueOrDefault(node.place_id) : null;
+                    node.image_url = images.Of(node.place_id, arrived: false);
 
                 result.story.story_badge = await _badgeService.RefreshStoryCategoriesAsync(result.story_id);
 
@@ -788,11 +867,14 @@ namespace backend.Services
 
 
         /// <summary>
-        /// 規劃旅遊行程：用交通等時圈找出範圍內所有景點（已去重複、不含公車），
-        /// 抽出 storyCount 組、每組 placesPerStory 個景點（景點夠多時各組不重複），每組各自排好順路的參觀順序。
+        /// 規劃旅遊行程：
+        /// 1. 用交通等時圈找出範圍內所有景點（已去重複、不含公車）。範圍是玩家選的「最遠願意花幾分鐘」，切成近、中、遠三圈
+        /// 2. 抽出 storyCount 組、每組 placesPerStory 個景點（景點夠多時各組不重複），每組各自排好順路的參觀順序
+        /// 3. 從出發時間開始估算每一站幾點到，把不合適的站換成範圍內沒被抽到的景點（ItineraryRules.ArrangeByArrival）
+        /// 回傳每份劇本排好的站，每一站都帶著預計抵達時間。
         /// </summary>
-        private async Task<List<List<ReachableAttractionNode>>> PlanItinerariesAsync(
-            double lat, double lng, List<string> transportation, int storyCount, int placesPerStory)
+        private async Task<List<List<ItineraryRules.PlannedStop>>> PlanItinerariesAsync(
+            double lat, double lng, List<string> transportation, int storyCount, int placesPerStory, int? maxMinutes, DateTime startTime)
         {
             // 要拿等時圈補商家景點，所以請核心一併回傳等時圈
             ReachableAttractionsResponse reachable = await FindAllReachableAttractionsAsync(new ReachableAttractionsRequest
@@ -800,17 +882,41 @@ namespace backend.Services
                 lat = lat,
                 lng = lng,
                 transportation = transportation,
+                contour_minutes = ItineraryRules.ContourMinutes(maxMinutes),
                 include_polygons = true
             });
 
             await AddReachableMerchantPlacesAsync(reachable, transportation);
 
-            if (reachable.attractions.Count == 0)
-                throw new Exception("附近找不到可到達的景點，請換個地點或交通方式再試一次");
+            if (reachable.attractions.Count < ItineraryRules.MinReachablePlaces)
+            {
+                int range = reachable.contour_minutes.Last();
+                throw new BadRequestException(reachable.attractions.Count == 0
+                    ? $"{range} 分鐘內找不到可到達的景點，請把時間調長，或換個地點、交通方式再試一次"
+                    : $"{range} 分鐘內只找到 {reachable.attractions.Count} 個景點，不夠排成一份劇本，請把時間調長，或換個地點、交通方式再試一次");
+            }
 
-            return PickPlaceSets(reachable.attractions, storyCount, placesPerStory)
-                .Select(set => OrderByVisit(set, lat, lng))
+            List<List<ReachableAttractionNode>> sets = PickPlaceSets(reachable.attractions, storyCount, placesPerStory);
+
+            // 沒被抽到的景點留著備用：某一站到的時候沒開、或天黑了不適合，就從這裡挑來換
+            HashSet<string> picked = sets.SelectMany(set => set).Select(a => a.uid).ToHashSet();
+            List<ReachableAttractionNode> spare = reachable.attractions.Where(a => !picked.Contains(a.uid)).ToList();
+
+            Dictionary<string, List<ItineraryRules.OpenHours>> hours =
+                await _placeLookup.GetOpeningHoursAsync(reachable.attractions.Select(a => a.uid));
+            double speed = ItineraryRules.AverageSpeed(reachable.attractions);
+
+            return sets
+                .Select(set => ItineraryRules.ArrangeByArrival(OrderByVisit(set, lat, lng), spare, hours, startTime, speed))
                 .ToList();
+        }
+
+
+        /// <summary>過半數的站天黑後才到，就算夜間劇本</summary>
+        internal static bool MostlyNight(IEnumerable<ItineraryRules.PlannedStop> stops)
+        {
+            List<ItineraryRules.PlannedStop> list = stops.ToList();
+            return list.Count(s => s.is_night) * 2 > list.Count;
         }
 
 

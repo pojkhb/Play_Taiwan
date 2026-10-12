@@ -20,7 +20,7 @@ namespace backend.Services
         private const double UnlockRadiusMeters = PlayRules.ArrivalRadiusMeters;
 
         /// <summary>fog 資料表沒有資料時用的迷霧圖</summary>
-        private const string DefaultFogImage = "/images/fog/default_fog.png";
+        internal const string DefaultFogImage = "/images/fog/default_fog.png";
 
         private readonly MapDao _dao;
         private readonly GeocodingService _geocodingService;

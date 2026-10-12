@@ -39,16 +39,41 @@ public class StoryMapApiTests
     }
 
     [Fact]
-    public async Task 劇本詳情帶景點照片_劇本檔案館用()
+    public async Task 劇本詳情每一站都有圖片_還沒抵達是迷霧圖_抵達後才是景點照片()
     {
         int user = _api.NewUserId();
-        string withPhoto = $"有照片的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
-        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, withPhoto, noPhoto);
-        string photoUrl = await _api.GivePlacePhotoAsync(withPhoto);
+        string first = $"第一站的景點{Guid.NewGuid():N}", second = $"第二站的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, first, second, noPhoto);
+        string[] photos = { await _api.GivePlacePhotoAsync(first), await _api.GivePlacePhotoAsync(second) };
+        HttpClient client = _api.ClientFor(user);
 
-        StoryDetailResponse detail = (await (await _api.ClientFor(user).GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
+        async Task<(StoryDetailResponse detail, string json)> DetailAsync()
+        {
+            string json = await (await client.GetAsync($"/api/Story/{storyId}/Detail")).Content.ReadAsStringAsync();
+            return (JsonSerializer.Deserialize<ApiResult<StoryDetailResponse>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web)).Result, json);
+        }
 
-        Assert.Equal(new[] { photoUrl, null }, detail.nodes.Select(n => n.image_url));
+        // 還沒抵達任何一站：每一站都是迷霧圖（完整網址），沒有照片的景點也有通用迷霧圖，真實照片不會傳出去
+        var (before, beforeJson) = await DetailAsync();
+        Assert.All(before.nodes, n =>
+        {
+            Assert.StartsWith("http", n.image_url);
+            Assert.Contains("/images/fog/", n.image_url);
+        });
+        Assert.All(photos, photo => Assert.DoesNotContain(photo, beforeJson));
+
+        // 抵達第 1 站：第 1 站換成景點照片，其他站還是迷霧圖
+        int firstNode = (await GetMapAsync(user, storyId)).nodes[0].node_id;
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{firstNode}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+
+        var (after, afterJson) = await DetailAsync();
+        Assert.Equal(photos[0], after.nodes[0].image_url);
+        Assert.All(after.nodes.Skip(1), n => Assert.Contains("/images/fog/", n.image_url));
+        Assert.DoesNotContain(photos[1], afterJson);
+
+        // 別人（沒有參與這份劇本）看到的每一站都是迷霧圖
+        string strangerJson = await (await _api.ClientFor(_api.NewUserId()).GetAsync($"/api/Story/{storyId}/Detail")).Content.ReadAsStringAsync();
+        Assert.All(photos, photo => Assert.DoesNotContain(photo, strangerJson));
     }
 
     [Fact]

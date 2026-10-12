@@ -145,5 +145,43 @@ namespace backend.dao
             }
         }
         #endregion
+
+        #region 過往劇本的每一站
+        /// <summary>過往劇本的一站；景點照片由 HistoryService 依 place_id 向 Neo4j 拿</summary>
+        public class StationRow
+        {
+            public int story_id { get; set; }
+            public int node_id { get; set; }
+            public int node_order { get; set; }
+            public string place_name { get; set; }
+            public string place_id { get; set; }
+        }
+
+        /// <summary>
+        /// 玩家玩完的這些劇本的每一站，依劇本、站的順序排列。
+        /// 只回傳玩完的劇本：還沒玩完的劇本，沒抵達的站還在迷霧中，不能給景點照片。
+        /// </summary>
+        public List<StationRow> GetCompletedStations(int auId, List<int> storyIds)
+        {
+            if (storyIds == null || storyIds.Count == 0) return new List<StationRow>();
+
+            string sql = $@"
+                SELECT sn.s_id AS story_id, sn.sn_id AS node_id, sn.sn_order AS node_order,
+                       COALESCE(p.p_name, sn.sn_title, sn.location_codename) AS place_name, sn.place_id
+                FROM story_node sn
+                {MapDao.PlaceBridgeJoin}
+                WHERE sn.s_id IN @storyIds
+                  AND EXISTS (SELECT 1 FROM story_session ss
+                               WHERE ss.s_id = sn.s_id AND ss.au_id = @auId AND ss.ss_status = 'completed')
+                ORDER BY sn.s_id, sn.sn_order;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.Query<StationRow>(sql, new { auId, storyIds }).ToList();
+            }
+        }
+        #endregion
     }
 }

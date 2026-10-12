@@ -35,7 +35,7 @@
 |---|---|---|---|
 | 目前總覽 | `GET /api/Home/Overview` | ✅ 實測可用 |  |
 | 徽章收藏 | `GET /api/Badge/Status` | ✅ 實測可用 |  |
-| 過往旅途 | `GET /api/History` | ✅ 實測可用 |  |
+| 過往旅途 | `GET /api/History` | ✅ 實測可用 | cover_image_url：卡片照片，玩家這趟拍的第一張；沒拍照片時用景點照片（Neo4j），景點也沒照片才是 null |
 | 探員資訊 | `GET /api/Auth/Profile` | ✅ 實測可用 |  |
 | 進行中的劇本 | `GET /api/Story/CurrentPlaying` | ✅ 實測可用 |  |
 
@@ -43,7 +43,7 @@
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 現在揪出發（定位或指定地區） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 一次生成 3 份劇本（劇本檔案館的 3 張車票）。會呼叫 AI，可能要好幾分鐘，前端請把逾時設長並顯示等待畫面。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支。節點有 image_url（車票照片）與 location_codename（模糊線索）；story.npc 是這份劇本的 NPC（名稱、身分、圖片、聲線） |
+| 現在揪出發（定位或指定地區） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 一次生成 3 份劇本（劇本檔案館的 3 張車票）。會呼叫 AI，可能要好幾分鐘，前端請把逾時設長並顯示等待畫面。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支。節點有 image_url（車票圖片：剛生成的劇本每一站都還沒抵達，一律是迷霧圖）與 location_codename（模糊線索）；story.npc 是這份劇本的 NPC（名稱、身分、圖片、聲線） |
 | 來點遊意思（前端轉盤抽縣市後呼叫） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 同上方說明 |
 | 遊你說算 | `POST /api/Story/GenerateByText` | ⚠️ 卡在 AI 服務 | 遊你說算。AI 在背景生成，後端每 3 秒查一次進度，最多等 10 分鐘才回應；失敗時 message 會寫卡在哪個階段 |
 
@@ -63,16 +63,16 @@
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
 | 三份劇本（標題、前傳、照片、模糊線索、預計獲得） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 同上方說明 |
-| 重新查詢劇本內容 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | npc：劇本的 NPC（name、role、intro、avatar_url、voice），沒指定時是預設的薯光；每站有 npc_name 與 task_type（任務類型）；is_night_mode 是日夜 |
+| 重新查詢劇本內容 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | npc：劇本的 NPC（name、role、intro、avatar_url、voice），沒指定時是預設的薯光；每站有 npc_name 與 task_type（任務類型）；is_night_mode 是日夜；每站的 image_url 跟地圖同一個規則：抵達過是景點照片（Neo4j），還沒抵達是迷霧圖 |
 | 加入 Google 行事曆 | `POST /api/Story/{story_id}/Calendar` | ✅ 實測可用 | 回傳 google_calendar_url，前端用 url_launcher 打開，使用者按「儲存」就加進自己的 Google 行事曆，不需要授權。body 可省略（預設明天 10:00，夜間劇本 19:00）。地點只放第一站，其他站在迷霧中不會出現 |
 | 喜愛／取消喜愛 | `POST /api/Story/{story_id}/Favorite` | ✅ 實測可用 | body：{ "is_favorite": true/false }。只能設定自己的劇本，劇本詳情會帶 is_favorite |
-| 我喜愛的劇本 | `GET /api/Story/Favorites` | ✅ 實測可用 | 每筆有標題、簡介、地區、站數、日夜、封面（第一站照片）、是否已玩完 |
+| 我喜愛的劇本 | `GET /api/Story/Favorites` | ✅ 實測可用 | 每筆有標題、簡介、地區、站數、日夜、封面、是否已玩完。封面 cover_image_url 是第一站的圖片：抵達過是景點照片（Neo4j），還沒抵達是迷霧圖 |
 
 ### 五、劇情前傳
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 確認劇本、開始遊玩 | `POST /api/Story/Confirm` | ✅ 實測可用 |  |
+| 確認劇本、開始遊玩 | `POST /api/Story/Confirm` | ✅ 實測可用 | 回傳內容跟 Detail 一樣；每站的 image_url 還沒抵達是迷霧圖 |
 | 前傳文字 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | 同上方說明 |
 | NPC 語音 | `POST /api/Npc/Prologue/{story_id}` | ✅ 實測可用 | 回傳 audio_url（mp3），直接播放。voice 可省略，預設用劇本 NPC 的聲線 |
 
@@ -111,8 +111,8 @@
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 通關紀錄 | `GET /api/History` | ✅ 實測可用 |  |
-| 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 |  |
+| 通關紀錄 | `GET /api/History` | ✅ 實測可用 | 同上方說明 |
+| 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 | photos：上方左右滑動的照片，玩家拍的照片（is_place_photo = false），沒拍照片的站補上那一站的景點照片（is_place_photo = true，Neo4j）；cover_image_url 跟列表同一張 |
 | 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
 | 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音 |
 | 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
@@ -134,7 +134,7 @@
 | 店家資料 | `GET /api/Merchant/Profile` | ⬜ 未實測 |  |
 | 優惠券 | `GET /api/merchant/coupons` | ✅ 實測可用 |  |
 | QR Code 綁定優惠券 | `POST /api/merchant/qrcode/bind` | ✅ 實測可用 | 優惠券要是自己店家的；同一個 QR Code 重複綁定回 409 |
-| 遊客掃 QR Code 領券 | `GET /api/qrcode/scan/{qrUid}` | ⬜ 未實測 | 不用登入也能看；帶遊客 Token 時會同時領取優惠券（寫入 user_coupon） |
+| 遊客掃 QR Code 領券 | `GET /api/qrcode/scan/{qrUid}` | ⬜ 未實測 | 不用登入也能看；帶遊客 Token 時會同時領取優惠券（寫入 user_coupon）。image_url：店家照片（店家實景），用商家的景點 ID 向 Neo4j 拿，沒有照片時為 null |
 | 核銷優惠券 | `POST /api/coupons/{couponId}/redeem` | ✅ 實測可用 | 需要商家登入 |
 
 ## 分類清單
@@ -575,7 +575,11 @@ Request：
 
 #### `POST /api/Story/GenerateGameStory`　依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫
 
-參數：JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、is_night_mode（integer）
+參數：JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、max_minutes（integer，可省略）、start_time（datetime，可省略）
+
+- max_minutes：最遠願意花幾分鐘到景點（10～60，不帶預設 30）。後端切成近、中、遠三圈（45 → 15、30、45），景點只從範圍內挑；範圍內不到 3 個景點回傳 400
+- start_time：預計出發時間（台灣時間），不帶用現在。後端用它估算每一站幾點到（回傳在 nodes[].estimated_arrival），18:00 以後才到的站是夜間站（nodes[].is_night_only = 1）
+- 不用再傳 is_night_mode：日夜由抵達時間決定，過半數的站是夜間站時 story.is_night_mode = 1
 
 Request：
 
@@ -592,7 +596,8 @@ Request：
   "preferences": [
     "string"
   ],
-  "is_night_mode": 0
+  "max_minutes": 30,
+  "start_time": "2026-10-14T13:30:00"
 }
 ```
 
@@ -641,6 +646,7 @@ Request：
         "sn_task_type": "string",
         "is_hidden": 0,
         "is_night_only": 0,
+        "estimated_arrival": "2026-10-14T13:42:00",
         "sn_opening_text": "string",
         "sn_success_text": "string",
         "tasks": [
@@ -2196,9 +2202,9 @@ Request：
     "completed_date": "2026-10-07T12:00:00",
     "region": "string",
     "vlog_id": 0,
-    "spots": [
-      "string"
-    ]
+    "spots": null,
+    "cover_image_url": "string",
+    "photos": null
   }
 ]
 ```
@@ -2219,6 +2225,16 @@ Request：
   "vlog_id": 0,
   "spots": [
     "string"
+  ],
+  "cover_image_url": "string",
+  "photos": [
+    {
+      "node_id": 0,
+      "node_order": 0,
+      "place_name": "string",
+      "image_url": "string",
+      "is_place_photo": false
+    }
   ]
 }
 ```
@@ -2998,6 +3014,7 @@ Request：
       "key": null
     }
   },
+  "image_url": "string",
   "is_newly_claimed": false
 }
 ```

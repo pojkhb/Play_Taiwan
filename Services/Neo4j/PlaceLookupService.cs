@@ -195,6 +195,104 @@ namespace backend.Services.Neo4j
         }
 
         /// <summary>
+        /// 景點的營業時段：景點 ID → 時段清單。行程規劃用來判斷「預計抵達的時候有沒有開」（ItineraryRules.Fits）。
+        /// 1. 向 Neo4j 查 (:Place)-[:HAS_OPERATING_HOURS]->(:OperatingHours)，不分星期幾，一週裡所有時段都拿回來
+        /// 2. Neo4j 連不上時（這時候景點也是從 MySQL place 表來的），改用 MySQL 的 place.p_open_time（文字，例如「09:00-17:00」）
+        /// 沒有營業時間資料（多數戶外景點）或看不懂的景點不會出現在結果裡。
+        /// Neo4j 有回應時不再去 MySQL 補：範圍內的景點可能上千個，逐一用名稱對應太慢，而且多數本來就沒有營業時間。
+        /// </summary>
+        public async Task<Dictionary<string, List<ItineraryRules.OpenHours>>> GetOpeningHoursAsync(IEnumerable<string> placeIds)
+        {
+            List<string> ids = (placeIds ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            var result = new Dictionary<string, List<ItineraryRules.OpenHours>>();
+            if (ids.Count == 0) return result;
+
+            List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
+            bool neo4jAnswered = false;
+            if (uids.Count > 0)
+            {
+                try
+                {
+                    var rows = await _gateway.ExecuteCypherAsync(@"
+                        MATCH (p:Place)-[:HAS_OPERATING_HOURS]->(oh:OperatingHours)
+                        WHERE p.uid IN $uids
+                        RETURN p.uid AS uid,
+                               collect(DISTINCT {open_time: toString(oh.openTime), close_time: toString(oh.closeTime)}) AS hours", new { uids });
+
+                    foreach (var row in rows ?? new List<Dictionary<string, object>>())
+                    {
+                        string uid = Neo4jValueConverter.AsString(row.GetValueOrDefault("uid"));
+                        if (string.IsNullOrWhiteSpace(uid)) continue;
+
+                        List<ItineraryRules.OpenHours> hours = ItineraryRules.ParseHours(
+                            Neo4jValueConverter.AsList(row.GetValueOrDefault("hours"))
+                                .Select(Neo4jValueConverter.AsDictionary)
+                                .Where(map => map != null)
+                                .Select(map => (Neo4jValueConverter.AsString(map.GetValueOrDefault("open_time")),
+                                                Neo4jValueConverter.AsString(map.GetValueOrDefault("close_time")))));
+
+                        if (hours.Count > 0) result[uid] = hours;
+                    }
+
+                    neo4jAnswered = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "向 Neo4j 查景點營業時間失敗，改用 MySQL place 表的營業時間。");
+                }
+            }
+
+            List<string> missing = ids
+                .Where(id => !result.ContainsKey(id) && (!neo4jAnswered || id.StartsWith(MySqlPlacePrefix)))
+                .ToList();
+            if (missing.Count > 0)
+            {
+                foreach (var (id, text) in await GetMySqlOpenTimesAsync(missing))
+                {
+                    List<ItineraryRules.OpenHours> hours = ItineraryRules.ParseHoursText(text);
+                    if (hours.Count > 0) result[id] = hours;
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>MySQL 的營業時間文字（place.p_open_time）；對應方式跟 GetBridgedPlacesAsync 相同</summary>
+        private async Task<List<(string id, string text)>> GetMySqlOpenTimesAsync(List<string> ids)
+        {
+            var found = new List<(string id, string text)>();
+            using var conn = new MySqlConnection(_appSettings.mydb);
+
+            List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
+            if (uids.Count > 0)
+            {
+                found.AddRange(await conn.QueryAsync<(string id, string text)>(@"
+                    SELECT pt.place_id, p.p_open_time
+                    FROM (SELECT place_id, MIN(place_name) AS place_name FROM place_type WHERE place_id IN @uids GROUP BY place_id) pt
+                    INNER JOIN place p ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
+                    WHERE p.p_open_time IS NOT NULL AND p.p_open_time <> '';", new { uids }));
+            }
+
+            List<int> pIds = ids
+                .Where(id => id.StartsWith(MySqlPlacePrefix))
+                .Select(id => int.TryParse(id.Substring(MySqlPlacePrefix.Length), out int pId) ? pId : 0)
+                .Where(pId => pId > 0)
+                .ToList();
+            if (pIds.Count > 0)
+            {
+                var rows = await conn.QueryAsync<(int p_id, string text)>(
+                    "SELECT p_id, p_open_time FROM place WHERE p_id IN @pIds AND p_open_time IS NOT NULL AND p_open_time <> '';", new { pIds });
+                found.AddRange(rows.Select(r => (MySqlPlacePrefix + r.p_id, r.text)));
+            }
+
+            return found;
+        }
+
+        /// <summary>
         /// Neo4j 查不到的景點改用 MySQL：place_type（uid → 景點名稱，每個景點依題型有多筆，先收斂成一筆）
         /// → place（名稱 → 座標，同名多筆取編號最小的）。沒有對應或沒有座標的不會出現在結果裡。
         /// </summary>

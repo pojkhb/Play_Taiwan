@@ -1,5 +1,5 @@
 // 景點照片直接用景點 ID 向 Neo4j 拿（PlaceLookupService.GetPlaceImagesAsync），Neo4j 沒有照片或連不上時才用 MySQL place.p_image。
-// 地圖、NPC 互動、劇本詳情、喜愛清單、回顧都走同一個入口。
+// 地圖、NPC 互動、劇本詳情、喜愛清單、過往紀錄、回顧都走同一個入口；還沒抵達的站給的是這張照片的迷霧圖。
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -121,22 +121,22 @@ public class PlacePhotoApiTests
     }
 
     [Fact]
-    public async Task 劇本詳情_地圖_NPC互動_喜愛清單_回顧_都用Neo4j的景點照片()
+    public async Task 劇本詳情_地圖_NPC互動_喜愛清單_過往紀錄_回顧_都用Neo4j的景點照片()
     {
         int user = _api.NewUserId();
         var (storyId, _, neo4j, mysqlOnly, gateway) = await CreateStoryAsync(user);
         HttpClient client = ClientWith(gateway, user);
 
-        // 劇本詳情：每一站的照片
-        StoryDetailResponse detail = (await (await client.GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
-        Assert.Equal(new[] { neo4j[0], neo4j[1], mysqlOnly }, detail.nodes.Select(n => n.image_url));
+        async Task<StoryDetailResponse> DetailAsync() =>
+            (await (await client.GetAsync($"/api/Story/{storyId}/Detail")).ReadResultAsync<StoryDetailResponse>()).Result;
+        async Task<FavoriteStoryItem> FavoriteAsync() =>
+            Assert.Single((await (await client.GetAsync("/api/Story/Favorites")).ReadResultAsync<List<FavoriteStoryItem>>()).Result);
 
-        // 喜愛清單：封面是第一站的照片
+        // 還沒抵達：劇本詳情的每一站、喜愛清單的封面（第一站）、地圖、NPC 互動的背景都是迷霧圖
         await client.PostAsJsonAsync($"/api/Story/{storyId}/Favorite", new { is_favorite = true });
-        List<FavoriteStoryItem> favorites = (await (await client.GetAsync("/api/Story/Favorites")).ReadResultAsync<List<FavoriteStoryItem>>()).Result;
-        Assert.Equal(neo4j[0], Assert.Single(favorites).cover_image_url);
+        Assert.All((await DetailAsync()).nodes, n => Assert.Contains("/images/fog/", n.image_url));
+        Assert.Contains("/images/fog/", (await FavoriteAsync()).cover_image_url);
 
-        // 地圖：還沒抵達是迷霧圖；抵達後才是 Neo4j 的照片
         MapResponse map = (await (await client.GetAsync($"/api/Map/{storyId}")).ReadResultAsync<MapResponse>()).Result;
         int first = map.nodes[0].node_id;
         Assert.All(map.nodes, n => Assert.Contains("/images/fog/", n.image_url));
@@ -144,6 +144,7 @@ public class PlacePhotoApiTests
         NpcInteractionResponse npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
         Assert.Contains("/images/fog/", npc.scene_image_url);
 
+        // 抵達第 1 站後：第 1 站才是 Neo4j 的照片，還沒到的站仍然是迷霧圖
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{first}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
 
         map = (await (await client.GetAsync($"/api/Map/{storyId}")).ReadResultAsync<MapResponse>()).Result;
@@ -151,11 +152,28 @@ public class PlacePhotoApiTests
         npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
         Assert.Equal(neo4j[0], npc.scene_image_url);
 
-        // 回顧（玩完才能看）：每一站的景點照片
+        StoryDetailResponse detail = await DetailAsync();
+        Assert.Equal(neo4j[0], detail.nodes[0].image_url);
+        Assert.All(detail.nodes.Skip(1), n => Assert.Contains("/images/fog/", n.image_url));
+        Assert.Equal(neo4j[0], (await FavoriteAsync()).cover_image_url);
+
+        // 每一站都抵達後：劇本詳情每一站都是景點照片
         await client.PostAsync($"/api/Map/Node/{map.nodes[1].node_id}/Arrive?lat=25.031&lng=121.5", null);
         await client.PostAsync($"/api/Map/Node/{map.nodes[2].node_id}/Arrive?lat=25.032&lng=121.5", null);
+        Assert.Equal(new[] { neo4j[0], neo4j[1], mysqlOnly }, (await DetailAsync()).nodes.Select(n => n.image_url));
+
+        // 過往紀錄（玩完才有）：玩家這趟沒拍照片，封面與上方的照片用每一站的景點照片
         await _api.ExecuteAsync("UPDATE story_session SET ss_status = 'completed', completed_at = NOW() WHERE s_id = @storyId AND au_id = @user;", new { storyId, user });
 
+        List<HistoryStoryItem> history = (await (await client.GetAsync("/api/History")).ReadResultAsync<List<HistoryStoryItem>>()).Result;
+        Assert.Equal(neo4j[0], Assert.Single(history).cover_image_url);
+
+        HistoryStoryItem past = (await (await client.GetAsync($"/api/History/{storyId}")).ReadResultAsync<HistoryStoryItem>()).Result;
+        Assert.Equal(new[] { neo4j[0], neo4j[1], mysqlOnly }, past.photos.Select(p => p.image_url));
+        Assert.All(past.photos, p => Assert.True(p.is_place_photo));
+        Assert.Equal(neo4j[0], past.cover_image_url);
+
+        // 回顧（玩完才能看）：每一站的景點照片
         StoryRecapResponse recap = (await (await client.GetAsync($"/api/History/{storyId}/Recap")).ReadResultAsync<StoryRecapResponse>()).Result;
         Assert.Equal(new[] { neo4j[0], neo4j[1], mysqlOnly }, recap.nodes.Select(n => n.place_image_url));
     }

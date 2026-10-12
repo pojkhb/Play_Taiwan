@@ -226,11 +226,11 @@ namespace backend.Controllers
         [HttpGet]
         [Route("{story_id:int}/Detail")]
         [ProducesResponseType(typeof(ResultViewModel<StoryDetailResponse>), 200)]
-        public IActionResult Detail(int story_id)
+        public async Task<IActionResult> Detail(int story_id)
         {
             try
             {
-                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = WithNpcUrl(_service.GetDetail(story_id)) });
+                return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "查詢成功", Result = WithNpcUrl(await _service.WithPlacePhotosAsync(_service.GetDetail(story_id))) });
             }
             catch (Exception e)
             {
@@ -383,11 +383,11 @@ namespace backend.Controllers
         [HttpPost]
         [Route("Confirm")]
         [ProducesResponseType(typeof(ResultViewModel<StoryDetailResponse>), 200)]
-        public IActionResult Confirm([FromBody] StoryConfirmRequest req)
+        public async Task<IActionResult> Confirm([FromBody] StoryConfirmRequest req)
         {
             try
             {
-                StoryDetailResponse detail = WithNpcUrl(_service.ConfirmStory(User.GetAuId(), req));
+                StoryDetailResponse detail = WithNpcUrl(await _service.WithPlacePhotosAsync(_service.ConfirmStory(User.GetAuId(), req)));
                 return Ok(new ResultViewModel<StoryDetailResponse> { isSuccess = true, message = "確認選卷成功，即將進入探索地圖", Result = detail });
             }
             catch (BadRequestException e)
@@ -512,6 +512,9 @@ namespace backend.Controllers
         /// <remarks>
         /// 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數；
         /// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
+        ///
+        /// **這支一次只會生成一份劇本**（AI 服務一次回一份），回傳的 story_id 就是那一份；
+        /// GenerateGameStory 才是一次生成三份讓使用者挑。
         ///
         /// **Request 範例**：
         /// ```json

@@ -122,7 +122,29 @@ namespace backend.Services
                 throw new KeyNotFoundException("找不到此劇本：" + storyId);
         }
 
-        public Task<List<FavoriteStoryItem>> GetFavoriteStoriesAsync(int auId) => _dao.GetFavoriteStoriesAsync(auId);
+        /// <summary>喜愛的劇本；封面是第一站的景點照片（用景點 ID 向 Neo4j 拿）</summary>
+        public async Task<List<FavoriteStoryItem>> GetFavoriteStoriesAsync(int auId)
+        {
+            List<FavoriteStoryItem> stories = await _dao.GetFavoriteStoriesAsync(auId);
+            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(stories.Select(s => s.cover_place_id));
+
+            foreach (FavoriteStoryItem story in stories)
+                story.cover_image_url = story.cover_place_id != null ? images.GetValueOrDefault(story.cover_place_id) : null;
+
+            return stories;
+        }
+
+        /// <summary>劇本詳情的每一站補上景點照片（用景點 ID 向 Neo4j 拿）</summary>
+        public async Task<StoryDetailResponse> WithPlacePhotosAsync(StoryDetailResponse detail)
+        {
+            if (detail?.nodes == null || detail.nodes.Count == 0) return detail;
+
+            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(detail.nodes.Select(n => n.place_id));
+            foreach (NodeDetail node in detail.nodes)
+                node.image_url = node.place_id != null ? images.GetValueOrDefault(node.place_id) : null;
+
+            return detail;
+        }
 
         #endregion
 
@@ -717,12 +739,13 @@ namespace backend.Services
             await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit);
 
             // ── 6. 可抽的勳章類別、景點照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
-            Dictionary<int, string> images = await _dao.GetNodeImagesAsync(results.Select(r => r.story_id));
+            // 景點照片直接用景點 ID 向 Neo4j 拿
+            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(results.SelectMany(r => r.nodes).Select(n => n.place_id));
 
             foreach (GameStoryResult result in results)
             {
                 foreach (GameStoryNode node in result.nodes)
-                    node.image_url = images.TryGetValue(node.sn_id, out string image) ? image : null;
+                    node.image_url = node.place_id != null ? images.GetValueOrDefault(node.place_id) : null;
 
                 result.story.story_badge = await _badgeService.RefreshStoryCategoriesAsync(result.story_id);
 

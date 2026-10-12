@@ -30,6 +30,10 @@ namespace backend.ViewModels
         /// <summary>封面：第一站的景點照片（第一站本來就開放）；沒有照片時為 null</summary>
         public string cover_image_url { get; set; }
 
+        /// <summary>內部用：第一站的景點 ID，用它向 Neo4j 拿封面照片，不回傳給前端</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string cover_place_id { get; set; }
+
         /// <summary>是否已經玩完</summary>
         public bool is_completed { get; set; }
 

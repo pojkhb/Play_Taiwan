@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -24,15 +25,18 @@ namespace backend.Controllers
         private readonly ILogger<MapController> _logger;
         private readonly MapService _service;
         private readonly NearbyFoodService _nearbyFood;
+        private readonly NearbyPlaceService _nearbyPlaces;
 
         public MapController(
             ILogger<MapController> logger,
             MapService service,
-            NearbyFoodService nearbyFood)
+            NearbyFoodService nearbyFood,
+            NearbyPlaceService nearbyPlaces)
         {
             _logger = logger;
             _service = service;
             _nearbyFood = nearbyFood;
+            _nearbyPlaces = nearbyPlaces;
         }
 
         /// <summary>還在迷霧中的站：回傳 403</summary>
@@ -48,13 +52,20 @@ namespace backend.Controllers
         /// 對應「地圖」頁面，顯示地點探索度、已收集節點與路線。
         /// 只有劇本擁有者或協作隊員可以查看（403）；節點座標依景點 uid 向 Neo4j 查。
         ///
+        /// 地圖像藏寶圖一樣一關一關開：第一站固定開放，破完這一站（任務全部通過；沒有任務的站抵達就算）才會開下一站。
         /// 迷霧由後端處理，前端照欄位顯示即可：
         ///
-        /// - 已解鎖（is_unlocked = true）：location_name 是站名、image_url 是景點照片、lat/lng 是精確位置
+        /// - 已解鎖（is_unlocked = true）：location_name 是站名、lat/lng 是精確位置；
+        ///   請以它為中心把半徑 reveal_radius_m 公尺的迷霧散開
+        /// - 照片 image_url：抵達過的站（is_arrived = true）才是景點照片；還沒抵達的站一律是迷霧圖，
+        ///   包含已解鎖但還沒到的目前這一關（真實照片一看就知道答案）
+        /// - 目前這一關（is_current = true，同一時間只有一站，也就是 current_node_id）：地圖上要亮起來的那一站
+        /// - 地標名稱：還沒抵達的站用 codename（地點代號）；抵達後（is_arrived = true）才有 place_name（景點真實名稱）
         /// - 未解鎖（is_unlocked = false）：location_name 是迷霧提示（地點代號）、image_url 是迷霧圖、
         ///   lat/lng 是迷霧中心（大概位置），請以它為中心畫半徑 fog_radius_m 公尺的迷霧；真正的點在這個範圍內
         ///
         /// 未解鎖的站不能查看詳情、互動、導航或打卡，會回傳 403。
+        /// 作答回傳 node_completed = true 時代表這一站破關了，請重新呼叫這支與 POST /api/Route/Plan 取得下一站。
         ///
         /// Request 範例：
         ///
@@ -110,7 +121,7 @@ namespace backend.Controllers
         /// <remarks>
         /// 對應「地圖」頁面點擊節點後的抵達解鎖流程，成功後解鎖該節點詳情。
         /// 只有劇本擁有者或協作隊員可以抵達（403）；只能抵達已解鎖的站（還在迷霧中回 403），且要在景點 200 公尺內（400）。
-        /// 解鎖進度是協作隊伍全隊共用的。
+        /// 抵達後才能做這一站的任務；任務全部通過才會解鎖下一站。進度是協作隊伍全隊共用的。
         ///
         /// Request 範例：
         ///
@@ -185,6 +196,8 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 對應「地圖」頁面節點彈窗（如臺南孔廟）的詳情內容。
+        /// 還在迷霧中的站回 403。已解鎖但還沒抵達的站（目前這一關）只給站名與 NPC：
+        /// intro_story 是「到了現場，這裡的故事才會揭曉。」、opening_hours 是 null，抵達後才給景點介紹與營業時間。
         ///
         /// Request 範例：
         ///
@@ -236,6 +249,8 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 對應「地圖」頁面節點彈窗中「回顧劇情」等 NPC 對話內容。
+        /// 還在迷霧中的站回 403。已解鎖但還沒抵達的站（目前這一關）：scene_image_url 是迷霧圖、
+        /// location_subtitle 是 null，抵達後才給景點的真實照片與副標題。
         ///
         /// Request 範例：
         ///
@@ -246,13 +261,14 @@ namespace backend.Controllers
         // API：NPC 隨機互動（Interact）－回傳指定節點的 NPC 對話內容
         [HttpGet("Node/{node_id:int}/Interact")]
         [ProducesResponseType(typeof(ResultViewModel<NpcInteractionResponse>), 200)]
-        public IActionResult Interact(int node_id)
+        public async Task<IActionResult> Interact(int node_id)
         {
             try
             {
                 NpcInteractionResponse result =
-                    _service.GetNpcInteraction(node_id, User);
+                    await _service.GetNpcInteraction(node_id, User);
                 result.npc_avatar_url = PublicUrl.Of(Request, result.npc_avatar_url);
+                result.scene_image_url = PublicUrl.Of(Request, result.scene_image_url);
 
                 return Ok(new ResultViewModel<NpcInteractionResponse>
                 {
@@ -333,39 +349,126 @@ namespace backend.Controllers
 
         #endregion
 
+        #region 示範模式
+
+        /// <summary>
+        /// 【示範用】直接破這一關：不檢查 GPS、不用作答。
+        /// </summary>
+        /// <remarks>
+        /// 展示藏寶圖一關一關開的時候用，坐在電腦前就能破關。把這一站當成已抵達、任務全部通過，回傳更新後的地圖（下一站解鎖）。
+        /// **只有後端設定 Demo:AllowStageSkip = true 時能用**（地圖回傳的 demo_mode 會是 true），預設關閉、正式環境回 403。
+        /// 一樣只能破已解鎖的站（不能跳關），而且只有劇本擁有者或協作隊員能用。不會產生作答紀錄。
+        ///
+        ///     POST /api/Map/Node/{node_id}/DemoClear
+        /// </remarks>
+        /// <param name="node_id">要破關的節點（目前這一關）。</param>
+        [HttpPost("Node/{node_id:int}/DemoClear")]
+        [ProducesResponseType(typeof(ResultViewModel<MapResponse>), 200)]
+        public Task<IActionResult> DemoClear(int node_id) =>
+            Demo(() => _service.DemoClearNode(node_id, User, $"{Request.Scheme}://{Request.Host}"), "示範破關成功");
+
+        /// <summary>
+        /// 【示範用】這份劇本回到第一關，可以重新展示一次。
+        /// </summary>
+        /// <remarks>
+        /// 任務改回未通過、進度回到還沒抵達任何一站；作答紀錄、明信片、勳章不動。
+        /// **只有後端設定 Demo:AllowStageSkip = true 時能用**，預設關閉、正式環境回 403。
+        ///
+        ///     POST /api/Map/{story_id}/DemoReset
+        /// </remarks>
+        /// <param name="story_id">劇本代號。</param>
+        [HttpPost("{story_id:int}/DemoReset")]
+        [ProducesResponseType(typeof(ResultViewModel<MapResponse>), 200)]
+        public Task<IActionResult> DemoReset(int story_id) =>
+            Demo(() => _service.DemoResetStory(story_id, User, $"{Request.Scheme}://{Request.Host}"), "已回到第一關");
+
+        private async Task<IActionResult> Demo(Func<Task<MapResponse>> action, string message)
+        {
+            try
+            {
+                return Ok(new ResultViewModel<MapResponse> { isSuccess = true, message = message, Result = await action() });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return StatusCode(403, new ResultViewModel<MapResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (NodeLockedException e)
+            {
+                return Locked<MapResponse>(e);
+            }
+            catch (KeyNotFoundException e)
+            {
+                return NotFound(new ResultViewModel<MapResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "示範模式操作失敗");
+                return StatusCode(500, new ResultViewModel<MapResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+
+        #endregion
+
         #region 周邊好去
 
         /// <summary>
-        /// 取得指定劇本周邊的推薦去處。
+        /// 周邊好去：依使用者目前位置推薦附近的地點。
         /// </summary>
         /// <remarks>
-        /// 對應「周邊好去」頁面，依「飲食」「其他」等分類回傳附近推薦地點。
+        /// 對應「周邊好去」頁面。推薦是跟著使用者走的：帶目前 GPS（lat、lng）才會推薦，由近到遠排列；
+        /// 使用者移動後（例如走了 200 公尺，或重新打開這一頁）請帶新的位置再呼叫一次。
+        /// **沒帶 lat、lng 時回傳空陣列**，不會一開始就把整個縣市的地點列出來。
+        ///
+        /// - category：「飲食」只要美食、「其他」只要景點等其他地點，不帶就兩種都要
+        /// - radius_m：搜尋半徑（公尺），預設 800，範圍 100～3000；limit：最多幾筆，預設 20，最多 50
+        /// - distance_m：跟使用者的直線距離；is_open_now：現在有沒有營業（沒有資料時為 null），美食類已知沒營業的不列出
+        /// - 這份劇本自己的站不會出現在這裡（還在迷霧中的站不會被洩漏）
+        /// - place_id 是 MySQL 的代號，只有 Neo4j 資料的地點為 0，列表的 key 請用 place_uid
         ///
         /// Request 範例：
         ///
-        ///     GET /api/Map/{story_id}/Nearby?category=飲食
+        ///     GET /api/Map/{story_id}/Nearby?lat=25.0421&amp;lng=121.5150&amp;category=飲食&amp;radius_m=800
         /// </remarks>
         /// <param name="story_id">劇本代號。</param>
-        /// <param name="category">分類篩選條件（如：飲食、其他）。</param>
-        /// <returns>周邊推薦地點清單。</returns>
-        // API：周邊好去（Nearby）－回傳指定劇本周邊依分類篩選的推薦地點
+        /// <param name="category">分類篩選條件：飲食、其他；不帶就全部。</param>
+        /// <param name="lat">使用者目前緯度。</param>
+        /// <param name="lng">使用者目前經度。</param>
+        /// <param name="radius_m">搜尋半徑（公尺），預設 800。</param>
+        /// <param name="limit">最多回傳幾筆，預設 20。</param>
+        /// <returns>附近的地點清單，由近到遠。</returns>
+        // API：周邊好去（Nearby）－依使用者目前位置回傳附近的推薦地點
         [HttpGet("{story_id:int}/Nearby")]
         [ProducesResponseType(typeof(ResultViewModel<List<NearbyPlaceResponse>>), 200)]
-        public IActionResult Nearby(
+        public async Task<IActionResult> Nearby(
             int story_id,
-            [FromQuery] string category)
+            [FromQuery] string category,
+            [FromQuery] double? lat,
+            [FromQuery] double? lng,
+            [FromQuery] int? radius_m,
+            [FromQuery] int? limit)
         {
             try
             {
                 List<NearbyPlaceResponse> result =
-                    _service.GetNearbyPlaces(story_id, category);
+                    await _nearbyPlaces.GetNearbyAsync(story_id, lat, lng, category, radius_m, limit);
+
+                foreach (NearbyPlaceResponse place in result)
+                {
+                    place.photo_urls = place.photo_urls.Select(url => PublicUrl.Of(Request, url)).ToList();
+                }
 
                 return Ok(new ResultViewModel<List<NearbyPlaceResponse>>
                 {
                     isSuccess = true,
-                    message = "查詢成功",
+                    message = !lat.HasValue || !lng.HasValue
+                        ? "請帶目前位置（lat、lng），周邊好去會依使用者所在位置推薦"
+                        : $"查詢成功，附近有 {result.Count} 個地點",
                     Result = result
                 });
+            }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<List<NearbyPlaceResponse>> { isSuccess = false, message = e.Message, Result = null });
             }
             catch (Exception e)
             {

@@ -37,7 +37,8 @@ namespace backend.Controllers
         /// 公車：起點或任一節點 600 公尺內有公車站牌（且已匯入該縣市公車資料）才可用。
         /// 捷運：至少兩個地點步行 15 分鐘（1 公里）內有捷運站才可用；只查單一座標時該點附近有站即可。
         ///
-        /// 帶 story_id 時會一併檢查劇本所有節點；lat/lng 是使用者目前位置（起點），可不帶。
+        /// 帶 story_id 時會一併檢查劇本已解鎖的節點（還在迷霧中的站不算）；只有劇本擁有者或協作隊員可以查（403）。
+        /// lat/lng 是使用者目前位置（起點），可不帶。
         ///
         /// **Request 範例**：
         ///
@@ -55,8 +56,12 @@ namespace backend.Controllers
                 if ((lat == 0 || lng == 0) && !story_id.HasValue)
                     return BadRequest(new ResultViewModel<List<TransportAvailability>> { isSuccess = false, message = "請提供 lat/lng 或 story_id" });
 
-                var result = await _service.GetAvailabilityAsync(lat, lng, story_id);
+                var result = await _service.GetAvailabilityAsync(lat, lng, story_id, User.GetAuId());
                 return Ok(new ResultViewModel<List<TransportAvailability>> { isSuccess = true, message = "查詢成功", Result = result });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return StatusCode(403, new ResultViewModel<List<TransportAvailability>> { isSuccess = false, message = e.Message });
             }
             catch (ArgumentException e)
             {
@@ -118,6 +123,14 @@ namespace backend.Controllers
         /// segments 的 coordinates 已依行進方向排序，前端沿線畫箭頭即可表示方向；
         /// direction 是「去程」或「返程」。在這一帶不能用的公車/捷運會自動略過並放進 warnings。
         ///
+        /// **帶 story_id 時像藏寶圖一樣一關一關給**（只有劇本擁有者或協作隊員可以規劃，否則 403）：
+        /// - stops、legs 只到目前這一關：已經破關的站＋目前這一關；還在迷霧中的站不會回傳，數量在 locked_stop_count
+        /// - legs 裡 is_current = true 的那一段是「前往目前這一關」的路線，地圖上亮這一段；其餘是已經走過的路線
+        /// - 還沒抵達的站，名稱（stops.name、legs.to_name）是地點代號；抵達後重新規劃才會換成景點真實名稱
+        /// - 破完這一關（作答回傳 node_completed = true）後重新呼叫，就會多出下一站與下一段路線
+        /// - 還有站在迷霧中時不會規劃返程
+        /// - current_only = true：只規劃「從 start（使用者目前位置）到目前這一關」的那一段，stops 還是回傳所有已解鎖的站
+        ///
         /// **Request 範例（劇本）**：
         /// ```json
         /// {
@@ -146,13 +159,17 @@ namespace backend.Controllers
         {
             try
             {
-                var result = await _service.PlanAsync(req);
+                var result = await _service.PlanAsync(req, User.GetAuId());
                 return Ok(new ResultViewModel<RoutePlanResponse>
                 {
                     isSuccess = true,
                     message = $"規劃完成：{result.legs.Count} 段，去程約 {Math.Ceiling(result.outbound_minutes)} 分、返程約 {Math.Ceiling(result.return_minutes)} 分",
                     Result = result
                 });
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                return StatusCode(403, new ResultViewModel<RoutePlanResponse> { isSuccess = false, message = e.Message });
             }
             catch (ArgumentException e)
             {
@@ -167,10 +184,11 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 取得可以規劃交通路線的劇本（含節點座標與建議起點）。
+        /// 取得可以規劃交通路線的劇本（含已解鎖節點的座標與建議起點）。
         /// </summary>
         /// <remarks>
-        /// 回傳自己的劇本（新的在前）；自己還沒有劇本時回傳最近的劇本，方便用測試帳號展示。
+        /// 回傳自己能玩的劇本（自己的或協作隊伍的，新的在前）。nodes 只有已解鎖的站，還在迷霧中的站不回傳；
+        /// node_count 是含迷霧中的站在內的總站數。
         ///
         /// **Request 範例**：
         ///

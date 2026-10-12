@@ -52,8 +52,8 @@ namespace backend.dao
 
         #region 取得地圖節點
         /// <summary>
-        /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依 ss_current 統一計算，座標由 MapService 依 place_id 補上。
-        /// fog_image 是這一站景點照片做成的迷霧圖（fog 表用照片網址的 SHA-1 對應），還沒做好時為 null。
+        /// 取得指定劇本的全部地圖節點。解鎖狀態由 MapService 依目前這一關（GetStageOrder）統一計算，
+        /// 座標、景點照片與迷霧圖都由 MapService 依 place_id 補上（座標與照片向 Neo4j 查，見 PlaceLookupService）。
         /// </summary>
         public List<MapNode> GetStoryNodes(int storyId)
         {
@@ -65,14 +65,12 @@ namespace backend.dao
                     sn.location_codename         AS fog_hint,
                     (sn.is_night_only = 1)       AS is_night_only,
                     sn.sn_title                  AS location_name,
+                    COALESCE(p.p_name, pt.place_name) AS place_name,
                     sn.place_id                  AS place_id,
-                    NULLIF(p.p_image, '')        AS image_url,
-                    f.fog_image                  AS fog_image,
                     (EXISTS (SELECT 1 FROM task t WHERE t.node_id = sn.sn_id)
                      AND NOT EXISTS (SELECT 1 FROM task t WHERE t.node_id = sn.sn_id AND t.pass = 0)) AS is_completed
                 FROM story_node sn
                 {PlaceBridgeJoin}
-                LEFT JOIN fog f ON f.fog_source_key = SHA1(NULLIF(p.p_image, ''))
                 WHERE sn.s_id = @storyId
                 ORDER BY sn.sn_order;
             ";
@@ -91,16 +89,52 @@ namespace backend.dao
                 return nodes;
             }
         }
+
+        /// <summary>
+        /// 這些景點照片各自的迷霧圖：照片網址 → 迷霧圖路徑（還沒做好的不會出現）。
+        /// fog 表用照片網址的 SHA-1 當 key（FogService.SourceKey，跟做迷霧圖時用的是同一個算法）。
+        /// SHA-1 在程式裡算，不用 SQL 的 SHA1()：有些 MySQL 相容的資料庫沒有這個函式，整支地圖 API 會回 400。
+        /// </summary>
+        public Dictionary<string, string> GetFogImages(IEnumerable<string> photoUrls)
+        {
+            Dictionary<string, string> urlByKey = (photoUrls ?? Enumerable.Empty<string>())
+                .Where(url => !string.IsNullOrEmpty(url))
+                .Distinct()
+                .ToDictionary(Services.FogService.SourceKey, url => url);
+
+            if (urlByKey.Count == 0) return new Dictionary<string, string>();
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+
+                return conn.Query<(string fog_source_key, string fog_image)>(
+                        "SELECT fog_source_key, fog_image FROM fog WHERE fog_source_key IN @keys;", new { keys = urlByKey.Keys.ToList() })
+                    .Where(row => row.fog_source_key != null && urlByKey.ContainsKey(row.fog_source_key))
+                    .GroupBy(row => row.fog_source_key)
+                    .ToDictionary(g => urlByKey[g.Key], g => g.First().fog_image);
+            }
+        }
         #endregion
 
         #region 取得玩家目前節點進度
         /// <summary>登入者（有協作隊伍時為全隊共用）最遠抵達的節點順序，見 TeamProgress。</summary>
-        public int GetCurrentNodeOrder(int auId, int storyId)
+        public int GetArrivedOrder(int auId, int storyId)
         {
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
                 return TeamProgress.GetCurrentNodeOrder(conn, auId, storyId);
+            }
+        }
+
+        /// <summary>目前這一關的站序（破完一站才開下一站），這一關和之前的站都是解鎖的，見 TeamProgress.GetStageOrder。</summary>
+        public int GetStageOrder(int auId, int storyId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return TeamProgress.GetStageOrder(conn, auId, storyId);
             }
         }
 
@@ -127,6 +161,7 @@ namespace backend.dao
         /// <summary>
         /// 節點的站序與玩家在該劇本的進度，判斷這一站是否還在迷霧中用；找不到節點回傳 null。
         /// 進度用 TeamProgress（有協作隊伍時全隊共用，跟地圖解鎖、抵達、任務門檻一致）。
+        /// stage_order 是目前這一關的站序，站序不超過它的站才是解鎖的。
         /// </summary>
         public NodeProgress GetNodeProgress(int auId, int nodeId)
         {
@@ -141,7 +176,8 @@ namespace backend.dao
 
                 if (progress != null)
                 {
-                    progress.current_order = TeamProgress.GetCurrentNodeOrder(conn, auId, progress.story_id);
+                    progress.stage_order = TeamProgress.GetStageOrder(conn, auId, progress.story_id);
+                    progress.arrived_order = TeamProgress.GetCurrentNodeOrder(conn, auId, progress.story_id);
                 }
 
                 return progress;
@@ -152,7 +188,10 @@ namespace backend.dao
         {
             public int story_id { get; set; }
             public int node_order { get; set; }
-            public int current_order { get; set; }
+            public int stage_order { get; set; }
+
+            /// <summary>隊伍最遠抵達第幾站；站序不超過它的站才算抵達過</summary>
+            public int arrived_order { get; set; }
         }
         #endregion
 
@@ -254,6 +293,66 @@ namespace backend.dao
         }
         #endregion
 
+        #region 示範模式（設定 Demo:AllowStageSkip 打開才會被呼叫）
+        /// <summary>
+        /// 示範用破關：把這一站的任務全部標成通過並寫入完成時間；整份劇本的任務都通過時，遊玩紀錄標成完成。
+        /// 不寫作答紀錄（user_task_record），所以不會有照片、對錯統計。回傳劇本是否全部完成。
+        /// </summary>
+        public bool DemoClearNode(int storyId, int nodeId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                using (MySqlTransaction transaction = conn.BeginTransaction())
+                {
+                    conn.Execute("UPDATE task SET pass = 1 WHERE node_id = @nodeId;", new { nodeId }, transaction);
+                    conn.Execute("UPDATE story_node SET last_time = COALESCE(last_time, NOW()) WHERE sn_id = @nodeId;", new { nodeId }, transaction);
+
+                    // 每一站都抵達過、任務也都通過，才算整份劇本完成（跟正式作答的完成條件一致，多檢查站有沒有走完）
+                    bool completed = conn.ExecuteScalar<int>(@"
+                        SELECT (SELECT COUNT(*) FROM task WHERE story_id = @storyId AND pass = 0)
+                             + (SELECT COUNT(*) FROM story_node sn
+                                WHERE sn.s_id = @storyId
+                                  AND sn.sn_order > (SELECT COALESCE(MAX(ss_current), 0) FROM story_session WHERE s_id = @storyId));",
+                        new { storyId }, transaction) == 0;
+
+                    if (completed)
+                    {
+                        conn.Execute(@"
+                            UPDATE story_session
+                            SET ss_status = 'completed', completed_at = COALESCE(completed_at, NOW())
+                            WHERE s_id = @storyId AND ss_status <> 'completed';", new { storyId }, transaction);
+                    }
+
+                    transaction.Commit();
+                    return completed;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 示範用重來：這份劇本回到第一關。任務改回未通過、每一站清掉完成時間、遊玩紀錄回到還沒抵達任何一站。
+        /// 作答紀錄、明信片、勳章不動。
+        /// </summary>
+        public void DemoResetStory(int storyId)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                using (MySqlTransaction transaction = conn.BeginTransaction())
+                {
+                    conn.Execute("UPDATE task SET pass = 0 WHERE story_id = @storyId;", new { storyId }, transaction);
+                    conn.Execute("UPDATE story_node SET last_time = NULL WHERE s_id = @storyId;", new { storyId }, transaction);
+                    conn.Execute(@"
+                        UPDATE story_session
+                        SET ss_current = 0, sn_id = NULL, ss_status = 'in_progress', completed_at = NULL, last_played_at = NOW()
+                        WHERE s_id = @storyId;", new { storyId }, transaction);
+                    transaction.Commit();
+                }
+            }
+        }
+        #endregion
+
         #region 取得節點詳情
         /// <summary>
         /// 取得指定節點的景點、劇情與對應任務資訊。task 表沒有 is_active / difficulty_star，
@@ -319,7 +418,11 @@ namespace backend.dao
         /// 景點介紹與照片來自景點資料。劇本沒有指定 NPC 時用預設的薯光。
         /// 圖片回傳站內路徑，由 Controller 組成完整網址。
         /// </summary>
-        public NpcInteractionResponse GetRandomNpcInteraction(int nodeId)
+        /// <param name="arrived">
+        /// 隊伍抵達這一站了沒。還沒抵達時不給景點副標題。
+        /// 背景圖（景點照片或迷霧圖）由 MapService 補上：照片要向 Neo4j 查
+        /// </param>
+        public NpcInteractionResponse GetRandomNpcInteraction(int nodeId, bool arrived)
         {
             string sql = $@"
                 SELECT
@@ -331,8 +434,7 @@ namespace backend.dao
                     n.npc_voice        AS npc_voice,
                     sn.sn_title        AS location_name,
                     sn.sn_opening_text AS opening_text,
-                    p.p_summary        AS summary,
-                    p.p_image          AS image_url
+                    p.p_summary        AS summary
                 FROM story_node sn
                 {PlaceBridgeJoin}
                 {NpcJoin}
@@ -361,8 +463,7 @@ namespace backend.dao
                 {
                     node_id = (int)row.node_id,
                     location_name = (row.location_name as string) ?? "",
-                    location_subtitle = row.summary as string,
-                    scene_image_url = row.image_url as string,
+                    location_subtitle = arrived ? row.summary as string : null,
                     npc_id = row.npc_id == null ? "NPC-DEFAULT" : row.npc_id.ToString(),
                     npc_name = (row.npc_name as string) ?? DefaultNpcName,
                     npc_role = row.npc_role as string,
@@ -410,68 +511,6 @@ namespace backend.dao
                 conn.Open();
                 return conn.ExecuteScalar<int>(sql, new { storyId });
             }
-        }
-        #endregion
-
-        #region 取得周邊好去
-        /// <summary>
-        /// 新資料庫的 story 沒有 region_id，place 的 region_id 又是 Neo4j UUID，
-        /// 兩邊無法直接關聯，因此改用劇本的縣市／鄉鎮名稱比對景點地址。
-        /// </summary>
-        public List<NearbyPlaceResponse> GetNearbyPlaces(int storyId, string category)
-        {
-            string sql = @"
-                SELECT
-                    p.p_id        AS place_id,
-                    p.p_category  AS category,
-                    p.p_type      AS type,
-                    p.p_name      AS name,
-                    p.p_address   AS address,
-                    p.p_open_time AS open_time,
-                    p.p_image     AS image_url,
-                    p.p_latitude  AS lat,
-                    p.p_longitude AS lng
-                FROM place p
-                INNER JOIN story s ON s.s_id = @storyId
-                WHERE (s.city_name IS NULL OR p.p_address LIKE CONCAT('%', s.city_name, '%'))
-                  AND (@category = '' OR p.p_category = @category)
-                ORDER BY p.p_name;
-            ";
-
-            using (var conn = new MySqlConnection(_appSettings.mydb))
-            {
-                conn.Open();
-
-                return conn.Query(sql, new { storyId, category = category ?? "" })
-                    .Select(r => new NearbyPlaceResponse
-                    {
-                        place_id = (int)r.place_id,
-                        category = r.category as string,
-                        type = r.type as string,
-                        name = (r.name as string) ?? "",
-                        address = r.address as string,
-                        open_time = r.open_time as string,
-                        photo_urls = string.IsNullOrWhiteSpace(r.image_url as string)
-                            ? new List<string>()
-                            : new List<string> { (string)r.image_url },
-                        maps_deeplink_url = BuildMapsUrl(r.lat, r.lng),
-                        lat = r.lat == null ? (double?)null : System.Convert.ToDouble(r.lat),
-                        lng = r.lng == null ? (double?)null : System.Convert.ToDouble(r.lng)
-                    })
-                    .ToList();
-            }
-        }
-
-        private static string BuildMapsUrl(object latValue, object lngValue)
-        {
-            if (latValue == null || lngValue == null) return null;
-
-            double lat = System.Convert.ToDouble(latValue);
-            double lng = System.Convert.ToDouble(lngValue);
-
-            if (lat == 0 || lng == 0) return null;
-
-            return $"https://www.google.com/maps/search/?api=1&query={lat},{lng}";
         }
         #endregion
     }

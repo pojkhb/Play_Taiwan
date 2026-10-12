@@ -29,6 +29,9 @@ namespace backend.Services
         private readonly double _fogRadiusMeters;
         private readonly string _fogSecret;
 
+        /// <summary>示範模式（設定 Demo:AllowStageSkip = true）：可以不到現場、不作答就破關，展示用，預設關閉</summary>
+        private readonly bool _demoMode;
+
         public MapService(MapDao dao, GeocodingService geocodingService, PlaceLookupService placeLookup,
             FogGenerationQueue fogQueue, IConfiguration configuration)
         {
@@ -38,15 +41,18 @@ namespace backend.Services
             _fogQueue = fogQueue;
             _fogRadiusMeters = double.TryParse(configuration["Fog:RadiusMeters"], out double radius) && radius > 0 ? radius : 300;
             _fogSecret = configuration["AppSettings:jwt_secret"] ?? "";
+            _demoMode = bool.TryParse(configuration["Demo:AllowStageSkip"], out bool demo) && demo;
         }
 
         #region 取得地圖
 
         /// <summary>
         /// 取得指定劇本的地圖資訊。只有劇本擁有者或協作隊員可以查看。
-        /// 後端依 story_session.ss_current 判斷節點是否解鎖（協作隊伍全隊共用進度，見 TeamProgress），座標依節點的 place_id 向 Neo4j 查。
-        /// 未解鎖的站由後端蓋上迷霧：站名換成迷霧提示、照片換成這一站照片的迷霧版、座標換成偏移過的迷霧中心，
-        /// 真正的答案不會傳給前端。迷霧圖還沒做好的站先用通用迷霧圖，並在背景補做（下次打開地圖就會換上）。
+        /// 像藏寶圖一樣一關一關開：只有目前這一關和已經破關的站是解鎖的，破完這一關（任務全部通過）才會開下一站
+        /// （協作隊伍全隊共用進度，見 TeamProgress.GetStageOrder）。座標依節點的 place_id 向 Neo4j 查。
+        /// 未解鎖的站由後端蓋上迷霧：站名換成迷霧提示（地點代號）、座標換成偏移過的迷霧中心，真正的答案不會傳給前端。
+        /// 照片與真實名稱要抵達後才給：還沒抵達的站（包含已解鎖的目前這一關）照片都是這一站照片的迷霧版。
+        /// 迷霧圖還沒做好的站先用通用迷霧圖，並在背景補做（下次打開地圖就會換上）。
         /// 新資料表沒有 day_index，目前所有節點都歸在第一日。
         /// </summary>
         /// <param name="storyId">劇本代號，對應 story.s_id。</param>
@@ -75,6 +81,10 @@ namespace backend.Services
             Dictionary<string, PlaceLookupService.PlaceInfo> places =
                 await _placeLookup.GetPlacesAsync(nodes.Select(x => x.place_id));
 
+            // 景點照片直接用景點 ID 向 Neo4j 拿；迷霧圖依照片網址對應
+            Dictionary<string, string> photos = await _placeLookup.GetPlaceImagesAsync(nodes.Select(x => x.place_id));
+            Dictionary<string, string> fogImages = _dao.GetFogImages(photos.Values);
+
             foreach (MapNode node in nodes)
             {
                 if (node.place_id != null && places.TryGetValue(node.place_id, out PlaceLookupService.PlaceInfo place))
@@ -82,9 +92,13 @@ namespace backend.Services
                     node.lat = place.lat;
                     node.lng = place.lng;
                 }
+
+                node.image_url = node.place_id != null ? photos.GetValueOrDefault(node.place_id) : null;
+                node.fog_image = node.image_url != null ? fogImages.GetValueOrDefault(node.image_url) : null;
             }
 
-            int currentNodeOrder = _dao.GetCurrentNodeOrder(auId, storyId);
+            int stageOrder = _dao.GetStageOrder(auId, storyId);
+            int arrivedOrder = _dao.GetArrivedOrder(auId, storyId);
 
             nodes = nodes
                 .OrderBy(x => x.day_index)
@@ -96,8 +110,20 @@ namespace backend.Services
 
             foreach (MapNode node in nodes)
             {
-                // 第一個節點固定開放；抵達第 N 節點後開放第 N+1 節點（協作隊伍全隊共用進度）。
-                node.is_unlocked = TeamProgress.IsUnlocked(node.node_order, currentNodeOrder);
+                // 第一個節點固定開放；破完第 N 節點（任務全部通過）才開放第 N+1 節點（協作隊伍全隊共用進度）。
+                node.is_unlocked = TeamProgress.IsUnlocked(node.node_order, stageOrder);
+                node.is_current = node.node_order == stageOrder;
+                node.is_arrived = TeamProgress.IsReached(node.node_order, arrivedOrder);
+                node.codename = string.IsNullOrWhiteSpace(node.fog_hint) ? null : node.fog_hint.Trim();
+
+                // 景點是哪裡，到了現場才知道：還沒抵達的站（目前這一關、迷霧中的站）不回傳真實名稱，
+                // 照片也換成這一站照片的迷霧版（真實照片一看就知道答案）
+                if (!node.is_arrived)
+                {
+                    node.place_name = null;
+                    missingFog |= node.image_url != null && node.fog_image == null;
+                    node.image_url = node.fog_image != null ? ToAbsoluteUrl(node.fog_image, baseUrl) : defaultFog;
+                }
 
                 if (node.is_unlocked)
                 {
@@ -109,13 +135,11 @@ namespace backend.Services
                 {
                     if (string.IsNullOrWhiteSpace(node.fog_hint))
                     {
-                        node.fog_hint = "前方仍被迷霧籠罩，抵達前一站後即可探索。";
+                        node.fog_hint = "前方仍被迷霧籠罩，完成前一站後即可探索。";
                     }
 
-                    // 迷霧中的站：不回傳真正的站名、照片與精確座標
-                    missingFog |= node.image_url != null && node.fog_image == null;
+                    // 迷霧中的站：不回傳真正的站名與精確座標（照片在上面已經換成迷霧圖）
                     node.location_name = node.fog_hint;
-                    node.image_url = node.fog_image != null ? ToAbsoluteUrl(node.fog_image, baseUrl) : defaultFog;
                     node.fog_radius_m = _fogRadiusMeters;
 
                     if (node.lat != 0 || node.lng != 0)
@@ -148,6 +172,9 @@ namespace backend.Services
 
                 unlocked_node_count = nodes.Count(x => x.is_unlocked),
                 total_node_count = nodes.Count,
+                current_node_id = nodes.FirstOrDefault(x => x.is_current)?.node_id,
+                reveal_radius_m = _fogRadiusMeters,
+                demo_mode = _demoMode,
 
                 postcard_unlocked_count =
                     _dao.GetUnlockedPostcardCount(auId, storyId),
@@ -220,14 +247,77 @@ namespace backend.Services
 
         #endregion
 
+        #region 示範模式
+
+        /// <summary>
+        /// 示範用破關：不檢查 GPS、不用作答，直接把這一站當成抵達而且任務全部通過，下一站就會解鎖。
+        /// 只有設定 Demo:AllowStageSkip = true 時能用（預設關閉，正式環境不要開）；一樣只能破已解鎖的站，不能跳關。
+        /// </summary>
+        public Task<MapResponse> DemoClearNode(int nodeId, ClaimsPrincipal user, string baseUrl)
+        {
+            EnsureDemoMode();
+            int auId = user.GetAuId();
+            int storyId = _dao.GetNodeStoryId(nodeId) ?? throw new KeyNotFoundException("找不到指定節點。");
+
+            if (!_dao.CanPlay(auId, storyId))
+            {
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法破關。");
+            }
+
+            EnsureUnlocked(auId, nodeId);
+
+            _dao.UnlockNode(auId, nodeId);
+            _dao.DemoClearNode(storyId, nodeId);
+
+            return GetMap(storyId, user, baseUrl);
+        }
+
+        /// <summary>示範用重來：這份劇本回到第一關（示範模式才能用）</summary>
+        public Task<MapResponse> DemoResetStory(int storyId, ClaimsPrincipal user, string baseUrl)
+        {
+            EnsureDemoMode();
+
+            if (!_dao.CanPlay(user.GetAuId(), storyId))
+            {
+                throw new UnauthorizedAccessException("你沒有參與這個劇本，無法重來。");
+            }
+
+            _dao.DemoResetStory(storyId);
+            return GetMap(storyId, user, baseUrl);
+        }
+
+        private void EnsureDemoMode()
+        {
+            if (!_demoMode)
+            {
+                throw new UnauthorizedAccessException("後端沒有開示範模式（設定 Demo:AllowStageSkip），不能直接破關。");
+            }
+        }
+
+        #endregion
+
         #region 取得節點詳情
 
-        /// <summary>節點詳情；還在迷霧中的站不能查看</summary>
+        /// <summary>
+        /// 節點詳情；還在迷霧中的站不能查看。已解鎖但還沒抵達的站（目前這一關）只給站名與 NPC，
+        /// 景點介紹與營業時間等到了現場才給（那些內容一看就知道是哪裡）
+        /// </summary>
         public NodeDetailResponse GetNodeDetail(int nodeId, ClaimsPrincipal user)
         {
-            EnsureUnlocked(user.GetAuId(), nodeId);
-            return LoadNodeDetail(nodeId);
+            bool arrived = EnsureUnlocked(user.GetAuId(), nodeId);
+            NodeDetailResponse result = LoadNodeDetail(nodeId);
+
+            if (!arrived)
+            {
+                result.intro_story = NotArrivedIntro;
+                result.opening_hours = null;
+            }
+
+            return result;
         }
+
+        /// <summary>還沒抵達的站，節點詳情的介紹文字</summary>
+        internal const string NotArrivedIntro = "到了現場，這裡的故事才會揭曉。";
 
         private NodeDetailResponse LoadNodeDetail(int nodeId)
         {
@@ -247,18 +337,30 @@ namespace backend.Services
 
         #region NPC 隨機互動
 
-        /// <summary>NPC 隨機互動；還在迷霧中的站不能互動</summary>
-        public NpcInteractionResponse GetNpcInteraction(int nodeId, ClaimsPrincipal user)
+        /// <summary>
+        /// NPC 隨機互動；還在迷霧中的站不能互動。已解鎖但還沒抵達的站（目前這一關）背景圖是迷霧圖、沒有景點副標題，
+        /// 真實照片到了現場才給
+        /// </summary>
+        public async Task<NpcInteractionResponse> GetNpcInteraction(int nodeId, ClaimsPrincipal user)
         {
-            EnsureUnlocked(user.GetAuId(), nodeId);
+            bool arrived = EnsureUnlocked(user.GetAuId(), nodeId);
 
             NpcInteractionResponse result =
-                _dao.GetRandomNpcInteraction(nodeId);
+                _dao.GetRandomNpcInteraction(nodeId, arrived);
 
             if (result == null)
             {
                 throw new KeyNotFoundException("此節點尚未設定 NPC 互動內容。");
             }
+
+            // 背景圖：景點照片直接用景點 ID 向 Neo4j 拿；還沒抵達時換成這張照片的迷霧版（還沒做好就用通用迷霧圖）
+            string placeId = _dao.GetNodeLocation(nodeId)?.place_id;
+            string photo = placeId == null ? null : (await _placeLookup.GetPlaceImagesAsync(new[] { placeId })).GetValueOrDefault(placeId);
+
+            result.scene_image_url = arrived
+                ? photo
+                : (photo == null ? null : _dao.GetFogImages(new[] { photo }).GetValueOrDefault(photo))
+                  ?? _dao.GetDefaultFogImage() ?? DefaultFogImage;
 
             result.node_id = nodeId;
             result.emotion ??= "normal";
@@ -300,25 +402,17 @@ namespace backend.Services
 
         #endregion
 
-        #region 周邊好去
-
-        public List<NearbyPlaceResponse> GetNearbyPlaces(
-            int storyId,
-            string category)
-        {
-            return _dao.GetNearbyPlaces(storyId, category ?? "");
-        }
-
-        #endregion
-
         #region 迷霧
 
-        /// <summary>第一站固定開放；玩家（協作隊伍全隊共用）抵達第 N 站後，開放第 N+1 站。規則見 TeamProgress</summary>
-        internal static bool IsUnlocked(int nodeOrder, int currentNodeOrder) =>
-            TeamProgress.IsUnlocked(nodeOrder, currentNodeOrder);
+        /// <summary>第一站固定開放；玩家（協作隊伍全隊共用）破完第 N 站後，才開放第 N+1 站。規則見 TeamProgress</summary>
+        internal static bool IsUnlocked(int nodeOrder, int stageOrder) =>
+            TeamProgress.IsUnlocked(nodeOrder, stageOrder);
 
-        /// <summary>這一站還在迷霧中就丟出 NodeLockedException（進度用 TeamProgress，協作隊伍全隊共用）</summary>
-        private void EnsureUnlocked(int auId, int nodeId)
+        /// <summary>
+        /// 這一站還在迷霧中就丟出 NodeLockedException（進度用 TeamProgress，協作隊伍全隊共用）。
+        /// 回傳隊伍抵達這一站了沒：已解鎖但還沒抵達的站，景點的真實照片與介紹還不能給
+        /// </summary>
+        private bool EnsureUnlocked(int auId, int nodeId)
         {
             MapDao.NodeProgress progress = _dao.GetNodeProgress(auId, nodeId);
 
@@ -327,10 +421,12 @@ namespace backend.Services
                 throw new KeyNotFoundException("找不到指定節點。");
             }
 
-            if (!IsUnlocked(progress.node_order, progress.current_order))
+            if (!IsUnlocked(progress.node_order, progress.stage_order))
             {
                 throw new NodeLockedException();
             }
+
+            return TeamProgress.IsReached(progress.node_order, progress.arrived_order);
         }
 
         /// <summary>

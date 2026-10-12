@@ -112,6 +112,89 @@ namespace backend.Services.Neo4j
         }
 
         /// <summary>
+        /// 景點的照片：景點 ID（story_node.place_id）→ 照片網址。地圖、劇本詳情、迷霧圖、回顧、Vlog 要景點照片都從這裡拿。
+        /// 1. 直接用景點 ID 向 Neo4j 查 (:Place)-[:HAS_IMAGE]->(:Image)。一個景點有多張時固定取網址排序的第一張，
+        ///    每次拿到的都是同一張（迷霧圖是依照片網址對應的，照片不能每次不一樣）。
+        /// 2. Neo4j 沒有照片、沒有這個景點或連不上時，才用 MySQL 的 place.p_image
+        ///    （place_type 用景點 ID 對到名稱，再用名稱對到 place；place-{p_id} 這種 ID 直接查 place）。
+        /// 沒有照片的景點不會出現在結果裡。
+        /// </summary>
+        public async Task<Dictionary<string, string>> GetPlaceImagesAsync(IEnumerable<string> placeIds)
+        {
+            List<string> ids = (placeIds ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            var result = new Dictionary<string, string>();
+            if (ids.Count == 0) return result;
+
+            List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
+            if (uids.Count > 0)
+            {
+                try
+                {
+                    var rows = await _gateway.ExecuteCypherAsync(@"
+                        MATCH (p:Place)-[:HAS_IMAGE]->(img:Image)
+                        WHERE p.uid IN $uids AND img.url IS NOT NULL AND img.url <> ''
+                        WITH p, img ORDER BY img.url
+                        RETURN p.uid AS uid, collect(img.url)[0] AS image_url", new { uids });
+
+                    foreach (var row in rows ?? new List<Dictionary<string, object>>())
+                    {
+                        string uid = Neo4jValueConverter.AsString(row.GetValueOrDefault("uid"));
+                        string url = Neo4jValueConverter.AsString(row.GetValueOrDefault("image_url"));
+                        if (!string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(url)) result[uid] = url.Trim();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "向 Neo4j 查景點照片失敗，改用 MySQL place 表的照片。");
+                }
+            }
+
+            List<string> missing = ids.Where(id => !result.ContainsKey(id)).ToList();
+            if (missing.Count > 0)
+            {
+                foreach (var (id, image) in await GetMySqlImagesAsync(missing))
+                    result[id] = image;
+            }
+
+            return result;
+        }
+
+        /// <summary>MySQL 的景點照片（place.p_image）；對應方式跟 GetBridgedPlacesAsync 相同</summary>
+        private async Task<List<(string id, string image)>> GetMySqlImagesAsync(List<string> ids)
+        {
+            var found = new List<(string id, string image)>();
+            using var conn = new MySqlConnection(_appSettings.mydb);
+
+            List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
+            if (uids.Count > 0)
+            {
+                found.AddRange(await conn.QueryAsync<(string id, string image)>(@"
+                    SELECT pt.place_id, p.p_image
+                    FROM (SELECT place_id, MIN(place_name) AS place_name FROM place_type WHERE place_id IN @uids GROUP BY place_id) pt
+                    INNER JOIN place p ON p.p_id = (SELECT MIN(p2.p_id) FROM place p2 WHERE p2.p_name = pt.place_name)
+                    WHERE p.p_image IS NOT NULL AND p.p_image <> '';", new { uids }));
+            }
+
+            List<int> pIds = ids
+                .Where(id => id.StartsWith(MySqlPlacePrefix))
+                .Select(id => int.TryParse(id.Substring(MySqlPlacePrefix.Length), out int pId) ? pId : 0)
+                .Where(pId => pId > 0)
+                .ToList();
+            if (pIds.Count > 0)
+            {
+                var rows = await conn.QueryAsync<(int p_id, string image)>(
+                    "SELECT p_id, p_image FROM place WHERE p_id IN @pIds AND p_image IS NOT NULL AND p_image <> '';", new { pIds });
+                found.AddRange(rows.Select(r => (MySqlPlacePrefix + r.p_id, r.image)));
+            }
+
+            return found;
+        }
+
+        /// <summary>
         /// Neo4j 查不到的景點改用 MySQL：place_type（uid → 景點名稱，每個景點依題型有多筆，先收斂成一筆）
         /// → place（名稱 → 座標，同名多筆取編號最小的）。沒有對應或沒有座標的不會出現在結果裡。
         /// </summary>

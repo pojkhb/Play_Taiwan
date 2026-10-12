@@ -1,7 +1,8 @@
 // 檔案路徑：System\dao\Pair\TeamProgress.cs
 // 協作隊伍共用進度：登入者與同一支隊伍（未取消）的成員看同一個進度，
 // 取所有人在這份劇本最遠抵達的節點順序（story_session.ss_current）。
-// 沒有隊伍時就是登入者自己的進度。地圖解鎖、抵達檢查、任務門檻都用這個。
+// 沒有隊伍時就是登入者自己的進度。抵達檢查、任務門檻都用這個。
+// 地圖解鎖另外看「目前這一關」（GetStageOrder）：破完一站才開下一站。
 // 另外負責「誰能玩這份劇本」：劇本擁有者，或協作隊伍（未取消）的成員。
 using System.Collections.Generic;
 using System.Linq;
@@ -35,10 +36,33 @@ namespace backend.dao
             return conn.ExecuteScalar<int>(CurrentNodeOrderSql, new { auId, storyId }, transaction);
         }
 
-        /// <summary>節點是否已解鎖：第一站固定開放，之後抵達第 N 站就解鎖第 N+1 站。</summary>
-        public static bool IsUnlocked(int nodeOrder, int currentNodeOrder)
+        /// <summary>
+        /// 目前這一關的站序：依站的順序，第一個還沒破關的站。
+        /// 破關 = 隊伍抵達過這一站，而且這一站的任務全部通過（沒有任務的站抵達就算破關）。
+        /// 全部破關後回傳最後一站的站序 + 1。地圖迷霧、抵達檢查、路線顯示都用這個判斷解鎖到哪一站。
+        /// </summary>
+        public static int GetStageOrder(MySqlConnection conn, int auId, int storyId, MySqlTransaction transaction = null)
         {
-            return nodeOrder == 1 || nodeOrder <= currentNodeOrder + 1;
+            int current = GetCurrentNodeOrder(conn, auId, storyId, transaction);
+
+            return conn.ExecuteScalar<int>(@"
+                SELECT COALESCE(
+                    MIN(sn.sn_order),
+                    (SELECT COALESCE(MAX(sn_order), 0) + 1 FROM story_node WHERE s_id = @storyId))
+                FROM story_node sn
+                WHERE sn.s_id = @storyId
+                  AND (sn.sn_order > @current
+                       OR EXISTS (SELECT 1 FROM task t WHERE t.node_id = sn.sn_id AND t.pass = 0));",
+                new { storyId, current }, transaction);
+        }
+
+        /// <summary>
+        /// 節點是否已解鎖：第一站固定開放，之後破完第 N 站才解鎖第 N+1 站（一關一關開）。
+        /// stageOrder 是目前這一關的站序（GetStageOrder），這一關和之前的站都是解鎖的。
+        /// </summary>
+        public static bool IsUnlocked(int nodeOrder, int stageOrder)
+        {
+            return nodeOrder == 1 || nodeOrder <= stageOrder;
         }
 
         /// <summary>節點是否已被隊伍抵達過（抵達過才能看、做這一站的任務）。</summary>

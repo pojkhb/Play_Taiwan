@@ -87,11 +87,21 @@ namespace backend.ViewModels
         /// <summary>沒有劇本時要依序經過的點（不含起點）</summary>
         public List<RoutePoint> points { get; set; }
 
-        /// <summary>交通方式（可複選）：步行、腳踏車、機車、汽車、公車、捷運。每一段會各自挑最快的方式</summary>
+        /// <summary>
+        /// 交通方式（可複選）：步行、腳踏車、機車、汽車、公車、捷運。每一段會各自挑最快的方式。
+        /// 帶 story_id 而沒帶這個欄位時，用生成劇本時使用者選的交通方式；都沒有就用步行
+        /// </summary>
         public List<string> transportation { get; set; }
 
         /// <summary>是否規劃返程（最後一站回到起點），預設 true</summary>
         public bool include_return { get; set; } = true;
+
+        /// <summary>
+        /// 只規劃「前往目前這一關」的那一段（帶 story_id 時才有作用）：從 start（使用者目前位置）到目前這一關。
+        /// 沒帶 start 時，第一關從劇本建議起點出發，之後從上一站出發。全部破關後沒有路線可以規劃，legs 是空的。
+        /// 藏寶圖上每一關只需要這一段，比整趟重新規劃快
+        /// </summary>
+        public bool current_only { get; set; }
     }
 
     #endregion
@@ -111,8 +121,14 @@ namespace backend.ViewModels
         /// <summary>起點</summary>
         public RoutePoint start { get; set; }
 
-        /// <summary>依序要去的節點（不含起點）</summary>
+        /// <summary>
+        /// 依序要去的節點（不含起點）。帶 story_id 時只有已解鎖的站：已經破關的站和目前這一關，
+        /// 還在迷霧中的站不會回傳（數量見 locked_stop_count）
+        /// </summary>
         public List<RouteStopPoint> stops { get; set; }
+
+        /// <summary>還在迷霧中、沒有回傳的站數；破完目前這一關後重新規劃就會多一站。沒有劇本時為 0</summary>
+        public int locked_stop_count { get; set; }
 
         /// <summary>每一段路線，依 leg_order 排序（去程在前、返程最後）</summary>
         public List<RouteLeg> legs { get; set; }
@@ -145,11 +161,23 @@ namespace backend.ViewModels
         /// <summary>第幾站，從 1 開始</summary>
         public int order { get; set; }
 
-        /// <summary>節點名稱（景點真實名稱）</summary>
+        /// <summary>
+        /// 節點名稱。帶 story_id 時：抵達過的站是景點真實名稱；還沒抵達的目前這一關是地點代號（沒有代號時用節點標題），
+        /// 抵達後重新規劃才會換成真實名稱
+        /// </summary>
         public string name { get; set; }
 
         /// <summary>劇情化的節點標題，沒有劇本時為 null</summary>
         public string title { get; set; }
+
+        /// <summary>地點代號（story_node.location_codename），藏寶圖上還沒破關的景點用代號當地標名稱；沒有劇本時為 null</summary>
+        public string codename { get; set; }
+
+        /// <summary>這一站是否已經破關（任務全部通過）；沒有劇本時為 false</summary>
+        public bool is_cleared { get; set; }
+
+        /// <summary>是否為目前這一關（地圖上亮起來、現在要前往的那一站）；沒有劇本時為 false</summary>
+        public bool is_current { get; set; }
 
         /// <summary>緯度</summary>
         public double lat { get; set; }
@@ -172,6 +200,12 @@ namespace backend.ViewModels
 
         /// <summary>抵達點名稱</summary>
         public string to_name { get; set; }
+
+        /// <summary>這一段要前往的劇本節點（story_node.sn_id）；返程或沒有劇本時為 null</summary>
+        public int? to_sn_id { get; set; }
+
+        /// <summary>是否為前往目前這一關的那一段（藏寶圖上現在要顯示的路線）；其餘是已經走過的路線</summary>
+        public bool is_current { get; set; }
 
         /// <summary>這段採用的主要交通方式（最快的那個選項），例如「公車」</summary>
         public string mode { get; set; }
@@ -280,13 +314,13 @@ namespace backend.ViewModels
         /// <summary>行政區</summary>
         public string district_name { get; set; }
 
-        /// <summary>節點數</summary>
+        /// <summary>節點總數（含還在迷霧中的站）</summary>
         public int node_count { get; set; }
 
         /// <summary>建議起點：第一站附近的捷運站或最多路線經過的公車站，前端沒有定位時可以直接用</summary>
         public RoutePoint suggested_start { get; set; }
 
-        /// <summary>節點（含座標），依順序排列</summary>
+        /// <summary>已解鎖的節點（含座標），依順序排列；還在迷霧中的站不回傳</summary>
         public List<RouteStopPoint> nodes { get; set; }
     }
 

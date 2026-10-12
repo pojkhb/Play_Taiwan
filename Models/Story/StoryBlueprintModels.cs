@@ -169,6 +169,10 @@ namespace backend.Models
 
         /// <summary>景點照片（完整網址），劇本檔案館與地圖解鎖後用同一張；景點沒有照片時為 null</summary>
         public string image_url { get; set; }
+
+        /// <summary>內部用：景點 ID（story_node.place_id），用它向 Neo4j 拿景點照片，不回傳給前端</summary>
+        [JsonIgnore]
+        public string place_id { get; set; }
     }
     public class AgentOrchestrateRequest
 {

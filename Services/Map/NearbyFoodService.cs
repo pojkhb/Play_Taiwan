@@ -53,7 +53,7 @@ namespace backend.Services
             // ── 1. 兩個來源 ──
             List<NearbyFoodPlace> places = new();
 
-            List<Neo4jFoodRow> fromNeo4j = await _neo4j.ExecuteCypherAsync<List<Neo4jFoodRow>>(Neo4jFoodQuery, new
+            List<Neo4jFoodRow> fromNeo4j = await _neo4j.ExecuteCypherAsync<List<Neo4jFoodRow>>(NearbyQuery("Restaurant"), new
             {
                 lat, lng, radius_m = radius, bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon
             }) ?? new List<Neo4jFoodRow>();   // null 代表 AI service 的 Neo4j 連不上，只用 MySQL
@@ -142,9 +142,14 @@ namespace backend.Services
 
         #region Neo4j
 
-        // 政府開放資料的欄位在不同來源命名不一致（name／EventName、lat／PositionLat），用 coalesce 統一
-        private const string Neo4jFoodQuery = @"
-            MATCH (r:Restaurant)
+        /// <summary>
+        /// 某一類景點（Neo4j 標籤：Restaurant、Attraction）在目前位置附近的查詢，周邊好去（NearbyPlaceService）共用。
+        /// 政府開放資料的欄位在不同來源命名不一致（name／EventName、lat／PositionLat），用 coalesce 統一
+        /// </summary>
+        internal static string NearbyQuery(string label) => NearbyQueryTemplate.Replace("__LABEL__", label);
+
+        private const string NearbyQueryTemplate = @"
+            MATCH (r:__LABEL__)
             WITH r, toFloat(coalesce(r.lat, r.PositionLat)) AS lat, toFloat(coalesce(r.lon, r.PositionLon)) AS lon
             WHERE lat IS NOT NULL AND lon IS NOT NULL
               AND lat >= $minLat AND lat <= $maxLat AND lon >= $minLon AND lon <= $maxLon
@@ -301,7 +306,7 @@ namespace backend.Services
         private static string Distance(int meters) =>
             meters < 1000 ? $"{meters} 公尺" : $"{(meters / 1000.0).ToString("0.#", CultureInfo.InvariantCulture)} 公里";
 
-        private static string NormalizeName(string name) =>
+        internal static string NormalizeName(string name) =>
             (name ?? "").Replace(" ", "").Replace("台", "臺").Trim().ToLowerInvariant();
 
         #endregion

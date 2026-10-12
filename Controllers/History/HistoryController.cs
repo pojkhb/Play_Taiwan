@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -36,11 +37,14 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 對應「過往」頁面的收藏館列表，顯示已完成的劇本卷。
-        /// 
+        ///
+        /// - cover_image_url：卡片左邊的照片，是玩家這趟拍的第一張照片（依站的順序）；這趟沒拍照片時為 null
+        /// - spots、photos：列表不回傳（null），要看請呼叫詳情
+        ///
         /// **Request 範例**：
-        /// 
+        ///
         ///     GET /api/History
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
@@ -48,13 +52,15 @@ namespace backend.Controllers
         ///   "message": "查詢成功",
         ///   "Result": [
         ///     {
-        ///       "story_id": "story_tainan_001",
-        ///       "title": "府城儒生失落卷",
-        ///       "synopsis": "尋著百年軌跡，找回失落記憶……",
-        ///       "completed_date": "2026-08-09T00:00:00",
-        ///       "region": "台南永康區",
-        ///       "vlog_id": "VLOG-001",
-        ///       "spots": null
+        ///       "story_id": 128,
+        ///       "title": "捷運迷城的懸案",
+        ///       "synopsis": "從臺大醫院站出發，靠捷運在城南、萬華與信義之間追查線索……",
+        ///       "completed_date": "2026-10-04T16:20:00",
+        ///       "region": "臺北市中正區",
+        ///       "vlog_id": 12,
+        ///       "spots": null,
+        ///       "cover_image_url": "https://example.com/uploads/3f2a9c1e.jpg",
+        ///       "photos": null
         ///     }
         ///   ]
         /// }
@@ -68,11 +74,14 @@ namespace backend.Controllers
         {
             try
             {
+                List<HistoryStoryItem> result = _service.GetHistoryList(User.GetAuId());
+                result.ForEach(ToPublicUrls);
+
                 return Ok(new ResultViewModel<List<HistoryStoryItem>>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetHistoryList(User.GetAuId())
+                    Result = result
                 });
             }
             catch (Exception e)
@@ -89,27 +98,36 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 對應「過往－卷」頁面，顯示完成日期、故事大綱以及探索總覽(Spots)。
-        /// 
+        ///
+        /// - photos：上方左右滑動的照片，是玩家這趟拍的所有照片，依站的順序、拍攝時間排列；
+        ///   place_name 是拍照那一站的景點名稱，可當照片說明。這趟沒拍照片時為空陣列
+        /// - cover_image_url：photos 的第一張，跟列表卡片用同一張
+        ///
         /// **Request 範例**：
-        /// 
-        ///     GET /api/History/story_tainan_001
-        /// 
+        ///
+        ///     GET /api/History/128
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
         ///   "isSuccess": true,
         ///   "message": "查詢成功",
         ///   "Result": {
-        ///     "story_id": "story_tainan_001",
-        ///     "title": "府城儒生失落卷",
-        ///     "synopsis": "尋著百年軌跡，找回失落記憶……",
-        ///     "completed_date": "2026-08-09T00:00:00",
-        ///     "region": "台南永康區",
-        ///     "vlog_id": "VLOG-001",
+        ///     "story_id": 128,
+        ///     "title": "捷運迷城的懸案",
+        ///     "synopsis": "從臺大醫院站出發，靠捷運在城南、萬華與信義之間追查線索……",
+        ///     "completed_date": "2026-10-04T16:20:00",
+        ///     "region": "臺北市中正區",
+        ///     "vlog_id": 12,
         ///     "spots": [
-        ///       "臺南孔廟",
-        ///       "赤崁樓",
-        ///       "神農街"
+        ///       "國立臺灣博物館",
+        ///       "國立中正紀念堂",
+        ///       "艋舺龍山寺"
+        ///     ],
+        ///     "cover_image_url": "https://example.com/uploads/3f2a9c1e.jpg",
+        ///     "photos": [
+        ///       { "node_id": 901, "node_order": 1, "place_name": "國立臺灣博物館", "image_url": "https://example.com/uploads/3f2a9c1e.jpg" },
+        ///       { "node_id": 903, "node_order": 3, "place_name": "艋舺龍山寺", "image_url": "https://example.com/uploads/8b41d07a.jpg" }
         ///     ]
         ///   }
         /// }
@@ -124,11 +142,14 @@ namespace backend.Controllers
         {
             try
             {
+                HistoryStoryItem result = _service.GetHistoryDetail(story_id, User.GetAuId());
+                ToPublicUrls(result);
+
                 return Ok(new ResultViewModel<HistoryStoryItem>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetHistoryDetail(story_id, User.GetAuId())
+                    Result = result
                 });
             }
             catch (Exception e)
@@ -136,6 +157,13 @@ namespace backend.Controllers
                 _logger.LogError(e, $"取得過往劇本詳情失敗: {story_id}");
                 return StatusCode(500, new ResultViewModel<HistoryStoryItem> { isSuccess = false, message = e.Message, Result = null });
             }
+        }
+
+        /// <summary>照片存的是上傳時的網址；萬一是相對路徑，補成目前連進來的完整網址</summary>
+        private void ToPublicUrls(HistoryStoryItem item)
+        {
+            item.cover_image_url = PublicUrl.Of(Request, item.cover_image_url);
+            item.photos?.ForEach(p => p.image_url = PublicUrl.Of(Request, p.image_url));
         }
         #endregion
 

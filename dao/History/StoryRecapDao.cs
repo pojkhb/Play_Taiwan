@@ -70,6 +70,11 @@ namespace backend.dao
             public string sn_opening_text { get; set; }
             public string sn_success_text { get; set; }
             public string place_name { get; set; }
+
+            /// <summary>景點 ID（story_node.place_id），StoryRecapService 用它向 Neo4j 拿景點照片</summary>
+            public string place_id { get; set; }
+
+            /// <summary>景點照片，由 StoryRecapService 補上</summary>
             public string place_image { get; set; }
         }
 
@@ -78,7 +83,7 @@ namespace backend.dao
             using var conn = Open();
             return (await conn.QueryAsync<NodeRow>($@"
                 SELECT sn.sn_id, sn.sn_order, sn.sn_title, sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
-                       p.p_name AS place_name, NULLIF(p.p_image, '') AS place_image
+                       p.p_name AS place_name, sn.place_id
                 FROM story_node sn
                 {MapDao.PlaceBridgeJoin}
                 WHERE sn.s_id = @storyId

@@ -16,15 +16,17 @@ public class FogTests
         return Math.Sqrt(dLat * dLat + dLng * dLng);
     }
 
+    // stageOrder：目前這一關是第幾站（依序第一個還沒破關的站）
     [Theory]
-    [InlineData(1, 0, true)]    // 第一站固定開放
-    [InlineData(2, 0, false)]   // 還沒抵達第一站
-    [InlineData(2, 1, true)]    // 抵達第一站後開放第二站
-    [InlineData(3, 1, false)]   // 不能跳站
-    [InlineData(2, 3, true)]    // 已經走過的站保持開放
-    public void 抵達第N站後才開放第N加1站(int nodeOrder, int currentOrder, bool unlocked)
+    [InlineData(1, 1, true)]    // 第一站固定開放
+    [InlineData(2, 1, false)]   // 第一站還沒破關，第二站在迷霧中
+    [InlineData(2, 2, true)]    // 破完第一站後開放第二站
+    [InlineData(3, 2, false)]   // 不能跳站
+    [InlineData(2, 4, true)]    // 已經破關的站保持開放
+    [InlineData(3, 4, true)]    // 全部破關後（站序 + 1）每一站都開放
+    public void 破完第N站後才開放第N加1站(int nodeOrder, int stageOrder, bool unlocked)
     {
-        Assert.Equal(unlocked, MapService.IsUnlocked(nodeOrder, currentOrder));
+        Assert.Equal(unlocked, MapService.IsUnlocked(nodeOrder, stageOrder));
     }
 
     [Fact]

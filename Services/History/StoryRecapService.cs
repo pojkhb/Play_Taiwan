@@ -28,12 +28,15 @@ namespace backend.Services
         private readonly NpcVoiceService _voice;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<StoryRecapService> _logger;
+        private readonly Neo4j.PlaceLookupService _placeLookup;
         private readonly string _outputRoot;
 
         public StoryRecapService(StoryRecapDao dao, VisitorVlogDao vlogDao, NpcVoiceService voice, IHttpClientFactory httpClientFactory,
-                                 IWebHostEnvironment environment, IConfiguration configuration, ILogger<StoryRecapService> logger)
+                                 IWebHostEnvironment environment, IConfiguration configuration, ILogger<StoryRecapService> logger,
+                                 Neo4j.PlaceLookupService placeLookup)
         {
             _dao = dao;
+            _placeLookup = placeLookup;
             _vlogDao = vlogDao;
             _voice = voice;
             _httpClientFactory = httpClientFactory;
@@ -145,7 +148,13 @@ namespace backend.Services
             StoryRecapDao.CompletedSession session = await _dao.GetCompletedSessionAsync(auId, storyId)
                 ?? throw new InvalidOperationException("還沒完成這個劇本，完成後才能回顧");
 
-            return (story, session, await _dao.GetNodesAsync(storyId), await _vlogDao.GetVlogAsync(auId, storyId));
+            // 每一站的景點照片直接用景點 ID 向 Neo4j 拿
+            List<StoryRecapDao.NodeRow> nodes = await _dao.GetNodesAsync(storyId);
+            Dictionary<string, string> images = await _placeLookup.GetPlaceImagesAsync(nodes.Select(n => n.place_id));
+            foreach (StoryRecapDao.NodeRow node in nodes)
+                node.place_image = node.place_id != null ? images.GetValueOrDefault(node.place_id) : null;
+
+            return (story, session, nodes, await _vlogDao.GetVlogAsync(auId, storyId));
         }
 
         #endregion

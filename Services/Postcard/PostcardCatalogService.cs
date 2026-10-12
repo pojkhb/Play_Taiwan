@@ -126,7 +126,7 @@ namespace backend.Services
                 p_name = $"{request.spot_name} 專屬明信片",
                 p_summary = aiResult.PostcardIntroduction,
                 p_imag_url = aiResult.DownloadUrl,
-                is_night = request.is_night_edition ? 1 : 2
+                is_night = request.is_night_edition ? 1 : 0
             };
 
             // postcard 已含 au_id，寫入即完成歸戶，不需要再綁定一次。

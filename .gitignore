@@ -50,3 +50,6 @@ wwwroot/audio/narration/
 openapi_full.json
 openapi.json
 prompt/
+
+# 除錯輸出（例如送給 AI 的 request）
+logs/

@@ -17,6 +17,7 @@ public class NearbyPlacesApiTests
     {
         _api = api;
         _api.FakeAi.Reset();
+        _api.FakeNeo4j.Reset();   // Neo4j 連不上，只用 MySQL 的地點
     }
 
     // 每個測試用不同的中心點（彼此相距 20 公里以上），互不干擾；附近也沒有其他測試建立的景點

@@ -90,6 +90,13 @@ namespace backend
             //     });
             services.AddHttpClient();
 
+            // 記錄每一次呼叫 AI Service 的 request / response（logs/ai/{日期}/），
+            // 掛在所有 IHttpClientFactory 建立的 HttpClient 上，只記錄 AiService:BaseUrl 的網址
+            services.AddTransient<AiTrafficLogHandler>();
+            services.ConfigureAll<Microsoft.Extensions.Http.HttpClientFactoryOptions>(options =>
+                options.HttpMessageHandlerBuilderActions.Add(builder =>
+                    builder.AdditionalHandlers.Add(builder.Services.GetRequiredService<AiTrafficLogHandler>())));
+
             // 若以 IIS in-process 模式代管，Kestrel 的 [RequestSizeLimit] 不會生效，
             // 需另外調高 IIS 的請求大小上限，跟 UploadController 的 MaxUploadBytes 對齊（200MB）。
             services.Configure<IISServerOptions>(options =>
@@ -116,7 +123,7 @@ namespace backend
             services.AddScoped<dao.MapDao>();
             #endregion
             #region S09-任務答題
-            services.AddHttpClient<Services.Neo4jService>();
+            services.AddScoped<Services.Neo4jService>();
             services.AddScoped<Services.TaskService>();
             services.AddScoped<dao.TaskDao>();
             services.AddScoped<Services.ITaskVerificationService, Services.TaskVerificationService>();
@@ -214,26 +221,14 @@ namespace backend
             #region S17-商家資料維護 + QR Code（play_taiwan_db_v5：auth/store/coupon/qrcode_coupon/user_coupon/store_question/question_option）
             services.Configure<Neo4jSettings>(Configuration.GetSection("Neo4jSettings"));
 
-            // Neo4j:Mode = Local（本地測試 Driver）/ Remote（正式對外 /api/neo4j/cypher）
-            // 上層 PlaceVersionChainService 只依賴 INeo4jGatewayService，切換這裡即可，不用改業務邏輯。
-            bool useRemoteNeo4j = Configuration["Neo4j:Mode"] == "Remote";
-            if (useRemoteNeo4j)
+            // Neo4j 一律用官方 Driver 直連（Neo4jSettings），不經過 AI service 的 /api/neo4j/cypher。
+            // Neo4jService、PlaceVersionChainService、PlaceLookupService 都透過 INeo4jGatewayService 查詢。
+            services.AddSingleton<IDriver>(sp =>
             {
-                services.AddHttpClient<RemoteNeo4jApiGatewayService>(client =>
-                {
-                    client.Timeout = TimeSpan.FromSeconds(30);
-                });
-                services.AddScoped<INeo4jGatewayService>(sp => sp.GetRequiredService<RemoteNeo4jApiGatewayService>());
-            }
-            else
-            {
-                services.AddSingleton<IDriver>(sp =>
-                {
-                    Neo4jSettings config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Neo4jSettings>>().Value;
-                    return GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.User, config.Password));
-                });
-                services.AddScoped<INeo4jGatewayService, LocalNeo4jDriverGatewayService>();
-            }
+                Neo4jSettings config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Neo4jSettings>>().Value;
+                return GraphDatabase.Driver(config.Uri, AuthTokens.Basic(config.User, config.Password));
+            });
+            services.AddScoped<INeo4jGatewayService, LocalNeo4jDriverGatewayService>();
 
             services.AddScoped<PlaceVersionChainService>();
             // 景點座標查詢（劇本節點 uid → Neo4j），地圖抵達、任務作答、導航共用
@@ -346,6 +341,16 @@ namespace backend
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            // 反向代理（Cloudflare Tunnel / Nginx）帶來的 X-Forwarded-Proto/For 要最先套用，
+            // 後面組網址（驗證信、重設密碼、圖片網址）才會拿到 https 與真實 IP
+            app.UseForwardedHeaders(
+                new ForwardedHeadersOptions
+                {
+                    ForwardedHeaders =
+                        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+                }
+            );
+
             // 集中式例外處理放在最外層：包住包含 DeveloperExceptionPage 在內的所有後續中介軟體，
             // 讓 API 不管在哪個環境，未攔截例外都統一回傳 ResultViewModel JSON，
             // 不會在本機開發時被 DeveloperExceptionPage 攔走、變成整頁 HTML 除錯畫面。
@@ -369,14 +374,6 @@ namespace backend
             {
                 endpoints.MapControllers();
             });
-
-            app.UseForwardedHeaders(
-                new ForwardedHeadersOptions
-                {
-                    ForwardedHeaders =
-                        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-                }
-            );
 
             ConfigureBusSync(app);
             ConfigureMetroSync(app);

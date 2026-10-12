@@ -13,7 +13,11 @@ public class RouteStageApiTests
 {
     private readonly ApiFactory _api;
 
-    public RouteStageApiTests(ApiFactory api) => _api = api;
+    public RouteStageApiTests(ApiFactory api)
+    {
+        _api = api;
+        _api.FakeNeo4j.Reset();   // Neo4j 連不上，景點座標用 MySQL
+    }
 
     /// <summary>建立 3 站的劇本（景點名稱不重複）；回傳 (story_id, 每站 sn_id, 景點名稱)</summary>
     private async Task<(int storyId, int[] nodes, string[] places)> CreateStoryAsync(int user)

@@ -123,9 +123,10 @@ namespace backend.ViewModels
         public int badge_id { get; set; }
         public string name { get; set; }
 
-        /// <summary>系列，例如「午夜台灣」</summary>
+        /// <summary>系列，前面帶圖示，例如「🌙 午夜台灣」</summary>
         public string series { get; set; }
 
+        /// <summary>勳章圖片（完整網址）</summary>
         public string image_url { get; set; }
     }
 

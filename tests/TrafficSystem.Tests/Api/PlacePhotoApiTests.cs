@@ -22,7 +22,11 @@ public class PlacePhotoApiTests
 {
     private readonly ApiFactory _api;
 
-    public PlacePhotoApiTests(ApiFactory api) => _api = api;
+    public PlacePhotoApiTests(ApiFactory api)
+    {
+        _api = api;
+        _api.FakeNeo4j.Reset();
+    }
 
     /// <summary>
     /// 假的 Neo4j：查照片（HAS_IMAGE）時回傳指定的照片；其他查詢（例如座標）回傳空的，讓後端改用 MySQL。

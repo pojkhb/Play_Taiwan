@@ -103,7 +103,7 @@
 |---|---|
 | .NET SDK 8.0.414 | 版本見 `global.json` |
 | MySQL 8.0 | 主要資料庫 |
-| Neo4j | 商家模組用。本機開發建議用 Neo4j Desktop |
+| Neo4j | 景點資料。附近景點、劇本生成、路線規劃、商家模組都直連本機 Neo4j，建議用 Neo4j Desktop |
 | Docker Desktop + Valhalla | 交通路網。劇本生成、交通規劃會用到，架設步驟見 [docs/valhalla-setup.md](docs/valhalla-setup.md) |
 
 ### 2. 下載專案
@@ -187,12 +187,10 @@ dotnet run
 | `AppSettings:jwt_secret` | JWT 簽章金鑰 | ✅ |
 | `AppSettings:expires` | JWT 有效時間（分鐘） | ✅ |
 | `AppSettings:hash_key` | 密碼雜湊用的金鑰 | ✅ |
-| `Neo4jSettings:*` | 本機 Neo4j 連線（Uri、User、Password、Database） | 商家模組需要 |
-| `Neo4j:Mode` | `Local`：直連本機 Neo4j；`Remote`：改用 AI 服務的 `/api/neo4j/cypher` | |
+| `Neo4jSettings:*` | 本機 Neo4j 連線（Uri、User、Password、Database），所有 Neo4j 查詢都直連這裡 | 景點查詢、劇本生成、商家模組需要 |
 | `AiService:BaseUrl` | AI 服務網址 | 劇本生成、Vlog、明信片、語音需要 |
 | `Valhalla:BaseUrl` | Valhalla 網址，預設 `http://localhost:8002` | 交通功能需要 |
 | `SmtpSettings:*` | 寄信用的 SMTP 設定 | 註冊驗證信、忘記密碼需要 |
-| `PublicBaseUrl` | 驗證信、忘記密碼信裡連結用的後端網址（例如 `https://playtaiwan.example.com`）。不設定時用 App 呼叫後端時的網址 | 有正式網域時再設 |
 | `AppSettings:tdx_client_id`、`tdx_client_secret` | TDX 交通資料金鑰 | 同步公車、捷運時需要 |
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |
@@ -276,14 +274,14 @@ docker run -d --name play-taiwan -p 5501:5501 \
 
 - 政府開放資料的景點節點永遠不修改。
 - 商家補充或修改的資訊寫在新的 `:Current` 版本節點，用 `[:HAS_VERSION]` 連回景點；再修改時，舊版本改標成 `:Historical`。
-- 商家自己新建的景點會多一個 `:MerchantPlace` 標籤。刪除商家時只會刪掉這種自建景點，不會動到政府資料。
+- 商家自己新建的景點會多一個 `:MerchantPlace` 標籤。註冊失敗要清理時只會刪掉這種自建景點，不會動到政府資料。
 
 **已知限制**
 
 - `store` 表沒有電話、網站欄位，`PUT /api/merchant/{sId}` 只會把名稱、地址、簡介同步到 Neo4j。
 - 景點還沒有商家版本時，`GET /api/nfc/scan/{nfcUid}` 回傳的 `merchant_override` 是 `null`，前端請改顯示 `gov_name`、`gov_address`。
-- 題目或商家被任務（`task.question_id`）引用時不能刪除，會回傳 409 與引用的 `task_id` 清單。
-- MySQL 與 Neo4j 沒有共用交易：刪除商家時，MySQL 刪除成功後才清 Neo4j，Neo4j 失敗只記 log；註冊時如果 MySQL 寫入失敗，會把剛建立的 Neo4j 景點刪掉。
+- 題目被任務（`task.question_id`）引用時不能刪除，會回傳 409 與引用的 `task_id` 清單。
+- MySQL 與 Neo4j 沒有共用交易：註冊時如果 MySQL 寫入失敗，會把剛建立的 Neo4j 景點刪掉。
 
 ---
 

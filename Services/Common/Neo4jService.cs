@@ -1,102 +1,54 @@
 // 檔案路徑：System\Services\Common\Neo4jService.cs
 using System;
 using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using backend.Models;
-using backend.utils;
+using backend.Services.Neo4j;
 
 
 namespace backend.Services
 {
-    // 用來承接 FastAPI 格式的 Response
-    public class Neo4jApiResponse<TData>
-    {
-        public string status { get; set; }
-        public int count { get; set; }
-        public TData data { get; set; }
-
-        /// <summary>status 為 error 時的原因（AI service 連不到自己的 Neo4j 時仍回 HTTP 200，只能從這裡看出失敗）</summary>
-        public string message { get; set; }
-    }
-
-
+    /// <summary>
+    /// 執行 Cypher 並把結果轉成指定型別。直接連本地 Neo4j（透過 INeo4jGatewayService），不經過 AI service。
+    /// </summary>
     public class Neo4jService
     {
-        private readonly HttpClient _httpClient;
+        private readonly INeo4jGatewayService _gateway;
 
-        // 對應 Swagger 上的 Cypher 查詢 API
-        private readonly string _neo4jApiUrl = AiServiceConfig.Neo4jCypherUrl;
-
-
-        public Neo4jService(HttpClient httpClient)
+        // Neo4j 查回來的欄位字典轉成呼叫端的型別；有些景點的經緯度存成字串，一併接受
+        private static readonly JsonSerializerOptions JsonOptions = new()
         {
-            _httpClient = httpClient;
+            PropertyNameCaseInsensitive = true,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString
+        };
+
+
+        public Neo4jService(INeo4jGatewayService gateway)
+        {
+            _gateway = gateway;
         }
 
 
         public async Task<List<ValidRegionNode>> GetValidRegionsAsync()
         {
-            try
-            {
-                var requestBody = new Neo4jCypherRequest
-                {
-                    query = "MATCH (a:Attraction) WITH a.city AS city, a.town AS town, count(a) AS spot_count WHERE spot_count >= 5 RETURN city, town, spot_count",
-                    parameters = new { }
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(_neo4jApiUrl, requestBody);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var jsonString = await response.Content.ReadAsStringAsync();
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-                    var apiResponse = JsonSerializer.Deserialize<Neo4jApiResponse<List<ValidRegionNode>>>(jsonString, options);
-                    return apiResponse?.data ?? new List<ValidRegionNode>();
-                }
-
-                return new List<ValidRegionNode>();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Neo4j API 查詢發生錯誤: {ex.Message}");
-                return new List<ValidRegionNode>();
-            }
+            return await ExecuteCypherAsync<List<ValidRegionNode>>(
+                "MATCH (a:Attraction) WITH a.city AS city, a.town AS town, count(a) AS spot_count WHERE spot_count >= 5 RETURN city, town, spot_count")
+                ?? new List<ValidRegionNode>();
         }
 
 
+        /// <summary>
+        /// 執行 Cypher，結果（每一列 RETURN 的別名 → 值）轉成 T，T 通常是 List&lt;某個資料列類別&gt;。
+        /// Neo4j 連不上或查詢失敗時回傳 default（null），真的查無資料時是空清單，呼叫端可以藉此決定要不要改用 MySQL。
+        /// </summary>
         public async Task<T> ExecuteCypherAsync<T>(string cypherQuery, object parameters = null)
         {
             try
             {
-                var requestBody = new Neo4jCypherRequest
-                {
-                    query = cypherQuery,
-                    parameters = parameters ?? new { }
-                };
-
-                var response = await _httpClient.PostAsJsonAsync(_neo4jApiUrl, requestBody);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var jsonString = await response.Content.ReadAsStringAsync();
-                    var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-                    var apiResponse = JsonSerializer.Deserialize<Neo4jApiResponse<T>>(jsonString, options);
-                    if (apiResponse?.status == "error")
-                    {
-                        Console.WriteLine($"Neo4j API 回傳錯誤: {apiResponse.message}");
-                        return default;
-                    }
-                    return apiResponse != null ? apiResponse.data : default;
-                }
-
-                var errorMsg = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Neo4j API 請求失敗 (HTTP {response.StatusCode}): {errorMsg}");
-                return default;
+                List<Dictionary<string, object>> rows = await _gateway.ExecuteCypherAsync(cypherQuery, parameters);
+                return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(rows), JsonOptions);
             }
             catch (Exception ex)
             {

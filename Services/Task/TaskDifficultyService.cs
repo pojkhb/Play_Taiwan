@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace backend.Services
 {
-    /// <summary>玩家近期的答題表現（全國一起算），決定抽題權重與提示開放門檻</summary>
+    /// <summary>玩家近期的答題表現（全國一起算），決定抽題權重</summary>
     public enum PlayerPerformance
     {
         Normal,
@@ -21,9 +21,9 @@ namespace backend.Services
     /// 任務動態難度：
     /// 1. 地區解鎖：玩家還沒在某個鄉鎮市區抵達過任何一站時，那個區的景點不出 e人訪談型（8）。
     ///    景點的鄉鎮市區向 Neo4j 查，查不到時用劇本生成時的縣市／鄉鎮區。
-    /// 2. 依表現調整：最近有對錯的作答中第一次就答對的比例，決定 6／7／8 的抽題權重，
-    ///    並和題目難易度一起決定提示開放門檻。
-    /// 生成劇本（StoryService.DecideTaskTypes）、節點遊玩畫面與取提示（TaskService）、解鎖進度（GET api/Task/Progress）共用。
+    /// 2. 依表現調整：最近有對錯的作答中第一次就答對的比例，決定 6／7／8 的抽題權重。
+    /// 生成劇本（StoryService.DecideTaskTypes）、解鎖進度（GET api/Task/Progress）共用。
+    /// 提示開放門檻是固定規則，不看表現，見 TaskService.HintUnlockWrongCount。
     /// </summary>
     public class TaskDifficultyService
     {
@@ -53,21 +53,6 @@ namespace backend.Services
         private const double StrugglingChoiceWeight = 2;       // 卡關：選擇題
         private const double StrugglingInterviewWeight = 0.5;  // 卡關：e人訪談
         private const double SmoothInterviewWeight = 2;        // 順利：e人訪談
-
-        // ── 提示開放門檻（答錯幾次後開放）＝ 題目難易度的基本門檻 ＋ 玩家表現調整（卡關 -1、順利 +1）──
-
-        /// <summary>
-        /// 有對錯的題型的基本門檻，越難越早開。其他題型（2、3、4、8）交了就通過、不會答錯，提示一開始就開放。
-        /// </summary>
-        private static readonly Dictionary<int, int> HintBaseWrongCount = new()
-        {
-            [5] = 0,    // 協作解謎型（難）：兩人合作推出精確答案，可以一直答錯
-            [6] = 1,    // 文化問答型（中）
-            [9] = 1,    // 商家知識問答（中）
-            [10] = 1,   // 圖像地理猜謎型（中）
-            [7] = 2     // 景點猜猜樂（易）：人在現場，從 4 張照片認出眼前的景點
-        };
-        private const int ChoiceMaxHintWrongCount = 2;   // 4 選 1 答錯 2 次後只剩 2 個選項，門檻再高提示就沒意義
 
         private readonly TaskDifficultyDao _dao;
         private readonly PlaceLookupService _placeLookup;
@@ -104,7 +89,7 @@ namespace backend.Services
             };
         }
 
-        #region 表現與提示
+        #region 表現
 
         /// <summary>
         /// 最近 20 題有對錯的任務：第一次就答對的比例 &lt; 50% 或平均作答 3 次以上為卡關、≥ 80% 為順利，其他為一般。
@@ -121,25 +106,6 @@ namespace backend.Services
             if (firstTryRate < StrugglingFirstTryRate || avgAttempts >= StrugglingAvgAttempts) return PlayerPerformance.Struggling;
             if (firstTryRate >= SmoothFirstTryRate) return PlayerPerformance.Smooth;
             return PlayerPerformance.Normal;
-        }
-
-        /// <summary>
-        /// 答錯幾次後開放提示：題目難易度的基本門檻（難 0、中 1、易 2）加上玩家表現調整（卡關 -1、順利 +1），最少 0 次；
-        /// 選擇題最多 2 次。沒有對錯的題型一律 0 次（一開始就開放）。
-        /// </summary>
-        public static int HintUnlockWrongCount(int typeId, PlayerPerformance performance)
-        {
-            if (!HintBaseWrongCount.TryGetValue(typeId, out int baseCount)) return 0;
-
-            int adjust = performance switch
-            {
-                PlayerPerformance.Struggling => -1,
-                PlayerPerformance.Smooth => 1,
-                _ => 0
-            };
-
-            int count = Math.Max(0, baseCount + adjust);
-            return AnswerModes.ForType(typeId) == AnswerModes.Choice ? Math.Min(count, ChoiceMaxHintWrongCount) : count;
         }
 
         #endregion

@@ -24,11 +24,8 @@ namespace backend.utils
         }
 
         /// <summary>
-        /// 組出完整 API 網址，例如 AiServiceConfig.Url("/api/neo4j/cypher")。
+        /// 組出完整 API 網址，例如 AiServiceConfig.Url("/api/npc/speak")。
         /// </summary>
         public static string Url(string path) => $"{BaseUrl}/{path.TrimStart('/')}";
-
-        // 常用端點
-        public static string Neo4jCypherUrl => Url("/api/neo4j/cypher");
     }
 }

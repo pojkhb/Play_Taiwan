@@ -38,6 +38,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
 
     /// <summary>測試產生的迷霧圖放這裡（不寫進專案的 wwwroot），跑完刪掉</summary>
     public string FogRoot { get; } = Path.Combine(Path.GetTempPath(), $"play_taiwan_test_fog_{Guid.NewGuid():N}");
+
+    /// <summary>呼叫 AI 的 request / response 紀錄放這裡（不寫進專案的 logs/ai），跟著 FogRoot 一起刪掉</summary>
+    public string AiLogRoot => Path.Combine(FogRoot, "ai-log");
     private readonly string _serverConnection;
     private int _nextUserId = 1000;
 
@@ -70,6 +73,9 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
     /// <summary>後端往外打的 HTTP（AI 服務等）全部由它回應，不會真的連網路</summary>
     public FakeAiService FakeAi { get; } = new();
 
+    /// <summary>後端的 Neo4j 查詢全部由它回應，不會連到本機的 Neo4j；預設是連不上</summary>
+    public FakeNeo4jGateway FakeNeo4j { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -83,10 +89,14 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["SmtpSettings:Port"] = "1",
             ["Fog:GeneratedRoot"] = FogRoot,
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
+            ["AiService:TrafficLogRoot"] = AiLogRoot,
         }));
         builder.ConfigureTestServices(services =>
+        {
             services.ConfigureAll<HttpClientFactoryOptions>(options =>
-                options.HttpMessageHandlerBuilderActions.Add(handler => handler.PrimaryHandler = FakeAi)));
+                options.HttpMessageHandlerBuilderActions.Add(handler => handler.PrimaryHandler = FakeAi));
+            services.AddSingleton<backend.Services.Neo4j.INeo4jGatewayService>(FakeNeo4j);
+        });
     }
 
     #region 建立 / 刪除測試資料庫
@@ -222,7 +232,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
                                story_postcards, is_active, is_night_mode)
             VALUES (@ownerId, @city, '中正區', @title, '前情提要', '劇本簡介', @count, 1, @night);
             SELECT LAST_INSERT_ID();",
-            new { ownerId, city, title = $"測試劇本 {string.Join("、", places)}", count = places.Length, night = night ? 1 : 2 });
+            new { ownerId, city, title = $"測試劇本 {string.Join("、", places)}", count = places.Length, night = night ? 1 : 0 });
 
         for (int i = 0; i < places.Length; i++)
         {

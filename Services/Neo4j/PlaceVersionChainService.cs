@@ -198,7 +198,6 @@ namespace backend.Services.Neo4j
                     description: $description,
                     phone: $phone,
                     website: $website,
-                    opening_hours: $openingHours,
                     source: $source,
                     submitted_by: $submittedBy,
                     valid_from: datetime(),
@@ -215,7 +214,6 @@ namespace backend.Services.Neo4j
                 description = fields.description,
                 phone = fields.phone,
                 website = fields.website,
-                openingHours = fields.opening_hours,
                 source,
                 submittedBy
             });
@@ -295,8 +293,10 @@ namespace backend.Services.Neo4j
         /// 商家註冊時選「都沒有，我要建立新的」景點：建立一顆全新身分節點（:Place:MerchantPlace，帶座標、完整地址，
         /// 並掛上鄉鎮市區與縣市，和政府資料的景點一樣可以依行政區查詢）
         /// 加一顆 source='merchant' 的 :Current 版本節點，回傳新產生的 uid。
+        /// 營業時間（已經過 OperatingHoursRules 整理）跟政府資料一樣，一個時段建一顆 (:OperatingHours) 掛在身分節點。
         /// </summary>
-        public async Task<string> CreateMerchantPlaceAsync(MerchantNewPlace fields, MerchantPlaceLocation location, string submittedBy)
+        public async Task<string> CreateMerchantPlaceAsync(MerchantPlaceFields fields, List<PlaceOperatingHourItem> operatingHours,
+            MerchantPlaceLocation location, string submittedBy)
         {
             string query = @"
                 CREATE (a:Place:MerchantPlace {uid: randomUUID(), lat: $lat, lon: $lon, address: $fullAddress})
@@ -308,13 +308,14 @@ namespace backend.Services.Neo4j
                     description: $description,
                     phone: $phone,
                     website: $website,
-                    opening_hours: $openingHours,
                     source: 'merchant',
                     submitted_by: $submittedBy,
                     valid_from: datetime(),
                     valid_to: null
                 })
-                CREATE (a)-[:HAS_VERSION]->(v)" + LinkTownCypher + @"
+                CREATE (a)-[:HAS_VERSION]->(v)
+                FOREACH (h IN $operatingHours |
+                    CREATE (a)-[:HAS_OPERATING_HOURS]->(:OperatingHours {dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime}))" + LinkTownCypher + @"
                 RETURN a.uid AS uid
             ";
 
@@ -329,11 +330,40 @@ namespace backend.Services.Neo4j
                 description = fields.description,
                 phone = fields.phone,
                 website = fields.website,
-                openingHours = fields.opening_hours,
+                operatingHours = ToOperatingHoursParam(operatingHours),
                 submittedBy
             });
 
             return Neo4jValueConverter.AsString(rows.FirstOrDefault()?.GetValueOrDefault("uid"));
+        }
+
+        /// <summary>
+        /// 商家改了營業時間：刪掉自建景點原本的 (:OperatingHours)，整份換成新的（已經過 OperatingHoursRules 整理）。
+        /// 只動 :MerchantPlace，政府開放資料的景點不會被修改。
+        /// </summary>
+        public async Task ReplaceMerchantOperatingHoursAsync(string uid, List<PlaceOperatingHourItem> operatingHours)
+        {
+            await _gateway.ExecuteCypherAsync(@"
+                MATCH (a:MerchantPlace {uid: $uid})
+                OPTIONAL MATCH (a)-[:HAS_OPERATING_HOURS]->(old:OperatingHours)
+                DETACH DELETE old
+                WITH DISTINCT a
+                FOREACH (h IN $operatingHours |
+                    CREATE (a)-[:HAS_OPERATING_HOURS]->(:OperatingHours {dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime}))",
+                new { uid, operatingHours = ToOperatingHoursParam(operatingHours) });
+        }
+
+        /// <summary>營業時間轉成 Cypher 參數（屬性名稱跟政府資料的 (:OperatingHours) 一樣）</summary>
+        private static List<Dictionary<string, object>> ToOperatingHoursParam(List<PlaceOperatingHourItem> operatingHours)
+        {
+            return (operatingHours ?? new List<PlaceOperatingHourItem>())
+                .Select(h => new Dictionary<string, object>
+                {
+                    ["dayOfWeek"] = h.day_of_week,
+                    ["openTime"] = h.open_time,
+                    ["closeTime"] = h.close_time
+                })
+                .ToList();
         }
 
         /// <summary>
@@ -357,8 +387,8 @@ namespace backend.Services.Neo4j
         }
 
         /// <summary>
-        /// 刪掉剛建立、還沒被任何劇本用到的商家自建景點（身分節點與版本節點一起刪），商家註冊的 MySQL 寫入失敗時清理用。
-        /// 只刪 :MerchantPlace，政府開放資料的景點不會被刪。商家刪除帳號請用 DeleteMerchantVersionAsync（自建景點只標成已刪除）。
+        /// 刪掉剛建立、還沒被任何劇本用到的商家自建景點（身分節點、版本節點與營業時間一起刪），商家註冊的 MySQL 寫入失敗時清理用。
+        /// 只刪 :MerchantPlace，政府開放資料的景點不會被刪。
         /// </summary>
         public async Task DeleteUnusedMerchantPlaceAsync(string uid)
         {
@@ -366,46 +396,8 @@ namespace backend.Services.Neo4j
 
             await _gateway.ExecuteCypherAsync(@"
                 MATCH (a:MerchantPlace {uid: $uid})
-                OPTIONAL MATCH (a)-[:HAS_VERSION]->(v)
-                DETACH DELETE v, a", new { uid });
-        }
-
-        /// <summary>
-        /// 商家刪除帳號時清理 Neo4j 側資料：
-        /// - 若身分節點是商家自建的（:MerchantPlace），保留節點與版本（舊劇本還要用座標與名稱），
-        ///   只標成已刪除（is_deleted = true、deleted_at）；商家資料已刪，行程規劃不會再排入。
-        /// - 若是政府開放資料的景點，只刪除商家自己的 :Current 版本節點，絕對不動原始身分節點。
-        /// </summary>
-        public async Task DeleteMerchantVersionAsync(string uid)
-        {
-            if (string.IsNullOrWhiteSpace(uid)) return;
-
-            const string checkQuery = @"
-                MATCH (a {uid: $uid})
-                RETURN labels(a) AS labels
-            ";
-            var checkRows = await _gateway.ExecuteCypherAsync(checkQuery, new { uid });
-            var labels = checkRows.Count > 0
-                ? Neo4jValueConverter.AsStringList(checkRows[0].GetValueOrDefault("labels"))
-                : new List<string>();
-
-            if (labels.Contains("MerchantPlace"))
-            {
-                const string markDeletedQuery = @"
-                    MATCH (a:MerchantPlace {uid: $uid})
-                    SET a.is_deleted = true, a.deleted_at = datetime()
-                ";
-                await _gateway.ExecuteCypherAsync(markDeletedQuery, new { uid });
-            }
-            else
-            {
-                const string deleteCurrentOnlyQuery = @"
-                    MATCH (a {uid: $uid})-[:HAS_VERSION]->(v:Current)
-                    WHERE v.source = 'merchant'
-                    DETACH DELETE v
-                ";
-                await _gateway.ExecuteCypherAsync(deleteCurrentOnlyQuery, new { uid });
-            }
+                OPTIONAL MATCH (a)-[:HAS_VERSION|HAS_OPERATING_HOURS]->(child)
+                DETACH DELETE child, a", new { uid });
         }
     }
 }

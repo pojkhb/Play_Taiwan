@@ -645,7 +645,7 @@ namespace backend.Services
                 district_name = plan.town_name ?? "",
                 party_size = partySize,
                 s_tag = plan.preferences ?? new List<string>(),
-                is_night_mode = isNightMode,
+                is_night_mode = isNightMode == 1 ? 1 : 2,   // AI 文件定義 1＝夜間、2＝白天（跟 story.is_night_mode 的 0／1 不同）
                 stories = conditions
             };
 
@@ -934,6 +934,7 @@ namespace backend.Services
             HttpClient client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(10);
 
+            // 送出的 request 與 AI 的 response 由 AiTrafficLogHandler 記錄在 logs/ai/{日期}/
             var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
             HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(GameStoryPath), content);
             string responseString = await response.Content.ReadAsStringAsync();
@@ -950,7 +951,6 @@ namespace backend.Services
                 throw new Exception($"AI 劇本任務回傳格式無法解析: {ex.Message}");
             }
         }
-
 
         /// <summary>
         /// 從範圍內所有景點抽出多組景點，每組各圈層輪流隨機抽。

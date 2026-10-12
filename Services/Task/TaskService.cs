@@ -15,13 +15,11 @@ namespace backend.Services
     public class TaskService(
         TaskDao task_dao_obj,
         ITaskVerificationService verification,
-        PlaceLookupService place_lookup_obj,
-        TaskDifficultyService difficulty_obj)
+        PlaceLookupService place_lookup_obj)
     {
         private readonly TaskDao task_dao = task_dao_obj;
         private readonly ITaskVerificationService _verification = verification;
         private readonly PlaceLookupService place_lookup = place_lookup_obj;
-        private readonly TaskDifficultyService _difficulty = difficulty_obj;
 
         #region 節點遊玩畫面
         /// <summary>
@@ -44,7 +42,6 @@ namespace backend.Services
                 task_dao.GetTaskPlayerStats(auId, tasks.Select(t => t.task_id).ToList());
 
             NodeProgress progress = task_dao.GetNodeProgress(snId);
-            PlayerPerformance performance = _difficulty.GetPerformance(auId);
 
             return new NodePlayResponse
             {
@@ -84,8 +81,7 @@ namespace backend.Services
                             .ToList(),
                         pass = t.pass,
                         wrong_count = wrongCount,
-                        hint_available = t.pass == 0 && hasHint
-                            && wrongCount >= TaskDifficultyService.HintUnlockWrongCount(t.type_id, performance)
+                        hint_available = t.pass == 0 && hasHint && wrongCount >= HintUnlockWrongCount(t.type_id)
                     };
                 }).ToList()
             };
@@ -227,21 +223,27 @@ namespace backend.Services
         #region 取得提示
 
         /// <summary>
-        /// 依玩家在此任務的答錯次數（user_task_record）決定是否給提示：答錯次數達到門檻後才顯示 task.task_hint。
-        /// 門檻依題目難易度與玩家表現決定（TaskDifficultyService.HintUnlockWrongCount）。
+        /// 答錯幾次後開放提示：選擇題答錯 1 次就給（4 選 1，還沒作答就給提示等於直接給答案）；
+        /// 協作解謎與沒有對錯的題型一開始就給。不用讓玩家多猜幾次。
+        /// </summary>
+        internal static int HintUnlockWrongCount(int typeId) =>
+            AnswerModes.ForType(typeId) == AnswerModes.Choice ? 1 : 0;
+
+        /// <summary>
+        /// 依玩家在此任務的答錯次數（user_task_record）決定是否給提示：選擇題答錯 1 次後顯示 task.task_hint，
+        /// 其他題型一開始就顯示（HintUnlockWrongCount）。
         /// </summary>
         public TaskHintResponse GetHint(int auId, int taskId)
         {
             int wrongCount = task_dao.GetWrongCount(auId, taskId);
             string hint = task_dao.GetTaskHint(taskId);
-            int hintWrongCount = TaskDifficultyService.HintUnlockWrongCount(
-                task_dao.GetTaskTypeId(taskId), _difficulty.GetPerformance(auId));
+            int hintWrongCount = HintUnlockWrongCount(task_dao.GetTaskTypeId(taskId));
             var (npcName, npcAvatar) = task_dao.GetTaskNpc(taskId);   // 圖片是站內路徑，Controller 組成完整網址
             npcName ??= MapDao.DefaultNpcName;
 
             if (wrongCount < hintWrongCount)
             {
-                return new TaskHintResponse { task_id = taskId.ToString(), npc_name = npcName, npc_avatar_url = npcAvatar, hint_text = $"答錯 {hintWrongCount} 次後就能取得提示。", is_available = false };
+                return new TaskHintResponse { task_id = taskId.ToString(), npc_name = npcName, npc_avatar_url = npcAvatar, hint_text = "先作答一次，答錯就能取得提示。", is_available = false };
             }
 
             return new TaskHintResponse

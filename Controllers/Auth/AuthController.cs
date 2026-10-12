@@ -2,12 +2,10 @@
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
 using backend.ViewModels;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace backend.Controllers
@@ -23,32 +21,27 @@ namespace backend.Controllers
         private readonly ILogger<AuthController> _logger;
         private readonly AuthService _service;
         private readonly VisitorVlogService _visitorVlogService;
-        private readonly IConfiguration _configuration;
 
         public AuthController(
             ILogger<AuthController> logger,
             AuthService service,
-            VisitorVlogService visitorVlogService,
-            IConfiguration configuration)
+            VisitorVlogService visitorVlogService)
         {
             _logger = logger;
             _service = service;
             _visitorVlogService = visitorVlogService;
-            _configuration = configuration;
         }
-
-        /// <summary>信件連結用的網址：設定 PublicBaseUrl 時用它，否則用這次請求的網址（App 連後端用的位址）</summary>
-        private string SiteBaseUrl() =>
-            AuthService.ResolveBaseUrl(_configuration["PublicBaseUrl"], $"{Request.Scheme}://{Request.Host}");
 
         #region 登入
 
         /// <summary>
-        /// 帳號登入。
+        /// 帳號登入（遊客、商家、管理員共用）。
         /// </summary>
         /// <remarks>
         /// 使用帳號名稱(或信箱)與密碼進行登入，成功後同時回傳 auth_type，
         /// 供前端判斷登入後要導向探員頁面(1=Tourist)、商家後台(2=Merchant)或管理後台(3=Admin)。
+        /// 商家帳號會另外回傳 store_id（店家代號 store.s_id），Token 帶 Role=Merchant 與 s_id，可直接呼叫商家 API；
+        /// 商家帳號還沒有店家資料時登入失敗，提示先完成商家註冊。
         ///
         /// **Request 範例**：
         /// ```json
@@ -68,10 +61,12 @@ namespace backend.Controllers
         ///     "au_id": 101,
         ///     "auth_name": "amy",
         ///     "auth_type": 1,
-        ///     "account_type_name": "Tourist"
+        ///     "account_type_name": "Tourist",
+        ///     "store_id": null
         ///   }
         /// }
         /// ```
+        /// 商家帳號登入時 auth_type = 2、account_type_name = "Merchant"，store_id 為店家代號（例如 2）。
         /// </remarks>
         /// <param name="req">登入資料，包含帳號名稱與密碼。</param>
         /// <returns>登入結果，成功時回傳帳號資訊、身分類型與 JWT Token。</returns>
@@ -274,7 +269,7 @@ namespace backend.Controllers
         {
             try
             {
-                await _service.RegisterAsync(req, SiteBaseUrl());
+                await _service.RegisterAsync(req);
 
                 return Ok(new ResultViewModel<string>
                 {
@@ -318,7 +313,7 @@ namespace backend.Controllers
             try
             {
                 _service.VerifyEmail(token);
-                string html = BuildVerifyResultPage(
+                string html = BuildResultPage(
                     success: true,
                     title: "信箱驗證成功！",
                     message: "你的帳號已成功啟用，請返回 APP 或網頁進行登入。");
@@ -326,7 +321,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                string html = BuildVerifyResultPage(
+                string html = BuildResultPage(
                     success: false,
                     title: "驗證失敗",
                     message: ex.Message);
@@ -334,17 +329,23 @@ namespace backend.Controllers
             }
         }
 
-        private static string BuildVerifyResultPage(bool success, string title, string message) =>
-            BuildPage(title, $"<div class='icon'>{ResultIcon(success)}</div><h1>{Html(title)}</h1><p>{Html(message)}</p>", success ? "#28a745" : "#dc3545");
+        /// <summary>結果頁（驗證信、重設密碼連結失效共用）：圖示 + 標題 + 說明</summary>
+        private static string BuildResultPage(bool success, string title, string message)
+        {
+            string accentColor = success ? "#28a745" : "#dc3545";
+            string icon = success
+                ? "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#28a745'/><path d='M7 12.5L10.2 15.7L17 8.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"
+                : "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#dc3545'/><path d='M8 8L16 16M16 8L8 16' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
-        private static string ResultIcon(bool success) => success
-            ? "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#28a745'/><path d='M7 12.5L10.2 15.7L17 8.5' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"
-            : "<svg width='64' height='64' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='12' cy='12' r='12' fill='#dc3545'/><path d='M8 8L16 16M16 8L8 16' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+            return BuildPage(title, $@"
+        <div class='icon'>{icon}</div>
+        <h1>{title}</h1>
+        <p>{message}</p>
+        <div class='accent-bar' style='background-color: {accentColor};'></div>");
+        }
 
-        private static string Html(string text) => System.Net.WebUtility.HtmlEncode(text ?? "");
-
-        /// <summary>信件連結打開的頁面（信箱驗證、重設密碼）共用的版面</summary>
-        private static string BuildPage(string title, string cardHtml, string accentColor, string script = "")
+        /// <summary>信件連結開啟的網頁外框（置中卡片 + 品牌字），content 放卡片內容</summary>
+        private static string BuildPage(string title, string content)
         {
             return $@"
 <!DOCTYPE html>
@@ -352,7 +353,7 @@ namespace backend.Controllers
 <head>
 <meta charset='UTF-8' />
 <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-<title>{Html(title)} - Play Taiwan</title>
+<title>{title} - Play Taiwan</title>
 <style>
     body {{
         margin: 0;
@@ -371,29 +372,68 @@ namespace backend.Controllers
         max-width: 420px;
         width: 90%;
         text-align: center;
-        box-sizing: border-box;
     }}
-    .icon {{ margin-bottom: 20px; }}
-    h1 {{ margin: 0 0 12px; font-size: 24px; color: #1a1a1a; }}
-    p {{ margin: 0; font-size: 15px; color: #555; line-height: 1.6; }}
-    form {{ text-align: left; margin-top: 20px; }}
-    label {{ display: block; font-size: 14px; color: #333; margin: 14px 0 6px; }}
-    input {{ width: 100%; box-sizing: border-box; padding: 11px 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }}
-    input:focus {{ outline: none; border-color: {accentColor}; }}
-    button {{ width: 100%; margin-top: 22px; padding: 12px; font-size: 16px; color: #fff; background: {accentColor}; border: 0; border-radius: 8px; cursor: pointer; }}
-    button:disabled {{ opacity: .6; cursor: default; }}
-    .error {{ color: #dc3545; font-size: 14px; margin-top: 12px; min-height: 20px; }}
-    .brand {{ margin-top: 32px; font-size: 13px; color: #aaa; letter-spacing: 0.5px; }}
-    .accent-bar {{ height: 4px; width: 48px; margin: 20px auto 0; border-radius: 2px; background-color: {accentColor}; }}
+    .icon {{
+        margin-bottom: 20px;
+    }}
+    h1 {{
+        margin: 0 0 12px;
+        font-size: 24px;
+        color: #1a1a1a;
+    }}
+    p {{
+        margin: 0;
+        font-size: 15px;
+        color: #555;
+        line-height: 1.6;
+    }}
+    .brand {{
+        margin-top: 32px;
+        font-size: 13px;
+        color: #aaa;
+        letter-spacing: 0.5px;
+    }}
+    .accent-bar {{
+        height: 4px;
+        width: 48px;
+        margin: 20px auto 0;
+        border-radius: 2px;
+    }}
+    input {{
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        margin-top: 16px;
+        padding: 12px 14px;
+        font-size: 15px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+    }}
+    button {{
+        width: 100%;
+        margin-top: 20px;
+        padding: 12px;
+        font-size: 15px;
+        color: #ffffff;
+        background-color: #d9534f;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }}
+    button:disabled {{
+        opacity: 0.6;
+        cursor: default;
+    }}
+    .msg {{
+        margin-top: 16px;
+        min-height: 1.6em;
+    }}
 </style>
 </head>
 <body>
-    <div class='card' id='card'>
-        {cardHtml}
-        <div class='accent-bar'></div>
+    <div class='card'>{content}
         <div class='brand'>PLAY TAIWAN</div>
     </div>
-    {script}
 </body>
 </html>";
         }
@@ -407,8 +447,8 @@ namespace backend.Controllers
         /// </summary>
         /// <remarks>
         /// 產生重設密碼連結並寄送至信箱，連結 30 分鐘內有效。
-        /// 使用者點信中的連結會打開後端的重設密碼頁（/reset-password），在頁面上輸入新密碼即可，前端不用另外做畫面。
-        /// 連結的網址是 App 呼叫這支 API 時用的後端位址；有設定 PublicBaseUrl 時改用設定的網址。
+        /// 信中連結會開啟後端提供的重設密碼網頁（GET api/Auth/ResetPassword），使用者在網頁輸入新密碼即可完成重設，
+        /// 前端只要接這支跟登入頁的「忘記密碼」。
         ///
         /// **Request 範例**：
         /// ```json
@@ -424,7 +464,7 @@ namespace backend.Controllers
         {
             try
             {
-                await _service.ForgotPasswordAsync(req.Email, SiteBaseUrl());
+                await _service.ForgotPasswordAsync(req.Email);
                 return Ok(new ResultViewModel<string>
                 {
                     isSuccess = true,
@@ -448,10 +488,79 @@ namespace backend.Controllers
         #region 重設密碼
 
         /// <summary>
+        /// 【前端不用接】重設密碼網頁。
+        /// </summary>
+        /// <remarks>
+        /// **前端不用接**：這支是寫在重設密碼信裡的連結，使用者在信箱點擊後由瀏覽器直接開啟，會回傳 HTML 頁面。
+        ///
+        /// 重設碼有效時顯示輸入新密碼的表單，送出後由網頁呼叫 POST api/Auth/ResetPassword；
+        /// 重設碼無效或已過期時顯示失效頁面。只開啟網頁不會用掉重設碼（信箱掃描連結也不會讓它失效）。
+        /// </remarks>
+        /// <param name="token">重設密碼信裡的 Token</param>
+        /// <response code="200">回傳 HTML 頁面（不是 JSON）</response>
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("ResetPassword")]
+        public IActionResult ResetPasswordPage([FromQuery] string token)
+        {
+            string html = _service.IsResetTokenValid(token)
+                ? BuildPage("重設密碼", ResetPasswordForm)
+                : BuildResultPage(
+                    success: false,
+                    title: "連結已失效",
+                    message: "重設連結無效或已過期，請回到 APP 重新申請忘記密碼。");
+            return Content(html, "text/html", System.Text.Encoding.UTF8);
+        }
+
+        /// <summary>重設密碼表單；Token 由網頁從網址列讀取，不寫進 HTML</summary>
+        private const string ResetPasswordForm = @"
+        <h1>重設密碼</h1>
+        <p>請輸入新的密碼，連結 30 分鐘內有效。</p>
+        <form id='reset-form'>
+            <input type='password' id='new-password' placeholder='新密碼' autocomplete='new-password' required />
+            <input type='password' id='confirm-password' placeholder='再輸入一次新密碼' autocomplete='new-password' required />
+            <button type='submit' id='submit'>確認重設</button>
+        </form>
+        <p id='msg' class='msg'></p>
+        <script>
+            document.getElementById('reset-form').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                var form = e.target;
+                var msg = document.getElementById('msg');
+                var button = document.getElementById('submit');
+                var password = document.getElementById('new-password').value;
+
+                if (password !== document.getElementById('confirm-password').value) {
+                    msg.style.color = '#dc3545';
+                    msg.textContent = '兩次輸入的密碼不一樣';
+                    return;
+                }
+
+                button.disabled = true;
+                try {
+                    var res = await fetch('/api/Auth/ResetPassword', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ Token: new URLSearchParams(location.search).get('token'), NewPassword: password })
+                    });
+                    var data = await res.json();
+                    msg.style.color = data.isSuccess ? '#28a745' : '#dc3545';
+                    msg.textContent = data.isSuccess ? '密碼重設成功！請回到 APP 用新密碼登入。' : data.message;
+                    if (data.isSuccess) form.style.display = 'none';
+                    else button.disabled = false;
+                } catch (err) {
+                    msg.style.color = '#dc3545';
+                    msg.textContent = '連線失敗，請稍後再試';
+                    button.disabled = false;
+                }
+            });
+        </script>";
+
+        /// <summary>
         /// 依重設連結 Token 完成密碼重設。
         /// </summary>
         /// <remarks>
-        /// 對應 ForgotPassword 寄出的信件連結，Token 過期或不存在會回傳失敗。
+        /// 重設密碼網頁（GET api/Auth/ResetPassword）送出時呼叫這支，Token 過期或不存在會回傳失敗。
         ///
         /// **Request 範例**：
         /// ```json
@@ -488,76 +597,6 @@ namespace backend.Controllers
                 });
             }
         }
-
-        /// <summary>
-        /// 【前端不用接】重設密碼頁：忘記密碼信裡的連結打開的網頁。
-        /// </summary>
-        /// <remarks>
-        /// **前端不用接**：使用者點忘記密碼信裡的連結，瀏覽器會打開這個頁面（回傳 HTML，不是 JSON）。
-        /// 頁面上輸入兩次新密碼，送出時呼叫 POST /api/Auth/ResetPassword，結果直接顯示在頁面上。
-        /// 連結已用過或超過 30 分鐘時，打開就會顯示「連結無效或已過期」。
-        /// </remarks>
-        /// <param name="token">忘記密碼信裡的重設碼</param>
-        /// <response code="200">回傳 HTML 頁面</response>
-        [AllowAnonymous]
-        [HttpGet("~/reset-password")]
-        public IActionResult ResetPasswordPage([FromQuery] string token)
-        {
-            const string title = "重設密碼";
-
-            // 重設碼是 32 個十六進位字元（Guid N 格式），其他格式直接當無效，也避免把奇怪的內容放進頁面
-            if (token == null || !Regex.IsMatch(token, "^[0-9a-fA-F]{32}$") || !_service.IsResetTokenValid(token))
-            {
-                return Content(BuildVerifyResultPage(false, "連結無效或已過期", "這個重設密碼連結已經用過或超過 30 分鐘，請回到 App 重新申請「忘記密碼」。"),
-                    "text/html", System.Text.Encoding.UTF8);
-            }
-
-            string card = $@"<h1>{title}</h1>
-        <p>請輸入新的密碼</p>
-        <form id='form' autocomplete='off'>
-            <label for='pw'>新密碼</label>
-            <input id='pw' type='password' autocomplete='new-password' required />
-            <label for='pw2'>再輸入一次新密碼</label>
-            <input id='pw2' type='password' autocomplete='new-password' required />
-            <div class='error' id='err'></div>
-            <button id='btn' type='submit'>確認重設</button>
-        </form>";
-
-            string successCard = BuildCardHtml(true, "密碼重設成功", "請回到 App，用新密碼登入。");
-            string script = $@"<script>
-    (function () {{
-        var token = '{token}';
-        var form = document.getElementById('form'), err = document.getElementById('err'), btn = document.getElementById('btn');
-        form.addEventListener('submit', function (e) {{
-            e.preventDefault();
-            var pw = document.getElementById('pw').value, pw2 = document.getElementById('pw2').value;
-            if (!pw.trim()) {{ err.textContent = '請輸入新密碼'; return; }}
-            if (pw !== pw2) {{ err.textContent = '兩次輸入的密碼不一樣'; return; }}
-            err.textContent = ''; btn.disabled = true; btn.textContent = '處理中…';
-            fetch('/api/Auth/ResetPassword', {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{ Token: token, NewPassword: pw }})
-            }}).then(function (r) {{ return r.json(); }}).then(function (res) {{
-                if (res.isSuccess) {{
-                    document.getElementById('card').innerHTML = {System.Text.Json.JsonSerializer.Serialize(successCard)};
-                }} else {{
-                    err.textContent = res.message || '重設失敗，請重新申請忘記密碼';
-                    btn.disabled = false; btn.textContent = '確認重設';
-                }}
-            }}).catch(function () {{
-                err.textContent = '連不上伺服器，請稍後再試';
-                btn.disabled = false; btn.textContent = '確認重設';
-            }});
-        }});
-    }})();
-    </script>";
-
-            return Content(BuildPage(title, card, "#d9534f", script), "text/html", System.Text.Encoding.UTF8);
-        }
-
-        private static string BuildCardHtml(bool success, string title, string message) =>
-            $"<div class='icon'>{ResultIcon(success)}</div><h1>{Html(title)}</h1><p>{Html(message)}</p><div class='accent-bar'></div><div class='brand'>PLAY TAIWAN</div>";
 
         #endregion
 

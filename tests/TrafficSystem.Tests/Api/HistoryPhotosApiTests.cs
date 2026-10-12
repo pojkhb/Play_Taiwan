@@ -12,7 +12,11 @@ public class HistoryPhotosApiTests
 {
     private readonly ApiFactory _api;
 
-    public HistoryPhotosApiTests(ApiFactory api) => _api = api;
+    public HistoryPhotosApiTests(ApiFactory api)
+    {
+        _api = api;
+        _api.FakeNeo4j.Reset();
+    }
 
     /// <summary>建立一個玩完的 3 站劇本，回傳 (story_id, 每站的 sn_id, 景點名稱)</summary>
     private async Task<(int storyId, int[] nodes, string[] places)> CreateFinishedStoryAsync(int user, DateTime completedAt)

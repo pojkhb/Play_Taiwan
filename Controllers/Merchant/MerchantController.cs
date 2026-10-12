@@ -11,8 +11,8 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 商家專屬後台 API。
-    /// 提供商家登入／註冊、店家資料維護、刪除帳號、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
-    /// 除了登入與註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
+    /// 提供商家註冊、店家資料維護、近期檔案列表、生成影音及查看 Reels 完成畫面等功能。
+    /// 商家登入跟一般帳號共用 POST api/Auth/Login；除了註冊之外，一律用 JWT 識別商家（au_id / s_id Claim），不再從 request 帶 s_id。
     /// 錯誤統一由 ExceptionHandlingMiddleware 轉成 ResultViewModel（404 / 409 / 403 / 500）。
     /// </summary>
     [Authorize]
@@ -21,79 +21,34 @@ namespace backend.Controllers
     public class MerchantController : ControllerBase
     {
         private readonly MerchantService _service;
-        private readonly AuthService _authService;
 
-        public MerchantController(MerchantService service, AuthService authService)
+        public MerchantController(MerchantService service)
         {
             _service = service;
-            _authService = authService;
         }
 
-        #region 1. 商家登入
-        /// <summary>
-        /// 商家登入，成功後回傳 JWT。
-        /// </summary>
-        /// <remarks>
-        /// 只接受商家帳號（auth_type = 2）且已建立店家資料；Token 帶 au_id、s_id 與 Role=Merchant，
-        /// 之後呼叫商家 API 放在 Header：Authorization: Bearer {token}。
-        ///
-        /// **Request 範例**：
-        /// ```json
-        /// {
-        ///   "auth_name": "masha-garden@example.com",
-        ///   "auth_pswd": "123456"
-        /// }
-        /// ```
-        ///
-        /// **Response 範例**：
-        /// ```json
-        /// {
-        ///   "isSuccess": true,
-        ///   "message": "登入成功",
-        ///   "Result": {
-        ///     "token": "eyJhbGciOi...",
-        ///     "au_id": 2,
-        ///     "auth_name": "瑪莎園景觀餐廳",
-        ///     "auth_type": 2,
-        ///     "account_type_name": "Merchant",
-        ///     "s_id": 2
-        ///   }
-        /// }
-        /// ```
-        /// </remarks>
-        [AllowAnonymous]
-        [HttpPost]
-        [Route("Login")]
-        [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
-        public IActionResult Login([FromBody] LoginRequest req)
-        {
-            // 登入失敗的回應方式比照 api/Auth/Login，前端可共用同一套處理
-            try
-            {
-                return Ok(new ResultViewModel<LoginResponse>
-                {
-                    isSuccess = true,
-                    message = "登入成功",
-                    Result = _authService.MerchantLogin(req)
-                });
-            }
-            catch (System.Exception e)
-            {
-                return NotFound(new ResultViewModel<LoginResponse> { isSuccess = false, message = e.Message, Result = null });
-            }
-        }
-        #endregion
-
-        #region 2. 商家註冊
+        #region 1. 商家註冊
         /// <summary>註冊商家。</summary>
         /// <remarks>
-        /// 建立 auth(auth_type=2, 免審核直接啟用) + store。place_uid 與 new_place 二擇一：
+        /// 建立 auth(auth_type=2, 免審核直接啟用) + store。
         /// 選擇既有景點時帶 place_uid（由 GET api/merchant/register/search-place 取得）；
-        /// 選「都沒有，我要建立新的」時帶 new_place，後端會在 Neo4j 建立新的身分節點與版本節點，
+        /// 沒帶 place_uid 代表選「都沒有，我要建立新的」，後端會在 Neo4j 建立新的身分節點與版本節點，
         /// 並寫入 MySQL place（座標）與 place_type（通用任務類型 6、7、8），讓這個景點能被排進劇本行程。
-        /// new_place.lat / new_place.lng 必填（建議由地圖選點取得）；new_place.category 可選
-        /// Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
-        /// 註冊完成後請呼叫 POST api/Merchant/Login 取得 Token。
+        /// 新景點的名稱、地址、介紹用 store_name（必填）、store_address、store_dec；地址與 lat / lng 至少填一個，只填一個時後端自動轉另一個；
+        /// category 可選 Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
+        /// lat、lng、category、phone、website、operating_hours 只在建立新景點時使用，帶了 place_uid 會忽略。
+        ///
+        /// operating_hours（營業時間，選填）跟 Neo4j 政府資料同格式，一個時段一筆，公休日不填、中午休息就同一天填兩筆；
+        /// 跨夜營業結束時間填隔天的時間，營業到半夜 12 點填 00:00，全天營業填 00:00～23:59。格式不對或同一天時段重疊回 400：
+        /// ```json
+        /// "operating_hours": [
+        ///   { "day_of_week": "Tuesday", "open_time": "11:00", "close_time": "14:00" },
+        ///   { "day_of_week": "Tuesday", "open_time": "17:00", "close_time": "21:00" },
+        ///   { "day_of_week": "Saturday", "open_time": "18:00", "close_time": "02:00" }
+        /// ]
+        /// ```
+        /// 註冊後掃 QR Code 回傳的 merchant_place.operating_hours 就是這份資料（跟政府景點同一個欄位）。
+        /// 註冊完成後請呼叫 POST api/Auth/Login（跟一般帳號同一個登入）取得 Token。
         /// </remarks>
         [AllowAnonymous]
         [HttpPost]
@@ -111,19 +66,22 @@ namespace backend.Controllers
         }
         #endregion
 
-        #region 3. 店家資料
+        #region 2. 店家資料
         /// <summary>查詢登入商家的店家資料。</summary>
+        /// <remarks>
+        /// 多回傳 operating_hours（目前的營業時間，格式同註冊）與 is_self_built_place（true 才能修改座標與營業時間），給編輯畫面帶入。
+        /// </remarks>
         [Authorize(Roles = "Merchant")]
         [HttpGet]
         [Route("Profile")]
-        [ProducesResponseType(typeof(ResultViewModel<MerchantDetailResponse>), 200)]
-        public IActionResult GetProfile()
+        [ProducesResponseType(typeof(ResultViewModel<MerchantProfileResponse>), 200)]
+        public async Task<IActionResult> GetProfile()
         {
-            return Ok(new ResultViewModel<MerchantDetailResponse>
+            return Ok(new ResultViewModel<MerchantProfileResponse>
             {
                 isSuccess = true,
                 message = "查詢成功",
-                Result = _service.GetProfile(User.GetSId())
+                Result = await _service.GetProfileAsync(User.GetSId())
             });
         }
 
@@ -132,10 +90,17 @@ namespace backend.Controllers
         /// 只更新有帶值的欄位，沒帶的欄位維持原值；只改店名時帶 store_name 即可（取代原本的 StoreName API）。
         /// 同時會在 Neo4j 建立新的版本節點，讓 QR Code 掃描回傳的商家資訊跟著更新。
         ///
+        /// operating_hours（營業時間）只對商家自建景點有效（GET Profile 的 is_self_built_place = true），格式跟註冊相同；
+        /// 有帶就整份取代，帶 [] 代表清空，不帶維持原值。格式不對或同一天時段重疊回 400，其他欄位也不會被改到。
+        ///
         /// **Request 範例**：
         /// ```json
         /// {
-        ///   "store_name": "日式復古串燒居酒屋"
+        ///   "store_name": "日式復古串燒居酒屋",
+        ///   "operating_hours": [
+        ///     { "day_of_week": "Monday", "open_time": "17:00", "close_time": "00:00" },
+        ///     { "day_of_week": "Friday", "open_time": "17:00", "close_time": "02:00" }
+        ///   ]
         /// }
         /// ```
         /// </remarks>
@@ -149,25 +114,6 @@ namespace backend.Controllers
             {
                 isSuccess = true,
                 message = "商家資料更新成功",
-                Result = null
-            });
-        }
-
-        /// <summary>刪除登入商家的帳號。</summary>
-        /// <remarks>
-        /// 交易內依序刪除 qrcode_coupon／user_coupon／coupon／question_option／store_question／store／auth；
-        /// 若商家題庫仍被任務引用，會回傳 409 並附上引用的 task_id 清單，不會刪除任何資料。
-        /// </remarks>
-        [Authorize(Roles = "Merchant")]
-        [HttpDelete]
-        [Route("Account")]
-        public async Task<IActionResult> DeleteAccount()
-        {
-            await _service.DeleteAccountAsync(User.GetSId());
-            return Ok(new ResultViewModel<object>
-            {
-                isSuccess = true,
-                message = "商家帳號已刪除",
                 Result = null
             });
         }
@@ -188,7 +134,7 @@ namespace backend.Controllers
         }
         #endregion
 
-        #region 4. 已經生成檔案列表 (依編輯時間新到舊排序)
+        #region 3. 已經生成檔案列表 (依編輯時間新到舊排序)
         /// <summary>
         /// 取得商家已生成的檔案清單。
         /// </summary>

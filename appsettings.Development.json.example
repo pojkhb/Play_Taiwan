@@ -30,8 +30,5 @@
   },
   "AiService": {
     "BaseUrl": "https://aiservice.angelalala.com"
-  },
-  "Neo4j": {
-    "Mode": "Local"
   }
 }

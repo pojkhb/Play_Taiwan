@@ -27,10 +27,10 @@ namespace backend.dao
         /// 註冊商家：建立 auth(auth_type=2, is_active=1) + store，在同一個 Transaction 內完成。
         /// 免審核直接啟用，同時把 is_email_verified 設為 1，讓商家可以直接登入，
         /// 不用額外走一次信箱驗證流程。
-        /// newPlace 有值（商家自建景點）時，同一個交易再寫入 place_type（通用任務類型 6、7、8）。
+        /// isNewPlace（商家自建景點）時，同一個交易再寫入 place_type（通用任務類型 6、7、8）。
         /// 座標只存在 Neo4j 的自建景點節點（:MerchantPlace），行程規劃、地圖、任務位置驗證都依 uid 向 Neo4j 查。
         /// </summary>
-        public (int auId, int sId) RegisterMerchant(MerchantRegisterRequest req, string passwordHash, string storeUid, MerchantNewPlace newPlace)
+        public (int auId, int sId) RegisterMerchant(MerchantRegisterRequest req, string passwordHash, string storeUid, bool isNewPlace)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
@@ -66,11 +66,9 @@ namespace backend.dao
                     store_uid = storeUid
                 }, transaction);
 
-                if (newPlace != null)
+                if (isNewPlace)
                 {
-                    string placeName = string.IsNullOrWhiteSpace(newPlace.name) ? req.store_name : newPlace.name;
-
-                    PlaceTypeWriter.AddTypes(connection, transaction, storeUid, placeName, newPlace.category, PlaceTypeWriter.GenericTypeIds);
+                    PlaceTypeWriter.AddTypes(connection, transaction, storeUid, req.store_name, req.category, PlaceTypeWriter.GenericTypeIds);
                 }
 
                 transaction.Commit();
@@ -184,92 +182,7 @@ namespace backend.dao
         }
         #endregion
 
-        #region 3. 刪除商家帳號
-        /// <summary>
-        /// 商家整體刪除，單一 Transaction 內依序處理：
-        /// qrcode_coupon → user_coupon → coupon → (檢查 task 引用) → question_option → store_question →
-        /// store → auth。若有題目仍被 task 引用，整包 Rollback 並丟出 ConflictException。
-        /// 同時整理 place_type：景點已沒有商家題目時移除 (store_uid, 9)；
-        /// selfBuiltPlace（商家自建景點）時移除該景點所有 place_type 列；座標保留在 Neo4j（節點標成已刪除），不再排入行程。
-        /// 回傳該商家的 store_uid，供呼叫端在 MySQL commit 成功後另外處理 Neo4j 側清理。
-        /// </summary>
-        public string DeleteCascade(int sId, bool selfBuiltPlace)
-        {
-            using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Open();
-            using var transaction = connection.BeginTransaction();
-
-            try
-            {
-                var store = connection.QueryFirstOrDefault<(int auId, string storeUid)>(
-                    "SELECT au_id AS auId, store_uid AS storeUid FROM store WHERE s_id = @sId LIMIT 1;",
-                    new { sId }, transaction);
-
-                if (store.auId == 0 && store.storeUid == null)
-                {
-                    throw new NotFoundException($"找不到 s_id={sId} 的商家資料");
-                }
-
-                var couponIds = connection.Query<int>(
-                    "SELECT coupon_id FROM coupon WHERE s_id = @sId;", new { sId }, transaction).ToList();
-
-                if (couponIds.Count > 0)
-                {
-                    connection.Execute(
-                        "DELETE FROM qrcode_coupon WHERE coupon_id IN @couponIds;",
-                        new { couponIds }, transaction);
-                    connection.Execute(
-                        "DELETE FROM user_coupon WHERE coupon_id IN @couponIds;",
-                        new { couponIds }, transaction);
-                }
-                connection.Execute("DELETE FROM coupon WHERE s_id = @sId;", new { sId }, transaction);
-
-                var questionIds = connection.Query<int>(
-                    "SELECT question_id FROM store_question WHERE store_id = @sId;", new { sId }, transaction).ToList();
-
-                if (questionIds.Count > 0)
-                {
-                    var conflictingTaskIds = connection.Query<int>(
-                        "SELECT task_id FROM task WHERE question_id IN @questionIds;",
-                        new { questionIds }, transaction).ToList();
-
-                    if (conflictingTaskIds.Count > 0)
-                    {
-                        throw new ConflictException(
-                            $"此商家的題庫仍被 {conflictingTaskIds.Count} 筆任務引用，無法刪除商家帳號",
-                            conflictingTaskIds.Cast<object>());
-                    }
-
-                    connection.Execute(
-                        "DELETE FROM question_option WHERE question_id IN @questionIds;",
-                        new { questionIds }, transaction);
-                    connection.Execute(
-                        "DELETE FROM store_question WHERE store_id = @sId;", new { sId }, transaction);
-                }
-
-                connection.Execute("DELETE FROM store WHERE s_id = @sId;", new { sId }, transaction);
-                connection.Execute("DELETE FROM auth WHERE au_id = @auId;", new { auId = store.auId }, transaction);
-
-                PlaceTypeWriter.RemoveMerchantQuizIfEmpty(connection, transaction, store.storeUid);
-
-                if (selfBuiltPlace && !string.IsNullOrWhiteSpace(store.storeUid))
-                {
-                    connection.Execute(
-                        "DELETE FROM place_type WHERE place_id = @storeUid;", new { storeUid = store.storeUid }, transaction);
-                }
-
-                transaction.Commit();
-                return store.storeUid;
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
-        }
-        #endregion
-
-        #region 4. 已經生成的影音檔案（依最後更新時間新到舊）
+        #region 3. 已經生成的影音檔案（依最後更新時間新到舊）
         public List<MerchantFileItem> GetMerchantFiles(int auId)
         {
             string sql = @"

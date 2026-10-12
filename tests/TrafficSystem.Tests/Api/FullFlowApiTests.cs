@@ -34,6 +34,7 @@ public class FullFlowApiTests
     {
         _api = api;
         _api.FakeAi.Reset();
+        _api.FakeNeo4j.Reset();   // Neo4j 連不上，景點座標與照片用測試資料裡的 MySQL place
     }
 
     /// <summary>把測試資料灌進資料庫（掛在指定帳號底下），回傳劇本代號。可以重複執行</summary>

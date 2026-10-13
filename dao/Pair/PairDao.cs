@@ -317,6 +317,34 @@ namespace backend.dao
                 WHERE pm.pair_id = @pairId
                 ORDER BY pm.seat_no;", new { pairId }).ToList();
         }
+
+        /// <summary>
+        /// 現在一起玩這份劇本的人（依座位排序）：有進行中的隊伍就是隊伍成員；沒有隊伍（單人，或還沒產生配對碼）時只有劇本擁有者，坐 1 號座位。
+        /// 找不到劇本時回傳空清單。
+        /// </summary>
+        public List<PairMemberItem> GetTeam(int storyId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            conn.Open();
+            ExpireStaleCodes(conn, null);
+
+            SessionRow session = GetCurrentSession(conn, null, storyId, forUpdate: false);
+            if (session != null)
+            {
+                return conn.Query<PairMemberItem>(@"
+                    SELECT pm.au_id, a.auth_name, pm.seat_no, (pm.is_host = 1) AS is_host, pm.joined_at
+                    FROM story_pair_member pm
+                    LEFT JOIN auth a ON a.au_id = pm.au_id
+                    WHERE pm.pair_id = @pairId
+                    ORDER BY pm.seat_no;", new { pairId = session.pair_id }).ToList();
+            }
+
+            return conn.Query<PairMemberItem>(@"
+                SELECT s.au_id, a.auth_name, 1 AS seat_no, TRUE AS is_host, s.created_at AS joined_at
+                FROM story s
+                LEFT JOIN auth a ON a.au_id = s.au_id
+                WHERE s.s_id = @storyId;", new { storyId }).ToList();
+        }
         #endregion
 
         #region 共用

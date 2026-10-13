@@ -178,6 +178,9 @@ namespace backend
             services.AddScoped<Services.NearbyFoodService>();   // 用餐時間推播：附近美食
             services.AddScoped<Services.NearbyPlaceService>();  // 周邊好去：依使用者目前位置推薦
             services.AddScoped<dao.NearbyFoodDao>();
+            services.AddSingleton<Services.WeatherService>();   // 天氣提醒：中央氣象署的觀測與預報會放一陣子再重查，所以是 Singleton
+            services.AddScoped<Services.NpcReminderService>();  // 地圖上 NPC 的主動提醒：天氣、用餐時間
+            services.AddSingleton<Services.TaiwanClock>();      // 現在的台灣時間（測試時可以換成固定的時間）
             #endregion
             #region 商家 / 遊客 VLOG
             services.AddScoped<Services.VlogAiGateway>();
@@ -244,6 +247,7 @@ namespace backend
             // 協作解謎配對（story_pair_session / story_pair_member）
             services.AddScoped<Services.PairService>();
             services.AddScoped<dao.PairDao>();
+            services.AddSingleton<Services.TeamLocationStore>();   // 隊友位置：只放在記憶體，整個後端共用一份
             #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();

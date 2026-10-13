@@ -73,4 +73,70 @@ namespace backend.ViewModels
 
         public DateTime joined_at { get; set; }
     }
+
+    /// <summary>回報自己目前的位置</summary>
+    public class TeamLocationRequest
+    {
+        /// <summary>緯度</summary>
+        public double lat { get; set; }
+
+        /// <summary>經度</summary>
+        public double lng { get; set; }
+
+        /// <summary>定位精準度（公尺），可不帶</summary>
+        public double? accuracy { get; set; }
+
+        /// <summary>面向的方向（度，0＝正北，順時針），可不帶；地圖上要畫箭頭時用</summary>
+        public double? heading { get; set; }
+    }
+
+    /// <summary>一起玩這份劇本的人各自的位置</summary>
+    public class TeamLocationsResponse
+    {
+        /// <summary>劇本代號</summary>
+        public int story_id { get; set; }
+
+        /// <summary>幾秒內有回報才算在線上（members[].is_online）</summary>
+        public int online_within_seconds { get; set; }
+
+        /// <summary>一起玩的人（依座位排序，包含自己）；沒有協作隊伍時只有劇本擁有者自己</summary>
+        public List<TeamMemberLocation> members { get; set; } = new List<TeamMemberLocation>();
+    }
+
+    /// <summary>一位隊員與他最後回報的位置</summary>
+    public class TeamMemberLocation
+    {
+        public int au_id { get; set; }
+        public string auth_name { get; set; }
+
+        /// <summary>座位編號</summary>
+        public int seat_no { get; set; }
+
+        /// <summary>是否為隊長（劇本擁有者）</summary>
+        public bool is_host { get; set; }
+
+        /// <summary>是不是登入者自己（自己的位置前端用手機定位畫就好）</summary>
+        public bool is_me { get; set; }
+
+        /// <summary>緯度；還沒回報過、或最後一次回報超過 30 分鐘時為 null</summary>
+        public double? lat { get; set; }
+
+        /// <summary>經度；沒有位置時為 null</summary>
+        public double? lng { get; set; }
+
+        /// <summary>定位精準度（公尺），回報時有帶才有</summary>
+        public double? accuracy { get; set; }
+
+        /// <summary>面向的方向（度，0＝正北，順時針），回報時有帶才有</summary>
+        public double? heading { get; set; }
+
+        /// <summary>後端收到這筆位置的時間（UTC）；沒有位置時為 null</summary>
+        public DateTime? updated_at { get; set; }
+
+        /// <summary>這筆位置是幾秒前回報的；沒有位置時為 null</summary>
+        public int? seconds_ago { get; set; }
+
+        /// <summary>是否在線上：最近 60 秒內有回報位置。false 時地圖上可以把他畫成灰色</summary>
+        public bool is_online { get; set; }
+    }
 }

@@ -49,6 +49,24 @@ public class FakeAiService : HttpMessageHandler
     /// <summary>/api/agent/orchestrate（spin）要回的內容</summary>
     public object AgentOrchestrateResponse { get; set; } = AgentNoPlace;
 
+    /// <summary>備援天氣服務（Open-Meteo 的 /v1/forecast）要回的內容；null 代表連不上（回 404）</summary>
+    public object WeatherResponse { get; set; }
+
+    /// <summary>中央氣象署的授權碼：請求要帶這一組才會回資料（跟正式服務一樣，沒帶或帶錯就查不到）</summary>
+    public const string CwaKey = "test-cwa-key";
+
+    /// <summary>中央氣象署測站即時觀測（O-A0003-001）要回的內容；null 代表連不上（回 404）</summary>
+    public object CwaObservationResponse { get; set; }
+
+    /// <summary>中央氣象署縣市天氣預報（F-C0032-001）要回的內容；null 代表連不上（回 404）</summary>
+    public object CwaForecastResponse { get; set; }
+
+    /// <summary>Valhalla /route 的主路線（trip）；null 代表 Valhalla 沒開（回 404，後端改用直線估算）</summary>
+    public object ValhallaTrip { get; set; }
+
+    /// <summary>Valhalla /route 的替代路線（每一筆是一個 trip）：請求有要替代路線（alternates 大於 0）才會回，最多回要求的條數</summary>
+    public List<object> ValhallaAlternates { get; } = new();
+
     public void Reset()
     {
         Requests.Clear();
@@ -56,6 +74,11 @@ public class FakeAiService : HttpMessageHandler
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
         AgentOrchestrateResponse = AgentNoPlace;
+        WeatherResponse = null;
+        CwaObservationResponse = null;
+        CwaForecastResponse = null;
+        ValhallaTrip = null;
+        ValhallaAlternates.Clear();
     }
 
     public Received Last(string path) => Requests.LastOrDefault(r => r.Path == path);
@@ -110,6 +133,10 @@ public class FakeAiService : HttpMessageHandler
             _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId => NextTextPoll(),
             "/api/agent/orchestrate" => AgentOrchestrateResponse,
             "/search" => new[] { new { lat = "25.0324", lon = "121.5199" } },   // Nominatim：地名 → 座標
+            "/v1/forecast" => WeatherResponse,                                   // Open-Meteo：目前位置的天氣（備援）
+            "/api/v1/rest/datastore/O-A0003-001" when HasCwaKey(request) => CwaObservationResponse,   // 中央氣象署：測站即時觀測
+            "/api/v1/rest/datastore/F-C0032-001" when HasCwaKey(request) => CwaForecastResponse,      // 中央氣象署：縣市天氣預報
+            "/route" when ValhallaTrip != null => ValhallaRoute(fields),          // Valhalla：路線（含替代路線）
             _ => null
         };
 
@@ -120,6 +147,23 @@ public class FakeAiService : HttpMessageHandler
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
         };
+    }
+
+    private static bool HasCwaKey(HttpRequestMessage request) =>
+        request.RequestUri!.Query.Contains("Authorization=" + CwaKey);
+
+    /// <summary>跟真的 Valhalla 一樣：請求的 alternates 是幾，最多就回幾條替代路線；沒要就只有主路線</summary>
+    private object ValhallaRoute(Dictionary<string, string> fields)
+    {
+        int requested = 0;
+        if (fields.TryGetValue("body", out string body))
+        {
+            using JsonDocument doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("alternates", out JsonElement n) && n.ValueKind == JsonValueKind.Number)
+                requested = n.GetInt32();
+        }
+
+        return new { trip = ValhallaTrip, alternates = ValhallaAlternates.Take(requested).Select(trip => new { trip }).ToArray() };
     }
 
     private object NextTextPoll()

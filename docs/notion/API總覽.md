@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 100 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
+更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 104 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。每支 API 的 Request／回傳 JSON 在最後的「每支 API 的 JSON」。
 
@@ -20,7 +20,7 @@
 
 | 狀態 | 意思 | 數量 |
 |---|---|---|
-| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 74 |
+| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 77 |
 | ⚠️ 卡在 AI 服務 | 後端已用模擬的 AI 服務測過，正式環境卡在配璇的 AI 服務（10/6 AI 服務連不上，回 502） | 5 |
 | ❌ 目前不能用 | 程式查的資料表不存在，呼叫會出錯 | 1 |
 | 🗑 舊版（不用接） | 舊版或內部用，前端不用接 | 2 |
@@ -85,10 +85,14 @@
 | 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 | 要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開 |
 | 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_avatar_url 是這一站的 NPC |
 | 開始導航 | `POST /api/Map/Navigate` | ✅ 實測可用 | 還在迷霧中的站回傳 403（避免洩漏精確位置） |
-| NPC 互動 | `GET /api/Map/Node/{node_id}/Interact` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url、npc_voice 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白 |
-| 交通規劃 | `POST /api/Route/Plan` | ✅ 實測可用 | 帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來） |
+| NPC 互動 | `GET /api/Map/Node/{node_id}/Interact` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url、npc_voice 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白。內容是固定的（不是隨機）：同一站每次呼叫都一樣，跟 Task/Node 的 node.opening_text 是同一段；「回顧劇情」的背景圖用 scene_image_url |
+| 交通規劃 | `POST /api/Route/Plan` | ✅ 實測可用 | 帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來）。legs[].options 是這一段所有的走法，可以全部畫在地圖上讓使用者點選切換：is_chosen 的那條是主路線，其餘畫成灰色；用 option_id 記住使用者選了哪一條。每種交通方式一條，現在要走的那一段（帶劇本是 is_current 的那一段，自選地點是第一段）步行／腳踏車／機車／汽車還會多給最多 2 條同一種交通方式的替代走法（is_alternative = true）|
 | 節點遊玩畫面（劇情、NPC、題目） | `GET /api/Task/Node/{node_id}` | ✅ 實測可用 | 取代舊的 Task/List。要先 Arrive 抵達這一站（否則 409）；npc 是說開場白、出題的 NPC（名稱、身分、圖片、聲線）；每題的 answer_mode 決定作答時帶哪個欄位 |
 | 周邊好去處 | `GET /api/Map/{story_id}/Nearby` | ✅ 實測可用 |  |
+| 地圖上的 NPC：自己跳出來提醒（天氣、用餐） | `GET /api/Map/Reminders` | ✅ 實測可用 | **NPC 要不要跳出來由後端判斷**。地圖開著時每 5 分鐘（check_after_seconds）帶目前 GPS 問一次，reminders 裡有「還沒跳過的 key」才讓 NPC 跳出對話，空陣列就不用動。天氣只在打雷下雨、正在下雨、等一下可能下雨、太熱、偏涼時提醒；用餐只在早餐 07:00–09:00、午餐 11:30–13:30、晚餐 17:30–19:30 而且附近有店時提醒，places 是推薦的店家（最多 5 間）。message 直接放進對話泡泡。前端把跳過的 key 存在手機裡，同一個 key 不要跳第二次（同一種天氣 3 小時內、同一餐一天內 key 都一樣）。帶 story_id 時推薦的店家會排除劇本自己的站 |
+| 地圖上的 NPC：附近美食（使用者自己點開） | `GET /api/Map/NearbyFood` | ✅ 實測可用 | 帶目前 GPS。meal 是現在哪一餐、message 是可以直接放進 NPC 泡泡的一句話、places 是附近的店家。不管是不是用餐時間都會回；NPC 自己跳出來的用餐提醒請用 Reminders |
+| 地圖上的 NPC：現在天氣（使用者自己點開） | `GET /api/Map/Weather` | ✅ 實測可用 | 帶目前 GPS。message 是可以直接放進 NPC 泡泡的一句話（天氣、氣溫、降雨機率、提醒），天氣好壞都會回；condition 是換天氣圖示用的大類；alert 是值得主動提醒的狀況（天氣好時為 null）。NPC 自己跳出來的天氣提醒請用 Reminders。資料來自中央氣象署（最近的氣象站，每 10 分鐘更新），後端要設定授權碼 Weather:CwaApiKey；氣象署查不到時改用備援的 Open-Meteo，source 會標示。兩個都查不到回 502 |
+| 隊友位置（多人一起玩） | `POST /api/Pair/Story/{story_id}/Location` | ✅ 實測可用 | 地圖開著時每 5～10 秒帶目前 GPS 呼叫一次：記下自己的位置，同時回傳隊友各自最後的位置。lat/lng 為 null 代表還沒回報過（或超過 30 分鐘沒回報），不要畫；is_online = false 可以畫成灰色。只看不回報用 `GET /api/Pair/Story/{story_id}/Locations` |
 
 ### 七、任務完成與明信片
 
@@ -179,7 +183,7 @@
 | `GET /api/Story/{story_id}/Detail` | 取得指定劇本的詳細內容（含各節點地點名稱、任務提示、對應 NPC） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 | `POST /api/Story/{story_id}/Favorite` | 把劇本加入或取消喜愛 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：is_favorite（boolean） |
 
-### 組隊（5）
+### 組隊（7）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
@@ -188,6 +192,8 @@
 | `POST /api/Pair/Join` | 輸入配對碼加入協作隊伍 | 需要 | ⬜ 未實測 | JSON：pair_code（string） |
 | `POST /api/Pair/Leave` | 隊員退出協作隊伍 | 需要 | ⬜ 未實測 | JSON：story_id（integer） |
 | `GET /api/Pair/Story/{story_id}` | 查詢劇本目前的協作隊伍（限擁有者與隊員） | 需要 | ⬜ 未實測 | story_id（路徑，integer） |
+| `POST /api/Pair/Story/{story_id}/Location` | 回報自己的位置，並拿到隊友的位置（地圖上顯示隊友在哪） | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：lat（number）、lng（number）、accuracy（number）、heading（number） |
+| `GET /api/Pair/Story/{story_id}/Locations` | 查看隊友的位置（不回報自己的位置） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 
 ### NPC 語音（2）
 
@@ -196,7 +202,7 @@
 | `POST /api/Npc/Prologue/{story_id}` | 劇情前傳語音：唸指定劇本的前傳 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；voice（查詢，string） |
 | `POST /api/Npc/Speak` | NPC 說話：任意文字轉語音（節點對話、任務說明等） | 需要 | ✅ 實測可用 | JSON：text（string）、voice（string） |
 
-### 解謎地圖（7）
+### 解謎地圖（9）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
@@ -204,7 +210,9 @@
 | `POST /api/Map/Navigate` | 取得前往指定節點的導航資訊 | 需要 | ✅ 實測可用 | JSON：node_id（integer） |
 | `GET /api/Map/Node/{node_id}` | 取得指定節點的詳細內容 | 需要 | ✅ 實測可用 | node_id（路徑，integer） |
 | `POST /api/Map/Node/{node_id}/Arrive` | 使用 GPS 座標確認探員已抵達指定節點 | 需要 | ✅ 實測可用 | node_id（路徑，integer）；lat（查詢，number）；lng（查詢，number） |
-| `GET /api/Map/Node/{node_id}/Interact` | 取得指定節點的 NPC 隨機互動內容 | 需要 | ✅ 實測可用 | node_id（路徑，integer） |
+| `GET /api/Map/Node/{node_id}/Interact` | 取得指定節點的 NPC 對話：這一站的背景圖、NPC 與台詞（固定的開場白，不是隨機） | 需要 | ✅ 實測可用 | node_id（路徑，integer） |
+| `GET /api/Map/Reminders` | 地圖上 NPC 的主動提醒：現在有沒有值得 NPC 自己跳出來講的事（天氣、用餐） | 需要 | ✅ 實測可用 | lat（查詢，number）；lng（查詢，number）；story_id（查詢，integer，可省略） |
+| `GET /api/Map/Weather` | 天氣提醒：使用者目前位置的天氣 | 需要 | ✅ 實測可用 | lat（查詢，number）；lng（查詢，number） |
 | `GET /api/Map/{story_id}` | 取得指定劇本的地圖資訊 | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 | `GET /api/Map/{story_id}/Nearby` | 取得指定劇本周邊的推薦去處 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；category（查詢，string） |
 
@@ -1092,6 +1100,75 @@ Request：
 }
 ```
 
+#### `POST /api/Pair/Story/{story_id}/Location`　回報自己的位置，並拿到隊友的位置（地圖上顯示隊友在哪）
+
+參數：story_id（路徑，integer）
+
+Request：
+
+```json
+{
+  "lat": 24.1378,
+  "lng": 120.6835,
+  "accuracy": 12.5,
+  "heading": 90.0
+}
+```
+
+回傳：
+
+```json
+{
+  "story_id": 0,
+  "online_within_seconds": 60,
+  "members": [
+    {
+      "au_id": 0,
+      "auth_name": "string",
+      "seat_no": 1,
+      "is_host": true,
+      "is_me": true,
+      "lat": 24.1378,
+      "lng": 120.6835,
+      "accuracy": 12.5,
+      "heading": 90.0,
+      "updated_at": "2026-10-13T01:30:00Z",
+      "seconds_ago": 4,
+      "is_online": true
+    }
+  ]
+}
+```
+
+#### `GET /api/Pair/Story/{story_id}/Locations`　查看隊友的位置（不回報自己的位置）
+
+參數：story_id（路徑，integer）
+
+回傳：
+
+```json
+{
+  "story_id": 0,
+  "online_within_seconds": 60,
+  "members": [
+    {
+      "au_id": 0,
+      "auth_name": "string",
+      "seat_no": 1,
+      "is_host": true,
+      "is_me": true,
+      "lat": 24.1378,
+      "lng": 120.6835,
+      "accuracy": 12.5,
+      "heading": 90.0,
+      "updated_at": "2026-10-13T01:30:00Z",
+      "seconds_ago": 4,
+      "is_online": true
+    }
+  ]
+}
+```
+
 ### NPC 語音
 
 #### `POST /api/Npc/Prologue/{story_id}`　劇情前傳語音：唸指定劇本的前傳
@@ -1222,7 +1299,7 @@ Request：
 }
 ```
 
-#### `GET /api/Map/Node/{node_id}/Interact`　取得指定節點的 NPC 隨機互動內容
+#### `GET /api/Map/Node/{node_id}/Interact`　取得指定節點的 NPC 對話：這一站的背景圖、NPC 與台詞（固定的開場白，不是隨機）
 
 參數：node_id（路徑，integer）
 
@@ -1245,6 +1322,73 @@ Request：
   "next_task_id": "string"
 }
 ```
+
+#### `GET /api/Map/Reminders`　地圖上 NPC 的主動提醒：現在有沒有值得 NPC 自己跳出來講的事（天氣、用餐）
+
+參數：lat（查詢，number）；lng（查詢，number）；story_id（查詢，integer，可省略：正在玩的劇本，推薦的店家會排除這份劇本自己的站）
+
+回傳（中午、等一下可能下雨的例子；沒有要提醒的事時 reminders 是空陣列）：
+
+```json
+{
+  "check_after_seconds": 300,
+  "reminders": [
+    {
+      "key": "weather-20261013-12-rain_soon",
+      "type": "weather",
+      "kind": "rain_soon",
+      "message": "目前天氣：多雲，氣溫 27°C，降雨機率 70%。等一下可能會下雨，出門記得帶把傘。",
+      "weather": { "description": "多雲", "condition": "cloudy", "temperature_c": 27.0, "rain_probability": 70, "is_raining": false, "alert": "rain_soon", "source": "中央氣象署" },
+      "places": []
+    },
+    {
+      "key": "meal-20261013-lunch",
+      "type": "meal",
+      "kind": "lunch",
+      "message": "午餐時間到了！附近 350 公尺有「山河魯肉飯」，還有優惠券可以領，另外還有 4 間美食",
+      "weather": null,
+      "places": [
+        { "place_id": "string", "name": "山河魯肉飯", "address": "string", "type": "小吃", "lat": 0, "lng": 0, "distance_m": 350, "image_url": "string", "open_time": "11:00-14:00、17:00-21:00", "is_open_now": true, "coupons": [], "maps_deeplink_url": "string" }
+      ]
+    }
+  ]
+}
+```
+
+前端的做法：地圖開著時每隔 check_after_seconds 秒帶目前 GPS 問一次；每一則提醒如果 key 還沒跳過，就讓 NPC 跳出對話（message），並把 key 存在手機裡，之後同一個 key 不再跳。
+
+- type = weather 的 kind：thunder 打雷下雨、raining 正在下雨、rain_soon 等一下可能下雨（降雨機率 50% 以上）、hot 太熱（氣溫或體感 32°C 以上）、cold 偏涼（15°C 以下）。天氣好就不會有這一則；weather 的欄位跟 `GET /api/Map/Weather` 一樣
+- type = meal 的 kind：breakfast 早餐 07:00–09:00、lunch 午餐 11:30–13:30、dinner 晚餐 17:30–19:30（台灣時間）。附近 800 公尺內找不到店就不會有這一則；places 的欄位跟 `GET /api/Map/NearbyFood` 一樣，最多 5 間
+- key：同一種天氣 3 小時內、同一餐一天內都是同一個 key，所以 NPC 不會一直重複講；天氣從「可能下雨」變成「正在下雨」是另一個 key，會再跳一次
+- 天氣查不到時只是少了天氣那一則，用餐提醒照常
+
+#### `GET /api/Map/Weather`　天氣提醒：使用者目前位置的天氣
+
+參數：lat（查詢，number）；lng（查詢，number）
+
+回傳：
+
+```json
+{
+  "description": "陰有雨",
+  "condition": "rain",
+  "temperature_c": 22.4,
+  "apparent_temperature_c": 24.2,
+  "rain_probability": 80,
+  "is_raining": true,
+  "is_day": true,
+  "alert": "raining",
+  "advice": "外面正在下雨，記得帶傘，路滑小心走",
+  "message": "目前天氣：陰有雨，氣溫 22°C，降雨機率 80%。外面正在下雨，記得帶傘，路滑小心走。",
+  "observed_at": "2026-10-13T10:00:00",
+  "station_name": "臺中",
+  "source": "中央氣象署"
+}
+```
+
+condition：clear 晴、cloudy 多雲、overcast 陰、fog 霧（含靄、霾）、rain 雨、thunder 雷雨、snow 雪、unknown 不明。
+
+alert：值得主動提醒的狀況（thunder、raining、rain_soon、hot、cold），天氣好時為 null。
 
 #### `GET /api/Map/{story_id}`　取得指定劇本的地圖資訊
 
@@ -1601,7 +1745,9 @@ Request：
       ],
       "options": [
         {
+          "option_id": "步行-1",
           "mode": "string",
+          "is_alternative": false,
           "minutes": 0.0,
           "distance_km": 0.0,
           "summary": "string",

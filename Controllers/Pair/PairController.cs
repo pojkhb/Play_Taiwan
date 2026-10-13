@@ -114,5 +114,55 @@ namespace backend.Controllers
             _service.Cancel(User.GetAuId(), req?.story_id ?? 0);
             return Ok(new ResultViewModel<object> { isSuccess = true, message = "已取消協作隊伍", Result = null });
         }
+
+        /// <summary>回報自己的位置，並拿到隊友的位置（地圖上顯示隊友在哪）。</summary>
+        /// <remarks>
+        /// 多人一起玩時，地圖開著的期間每 5～10 秒帶目前 GPS 呼叫一次：後端記下自己的位置，同時回傳一起玩的人各自最後的位置，
+        /// 一趟來回就能更新地圖。限劇本擁有者與隊伍成員（403）；找不到劇本 404；沒帶位置 400。
+        ///
+        /// - members：一起玩的人（依座位排序，包含自己，is_me = true 的那一筆）；沒有協作隊伍時只有劇本擁有者自己
+        /// - lat、lng：隊友最後回報的位置；還沒回報過、或超過 30 分鐘沒回報時為 null（不要畫在地圖上）
+        /// - seconds_ago：這筆位置是幾秒前的；is_online：最近 60 秒內有回報，false 時可以畫成灰色
+        /// - heading：面向的方向（度，0＝正北），回報時有帶才有
+        ///
+        /// 位置只放在後端記憶體、不寫進資料庫，也不留移動軌跡；退出隊伍或隊伍取消後，位置就不會再被隊友看到。
+        ///
+        /// **Request 範例**：
+        /// ```json
+        /// { "lat": 24.1378, "lng": 120.6835, "accuracy": 12.5, "heading": 90 }
+        /// ```
+        /// </remarks>
+        [HttpPost]
+        [Route("Story/{story_id:int}/Location")]
+        [ProducesResponseType(typeof(ResultViewModel<TeamLocationsResponse>), 200)]
+        public IActionResult ReportLocation(int story_id, [FromBody] TeamLocationRequest req)
+        {
+            return Ok(new ResultViewModel<TeamLocationsResponse>
+            {
+                isSuccess = true,
+                message = "位置已更新",
+                Result = _service.ReportLocation(User.GetAuId(), story_id, req)
+            });
+        }
+
+        /// <summary>查看隊友的位置（不回報自己的位置）。</summary>
+        /// <remarks>
+        /// 回傳內容跟 POST /api/Pair/Story/{story_id}/Location 一樣，差別是不會更新自己的位置；
+        /// 例如使用者關掉定位、只想看隊友在哪的時候用。限劇本擁有者與隊伍成員（403）。
+        ///
+        ///     GET /api/Pair/Story/1/Locations
+        /// </remarks>
+        [HttpGet]
+        [Route("Story/{story_id:int}/Locations")]
+        [ProducesResponseType(typeof(ResultViewModel<TeamLocationsResponse>), 200)]
+        public IActionResult GetLocations(int story_id)
+        {
+            return Ok(new ResultViewModel<TeamLocationsResponse>
+            {
+                isSuccess = true,
+                message = "查詢成功",
+                Result = _service.GetLocations(User.GetAuId(), story_id)
+            });
+        }
     }
 }

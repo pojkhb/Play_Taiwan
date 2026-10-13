@@ -27,8 +27,17 @@ namespace backend.Models
         /// <summary>明信片簡介</summary>
         public string p_summary { get; set; }
 
-        /// <summary>明信片圖片網址（AI 生成）</summary>
+        /// <summary>
+        /// 明信片圖片網址。資料庫裡存的是 AI 服務給的檔案連結（只有後端拿圖片內容時用）；
+        /// API 回傳時一律換成顯示網址（GET api/PostcardCatalog/{id}/image），前端直接拿來顯示
+        /// </summary>
         public string p_imag_url { get; set; }
+
+        /// <summary>
+        /// 明信片圖片的下載網址（GET api/PostcardCatalog/{id}/download），打開會存成檔案。
+        /// 不是資料表的欄位，生成明信片的 API 回傳時才會填
+        /// </summary>
+        public string download_url { get; set; }
 
         /// <summary>是否為夜間版：1 = 夜間、0 = 白天</summary>
         public int is_night { get; set; }

@@ -89,6 +89,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["SmtpSettings:Port"] = "1",
             ["Fog:GeneratedRoot"] = FogRoot,
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
+            ["Postcard:ImageRoot"] = Path.Combine(FogRoot, "postcards"),   // 抓回後端的明信片圖片也是
             ["AiService:TrafficLogRoot"] = AiLogRoot,
         }));
         builder.ConfigureTestServices(services =>

@@ -118,7 +118,8 @@ namespace backend.Services
                 {
                     postcard_id = p.p_id,
                     name = p.p_name,
-                    image_url = p.p_imag_url,
+                    image_url = $"{baseUrl?.TrimEnd('/')}{PostcardCatalogService.ImagePath(p.p_id)}",          // 顯示網址，打開就是圖片
+                    download_url = $"{baseUrl?.TrimEnd('/')}{PostcardCatalogService.DownloadPath(p.p_id)}",   // 下載網址，打開會存成檔案
                     is_night_edition = p.is_night == 1
                 }).ToList(),
                 badge = badge == null ? null : new StoryRecapBadge

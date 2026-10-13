@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 104 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
+更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 105 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。每支 API 的 Request／回傳 JSON 在最後的「每支 API 的 JSON」。
 
@@ -101,7 +101,7 @@
 | 任務答題 | `POST /api/Task/Answer` | ⬜ 未實測 | GPS 要在任務地點 200 公尺內；要帶哪個作答欄位看 GET /api/Task/Node/{node_id} 每題的 answer_mode |
 | 取得提示 | `GET /api/Task/{task_id}/Hint` | ✅ 實測可用 | 答錯次數達門檻才會給提示（門檻依題目難易度與玩家表現）；npc_name、npc_avatar_url 是給提示的 NPC |
 | 拍照上傳 | `POST /api/Upload` | ✅ 實測可用 |  |
-| 生成明信片 | `POST /api/PostcardCatalog/GenerateAi` | ✅ 實測可用 | multipart/form-data：user_image（照片）、spot_name、story_id、node_id。任務完成後由前端呼叫 |
+| 生成明信片 | `POST /api/PostcardCatalog/GenerateAi` | ✅ 實測可用 | multipart/form-data：user_image（照片）、spot_name、story_id、node_id。任務完成後由前端呼叫。回傳的 p_imag_url 是顯示網址（直接顯示）、download_url 是下載網址（「下載」按鈕打開它會存成檔案） |
 | 完成劇本 | `POST /api/Story/EndStory` | ✅ 實測可用 | 把劇本標成完成（首頁總覽、過往旅途、抽徽章都以這個為準） |
 | 抽徽章 | `POST /api/Badge/Draw` | ✅ 實測可用 | 要先呼叫 EndStory 把劇本標成完成才能抽；一個劇本只能抽一次，重抽回傳同一枚（is_new=false） |
 
@@ -119,7 +119,7 @@
 | 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 | photos：上方左右滑動的照片，玩家拍的照片（is_place_photo = false），沒拍照片的站補上那一站的景點照片（is_place_photo = true，Neo4j）；cover_image_url 跟列表同一張 |
 | 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
 | 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音 |
-| 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
+| 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 | 每張明信片有兩個網址，都由後端回傳圖片：ImageUrl 是顯示網址（打開就是圖片，直接拿來顯示）；DownloadUrl 是下載網址（打開會存成檔案，檔名是明信片名稱）。所有明信片 API 給的都是這兩個，不用自己組 |
 | Vlog 旁白草稿 | `POST /api/VisitorVlog/Preview` | ⚠️ 卡在 AI 服務 | 後端已用模擬 AI 測過；AI 服務 10/6 連不上（502），9/30 時 AI 端是 CUDA 錯誤 |
 | Vlog 合成 | `POST /api/VisitorVlog/CreateFinal` | ✅ 實測可用 | 照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url |
 | Vlog 進度與影片 | `GET /api/VisitorVlog/Status/{story_id}` | ✅ 實測可用 |  |
@@ -250,18 +250,19 @@
 |---|---|---|---|---|
 | `POST /api/Upload` | 上傳檔案（照片、影片、錄音），回傳檔案網址 | 需要 | ✅ 實測可用 | 表單：file（檔案） |
 
-### 明信片（8）
+### 明信片（9）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
-| `GET /api/PostcardCatalog` | 取得所有明信片主檔清單 | 需要 | ✅ 實測可用 |  |
+| `GET /api/PostcardCatalog` | 取得目前登入者的所有明信片（最新的在前面） | 需要 | ✅ 實測可用 |  |
 | `POST /api/PostcardCatalog/GenerateAi` | 呼叫外部服務生成 AI 明信片並存入資料庫 | 需要 | ✅ 實測可用 | 表單：user_image（檔案）、spot_name（string）、user_prompt（string）、story_id（integer）、node_id（integer）、is_night_edition（boolean） |
 | `POST /api/PostcardCatalog/Print` | 透過 postcard_id 送出明信片至 ibon 列印，取得取件碼 | 不用 | ✅ 實測可用 | JSON：postcard_id（integer） |
 | `POST /api/PostcardCatalog/Share` | 紀錄使用者已將該劇本的明信片分享至社群平台 | 不用 | ✅ 實測可用 | JSON：story_id（integer）、platform（string） |
 | `GET /api/PostcardCatalog/by-story/{storyId}` | 取得指定劇本 (story_id) 所擁有的「所有」明信片主檔 | 需要 | ✅ 實測可用 | storyId（路徑，integer） |
 | `GET /api/PostcardCatalog/{id}` | 依明信片識別碼 (postcard_id) 取得單一明信片主檔資料 | 不用 | ✅ 實測可用 | id（路徑，integer） |
 | `POST /api/PostcardCatalog/{id}/Delete` | 刪除明信片主檔 | 需要 | ✅ 實測可用 | id（路徑，integer） |
-| `GET /api/PostcardCatalog/{id}/image` | 依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址 | 不用 | ✅ 實測可用 | id（路徑，integer） |
+| `GET /api/PostcardCatalog/{id}/download` | 明信片的下載網址：同一張圖，打開會存成檔案（檔名是明信片名稱） | 不用 | ✅ 實測可用 | id（路徑，integer） |
+| `GET /api/PostcardCatalog/{id}/image` | 明信片的顯示網址：直接回傳圖片本身，打開就是顯示（不轉址、不是下載） | 不用 | ✅ 實測可用 | id（路徑，integer） |
 
 ### 徽章（2）
 
@@ -2137,7 +2138,9 @@ Request：
 
 ### 明信片
 
-#### `GET /api/PostcardCatalog`　取得所有明信片主檔清單
+#### `GET /api/PostcardCatalog`　取得目前登入者的所有明信片（最新的在前面）
+
+每張明信片有兩個網址，都由後端回傳圖片（不是 AI 服務的檔案連結）：ImageUrl 是顯示網址，直接拿來顯示；DownloadUrl 是下載網址，「下載」按鈕打開它會存成檔案。
 
 回傳：
 
@@ -2149,7 +2152,8 @@ Request：
     "NodeId": 0,
     "PostcardName": "string",
     "Summary": "string",
-    "ImageUrl": "string",
+    "ImageUrl": "https://<伺服器>/api/PostcardCatalog/21/image",
+    "DownloadUrl": "https://<伺服器>/api/PostcardCatalog/21/download",
     "IsNightEdition": false,
     "CreatedAt": "2026-10-07T12:00:00",
     "UpdatedAt": "2026-10-07T12:00:00"
@@ -2171,12 +2175,15 @@ Request：
   "sn_id": 0,
   "p_name": "string",
   "p_summary": "string",
-  "p_imag_url": "string",
+  "p_imag_url": "https://<伺服器>/api/PostcardCatalog/21/image",
+  "download_url": "https://<伺服器>/api/PostcardCatalog/21/download",
   "is_night": 0,
   "created_at": "2026-10-07T12:00:00",
   "updated_at": "2026-10-07T12:00:00"
 }
 ```
+
+p_imag_url 是顯示網址（直接拿來顯示）、download_url 是下載網址（打開會存成檔案）。生成後圖片就存在後端，之後顯示不用再等 AI 服務。
 
 #### `POST /api/PostcardCatalog/Print`　透過 postcard_id 送出明信片至 ibon 列印，取得取件碼
 
@@ -2234,7 +2241,8 @@ Request：
     "NodeId": 0,
     "PostcardName": "string",
     "Summary": "string",
-    "ImageUrl": "string",
+    "ImageUrl": "https://<伺服器>/api/PostcardCatalog/21/image",
+    "DownloadUrl": "https://<伺服器>/api/PostcardCatalog/21/download",
     "IsNightEdition": false,
     "CreatedAt": "2026-10-07T12:00:00",
     "UpdatedAt": "2026-10-07T12:00:00"
@@ -2255,7 +2263,8 @@ Request：
   "NodeId": 0,
   "PostcardName": "string",
   "Summary": "string",
-  "ImageUrl": "string",
+  "ImageUrl": "https://<伺服器>/api/PostcardCatalog/21/image",
+  "DownloadUrl": "https://<伺服器>/api/PostcardCatalog/21/download",
   "IsNightEdition": false,
   "CreatedAt": "2026-10-07T12:00:00",
   "UpdatedAt": "2026-10-07T12:00:00"
@@ -2272,11 +2281,17 @@ Request：
 false
 ```
 
-#### `GET /api/PostcardCatalog/{id}/image`　依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址
+#### `GET /api/PostcardCatalog/{id}/download`　明信片的下載網址：同一張圖，打開會存成檔案
 
 參數：id（路徑，integer）
 
-回傳：（302 轉址到圖片網址，不是 JSON：直接當 <img> 的網址）
+回傳：（圖片檔案，不是 JSON）帶 `Content-Disposition: attachment`，檔名是明信片名稱，例如「台北101 專屬明信片.png」。不用登入。明信片 API 回傳的 DownloadUrl（生成結果、劇本回顧是 download_url）就是這一支，前端不用自己組。查無這張明信片回 404；圖片暫時拿不到回 502。
+
+#### `GET /api/PostcardCatalog/{id}/image`　明信片的顯示網址：直接回傳圖片本身
+
+參數：id（路徑，integer）
+
+回傳：（圖片本身，不是 JSON：直接當 <img>／Image.network 的網址）image/png 或 image/jpeg，打開就是顯示，不轉址、也不會變成下載檔案。不用登入。明信片 API 回傳的 ImageUrl（生成結果是 p_imag_url、劇本回顧是 image_url、首頁卡片是 hc_image）就是這一支。圖片第一次向 AI 服務拿，之後存在後端，AI 服務暫時連不上也看得到。查無這張明信片回 404；圖片暫時拿不到回 502。
 
 ### 徽章
 
@@ -2438,7 +2453,8 @@ Request：
     {
       "postcard_id": 0,
       "name": "string",
-      "image_url": "string",
+      "image_url": "https://<伺服器>/api/PostcardCatalog/21/image",
+      "download_url": "https://<伺服器>/api/PostcardCatalog/21/download",
       "is_night_edition": false
     }
   ],

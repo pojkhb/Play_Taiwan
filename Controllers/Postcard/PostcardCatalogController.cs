@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.ViewModels;
 using backend.Models;
+using backend.util;
 using backend.utils;
 
 
@@ -17,6 +18,8 @@ namespace backend.Controllers
     /// 明信片相關 API。
     /// 對應頁面：收藏館。新資料庫已把主檔與擁有紀錄合併成 postcard 一張表，
     /// 因此這裡回傳的就是「目前登入者自己的明信片」。
+    /// 每張明信片有兩個網址：顯示網址（GET api/PostcardCatalog/{id}/image，打開就是圖片）
+    /// 與下載網址（GET api/PostcardCatalog/{id}/download，打開會存成檔案）。
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -32,6 +35,13 @@ namespace backend.Controllers
             _service = service;
         }
 
+        /// <summary>顯示網址、下載網址組成完整網址</summary>
+        private void WithPublicUrls(PostcardCatalogResponse postcard)
+        {
+            postcard.ImageUrl = PublicUrl.Of(Request, postcard.ImageUrl);
+            postcard.DownloadUrl = PublicUrl.Of(Request, postcard.DownloadUrl);
+        }
+
 
         #region 擴充功能 1：生成 AI 明信片
 
@@ -40,41 +50,40 @@ namespace backend.Controllers
         /// 呼叫外部服務生成 AI 明信片並存入資料庫。
         /// </summary>
         /// <remarks>
-        /// 接收前端上傳的照片與提示詞，轉發至外部 AI 服務生成明信片，
-        /// 直接把外部服務回傳的圖片「網址」存入 `md_postcard.image_url`（不再下載轉 Base64），
-        /// 同時將此明信片綁定給發起請求的探員。**必須帶 Token**（後端會從 Token 解析 ep_id）。
-        /// 
+        /// 接收前端上傳的照片與提示詞，轉發至外部 AI 服務生成明信片並存入資料表 `postcard`，
+        /// 同時將此明信片綁定給發起請求的探員。**必須帶 Token**（後端會從 Token 解析 au_id）。
+        ///
         /// **⚠️ 請求格式注意**：必須使用 `multipart/form-data`，不能使用一般的 JSON。
-        /// 
+        ///
         /// **Request 範例**（multipart/form-data 欄位）：
         /// ```
         /// user_image: (檔案) taipei101.jpg
         /// spot_name: "台北101"
         /// user_prompt: "復古水墨風"
-        /// story_id: "story_001"
+        /// story_id: 12
+        /// node_id: 345
         /// ```
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
         ///   "isSuccess": true,
         ///   "message": "AI 明信片生成且儲存成功",
         ///   "Result": {
-        ///     "postcardId": "ai_d1863bc6",
-        ///     "storyId": "story_001",
-        ///     "postcardName": "台北101 專屬明信片",
-        ///     "summary": "晨曦的秘密花園，夕陽的城市堡壘...",
-        ///     "imageUrl": "https://external-ai-service.com/generated/xxx.png",
-        ///     "category": "AI Generate",
-        ///     "isNightEdition": false,
-        ///     "sortOrder": 1,
-        ///     "isActive": true
+        ///     "p_id": 21,
+        ///     "au_id": 7,
+        ///     "s_id": 12,
+        ///     "sn_id": 345,
+        ///     "p_name": "台北101 專屬明信片",
+        ///     "p_summary": "晨曦的秘密花園，夕陽的城市堡壘...",
+        ///     "p_imag_url": "https://你的後端網址/api/PostcardCatalog/21/image",
+        ///     "download_url": "https://你的後端網址/api/PostcardCatalog/21/download",
+        ///     "is_night": 0
         ///   }
         /// }
         /// ```
-        /// *(註：`imageUrl` 現在是外部服務的圖片連結，前端可直接使用，
-        /// 也可以改用 `by-story/{story_id}` 取得清單後，用 `{postcard_id}/image` 顯示圖片，
-        /// 該端點會自動轉址至真正的圖片網址)*
+        /// `p_imag_url` 是明信片圖片的顯示網址，直接拿來顯示（打開就是圖片）；`download_url` 是下載網址，「下載」按鈕打開它會存成檔案。
+        /// 其他明信片 API 回傳的 `ImageUrl`、`DownloadUrl` 也是同樣的兩個網址。
         /// </remarks>
         [HttpPost]
         [Route("GenerateAi")]
@@ -91,6 +100,8 @@ namespace backend.Controllers
             try
             {
                 var resultEntity = await _service.GenerateAiPostcardAsync(request, User.GetAuId());
+                resultEntity.p_imag_url = PublicUrl.Of(Request, resultEntity.p_imag_url);
+                resultEntity.download_url = PublicUrl.Of(Request, resultEntity.download_url);
                 return Ok(new ResultViewModel<PostcardCatalog>
                 {
                     isSuccess = true,
@@ -114,7 +125,7 @@ namespace backend.Controllers
         /// 透過 postcard_id 送出明信片至 ibon 列印，取得取件碼。
         /// </summary>
         /// <remarks>
-        /// 傳入明信片 ID (postcard_id)，後端會撈取該張明信片的圖片網址並下載實際位元組，
+        /// 傳入明信片 ID (postcard_id)，後端會把該張明信片的圖片內容（跟顯示用的是同一份）
         /// 透過本機背景執行的 Python 微服務 (`127.0.0.1:9000`) 上傳至 ibon，回傳真實的取件碼與 QR Code。
         /// 
         /// **Request 範例**：
@@ -229,16 +240,16 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 取得所有明信片主檔清單。
+        /// 取得目前登入者的所有明信片（最新的在前面）。
         /// </summary>
         /// <remarks>
-        /// 依 `sort_order` 排序，回傳所有 `is_active = 1` 的明信片主檔。可用 `category` 篩選分類。
-        /// 
+        /// `ImageUrl` 是明信片圖片的顯示網址，直接拿來顯示（打開就是圖片）；`DownloadUrl` 是下載網址，「下載」按鈕打開它會存成檔案。
+        ///
         /// **Request 範例**：
         /// ```
-        /// GET /api/PostcardCatalog?category=AI Generate
+        /// GET /api/PostcardCatalog
         /// ```
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
@@ -246,17 +257,16 @@ namespace backend.Controllers
         ///   "message": "查詢成功",
         ///   "Result": [
         ///     {
-        ///       "postcardId": "ai_d1863bc6",
-        ///       "storyId": "story_001",
-        ///       "postcardName": "台北101 專屬明信片",
-        ///       "summary": "晨曦的秘密花園...",
-        ///       "imageUrl": "https://external-ai-service.com/generated/xxx.png",
-        ///       "isNightEdition": false,
-        ///       "category": "AI Generate",
-        ///       "sortOrder": 1,
-        ///       "isActive": true,
-        ///       "createdAt": "2024-12-01T10:00:00",
-        ///       "updatedAt": "2024-12-01T10:00:00"
+        ///       "PostcardId": 21,
+        ///       "StoryId": 12,
+        ///       "NodeId": 345,
+        ///       "PostcardName": "台北101 專屬明信片",
+        ///       "Summary": "晨曦的秘密花園...",
+        ///       "ImageUrl": "https://你的後端網址/api/PostcardCatalog/21/image",
+        ///       "DownloadUrl": "https://你的後端網址/api/PostcardCatalog/21/download",
+        ///       "IsNightEdition": false,
+        ///       "CreatedAt": "2024-12-01T10:00:00",
+        ///       "UpdatedAt": "2024-12-01T10:00:00"
         ///     }
         ///   ]
         /// }
@@ -271,6 +281,7 @@ namespace backend.Controllers
             try
             {
                 var result = await _service.GetAllAsync(User.GetAuId());
+                result.ForEach(WithPublicUrls);
                 return Ok(new ResultViewModel<List<PostcardCatalogResponse>> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -291,22 +302,23 @@ namespace backend.Controllers
         /// <remarks>
         /// **Request 範例**：
         /// ```
-        /// GET /api/PostcardCatalog/ai_d1863bc6
+        /// GET /api/PostcardCatalog/21
         /// ```
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
         ///   "isSuccess": true,
         ///   "message": "查詢成功",
         ///   "Result": {
-        ///     "postcardId": "ai_d1863bc6",
-        ///     "storyId": "story_001",
-        ///     "postcardName": "台北101 專屬明信片",
-        ///     "summary": "晨曦的秘密花園...",
-        ///     "imageUrl": "https://external-ai-service.com/generated/xxx.png",
-        ///     "category": "AI Generate",
-        ///     "isActive": true
+        ///     "PostcardId": 21,
+        ///     "StoryId": 12,
+        ///     "NodeId": 345,
+        ///     "PostcardName": "台北101 專屬明信片",
+        ///     "Summary": "晨曦的秘密花園...",
+        ///     "ImageUrl": "https://你的後端網址/api/PostcardCatalog/21/image",
+        ///     "DownloadUrl": "https://你的後端網址/api/PostcardCatalog/21/download",
+        ///     "IsNightEdition": false
         ///   }
         /// }
         /// ```
@@ -329,6 +341,7 @@ namespace backend.Controllers
             {
                 var result = await _service.GetByIdAsync(id);
                 if (result == null) return NotFound(new ResultViewModel<PostcardCatalogResponse> { isSuccess = false, message = "查無此資料", Result = null });
+                WithPublicUrls(result);
                 return Ok(new ResultViewModel<PostcardCatalogResponse> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -347,14 +360,14 @@ namespace backend.Controllers
         /// 取得指定劇本 (story_id) 所擁有的「所有」明信片主檔。
         /// </summary>
         /// <remarks>
-        /// 同一個 story_id 可能生成過多次明信片，此 API 回傳全部清單（依 sort_order 排序）。
-        /// 要顯示某一張的圖片時，從回傳結果取出 `postcardId`，改打 `{postcardId}/image` 顯示。
-        /// 
+        /// 同一個 story_id 可能生成過多次明信片，此 API 回傳全部清單（依建立時間排序）。
+        /// 每一張的 `ImageUrl` 是圖片的顯示網址，直接拿來顯示；`DownloadUrl` 是下載網址。
+        ///
         /// **Request 範例**：
         /// ```
-        /// GET /api/PostcardCatalog/by-story/story_001
+        /// GET /api/PostcardCatalog/by-story/12
         /// ```
-        /// 
+        ///
         /// **Response 範例**：
         /// ```json
         /// {
@@ -362,11 +375,13 @@ namespace backend.Controllers
         ///   "message": "查詢成功",
         ///   "Result": [
         ///     {
-        ///       "postcardId": "ai_d1863bc6",
-        ///       "storyId": "story_001",
-        ///       "postcardName": "台北101 專屬明信片",
-        ///       "category": "AI Generate",
-        ///       "createdAt": "2024-12-01T10:00:00"
+        ///       "PostcardId": 21,
+        ///       "StoryId": 12,
+        ///       "NodeId": 345,
+        ///       "PostcardName": "台北101 專屬明信片",
+        ///       "ImageUrl": "https://你的後端網址/api/PostcardCatalog/21/image",
+        ///       "DownloadUrl": "https://你的後端網址/api/PostcardCatalog/21/download",
+        ///       "CreatedAt": "2024-12-01T10:00:00"
         ///     }
         ///   ]
         /// }
@@ -381,6 +396,7 @@ namespace backend.Controllers
             try
             {
                 var result = await _service.GetByStoryIdAsync(storyId, User.GetAuId());
+                result.ForEach(WithPublicUrls);
                 return Ok(new ResultViewModel<List<PostcardCatalogResponse>> { isSuccess = true, message = "查詢成功", Result = result });
             }
             catch (Exception e)
@@ -441,27 +457,28 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 【前端不用接：直接當圖片網址】依 postcard_id 取得指定明信片的圖片，轉址 (302 Redirect) 至實際圖片網址。
+        /// 【前端不用另外接：這就是明信片的圖片網址】依 postcard_id 顯示指定明信片的圖片。
         /// </summary>
         /// <remarks>
-        /// 資料庫現在直接儲存圖片的外部連結（不再是 Base64），此 API 會查出該連結後直接轉址，
-        /// 瀏覽器/前端會自動跟隨轉址載入真正的圖片，後端不再代理下載與回傳位元組。
-        /// 
-        /// 前端一樣可以把此 API 當作 HTML 圖片網址使用：
-        /// 
+        /// 直接回傳圖片本身（image/png、image/jpeg…），打開就是顯示圖片，不會轉址、也不會變成下載檔案
+        /// （要存成檔案請用 `{id}/download`）。
+        /// 所有明信片 API 回傳的顯示網址（`ImageUrl`、`p_imag_url`、劇本回顧的 `image_url`、首頁卡片的 `hc_image`）都是這一支，
+        /// 前端不用自己組，拿到就直接顯示：
+        ///
         /// ```html
-        /// <img src="https://你的後端網址/api/PostcardCatalog/ai_d1863bc6/image" />
+        /// <img src="https://你的後端網址/api/PostcardCatalog/21/image" />
         /// ```
-        /// 
+        ///
+        /// 圖片第一次會向 AI 服務拿，之後存在後端，所以 AI 服務暫時連不上也看得到。不需要帶 Token。
+        ///
         /// **Request 範例**：
         /// ```
-        /// GET /api/PostcardCatalog/ai_d1863bc6/image
+        /// GET /api/PostcardCatalog/21/image
         /// ```
-        /// 
-        /// **Response**：302 Redirect 至真實圖片網址。
-        /// 查無資料時回傳 404 純文字：`找不到該明信片的圖片`
+        ///
+        /// 查無資料時回傳 404 純文字：`找不到該明信片的圖片`；圖片暫時拿不到時回傳 502 純文字：`無法載入圖片`
         /// </remarks>
-        /// <response code="200">302 轉址到實際圖片網址（不是 JSON）</response>
+        /// <response code="200">圖片本身（不是 JSON）</response>
         [HttpGet]
         [Route("{id:int}/image")]
         [AllowAnonymous]
@@ -469,14 +486,60 @@ namespace backend.Controllers
         {
             try
             {
-                var imageUrl = await _service.GetImageUrlByPostcardIdAsync(id);
-                if (string.IsNullOrEmpty(imageUrl)) return NotFound("找不到該明信片的圖片");
-                return Redirect(imageUrl);
+                byte[] image = await _service.GetImageAsync(id);
+                if (image == null) return NotFound("找不到該明信片的圖片");
+
+                // 明信片生成後內容不會變，讓 App 與瀏覽器把圖片留著，不用每次重新拿
+                Response.Headers.CacheControl = "public, max-age=86400";
+                return File(image, PostcardCatalogService.ContentTypeOf(image) ?? "image/png");   // 沒有指定檔名：直接顯示，不是下載
             }
             catch (Exception ex)
             {
+                // 圖片在 AI 服務那邊，拿不到多半是對方的問題
                 _logger.LogError(ex, $"讀取明信片 {id} 圖片時發生錯誤");
-                return StatusCode(500, "無法載入圖片");
+                return StatusCode(502, "無法載入圖片");
+            }
+        }
+        #endregion
+
+
+        #region 依明信片 ID 下載圖片
+
+
+        /// <summary>
+        /// 【前端不用另外接：這就是明信片的下載網址】依 postcard_id 下載指定明信片的圖片。
+        /// </summary>
+        /// <remarks>
+        /// 內容跟顯示用的 `{id}/image` 是同一張圖，差別是打開會存成檔案（Content-Disposition: attachment），
+        /// 檔名是明信片名稱，例如 `台北101 專屬明信片.png`。
+        /// 明信片 API 回傳的 `DownloadUrl`（生成結果、劇本回顧是 `download_url`）就是這一支，「下載」按鈕直接打開它。
+        /// 不需要帶 Token。
+        ///
+        /// **Request 範例**：
+        /// ```
+        /// GET /api/PostcardCatalog/21/download
+        /// ```
+        ///
+        /// 查無資料時回傳 404 純文字：`找不到該明信片的圖片`；圖片暫時拿不到時回傳 502 純文字：`無法下載圖片`
+        /// </remarks>
+        /// <response code="200">圖片檔案（不是 JSON）</response>
+        [HttpGet]
+        [Route("{id:int}/download")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadImageById(int id)
+        {
+            try
+            {
+                var download = await _service.GetDownloadAsync(id);
+                if (download == null) return NotFound("找不到該明信片的圖片");
+
+                var (bytes, fileName) = download.Value;
+                return File(bytes, PostcardCatalogService.ContentTypeOf(bytes) ?? "image/png", fileName);   // 有指定檔名：存成檔案
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"下載明信片 {id} 圖片時發生錯誤");
+                return StatusCode(502, "無法下載圖片");
             }
         }
         #endregion

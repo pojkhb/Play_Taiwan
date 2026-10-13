@@ -26,6 +26,6 @@ namespace backend.Models
         public string PostcardIntroduction { get; set; } /* AI 生成的明信片介紹說明文字 */
 
         [JsonPropertyName("download_url")]
-        public string DownloadUrl { get; set; } /* AI 生成的明信片圖片下載網址 */
+        public string DownloadUrl { get; set; } /* AI 生成的明信片圖片檔案連結（打開會下載檔案）：後端只用它把圖片抓回來，不會回傳給前端 */
     }
 }

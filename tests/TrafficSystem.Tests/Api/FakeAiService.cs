@@ -49,6 +49,9 @@ public class FakeAiService : HttpMessageHandler
     /// <summary>/api/agent/orchestrate（spin）要回的內容</summary>
     public object AgentOrchestrateResponse { get; set; } = AgentNoPlace;
 
+    /// <summary>生成明信片（/api/postcard/create_ai）要回的內容；null 代表連不上（回 404）</summary>
+    public object PostcardResponse { get; set; }
+
     /// <summary>備援天氣服務（Open-Meteo 的 /v1/forecast）要回的內容；null 代表連不上（回 404）</summary>
     public object WeatherResponse { get; set; }
 
@@ -74,6 +77,7 @@ public class FakeAiService : HttpMessageHandler
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
         AgentOrchestrateResponse = AgentNoPlace;
+        PostcardResponse = null;
         WeatherResponse = null;
         CwaObservationResponse = null;
         CwaForecastResponse = null;
@@ -132,6 +136,7 @@ public class FakeAiService : HttpMessageHandler
             "/api/api/admin/generate_script_blueprint_by_text" => new { status = "processing", job_id = TextJobId, check_url = "fake" },
             _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId => NextTextPoll(),
             "/api/agent/orchestrate" => AgentOrchestrateResponse,
+            "/api/postcard/create_ai" => PostcardResponse,
             "/search" => new[] { new { lat = "25.0324", lon = "121.5199" } },   // Nominatim：地名 → 座標
             "/v1/forecast" => WeatherResponse,                                   // Open-Meteo：目前位置的天氣（備援）
             "/api/v1/rest/datastore/O-A0003-001" when HasCwaKey(request) => CwaObservationResponse,   // 中央氣象署：測站即時觀測

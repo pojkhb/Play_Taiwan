@@ -22,8 +22,11 @@ namespace backend.ViewModels
         /// <summary>明信片簡介</summary>
         public string Summary { get; set; }
 
-        /// <summary>明信片圖片網址</summary>
+        /// <summary>明信片圖片的顯示網址（GET api/PostcardCatalog/{id}/image）：直接拿來顯示，打開就是圖片，不會變成下載檔案</summary>
         public string ImageUrl { get; set; }
+
+        /// <summary>明信片圖片的下載網址（GET api/PostcardCatalog/{id}/download）：打開會存成檔案，檔名是明信片名稱；「下載」按鈕用這個</summary>
+        public string DownloadUrl { get; set; }
 
         /// <summary>是否為夜晚限定版</summary>
         public bool IsNightEdition { get; set; }

@@ -36,12 +36,14 @@ namespace backend.Services
         private readonly VisitorVlogDao _dao;
         private readonly VlogAiGateway _ai;
         private readonly Neo4j.PlaceLookupService _placeLookup;
+        private readonly MapDao _mapDao;
 
-        public VisitorVlogService(VisitorVlogDao dao, VlogAiGateway ai, Neo4j.PlaceLookupService placeLookup)
+        public VisitorVlogService(VisitorVlogDao dao, VlogAiGateway ai, Neo4j.PlaceLookupService placeLookup, MapDao mapDao)
         {
             _dao = dao;
             _placeLookup = placeLookup;
             _ai = ai;
+            _mapDao = mapDao;
         }
 
         #region 1. 旁白草稿
@@ -82,6 +84,9 @@ namespace backend.Services
             List<string> keywords = draft.seo_keywords ?? new List<string>();
             int avId = await _dao.SaveDraftAsync(auId, storyId, story.story_title, draft.promo_copy, string.Join(",", keywords));
 
+            int arrivedOrder = _mapDao.GetArrivedOrders(auId, new[] { storyId }).GetValueOrDefault(storyId);
+            FillPreviewImages(material.photos, finished: session?.ss_status == "completed", arrivedOrder);
+
             return new VisitorVlogPreviewResponse
             {
                 av_id = avId,
@@ -95,6 +100,25 @@ namespace backend.Services
                 seo_keywords = keywords,
                 itinerary = draft.itinerary ?? new List<ItineraryItem>()
             };
+        }
+
+        /// <summary>
+        /// 草稿回傳用：把每一站會放進影片的照片網址放進 images，前端可以直接顯示。
+        /// 玩家自己拍的一律給；沒拍照的站補上的是景點的真實照片，要抵達過這一站（或整份劇本玩完、迷霧都散開）才給，
+        /// 還沒抵達的站 images 是空的，只看得到 photo_count 與 uses_place_photo
+        /// </summary>
+        /// <param name="arrivedOrder">最遠抵達第幾站（有協作隊伍時全隊共用），還沒抵達任何一站是 0</param>
+        internal static void FillPreviewImages(List<(VisitorVlogSpot spot, string url)> photos, bool finished, int arrivedOrder)
+        {
+            foreach (var (spot, url) in photos)
+            {
+                if (spot == null) continue;
+
+                bool revealed = finished || spot.order <= arrivedOrder;
+                if (spot.uses_place_photo && !revealed) continue;
+
+                spot.images.Add(url);
+            }
         }
 
         internal static string PlayTime(VisitorVlogDao.SessionRow session, List<VisitorVlogDao.SpotRow> rows)

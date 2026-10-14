@@ -158,7 +158,12 @@ namespace backend.Services.Neo4j
             return result;
         }
 
-        private static List<PlaceOperatingHourItem> ToOperatingHours(object raw)
+        /// <summary>
+        /// Neo4j 收集回來的營業時段（{day_of_week, open_time, close_time} 清單）→ 回應格式（見 OperatingHoursRules.ForDisplay：
+        /// 時間統一成 HH:mm、去掉重複、依星期與開始時間排好）。
+        /// 店家資料、掃 QR Code、優惠券列表的 operating_hours 都用這裡轉，格式一致。
+        /// </summary>
+        internal static List<PlaceOperatingHourItem> ToOperatingHours(object raw)
         {
             var result = new List<PlaceOperatingHourItem>();
             foreach (object item in Neo4jValueConverter.AsList(raw))
@@ -175,7 +180,7 @@ namespace backend.Services.Neo4j
                     close_time = Neo4jValueConverter.AsString(map.GetValueOrDefault("close_time"))
                 });
             }
-            return result;
+            return OperatingHoursRules.ForDisplay(result);
         }
 
         /// <summary>
@@ -198,6 +203,7 @@ namespace backend.Services.Neo4j
                     description: $description,
                     phone: $phone,
                     website: $website,
+                    image_url: $imageUrl,
                     source: $source,
                     submitted_by: $submittedBy,
                     valid_from: datetime(),
@@ -214,6 +220,7 @@ namespace backend.Services.Neo4j
                 description = fields.description,
                 phone = fields.phone,
                 website = fields.website,
+                imageUrl = fields.image_url,
                 source,
                 submittedBy
             });
@@ -308,6 +315,7 @@ namespace backend.Services.Neo4j
                     description: $description,
                     phone: $phone,
                     website: $website,
+                    image_url: $imageUrl,
                     source: 'merchant',
                     submitted_by: $submittedBy,
                     valid_from: datetime(),
@@ -330,6 +338,7 @@ namespace backend.Services.Neo4j
                 description = fields.description,
                 phone = fields.phone,
                 website = fields.website,
+                imageUrl = fields.image_url,
                 operatingHours = ToOperatingHoursParam(operatingHours),
                 submittedBy
             });

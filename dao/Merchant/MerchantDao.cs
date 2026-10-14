@@ -146,7 +146,7 @@ namespace backend.dao
                 new { placeName, storeUid });
         }
 
-        public (List<MerchantDetailResponse> items, int total) List(MerchantListQuery query)
+        public (List<MerchantListItem> items, int total) List(MerchantListQuery query)
         {
             string keywordPattern = string.IsNullOrWhiteSpace(query.keyword) ? null : $"%{query.keyword}%";
             int offset = (Math.Max(query.page, 1) - 1) * Math.Max(query.page_size, 1);
@@ -176,7 +176,7 @@ namespace backend.dao
                 offset
             });
 
-            var items = multi.Read<MerchantDetailResponse>().ToList();
+            var items = multi.Read<MerchantListItem>().ToList();
             int total = multi.ReadFirst<int>();
             return (items, total);
         }

@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 105 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
+更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 106 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。每支 API 的 Request／回傳 JSON 在最後的「每支 API 的 JSON」。
 
@@ -20,7 +20,7 @@
 
 | 狀態 | 意思 | 數量 |
 |---|---|---|
-| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 77 |
+| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 78 |
 | ⚠️ 卡在 AI 服務 | 後端已用模擬的 AI 服務測過，正式環境卡在配璇的 AI 服務（10/6 AI 服務連不上，回 502） | 5 |
 | ❌ 目前不能用 | 程式查的資料表不存在，呼叫會出錯 | 1 |
 | 🗑 舊版（不用接） | 舊版或內部用，前端不用接 | 2 |
@@ -135,10 +135,11 @@
 | 已生成檔案 | `GET /api/Merchant/Files` | ✅ 實測可用 |  |
 | 商家註冊 | `POST /api/Merchant/Register` | ⬜ 未實測 | place_uid 與 new_place 二擇一；需要 Neo4j 的 playtaiwandb。Email 重複註冊失敗時不會在 Neo4j 留下孤兒景點 |
 | 商家登入 | `POST /api/Merchant/Login` | ⬜ 未實測 | 商家專用登入（auth_type=2），Token 帶 s_id 與 Role=Merchant |
-| 店家資料 | `GET /api/Merchant/Profile` | ⬜ 未實測 |  |
-| 優惠券 | `GET /api/merchant/coupons` | ✅ 實測可用 |  |
-| QR Code 綁定優惠券 | `POST /api/merchant/qrcode/bind` | ✅ 實測可用 | 優惠券要是自己店家的；同一個 QR Code 重複綁定回 409 |
-| 遊客掃 QR Code 領券 | `GET /api/qrcode/scan/{qrUid}` | ⬜ 未實測 | 不用登入也能看；帶遊客 Token 時會同時領取優惠券（寫入 user_coupon）。image_url：店家照片（店家實景），用商家的景點 ID 向 Neo4j 拿，沒有照片時為 null |
+| 店家資料 | `GET /api/Merchant/Profile` | ⬜ 未實測 | image_url：店家照片網址（PUT /api/Merchant/Profile、註冊時填），沒填為 null；遊客掃 QR Code 領券、我的優惠券會優先回傳這張。operating_hours：目前的營業時間（綁定政府景點也有），is_self_built_place = true 時可以用 PUT /api/Merchant/Profile 的 operating_hours 修改（整份取代，[] 清空） |
+| 優惠券 | `GET /api/merchant/coupons` | ✅ 實測可用 | 每張券多回傳 operating_hours（店家目前的營業時間），單筆 GET /api/merchant/coupons/{couponId} 也有 |
+| QR Code 綁定優惠券 | `POST /api/merchant/qrcode/bind` | ✅ 實測可用 | 優惠券要是自己店家的；同一個 QR Code 重複綁定、或優惠券已綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）回 409 |
+| 遊客掃 QR Code 領券 | `GET /api/qrcode/scan/{qrUid}` | ⬜ 未實測 | 不用登入也能看；帶遊客 Token 時會同時領取優惠券（寫入 user_coupon）。image_url：店家照片，商家在店家資料填了照片網址（PUT /api/Merchant/Profile 或註冊時的 image_url）就用那張，不然用商家的景點 ID 向 Neo4j 拿景點照片（店家實景），沒有照片時為 null；operating_hours：店家營業時間（跟 merchant_place.operating_hours 同一份），沒有時為空陣列 |
+| 遊客的優惠券列表 | `GET /api/coupons` | ✅ 實測可用 | 需要登入。回傳自己領過的全部優惠券（含已核銷、已下架、已過期），新領的排前面。is_usable：現在能不能用（還沒核銷、商家沒有下架、在有效期間內），前端可依 is_usable／is_used 分成「可使用／已使用／已失效」；image_url：店家照片，跟掃 QR Code 拿到的是同一張，沒有照片時為 null；full_address：店家完整地址；operating_hours：店家營業時間，沒有時為空陣列 |
 | 核銷優惠券 | `POST /api/coupons/{couponId}/redeem` | ✅ 實測可用 | 需要商家登入 |
 
 ## 分類清單
@@ -311,10 +312,11 @@
 | `GET /api/MerchantVlog/Status/{mm_id}` | 查詢商家 VLOG 專案：影片、推薦配文、TAG | 需要 | ✅ 實測可用 | mm_id（路徑，integer） |
 | `GET /api/MerchantVlog/Tones` | 取得可選的敘事語氣（例如幽默詼諧、質感專業、溫情走心） | 需要 | ✅ 實測可用 |  |
 
-### 商家後台與優惠券（13）
+### 商家後台與優惠券（14）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
+| `GET /api/coupons` | 查詢登入者擁有的優惠券 | 需要 | ✅ 實測可用 |  |
 | `POST /api/coupons/{couponId}/redeem` | 核銷優惠券 | 需要 | ✅ 實測可用 | couponId（路徑，integer） |
 | `GET /api/merchant/coupons` | 查詢登入商家的優惠券列表 | 需要 | ✅ 實測可用 |  |
 | `POST /api/merchant/coupons` | 新增優惠券 | 需要 | ✅ 實測可用 | JSON：coupon_code（string）、coupon_name（string）、discount_commodity（string）、discount_type（string）、discount_value（number）、val |
@@ -2633,7 +2635,14 @@ Request：
       "store_uid": "string",
       "auth_name": "string",
       "auth_email": "string",
-      "is_active": false
+      "is_active": false,
+      "operating_hours": [
+        {
+          "day_of_week": "string",
+          "open_time": "string",
+          "close_time": "string"
+        }
+      ]
     }
   ],
   "total": 0,
@@ -2641,6 +2650,8 @@ Request：
   "page_size": 0
 }
 ```
+
+每間店的 operating_hours 是目前的營業時間（格式同 GET /api/Merchant/Profile），沒有綁定景點、沒填或 Neo4j 連不上時為空陣列。
 
 #### `POST /api/Merchant/Login`　商家登入，成功後回傳 JWT
 
@@ -2684,13 +2695,28 @@ Request：
   "store_uid": "string",
   "auth_name": "string",
   "auth_email": "string",
-  "is_active": false
+  "is_active": false,
+  "is_self_built_place": false,
+  "operating_hours": [
+    {
+      "day_of_week": "string",
+      "open_time": "string",
+      "close_time": "string"
+    }
+  ],
+  "image_url": "string"
 }
 ```
 
+operating_hours 是目前的營業時間：day_of_week 為 Monday～Sunday（政府資料可能有 TyphoonDay，排在最後），open_time／close_time 為 "HH:mm"，依星期與開始時間排序，沒有時為空陣列。綁定政府資料景點的商家也會回傳（來自政府資料，只能看）；is_self_built_place = true（商家自建景點）才能用 PUT /api/Merchant/Profile 修改營業時間。
+
 #### `PUT /api/Merchant/Profile`　更新登入商家的店家資料
 
-參數：JSON：store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、lat（number）、lng（number）
+參數：JSON：store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、lat（number）、lng（number）、image_url（string）、operating_hours（陣列）
+
+operating_hours（營業時間）只對商家自建景點有效（GET /api/Merchant/Profile 的 is_self_built_place = true），格式跟註冊相同：一個時段一筆，day_of_week 為 Monday～Sunday，open_time／close_time 為 24 小時制 "HH:mm"；公休日不填、中午休息就同一天填兩筆，跨夜營業結束時間填隔天的時間（營業到半夜 12 點填 00:00），全天營業填 00:00～23:59。有帶就整份取代，帶 [] 代表清空，不帶維持原值；格式不對或同一天時段重疊回 400，其他欄位也不會被改到。編輯畫面可以先用 GET /api/Merchant/Profile 的 operating_hours 帶入。
+
+image_url（店家照片網址，http／https 完整網址）自建景點、綁定既有景點都可以改：不帶維持原值，帶 "" 代表清掉，格式不對回 400。遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張，沒填才用景點照片。
 
 Request：
 
@@ -2702,7 +2728,12 @@ Request：
   "store_city": "string",
   "store_town": "string",
   "lat": 0.0,
-  "lng": 0.0
+  "lng": 0.0,
+  "image_url": "https://example.com/store-front.jpg",
+  "operating_hours": [
+    { "day_of_week": "Monday", "open_time": "17:00", "close_time": "00:00" },
+    { "day_of_week": "Friday", "open_time": "17:00", "close_time": "02:00" }
+  ]
 }
 ```
 
@@ -2710,7 +2741,9 @@ Request：
 
 #### `POST /api/Merchant/Register`　註冊商家
 
-參數：JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、place_uid（string）、new_place（MerchantNewPlace）
+參數：JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、place_uid（string）、new_place（MerchantNewPlace）、image_url（string）
+
+image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。
 
 Request：
 
@@ -2725,6 +2758,7 @@ Request：
   "store_city": "string",
   "store_town": "string",
   "place_uid": "string",
+  "image_url": "https://example.com/store-front.jpg",
   "new_place": {
     "name": "string",
     "address": "string",
@@ -2912,6 +2946,43 @@ Request：
 
 ### 商家後台與優惠券
 
+#### `GET /api/coupons`　查詢登入者擁有的優惠券
+
+回傳：
+
+```json
+[
+  {
+    "coupon": {
+      "coupon_id": 0,
+      "s_id": 0,
+      "coupon_code": "string",
+      "coupon_name": "string",
+      "discount_commodity": "string",
+      "discount_type": "string",
+      "discount_value": 0.0,
+      "valid_from": "2026-10-07T12:00:00",
+      "valid_to": "2026-10-07T12:00:00",
+      "status": "string"
+    },
+    "store_name": "string",
+    "full_address": "string",
+    "image_url": "string",
+    "operating_hours": [
+      {
+        "day_of_week": "string",
+        "open_time": "string",
+        "close_time": "string"
+      }
+    ],
+    "obtained_at": "2026-10-07T12:00:00",
+    "is_used": false,
+    "used_at": "2026-10-07T12:00:00",
+    "is_usable": false
+  }
+]
+```
+
 #### `POST /api/coupons/{couponId}/redeem`　核銷優惠券
 
 參數：couponId（路徑，integer）
@@ -2934,10 +3005,19 @@ Request：
     "discount_value": 0.0,
     "valid_from": "2026-10-07T12:00:00",
     "valid_to": "2026-10-07T12:00:00",
-    "status": "string"
+    "status": "string",
+    "operating_hours": [
+      {
+        "day_of_week": "string",
+        "open_time": "string",
+        "close_time": "string"
+      }
+    ]
   }
 ]
 ```
+
+每張優惠券的 operating_hours 是店家目前的營業時間（格式同 GET /api/Merchant/Profile），沒有綁定景點、沒填或 Neo4j 連不上時為空陣列。
 
 #### `POST /api/merchant/coupons`　新增優惠券
 
@@ -2986,9 +3066,18 @@ Request：
   "discount_value": 0.0,
   "valid_from": "2026-10-07T12:00:00",
   "valid_to": "2026-10-07T12:00:00",
-  "status": "string"
+  "status": "string",
+  "operating_hours": [
+    {
+      "day_of_week": "string",
+      "open_time": "string",
+      "close_time": "string"
+    }
+  ]
 }
 ```
+
+operating_hours 跟列表一樣是店家目前的營業時間。
 
 #### `PUT /api/merchant/coupons/{couponId}`　修改優惠券
 
@@ -3177,9 +3266,18 @@ Request：
     }
   },
   "image_url": "string",
+  "operating_hours": [
+    {
+      "day_of_week": "string",
+      "open_time": "string",
+      "close_time": "string"
+    }
+  ],
   "is_newly_claimed": false
 }
 ```
+
+頂層的 operating_hours 跟 merchant_place.operating_hours 同一份（"HH:mm"，依星期與開始時間排序），沒有營業時間時為空陣列。
 
 ### 管理員
 

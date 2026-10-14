@@ -18,6 +18,7 @@ namespace backend.Services
     {
         private readonly MerchantDao _dao;
         private readonly PlaceVersionChainService _placeService;
+        private readonly PlaceLookupService _placeLookup;
         private readonly StoreLocationService _storeLocation;
         private readonly AppSettings _appSettings;
         private readonly ILogger<MerchantService> _logger;
@@ -25,12 +26,14 @@ namespace backend.Services
         public MerchantService(
             MerchantDao dao,
             PlaceVersionChainService placeService,
+            PlaceLookupService placeLookup,
             StoreLocationService storeLocation,
             IOptions<AppSettings> appSettings,
             ILogger<MerchantService> logger)
         {
             _dao = dao;
             _placeService = placeService;
+            _placeLookup = placeLookup;
             _storeLocation = storeLocation;
             _appSettings = appSettings.Value;
             _logger = logger;
@@ -43,6 +46,10 @@ namespace backend.Services
             {
                 throw new BadRequestException("請提供 Email 與密碼");
             }
+
+            // 註冊時還沒有照片可以清，空字串跟沒帶一樣
+            string imageUrl = NormalizeImageUrl(req.image_url);
+            if (imageUrl == "") imageUrl = null;
 
             // 沒帶 place_uid 就是選了「都沒有，我要建立新的」
             bool hasNewPlace = string.IsNullOrWhiteSpace(req.place_uid);
@@ -68,6 +75,7 @@ namespace backend.Services
             }
 
             string storeUid;
+            PlaceCurrentInfo existing = null;
             if (hasNewPlace)
             {
                 // 景點的名稱、地址、介紹跟店家資料同一份（之後更新商家資料也是用 store_* 寫入版本鏈）
@@ -77,13 +85,14 @@ namespace backend.Services
                     address = req.store_address,
                     description = req.store_dec,
                     phone = req.phone,
-                    website = req.website
+                    website = req.website,
+                    image_url = imageUrl
                 };
                 storeUid = await _placeService.CreateMerchantPlaceAsync(fields, req.operating_hours, newPlaceLocation, req.store_name);
             }
             else
             {
-                PlaceCurrentInfo existing = await _placeService.GetCurrentVersionAsync(req.place_uid);
+                existing = await _placeService.GetCurrentVersionAsync(req.place_uid);
                 if (existing == null)
                 {
                     throw new NotFoundException($"找不到 uid={req.place_uid} 的景點，請重新搜尋");
@@ -113,6 +122,22 @@ namespace backend.Services
                 throw;
             }
 
+            // 選既有景點又帶了照片網址：補一顆版本節點存照片（新景點的照片已經寫在第一顆版本節點）
+            if (!hasNewPlace && imageUrl != null)
+            {
+                Dictionary<string, object> previous = existing.merchant_override;
+                var fields = new MerchantPlaceFields
+                {
+                    name = req.store_name,
+                    address = req.store_address,
+                    description = req.store_dec,
+                    phone = previous?.GetValueOrDefault("phone")?.ToString(),
+                    website = previous?.GetValueOrDefault("website")?.ToString(),
+                    image_url = imageUrl
+                };
+                await _placeService.CreateNewVersionAsync(storeUid, fields, "merchant", sId.ToString());
+            }
+
             return new MerchantRegisterResponse { au_id = auId, s_id = sId, store_uid = storeUid };
         }
 
@@ -140,6 +165,25 @@ namespace backend.Services
         }
 
         private static string FirstNonBlank(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+        /// <summary>
+        /// 店家照片網址（image_url）去掉前後空白，要是 http／https 的完整網址，不是的話回 400。
+        /// null 原樣回傳（代表不改），空白回傳空字串（代表清掉）。
+        /// </summary>
+        private static string NormalizeImageUrl(string url)
+        {
+            if (url == null) return null;
+
+            string trimmed = url.Trim();
+            if (trimmed.Length == 0) return "";
+
+            if (!System.Uri.TryCreate(trimmed, System.UriKind.Absolute, out System.Uri uri)
+                || (uri.Scheme != System.Uri.UriSchemeHttp && uri.Scheme != System.Uri.UriSchemeHttps))
+            {
+                throw new BadRequestException("image_url 請填 http 或 https 開頭的完整照片網址");
+            }
+            return trimmed;
+        }
         #endregion
 
         #region 商家資料
@@ -167,13 +211,22 @@ namespace backend.Services
                 auth_email = merchant.auth_email,
                 is_active = merchant.is_active,
                 is_self_built_place = IsSelfBuiltPlace(place),
-                operating_hours = place?.operating_hours ?? new List<PlaceOperatingHourItem>()
+                operating_hours = place?.operating_hours ?? new List<PlaceOperatingHourItem>(),
+                image_url = CurrentImageUrl(place?.merchant_override)
             };
+        }
+
+        /// <summary>目前版本節點上商家填的店家照片網址，沒填時為 null</summary>
+        private static string CurrentImageUrl(Dictionary<string, object> merchantOverride)
+        {
+            string url = Neo4jValueConverter.AsString(merchantOverride?.GetValueOrDefault("image_url"));
+            return string.IsNullOrWhiteSpace(url) ? null : url;
         }
 
         /// <summary>
         /// 更新店家資料（只更新有帶值的欄位），並在 Neo4j 建立新的版本節點，讓 QR Code 掃描回傳的商家資訊跟著更新。
-        /// 版本節點會寫入完整欄位，所以用更新後的店家資料組內容；電話、網站沿用目前版本的值。
+        /// 版本節點會寫入完整欄位，所以用更新後的店家資料組內容；電話、網站沿用目前版本的值，
+        /// 店家照片網址（image_url）沒帶時也沿用，帶空字串代表清掉。
         /// 商家自建景點另外同步 MySQL 的 place_type 名稱（題型抽選與任務生成用）；行程規劃、地圖的名稱與座標直接查 Neo4j。
         /// 商家自建景點改了地址或重新選點時，景點重新掛鄉鎮市區並更新位置：
         /// 地址、座標都有改就照填的；只改地址會重轉座標；只帶座標會重轉地址（連同縣市、鄉鎮市區寫回店家資料）。
@@ -188,6 +241,9 @@ namespace backend.Services
             }
 
             StoreLocationService.ValidateCoordinates(req.lat, req.lng, "lat、lng");
+
+            // null 代表不改；空字串代表清掉
+            string imageUrl = NormalizeImageUrl(req.image_url);
 
             // null 代表不改；空陣列代表清空
             List<PlaceOperatingHourItem> operatingHours = req.operating_hours == null
@@ -257,7 +313,8 @@ namespace backend.Services
                 address = store.store_address,
                 description = store.store_dec,
                 phone = previous?.GetValueOrDefault("phone")?.ToString(),
-                website = previous?.GetValueOrDefault("website")?.ToString()
+                website = previous?.GetValueOrDefault("website")?.ToString(),
+                image_url = imageUrl == null ? CurrentImageUrl(previous) : (imageUrl == "" ? null : imageUrl)
             };
             await _placeService.CreateNewVersionAsync(store.store_uid, fields, "merchant", sId.ToString());
         }
@@ -270,10 +327,18 @@ namespace backend.Services
                 || (req.store_address != null && req.store_address != before.store_address);
         }
 
-        /// <summary>商家列表（管理員用）。</summary>
-        public MerchantListResponse List(MerchantListQuery query)
+        /// <summary>商家列表（管理員用），每間店附上 Neo4j 景點目前的營業時間（這一頁的店一次查）。</summary>
+        public async Task<MerchantListResponse> ListAsync(MerchantListQuery query)
         {
             (var items, int total) = _dao.List(query);
+
+            Dictionary<string, List<PlaceOperatingHourItem>> hours = await _placeLookup.GetOperatingHoursAsync(items.Select(i => i.store_uid));
+            foreach (MerchantListItem item in items)
+            {
+                item.operating_hours = (item.store_uid != null ? hours.GetValueOrDefault(item.store_uid) : null)
+                    ?? new List<PlaceOperatingHourItem>();
+            }
+
             return new MerchantListResponse
             {
                 items = items,

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using backend.Services;
 using backend.utils;
 using backend.ViewModels;
@@ -21,21 +22,28 @@ namespace backend.Controllers
         }
 
         /// <summary>查詢登入商家的優惠券列表。</summary>
+        /// <remarks>
+        /// 每張優惠券多回傳 operating_hours（店家目前的營業時間，格式同 GET api/Merchant/Profile，依星期與開始時間排序）；
+        /// 沒有綁定景點、沒填營業時間或 Neo4j 連不上時為空陣列。
+        /// </remarks>
         [HttpGet]
         [Route("")]
-        public IActionResult GetByStore()
+        [ProducesResponseType(typeof(ResultViewModel<List<MerchantCouponResponse>>), 200)]
+        public async Task<IActionResult> GetByStore()
         {
-            List<CouponResponse> result = _service.GetByStore(User.GetSId());
-            return Ok(new ResultViewModel<List<CouponResponse>> { isSuccess = true, message = "查詢成功", Result = result });
+            List<MerchantCouponResponse> result = await _service.GetByStoreAsync(User.GetSId());
+            return Ok(new ResultViewModel<List<MerchantCouponResponse>> { isSuccess = true, message = "查詢成功", Result = result });
         }
 
         /// <summary>查詢單筆優惠券。</summary>
+        /// <remarks>跟列表一樣多回傳 operating_hours（店家目前的營業時間）。</remarks>
         [HttpGet]
         [Route("{couponId:int}")]
-        public IActionResult GetById(int couponId)
+        [ProducesResponseType(typeof(ResultViewModel<MerchantCouponResponse>), 200)]
+        public async Task<IActionResult> GetById(int couponId)
         {
-            CouponResponse result = _service.GetById(User.GetSId(), couponId);
-            return Ok(new ResultViewModel<CouponResponse> { isSuccess = true, message = "查詢成功", Result = result });
+            MerchantCouponResponse result = await _service.GetByIdAsync(User.GetSId(), couponId);
+            return Ok(new ResultViewModel<MerchantCouponResponse> { isSuccess = true, message = "查詢成功", Result = result });
         }
 
         /// <summary>新增優惠券。</summary>

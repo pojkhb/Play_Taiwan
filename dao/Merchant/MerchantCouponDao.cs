@@ -18,7 +18,7 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
-        public List<CouponResponse> GetByStore(int sId)
+        public List<MerchantCouponResponse> GetByStore(int sId)
         {
             const string sql = @"
                 SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
@@ -29,10 +29,10 @@ namespace backend.dao
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.Query<CouponResponse>(sql, new { sId }).ToList();
+            return connection.Query<MerchantCouponResponse>(sql, new { sId }).ToList();
         }
 
-        public CouponResponse GetById(int sId, int couponId)
+        public MerchantCouponResponse GetById(int sId, int couponId)
         {
             const string sql = @"
                 SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
@@ -43,7 +43,15 @@ namespace backend.dao
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
-            return connection.QueryFirstOrDefault<CouponResponse>(sql, new { sId, couponId });
+            return connection.QueryFirstOrDefault<MerchantCouponResponse>(sql, new { sId, couponId });
+        }
+
+        /// <summary>店家綁定的 Neo4j 景點 uid（store.store_uid），查營業時間用；沒有綁定時為 null。</summary>
+        public string GetStoreUid(int sId)
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            connection.Open();
+            return connection.ExecuteScalar<string>("SELECT store_uid FROM store WHERE s_id = @sId LIMIT 1;", new { sId });
         }
 
         public int Create(int sId, CouponCreateRequest req)

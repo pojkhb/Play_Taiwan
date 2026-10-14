@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
+using backend.Services.Neo4j;
 using backend.ViewModels;
 
 namespace backend.Services
@@ -9,19 +11,41 @@ namespace backend.Services
     public class MerchantCouponService
     {
         private readonly MerchantCouponDao _dao;
+        private readonly PlaceLookupService _placeLookup;
 
-        public MerchantCouponService(MerchantCouponDao dao)
+        public MerchantCouponService(MerchantCouponDao dao, PlaceLookupService placeLookup)
         {
             _dao = dao;
+            _placeLookup = placeLookup;
         }
 
-        public List<CouponResponse> GetByStore(int sId) => _dao.GetByStore(sId);
-
-        public CouponResponse GetById(int sId, int couponId)
+        /// <summary>自己店家的優惠券，每張附上店家目前的營業時間（Neo4j 連不上時為空陣列）。</summary>
+        public async Task<List<MerchantCouponResponse>> GetByStoreAsync(int sId)
         {
-            CouponResponse coupon = _dao.GetById(sId, couponId);
+            List<MerchantCouponResponse> coupons = _dao.GetByStore(sId);
+            if (coupons.Count == 0) return coupons;
+
+            List<PlaceOperatingHourItem> hours = await GetStoreOperatingHoursAsync(sId);
+            foreach (MerchantCouponResponse coupon in coupons)
+                coupon.operating_hours = hours;
+            return coupons;
+        }
+
+        public async Task<MerchantCouponResponse> GetByIdAsync(int sId, int couponId)
+        {
+            MerchantCouponResponse coupon = _dao.GetById(sId, couponId);
             if (coupon == null) throw new NotFoundException($"找不到 coupon_id={couponId} 的優惠券");
+            coupon.operating_hours = await GetStoreOperatingHoursAsync(sId);
             return coupon;
+        }
+
+        private async Task<List<PlaceOperatingHourItem>> GetStoreOperatingHoursAsync(int sId)
+        {
+            string storeUid = _dao.GetStoreUid(sId);
+            if (string.IsNullOrWhiteSpace(storeUid)) return new List<PlaceOperatingHourItem>();
+
+            return (await _placeLookup.GetOperatingHoursAsync(new[] { storeUid })).GetValueOrDefault(storeUid)
+                ?? new List<PlaceOperatingHourItem>();
         }
 
         public int Create(int sId, CouponCreateRequest req)

@@ -1,6 +1,8 @@
-// 商家後台（不需要 Neo4j 的部分）：店家名稱、優惠券增刪改查與上下架、QR Code 貼紙綁定、核銷、題庫增刪改
+// 商家後台（不需要 Neo4j 的部分）：店家名稱、優惠券增刪改查與上下架、QR Code 貼紙綁定、核銷、題庫增刪改；
+// 優惠券列表、管理員商家列表的營業時間用假的 Neo4j（FakeNeo4jGateway）
 // 商家 API 用 JWT 識別店家（Role=Merchant、s_id Claim），request 不帶 s_id；核銷用玩家自己的 Token
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Allure.Net.Commons.Attributes;
@@ -90,6 +92,101 @@ public class MerchantManageApiTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/merchant/coupons/{couponId}")).StatusCode);
     }
 
+    /// <summary>店家綁定一個 Neo4j 景點 uid，回傳 uid</summary>
+    private async Task<string> BindStoreUidAsync(int sId)
+    {
+        string storeUid = Guid.NewGuid().ToString();
+        await _api.ExecuteAsync("UPDATE store SET store_uid = @storeUid WHERE s_id = @sId;", new { storeUid, sId });
+        return storeUid;
+    }
+
+    /// <summary>假的 Neo4j 查營業時間時回傳這間店的時段（照 Neo4j collect 回來的順序，不一定排好）</summary>
+    private void FakeOperatingHours(string storeUid, params (string day, string open, string close)[] hours) =>
+        _api.FakeNeo4j.Rows = new List<Dictionary<string, object>>
+        {
+            new()
+            {
+                ["uid"] = storeUid,
+                ["operatingHours"] = hours.Select(h => (object)new Dictionary<string, object>
+                {
+                    ["day_of_week"] = h.day, ["open_time"] = h.open, ["close_time"] = h.close
+                }).ToList()
+            }
+        };
+
+    private static List<string> Hours(JsonElement item) =>
+        item.GetProperty("operating_hours").EnumerateArray()
+            .Select(h => $"{h.GetProperty("day_of_week").GetString()} {h.GetProperty("open_time").GetString()}-{h.GetProperty("close_time").GetString()}")
+            .ToList();
+
+    [Fact]
+    public async Task 優惠券列表與單筆附上店家營業時間_依星期排序()
+    {
+        var (auId, sId) = await CreateStoreAsync();
+        string storeUid = await BindStoreUidAsync(sId);
+        HttpClient client = _api.MerchantClientFor(auId, sId);
+        int couponId = await CreateCouponAsync(client);
+
+        FakeOperatingHours(storeUid, ("Friday", "17:00", "02:00"), ("Monday", "11:00", "14:00"));
+        try
+        {
+            var list = await (await client.GetAsync("/api/merchant/coupons")).ReadResultAsync();
+            Assert.True(list.isSuccess, list.message);
+            Assert.Equal(new[] { "Monday 11:00-14:00", "Friday 17:00-02:00" }, Hours(Assert.Single(list.Result.EnumerateArray())));
+
+            var one = await (await client.GetAsync($"/api/merchant/coupons/{couponId}")).ReadResultAsync();
+            Assert.True(one.isSuccess, one.message);
+            Assert.Equal(new[] { "Monday 11:00-14:00", "Friday 17:00-02:00" }, Hours(one.Result));
+        }
+        finally
+        {
+            _api.FakeNeo4j.Reset();   // 其他測試預設 Neo4j 連不上
+        }
+    }
+
+    [Fact]
+    public async Task Neo4j連不上時優惠券列表照常回傳_營業時間是空陣列()
+    {
+        _api.FakeNeo4j.Reset();
+        var (auId, sId) = await CreateStoreAsync();
+        await BindStoreUidAsync(sId);
+        HttpClient client = _api.MerchantClientFor(auId, sId);
+        int couponId = await CreateCouponAsync(client);
+
+        var list = await (await client.GetAsync("/api/merchant/coupons")).ReadResultAsync();
+
+        Assert.True(list.isSuccess, list.message);
+        JsonElement coupon = Assert.Single(list.Result.EnumerateArray());
+        Assert.Equal(couponId, coupon.GetProperty("coupon_id").GetInt32());
+        Assert.Empty(Hours(coupon));
+    }
+
+    [Fact]
+    public async Task 管理員商家列表每間店附上營業時間()
+    {
+        var (_, sId) = await CreateStoreAsync();
+        string storeName = await _api.QueryAsync<string>("SELECT store_name FROM store WHERE s_id = @sId;", new { sId });
+        string storeUid = await BindStoreUidAsync(sId);
+        HttpClient admin = _api.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiFactory.TokenWithRole(_api.NewUserId(), "Admin"));
+
+        // 政府資料少數景點同一時段存了 "HH:mm:ss" 與 "HH:mm" 兩份
+        FakeOperatingHours(storeUid, ("Sunday", "09:00:00", "17:00:00"), ("Monday", "09:00:00", "17:00:00"), ("Monday", "09:00", "17:00"));
+        try
+        {
+            var result = await (await admin.GetAsync($"/api/Merchant/List?keyword={Uri.EscapeDataString(storeName)}")).ReadResultAsync();
+
+            Assert.True(result.isSuccess, result.message);
+            JsonElement item = Assert.Single(result.Result.GetProperty("items").EnumerateArray());
+            Assert.Equal(sId, item.GetProperty("s_id").GetInt32());
+            Assert.Equal(new[] { "Monday 09:00-17:00", "Sunday 09:00-17:00" }, Hours(item));
+        }
+        finally
+        {
+            _api.FakeNeo4j.Reset();
+        }
+    }
+
     [Fact]
     public async Task 優惠券資料不合規定時擋下()
     {
@@ -119,6 +216,71 @@ public class MerchantManageApiTests
 
         HttpResponseMessage second = await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = couponId });
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+    }
+
+    [Fact]
+    public async Task QRCode貼紙綁定優惠券_同一張貼紙不能改綁另一張優惠券()
+    {
+        HttpClient merchant = await CreateMerchantClientAsync();
+        int firstCoupon = await CreateCouponAsync(merchant);
+        int secondCoupon = await CreateCouponAsync(merchant);
+        string qrUid = $"QR-{Guid.NewGuid():N}"[..20];
+
+        var first = await (await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = firstCoupon })).ReadResultAsync();
+        Assert.True(first.isSuccess, first.message);
+
+        HttpResponseMessage second = await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = secondCoupon });
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        // 貼紙還是對到第一張優惠券
+        Assert.Equal(firstCoupon, await _api.QueryAsync<int>("SELECT coupon_id FROM qrcode_coupon WHERE qr_uid = @qrUid;", new { qrUid }));
+    }
+
+    [Fact]
+    public async Task QRCode貼紙綁定優惠券_一張優惠券只能綁一張貼紙()
+    {
+        HttpClient merchant = await CreateMerchantClientAsync();
+        int couponId = await CreateCouponAsync(merchant);
+        string firstQr = $"QR-{Guid.NewGuid():N}"[..20];
+        string secondQr = $"QR-{Guid.NewGuid():N}"[..20];
+
+        var first = await (await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = firstQr, coupon_id = couponId })).ReadResultAsync();
+        Assert.True(first.isSuccess, first.message);
+
+        HttpResponseMessage second = await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = secondQr, coupon_id = couponId });
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal(1, await _api.QueryAsync<int>("SELECT COUNT(1) FROM qrcode_coupon WHERE coupon_id = @couponId;", new { couponId }));
+    }
+
+    [Fact]
+    public async Task QRCode貼紙綁定優惠券_同時送出_一張優惠券還是只綁得到一張貼紙()
+    {
+        HttpClient merchant = await CreateMerchantClientAsync();
+        int couponId = await CreateCouponAsync(merchant);
+
+        // 同一張優惠券同時綁 8 張不同的貼紙
+        HttpResponseMessage[] responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ =>
+            merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = $"QR-{Guid.NewGuid():N}"[..20], coupon_id = couponId })));
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.All(responses.Where(r => r.StatusCode != HttpStatusCode.OK), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        Assert.Equal(1, await _api.QueryAsync<int>("SELECT COUNT(1) FROM qrcode_coupon WHERE coupon_id = @couponId;", new { couponId }));
+    }
+
+    [Fact]
+    public async Task QRCode貼紙綁定優惠券_同時送出_一張貼紙還是只綁得到一張優惠券()
+    {
+        HttpClient merchant = await CreateMerchantClientAsync();
+        var couponIds = new List<int>();
+        for (int i = 0; i < 8; i++) couponIds.Add(await CreateCouponAsync(merchant));
+        string qrUid = $"QR-{Guid.NewGuid():N}"[..20];
+
+        // 同一張貼紙同時綁 8 張不同的優惠券：沒搶到的要回 409，不能是資料庫錯誤的 500
+        HttpResponseMessage[] responses = await Task.WhenAll(couponIds.Select(couponId =>
+            merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = couponId })));
+
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+        Assert.All(responses.Where(r => r.StatusCode != HttpStatusCode.OK), r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
+        Assert.Equal(1, await _api.QueryAsync<int>("SELECT COUNT(1) FROM qrcode_coupon WHERE qr_uid = @qrUid;", new { qrUid }));
     }
 
     [Fact]

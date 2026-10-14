@@ -23,6 +23,8 @@ namespace backend.ViewModels
         public string description { get; set; }
         public string phone { get; set; }
         public string website { get; set; }
+        /// <summary>店家照片網址（商家在店家資料填的），掃 QR Code 領券與我的優惠券優先用這張；沒填為 null。</summary>
+        public string image_url { get; set; }
     }
 
     /// <summary>Neo4j 的鄉鎮市區節點（:Town），town_id 為「縣市_鄉鎮市區」。</summary>

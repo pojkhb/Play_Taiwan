@@ -83,6 +83,39 @@ namespace backend.Services
                 .ToList();
         }
 
+        // 政府資料少數景點的時間帶秒數（"06:00:00"），而且同一個時段另外還有一份 "06:00"
+        private static readonly Regex TimeWithSecondsPattern = new(@"^([0-9]{2}:[0-9]{2}):[0-9]{2}$");
+
+        /// <summary>
+        /// 整理 Neo4j 讀回來的營業時間給前端顯示：時間統一成 "HH:mm"（政府資料少數帶秒數，且同一時段存了兩種寫法），
+        /// 去掉重複的時段，再依星期（Monday～Sunday）與開始時間排序；政府資料另有 TyphoonDay 等非星期的值，排在最後。
+        /// </summary>
+        public static List<PlaceOperatingHourItem> ForDisplay(IEnumerable<PlaceOperatingHourItem> items)
+        {
+            return items
+                .Select(h => new PlaceOperatingHourItem
+                {
+                    day_of_week = h.day_of_week,
+                    open_time = WithoutSeconds(h.open_time),
+                    close_time = WithoutSeconds(h.close_time)
+                })
+                .DistinctBy(h => (h.day_of_week, h.open_time, h.close_time))
+                .OrderBy(h =>
+                {
+                    int day = Array.FindIndex(Days, d => string.Equals(d, h.day_of_week, StringComparison.OrdinalIgnoreCase));
+                    return day < 0 ? Days.Length : day;
+                })
+                .ThenBy(h => h.day_of_week, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(h => h.open_time, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        private static string WithoutSeconds(string time)
+        {
+            Match m = TimeWithSecondsPattern.Match(time ?? "");
+            return m.Success ? m.Groups[1].Value : time;
+        }
+
         /// <summary>"HH:mm"（24 小時制，小時可以只寫一位數）→ 當天第幾分鐘</summary>
         private static int ParseMinutes(string value, string field)
         {

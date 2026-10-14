@@ -23,8 +23,9 @@ namespace backend.Controllers
 
         /// <summary>查詢登入商家的優惠券列表。</summary>
         /// <remarks>
-        /// 每張優惠券多回傳 operating_hours（店家目前的營業時間，格式同 GET api/Merchant/Profile，依星期與開始時間排序）；
-        /// 沒有綁定景點、沒填營業時間或 Neo4j 連不上時為空陣列。
+        /// 每張優惠券多回傳 qrcode_uid（綁定的 QR Code uid，還沒綁定時為 null）
+        /// 與 operating_hours（店家目前的營業時間，格式同 GET api/Merchant/Profile，依星期與開始時間排序）；
+        /// 沒有綁定景點、沒填營業時間或 Neo4j 連不上時 operating_hours 為空陣列。
         /// </remarks>
         [HttpGet]
         [Route("")]
@@ -36,7 +37,7 @@ namespace backend.Controllers
         }
 
         /// <summary>查詢單筆優惠券。</summary>
-        /// <remarks>跟列表一樣多回傳 operating_hours（店家目前的營業時間）。</remarks>
+        /// <remarks>跟列表一樣多回傳 qrcode_uid（綁定的 QR Code）與 operating_hours（店家目前的營業時間）。</remarks>
         [HttpGet]
         [Route("{couponId:int}")]
         [ProducesResponseType(typeof(ResultViewModel<MerchantCouponResponse>), 200)]

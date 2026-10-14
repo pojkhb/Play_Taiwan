@@ -41,13 +41,13 @@ namespace backend.dao
 
                 int qrUidCount = connection.ExecuteScalar<int>(
                     "SELECT COUNT(1) FROM qrcode_coupon WHERE qr_uid = @qrUid;", new { qrUid }, transaction);
-                if (qrUidCount > 0) throw new ConflictException($"QR Code {qrUid} 已經綁定過優惠券");
+                if (qrUidCount > 0) throw new ConflictException("此 QR Code 已綁定");
 
                 string boundQrUid = connection.ExecuteScalar<string>(
                     "SELECT qr_uid FROM qrcode_coupon WHERE coupon_id = @couponId LIMIT 1;", new { couponId }, transaction);
                 if (boundQrUid != null)
                 {
-                    throw new ConflictException($"優惠券 coupon_id={couponId} 已經綁定 QR Code {boundQrUid}，一張優惠券只能綁一個 QR Code");
+                    throw new ConflictException("此優惠券已綁定");
                 }
 
                 connection.Execute(@"
@@ -60,7 +60,7 @@ namespace backend.dao
             catch (MySqlException ex) when (ex.Number == 1062)
             {
                 transaction.Rollback();
-                throw new ConflictException($"QR Code {qrUid} 已經綁定過優惠券");
+                throw new ConflictException("此 QR Code 已綁定");
             }
             catch
             {

@@ -18,14 +18,19 @@ namespace backend.dao
             _appSettings = appSettings.Value;
         }
 
+        // 優惠券綁定的 QR Code，沒綁定時為 null；舊資料可能一張券綁了多個 qr_uid，用子查詢取一個，列表才不會重複
+        private const string BoundQrUidColumn =
+            "(SELECT MIN(qc.qr_uid) FROM qrcode_coupon qc WHERE qc.coupon_id = c.coupon_id) AS qrcode_uid";
+
         public List<MerchantCouponResponse> GetByStore(int sId)
         {
             const string sql = @"
-                SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
-                       discount_type, discount_value, valid_from, valid_to, status
-                FROM coupon
-                WHERE s_id = @sId
-                ORDER BY coupon_id DESC;
+                SELECT c.coupon_id, c.s_id, c.coupon_code, c.coupon_name, c.discount_commodity,
+                       c.discount_type, c.discount_value, c.valid_from, c.valid_to, c.status,
+                       " + BoundQrUidColumn + @"
+                FROM coupon c
+                WHERE c.s_id = @sId
+                ORDER BY c.coupon_id DESC;
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);
             connection.Open();
@@ -35,10 +40,11 @@ namespace backend.dao
         public MerchantCouponResponse GetById(int sId, int couponId)
         {
             const string sql = @"
-                SELECT coupon_id, s_id, coupon_code, coupon_name, discount_commodity,
-                       discount_type, discount_value, valid_from, valid_to, status
-                FROM coupon
-                WHERE coupon_id = @couponId AND s_id = @sId
+                SELECT c.coupon_id, c.s_id, c.coupon_code, c.coupon_name, c.discount_commodity,
+                       c.discount_type, c.discount_value, c.valid_from, c.valid_to, c.status,
+                       " + BoundQrUidColumn + @"
+                FROM coupon c
+                WHERE c.coupon_id = @couponId AND c.s_id = @sId
                 LIMIT 1;
             ";
             using var connection = new MySqlConnection(_appSettings.mydb);

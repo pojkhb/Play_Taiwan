@@ -219,6 +219,28 @@ public class MerchantManageApiTests
     }
 
     [Fact]
+    public async Task 優惠券列表與單筆回傳綁定的QRCode_沒綁定時是null()
+    {
+        HttpClient merchant = await CreateMerchantClientAsync();
+        int boundCoupon = await CreateCouponAsync(merchant);
+        int unboundCoupon = await CreateCouponAsync(merchant);
+        string qrUid = $"QR-{Guid.NewGuid():N}"[..20];
+
+        var bind = await (await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = boundCoupon })).ReadResultAsync();
+        Assert.True(bind.isSuccess, bind.message);
+
+        var list = await (await merchant.GetAsync("/api/merchant/coupons")).ReadResultAsync();
+        Assert.True(list.isSuccess, list.message);
+        JsonElement QrUid(int couponId) =>
+            list.Result.EnumerateArray().Single(c => c.GetProperty("coupon_id").GetInt32() == couponId).GetProperty("qrcode_uid");
+        Assert.Equal(qrUid, QrUid(boundCoupon).GetString());
+        Assert.Equal(JsonValueKind.Null, QrUid(unboundCoupon).ValueKind);
+
+        var one = await (await merchant.GetAsync($"/api/merchant/coupons/{boundCoupon}")).ReadResultAsync();
+        Assert.Equal(qrUid, one.Result.GetProperty("qrcode_uid").GetString());
+    }
+
+    [Fact]
     public async Task QRCode貼紙綁定優惠券_同一張貼紙不能改綁另一張優惠券()
     {
         HttpClient merchant = await CreateMerchantClientAsync();

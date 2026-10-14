@@ -56,3 +56,6 @@ prompt/
 
 # 除錯輸出（例如送給 AI 的 request）
 logs/
+
+# 使用者上傳的檔案（照片、影片、語音、商家 Vlog 等）：每個環境自己產生，不進版控
+wwwroot/uploads/

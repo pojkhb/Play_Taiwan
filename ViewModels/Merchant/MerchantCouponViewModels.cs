@@ -46,9 +46,12 @@ namespace backend.ViewModels
         public string status { get; set; }
     }
 
-    /// <summary>商家查詢自己的優惠券（GET api/merchant/coupons、api/merchant/coupons/{couponId}）：優惠券加上店家目前的營業時間。</summary>
+    /// <summary>商家查詢自己的優惠券（GET api/merchant/coupons、api/merchant/coupons/{couponId}）：優惠券加上綁定的 QR Code 與店家目前的營業時間。</summary>
     public class MerchantCouponResponse : CouponResponse
     {
+        /// <summary>這張優惠券綁定的 QR Code（qrcode_coupon.qr_uid）；還沒綁定時為 null。</summary>
+        public string qrcode_uid { get; set; }
+
         /// <summary>店家營業時間（格式同 GET api/Merchant/Profile 的 operating_hours）；沒有綁定景點、沒填或 Neo4j 連不上時為空陣列。</summary>
         public System.Collections.Generic.List<PlaceOperatingHourItem> operating_hours { get; set; }
     }

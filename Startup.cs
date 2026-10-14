@@ -249,6 +249,19 @@ namespace backend
             services.AddScoped<dao.PairDao>();
             services.AddSingleton<Services.TeamLocationStore>();   // 隊友位置：只放在記憶體，整個後端共用一份
             #endregion
+            #region 客群分析儀表板 (visitor_analysis) + AI 經營策略（FastAPI）
+            services.AddScoped<Services.VisitorAnalysisService>();
+            services.AddScoped<dao.VisitorAnalysisDao>();
+            services.AddScoped<Services.VisitorAnalysisAiGateway>();
+            // 地端 FastAPI；之後改接遠端地端 LLM 時只改 VisitorAnalysisAi:BaseUrl
+            // LLM 生成可能較久（Ollama）；逾時需大於 FastAPI OLLAMA_TIMEOUT_SECONDS
+            services.AddHttpClient(
+                Services.VisitorAnalysisAiGateway.HttpClientName,
+                client =>
+                {
+                    client.Timeout = TimeSpan.FromMinutes(5);
+                });
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

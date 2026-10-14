@@ -91,6 +91,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["Narration:OutputRoot"] = FogRoot,   // 回顧旁白語音也放暫存資料夾
             ["Postcard:ImageRoot"] = Path.Combine(FogRoot, "postcards"),   // 抓回後端的明信片圖片也是
             ["AiService:TrafficLogRoot"] = AiLogRoot,
+            ["VisitorAnalysisAi:BaseUrl"] = "http://localhost:8001",
         }));
         builder.ConfigureTestServices(services =>
         {

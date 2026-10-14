@@ -113,6 +113,9 @@ namespace backend.Middleware
             /* 重設密碼 */
             if ((Path == "/api/ForgotPassword/checkAccount" && URLMethod == "POST")) return false;
             if ((Path == "/api/ForgotPassword/resetPassword" && URLMethod == "POST")) return false;
+            if ((Path == "/api/VisitorAnalysis" && URLMethod == "GET")) return false;
+            if ((Path == "/api/VisitorAnalysis/Attractions" && URLMethod == "GET")) return false;
+            if ((Path == "/api/VisitorAnalysis/Strategy/Chat" && URLMethod == "POST")) return false;
 
             if ((Path.ToLower().Contains("/api/Image".ToLower()) && URLMethod == "GET")) return false;
             if ((Path.ToLower().Contains("/api/DropDown".ToLower()))) return false;

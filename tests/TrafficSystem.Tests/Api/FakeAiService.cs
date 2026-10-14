@@ -70,6 +70,37 @@ public class FakeAiService : HttpMessageHandler
     /// <summary>Valhalla /route 的替代路線（每一筆是一個 trip）：請求有要替代路線（alternates 大於 0）才會回，最多回要求的條數</summary>
     public List<object> ValhallaAlternates { get; } = new();
 
+    /// <summary>FastAPI 景點清單假資料</summary>
+    public object VisitorAnalysisAttractionsResponse { get; set; } = new
+    {
+        total = 1,
+        page = 1,
+        page_size = 20,
+        items = new[]
+        {
+            new
+            {
+                name = "勤美誠品綠園道",
+                address = "臺中市西區",
+                uid = "attr-001",
+                uids = new[] { "attr-001", "attr-001b" },
+                has_analysis = true
+            }
+        }
+    };
+
+    /// <summary>FastAPI 策略生成假資料（預設模擬 not_ready，符合正式未啟用 LLM 行為）</summary>
+    public object VisitorAnalysisStrategyResponse { get; set; } = new
+    {
+        status = "not_ready",
+        message = "Ollama / Llama 尚未啟用；Qdrant RAG 尚未啟用。",
+        audience_summary = new { has_domestic = true, has_inbound = false },
+        strategies = Array.Empty<object>(),
+        sources = Array.Empty<object>(),
+        rag_status = "not_ready",
+        llm_status = "not_ready"
+    };
+
     public void Reset()
     {
         Requests.Clear();
@@ -83,6 +114,33 @@ public class FakeAiService : HttpMessageHandler
         CwaForecastResponse = null;
         ValhallaTrip = null;
         ValhallaAlternates.Clear();
+        VisitorAnalysisAttractionsResponse = new
+        {
+            total = 1,
+            page = 1,
+            page_size = 20,
+            items = new[]
+            {
+                new
+                {
+                    name = "勤美誠品綠園道",
+                    address = "臺中市西區",
+                    uid = "attr-001",
+                    uids = new[] { "attr-001", "attr-001b" },
+                    has_analysis = true
+                }
+            }
+        };
+        VisitorAnalysisStrategyResponse = new
+        {
+            status = "not_ready",
+            message = "Ollama / Llama 尚未啟用；Qdrant RAG 尚未啟用。",
+            audience_summary = new { has_domestic = true, has_inbound = false },
+            strategies = Array.Empty<object>(),
+            sources = Array.Empty<object>(),
+            rag_status = "not_ready",
+            llm_status = "not_ready"
+        };
     }
 
     public Received Last(string path) => Requests.LastOrDefault(r => r.Path == path);
@@ -142,6 +200,9 @@ public class FakeAiService : HttpMessageHandler
             "/api/v1/rest/datastore/O-A0003-001" when HasCwaKey(request) => CwaObservationResponse,   // 中央氣象署：測站即時觀測
             "/api/v1/rest/datastore/F-C0032-001" when HasCwaKey(request) => CwaForecastResponse,      // 中央氣象署：縣市天氣預報
             "/route" when ValhallaTrip != null => ValhallaRoute(fields),          // Valhalla：路線（含替代路線）
+            // 客群分析 FastAPI（VisitorAnalysisAi）
+            "/internal/visitor-analysis/attractions" => VisitorAnalysisAttractionsResponse,
+            "/internal/visitor-analysis/strategy/generate" => VisitorAnalysisStrategyResponse,
             _ => null
         };
 

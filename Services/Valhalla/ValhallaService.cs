@@ -67,6 +67,7 @@ namespace backend.Services
                 // （沿公車可行駛的道路計算，不含等車與轉乘時間，時間會偏短）。
                 // 之後建好 transit tiles，可改成 "multimodal"。
                 case "公車":
+                case "台灣好行":
                 case "捷運":
                     return "bus";
 
@@ -256,23 +257,63 @@ namespace backend.Services
 
             string json = await PostAsync("route", body, costing);
 
+            return ParseRoutes(json, costing)[0];
+        }
+
+
+        /// <summary>
+        /// 兩點之間的路線，外加最多 alternates 條替代走法（同一種交通方式的其他路線）。
+        /// 第一筆是主路線，其餘是替代路線；Valhalla 找不到夠不一樣的走法時只會有主路線。
+        /// 替代路線只支援兩個點（起點、終點），所以這裡只收兩個點。
+        /// </summary>
+        public async Task<List<ValhallaRoute>> GetRoutesAsync((double lat, double lng) from, (double lat, double lng) to, string costing, int alternates)
+        {
+            var body = new
+            {
+                locations = new[] { new { lat = from.lat, lon = from.lng }, new { lat = to.lat, lon = to.lng } },
+                costing = costing,
+                units = "kilometers",
+                alternates = alternates
+            };
+
+            return ParseRoutes(await PostAsync("route", body, costing), costing);
+        }
+
+
+        /// <summary>Valhalla route 的回應 → 路線清單：trip 是主路線，alternates[].trip 是替代路線（沒有就只有主路線）</summary>
+        internal static List<ValhallaRoute> ParseRoutes(string json, string costing)
+        {
+            using var doc = JsonDocument.Parse(json);
+
+            var routes = new List<ValhallaRoute> { ParseTrip(doc.RootElement.GetProperty("trip"), costing) };
+
+            if (doc.RootElement.TryGetProperty("alternates", out JsonElement alternates) && alternates.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement alternate in alternates.EnumerateArray())
+                {
+                    if (alternate.TryGetProperty("trip", out JsonElement trip))
+                        routes.Add(ParseTrip(trip, costing));
+                }
+            }
+
+            return routes;
+        }
+
+
+        private static ValhallaRoute ParseTrip(JsonElement trip, string costing)
+        {
             var route = new ValhallaRoute { costing = costing };
 
-            using (var doc = JsonDocument.Parse(json))
+            foreach (var leg in trip.GetProperty("legs").EnumerateArray())
             {
-                var trip = doc.RootElement.GetProperty("trip");
+                var summary = leg.GetProperty("summary");
 
-                foreach (var leg in trip.GetProperty("legs").EnumerateArray())
+                route.legs.Add(new ValhallaRouteLeg
                 {
-                    var summary = leg.GetProperty("summary");
-
-                    route.legs.Add(new ValhallaRouteLeg
-                    {
-                        seconds = summary.GetProperty("time").GetDouble(),
-                        km = summary.GetProperty("length").GetDouble(),
-                        coordinates = DecodePolyline6(leg.GetProperty("shape").GetString())
-                    });
-                }
+                    seconds = summary.GetProperty("time").GetDouble(),
+                    km = summary.GetProperty("length").GetDouble(),
+                    coordinates = DecodePolyline6(leg.GetProperty("shape").GetString())
+                });
             }
 
             return route;

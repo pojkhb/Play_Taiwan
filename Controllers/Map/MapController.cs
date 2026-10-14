@@ -26,17 +26,23 @@ namespace backend.Controllers
         private readonly MapService _service;
         private readonly NearbyFoodService _nearbyFood;
         private readonly NearbyPlaceService _nearbyPlaces;
+        private readonly WeatherService _weather;
+        private readonly NpcReminderService _reminders;
 
         public MapController(
             ILogger<MapController> logger,
             MapService service,
             NearbyFoodService nearbyFood,
-            NearbyPlaceService nearbyPlaces)
+            NearbyPlaceService nearbyPlaces,
+            WeatherService weather,
+            NpcReminderService reminders)
         {
             _logger = logger;
             _service = service;
             _nearbyFood = nearbyFood;
             _nearbyPlaces = nearbyPlaces;
+            _weather = weather;
+            _reminders = reminders;
         }
 
         /// <summary>還在迷霧中的站：回傳 403</summary>
@@ -242,13 +248,18 @@ namespace backend.Controllers
 
         #endregion
 
-        #region NPC 隨機互動
+        #region NPC 對話（回顧劇情）
 
         /// <summary>
-        /// 取得指定節點的 NPC 隨機互動內容。
+        /// 取得指定節點的 NPC 對話：這一站的背景圖、NPC 與台詞。
         /// </summary>
         /// <remarks>
-        /// 對應「地圖」頁面節點彈窗中「回顧劇情」等 NPC 對話內容。
+        /// 對應「地圖」頁面節點彈窗中「回顧劇情」的畫面。
+        /// **內容是固定的，不是隨機的**：npc_dialogue 是這一站的開場白（story_node.sn_opening_text，跟
+        /// GET /api/Task/Node/{node_id} 的 node.opening_text 是同一段），同一站每次呼叫都一樣；
+        /// NPC 是這份劇本的 NPC（名稱、身分、圖片、聲線），要唸出來時把 npc_dialogue 和 npc_voice 帶給 POST /api/Npc/Speak。
+        /// 這一站任務全部通過後的完成劇情在 GET /api/Task/Node/{node_id} 的 node.success_text。
+        ///
         /// 還在迷霧中的站回 403。已解鎖但還沒抵達的站（目前這一關）：scene_image_url 是迷霧圖、
         /// location_subtitle 是 null，抵達後才給景點的真實照片與副標題。
         ///
@@ -258,7 +269,7 @@ namespace backend.Controllers
         /// </remarks>
         /// <param name="node_id">節點代號。</param>
         /// <returns>NPC 互動內容。</returns>
-        // API：NPC 隨機互動（Interact）－回傳指定節點的 NPC 對話內容
+        // API：NPC 對話（Interact）－回傳指定節點的背景圖、NPC 與這一站固定的開場白
         [HttpGet("Node/{node_id:int}/Interact")]
         [ProducesResponseType(typeof(ResultViewModel<NpcInteractionResponse>), 200)]
         public async Task<IActionResult> Interact(int node_id)
@@ -493,6 +504,7 @@ namespace backend.Controllers
         /// <remarks>
         /// 推播由前端用手機本機通知排程（例如 11:30、17:30 跳出「午餐時間到了，看看附近有什麼好吃的？」），
         /// 不需要伺服器推播，iOS 也不需要 Apple 開發者帳號。使用者點開通知後，帶目前 GPS 呼叫這支。
+        /// 地圖開著時 NPC 自己跳出來的用餐提醒請用 GET /api/Map/Reminders（後端判斷是不是用餐時間，並附上推薦的店家）。
         ///
         /// - meal：現在是哪一餐（台灣時間）：早餐、午餐、下午茶、晚餐、宵夜
         /// - message：可以直接顯示的一句話，例如「午餐時間到了！附近 350 公尺有「山河魯肉飯」，還有優惠券可以領」
@@ -521,6 +533,115 @@ namespace backend.Controllers
             {
                 _logger.LogError(e, "附近美食查詢失敗，lat: {Lat}, lng: {Lng}", lat, lng);
                 return StatusCode(500, new ResultViewModel<NearbyFoodResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+
+        #endregion
+
+        #region 天氣提醒
+
+        /// <summary>
+        /// 天氣提醒：使用者目前位置的天氣。
+        /// </summary>
+        /// <remarks>
+        /// 使用者點 NPC 想看現在天氣時用這支（不管天氣好壞都會回一句話）。
+        /// NPC 要不要「自己跳出來」提醒下雨、太熱，請用 GET /api/Map/Reminders，由後端判斷。
+        /// 帶目前 GPS 呼叫；氣象站每 10 分鐘更新一次。
+        ///
+        /// 資料來自中央氣象署開放資料：離使用者最近的氣象站的即時觀測（天氣現象、氣溫、濕度、風速），加上所在縣市的降雨機率。
+        /// 後端要設定氣象署授權碼（Weather:CwaApiKey）；沒有設定、氣象署連不上、或附近 50 公里內沒有測站時，
+        /// 會改用備援的 Open-Meteo，source 會標示實際用了哪一個。
+        ///
+        /// - message：可以直接顯示的一句話，例如「目前天氣：多雲，氣溫 29°C（體感 33°C），降雨機率 20%。天氣很熱，記得多喝水、做好防曬。」；
+        ///   下雨時是「目前天氣：陰有雨，氣溫 22°C，降雨機率 80%。外面正在下雨，記得帶傘，路滑小心走。」
+        /// - description：天氣現象（晴、多雲、陰、陰有雨…）
+        /// - condition：天氣大類，換天氣圖示用：clear 晴、cloudy 多雲、overcast 陰、fog 霧、rain 雨、thunder 雷雨、snow 雪、unknown 不明
+        /// - rain_probability：接下來幾個小時的降雨機率（%），沒有資料時為 null；is_raining：現在是不是正在下雨
+        /// - advice：提醒，依序是打雷 → 正在下雨 → 降雨機率 50% 以上提醒帶傘 → 太熱（32°C 以上）→ 偏涼（15°C 以下）→ 適合出門
+        /// - alert：值得主動提醒的狀況（thunder、raining、rain_soon、hot、cold），天氣好時為 null
+        /// - station_name：觀測的氣象站；source：資料來源，畫面上請標示
+        ///
+        /// 沒帶 lat、lng 回 400；兩個來源都查不到時回 502。
+        ///
+        ///     GET /api/Map/Weather?lat=24.1477&amp;lng=120.6736
+        /// </remarks>
+        [HttpGet("Weather")]
+        [ProducesResponseType(typeof(ResultViewModel<WeatherResponse>), 200)]
+        public async Task<IActionResult> Weather([FromQuery] double lat, [FromQuery] double lng)
+        {
+            try
+            {
+                WeatherResponse result = await _weather.GetCurrentAsync(lat, lng);
+                return Ok(new ResultViewModel<WeatherResponse> { isSuccess = true, message = "查詢成功", Result = result });
+            }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<WeatherResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                // 天氣由外部服務提供，失敗多半是對方的問題
+                return StatusCode(502, new ResultViewModel<WeatherResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+
+        #endregion
+
+        #region NPC 主動提醒
+
+        /// <summary>
+        /// 地圖上 NPC 的主動提醒：現在有沒有值得 NPC 自己跳出來講的事（天氣、用餐）。
+        /// </summary>
+        /// <remarks>
+        /// 對應「地圖」頁面上的 NPC。要不要跳出來由後端判斷，前端不用自己看天氣或時間：
+        /// 地圖開著時每隔 check_after_seconds 秒（5 分鐘）帶目前 GPS 問一次，
+        /// **reminders 裡有還沒跳過的 key 才讓 NPC 跳出對話**，空陣列就什麼都不用做。
+        ///
+        /// 會提醒的狀況：
+        ///
+        /// - 天氣（type = weather）：thunder 打雷下雨、raining 正在下雨、rain_soon 等一下可能下雨（降雨機率 50% 以上）、
+        ///   hot 太熱（氣溫或體感 32°C 以上）、cold 偏涼（15°C 以下）。天氣好就不會有提醒。
+        ///   message 例如「目前天氣：多雲，氣溫 27°C，降雨機率 70%。等一下可能會下雨，出門記得帶把傘。」；weather 是目前的天氣
+        /// - 用餐（type = meal）：breakfast 早餐 07:00–09:00、lunch 午餐 11:30–13:30、dinner 晚餐 17:30–19:30（台灣時間），
+        ///   而且附近 800 公尺內找得到店才提醒。message 例如「午餐時間到了！附近 350 公尺有「山河魯肉飯」，還有優惠券可以領，另外還有 4 間美食」；
+        ///   places 是推薦的店家（最多 5 間，有優惠券的排前面，其餘由近到遠，已知沒營業的不列），可以直接接「前往」
+        ///
+        /// key 是這則提醒的代號（例如 weather-20261013-12-rain_soon、meal-20261013-lunch）：同一種天氣 3 小時內、同一餐一天內都是同一個 key。
+        /// 前端把跳過的 key 記下來（存在手機裡，App 重開也還在），同一個 key 不要再跳第二次，NPC 就不會一直重複講。
+        ///
+        /// - story_id：正在玩的劇本，有帶的話推薦的店家會排除這份劇本自己的站（還在迷霧中的站不會被洩漏）
+        /// - 天氣查不到時只是少了天氣提醒，用餐提醒照常；沒帶 lat、lng 回 400
+        ///
+        ///     GET /api/Map/Reminders?lat=24.1477&amp;lng=120.6736&amp;story_id=12
+        /// </remarks>
+        [HttpGet("Reminders")]
+        [ProducesResponseType(typeof(ResultViewModel<NpcReminderResponse>), 200)]
+        public async Task<IActionResult> Reminders([FromQuery] double lat, [FromQuery] double lng, [FromQuery] int? story_id)
+        {
+            try
+            {
+                NpcReminderResponse result = await _reminders.GetAsync(lat, lng, story_id);
+
+                foreach (NearbyFoodPlace place in result.reminders.SelectMany(r => r.places))
+                {
+                    place.image_url = PublicUrl.Of(Request, place.image_url);
+                }
+
+                return Ok(new ResultViewModel<NpcReminderResponse>
+                {
+                    isSuccess = true,
+                    message = result.reminders.Count > 0 ? $"有 {result.reminders.Count} 則提醒" : "現在沒有要提醒的事",
+                    Result = result
+                });
+            }
+            catch (BadRequestException e)
+            {
+                return BadRequest(new ResultViewModel<NpcReminderResponse> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "NPC 提醒查詢失敗，lat: {Lat}, lng: {Lng}", lat, lng);
+                return StatusCode(500, new ResultViewModel<NpcReminderResponse> { isSuccess = false, message = e.Message, Result = null });
             }
         }
 

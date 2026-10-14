@@ -40,6 +40,12 @@ namespace backend.ViewModels
         public string website { get; set; }
 
         /// <summary>
+        /// 店家照片網址（選填，http／https 完整網址）；建立新景點、選既有景點都可以帶。
+        /// 遊客掃 QR Code 領券、我的優惠券的 image_url 優先用這張。
+        /// </summary>
+        public string image_url { get; set; }
+
+        /// <summary>
         /// 營業時間（選填），格式跟 Neo4j 政府資料的營業時間相同：一個時段一筆，
         /// day_of_week 為 Monday～Sunday，open_time / close_time 為 24 小時制 "HH:mm"。
         /// 跨夜營業結束時間填隔天的時間（例如 18:00～02:00，營業到半夜 12 點填 00:00），全天營業填 00:00～23:59；
@@ -77,6 +83,12 @@ namespace backend.ViewModels
         public double? lng { get; set; }
 
         /// <summary>
+        /// 店家照片網址（選填，http／https 完整網址），自建景點、綁定既有景點都可以改。
+        /// 不帶（null）維持原值，帶空字串 "" 代表清掉。遊客掃 QR Code 領券、我的優惠券的 image_url 優先用這張。
+        /// </summary>
+        public string image_url { get; set; }
+
+        /// <summary>
         /// 營業時間（選填，只對商家自建景點有效，綁定既有景點的營業時間來自政府資料、不會被修改）。
         /// 格式跟註冊相同；有帶就整份取代原本的營業時間，帶空陣列 [] 代表清空，不帶（null）維持原值。
         /// </summary>
@@ -91,6 +103,9 @@ namespace backend.ViewModels
 
         /// <summary>目前的營業時間（Neo4j 景點的 operating_hours），沒有綁定景點或沒填時為空陣列</summary>
         public System.Collections.Generic.List<PlaceOperatingHourItem> operating_hours { get; set; }
+
+        /// <summary>店家照片網址（商家在店家資料填的），沒填時為 null</summary>
+        public string image_url { get; set; }
     }
 
     public class MerchantDetailResponse
@@ -115,9 +130,16 @@ namespace backend.ViewModels
         public int page_size { get; set; } = 20;
     }
 
+    /// <summary>管理員商家列表的一間店：店家資料加上目前的營業時間。</summary>
+    public class MerchantListItem : MerchantDetailResponse
+    {
+        /// <summary>目前的營業時間（Neo4j 景點的 operating_hours，格式同 GET Profile），沒有綁定景點、沒填或 Neo4j 連不上時為空陣列</summary>
+        public System.Collections.Generic.List<PlaceOperatingHourItem> operating_hours { get; set; }
+    }
+
     public class MerchantListResponse
     {
-        public System.Collections.Generic.List<MerchantDetailResponse> items { get; set; }
+        public System.Collections.Generic.List<MerchantListItem> items { get; set; }
         public int total { get; set; }
         public int page { get; set; }
         public int page_size { get; set; }

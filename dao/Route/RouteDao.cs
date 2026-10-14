@@ -205,11 +205,17 @@ namespace backend.dao
                 LIMIT @limit;", BoxParams(lat, lng, radiusM, limit))).ToList();
         }
 
-        /// <summary>附近有營運中路線經過的站牌，依經過的路線數多到少（找建議起點用）</summary>
-        public async Task<List<StopRow>> GetBusHubsNearAsync(double lat, double lng, int radiusM, int limit)
+        /// <summary>
+        /// 附近有營運中路線經過的站牌，依經過的路線數多到少（找建議起點用）。
+        /// tripper：true 只算台灣好行的路線、false 只算台灣好行以外的（市區公車、客運）、null 都算
+        /// </summary>
+        public async Task<List<StopRow>> GetBusHubsNearAsync(double lat, double lng, int radiusM, int limit, bool? tripper = null)
         {
+            // 固定的字串，不是使用者輸入
+            string typeFilter = tripper == null ? "" : tripper.Value ? " AND br.route_type = 3" : " AND br.route_type <> 3";
+
             using var conn = Open();
-            return (await conn.QueryAsync<StopRow>(@"
+            return (await conn.QueryAsync<StopRow>($@"
                 SELECT bs.bs_id, bs.stop_name, bs.bs_latitude AS lat, bs.bs_longitude AS lng,
                        ST_Distance_Sphere(POINT(@lng, @lat), POINT(bs.bs_longitude, bs.bs_latitude)) AS distance_m,
                        COUNT(DISTINCT br.br_id) AS route_count
@@ -217,7 +223,7 @@ namespace backend.dao
                 INNER JOIN bus_route_stop brs ON brs.bs_id = bs.bs_id
                 INNER JOIN bus_route_pattern brp ON brp.brp_id = brs.brp_id
                 INNER JOIN bus_sub_route bsr ON bsr.bsr_id = brp.bsr_id
-                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.is_active = 1
+                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.is_active = 1{typeFilter}
                 WHERE bs.bs_latitude BETWEEN @minLat AND @maxLat AND bs.bs_longitude BETWEEN @minLng AND @maxLng
                 GROUP BY bs.bs_id, bs.stop_name, bs.bs_latitude, bs.bs_longitude
                 HAVING distance_m <= @radiusM

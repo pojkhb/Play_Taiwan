@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using backend.utils;
+using backend.ViewModels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MySql.Data.MySqlClient;
@@ -163,6 +164,45 @@ namespace backend.Services.Neo4j
             return result;
         }
 
+        /// <summary>
+        /// 店家照片：商家景點 ID（store.store_uid）→ 照片網址，掃 QR Code 領券與我的優惠券用（兩邊拿到同一張）。
+        /// 商家在店家資料填了照片網址（版本鏈 :Current 的 image_url）就用那張，沒填才用景點照片（GetPlaceImagesAsync）。
+        /// Neo4j 連不上時只剩景點照片的 MySQL 備援；沒有照片的店家不會出現在結果裡。
+        /// </summary>
+        public async Task<Dictionary<string, string>> GetStoreImagesAsync(IEnumerable<string> placeIds)
+        {
+            List<string> ids = (placeIds ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            Dictionary<string, string> result = await GetPlaceImagesAsync(ids);
+
+            List<string> uids = ids.Where(id => !id.StartsWith(MySqlPlacePrefix)).ToList();
+            if (uids.Count == 0) return result;
+
+            try
+            {
+                var rows = await _gateway.ExecuteCypherAsync(@"
+                    MATCH (p:Place)-[:HAS_VERSION]->(v:Current)
+                    WHERE p.uid IN $uids AND v.image_url IS NOT NULL AND v.image_url <> ''
+                    RETURN p.uid AS uid, v.image_url AS store_image_url", new { uids });
+
+                foreach (var row in rows ?? new List<Dictionary<string, object>>())
+                {
+                    string uid = Neo4jValueConverter.AsString(row.GetValueOrDefault("uid"));
+                    string url = Neo4jValueConverter.AsString(row.GetValueOrDefault("store_image_url"));
+                    if (!string.IsNullOrWhiteSpace(uid) && !string.IsNullOrWhiteSpace(url)) result[uid] = url.Trim();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "向 Neo4j 查商家填的店家照片失敗，改用景點照片。");
+            }
+
+            return result;
+        }
+
         /// <summary>MySQL 的景點照片（place.p_image）；對應方式跟 GetBridgedPlacesAsync 相同</summary>
         private async Task<List<(string id, string image)>> GetMySqlImagesAsync(List<string> ids)
         {
@@ -256,6 +296,47 @@ namespace backend.Services.Neo4j
                     List<ItineraryRules.OpenHours> hours = ItineraryRules.ParseHoursText(text);
                     if (hours.Count > 0) result[id] = hours;
                 }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 景點的營業時間（顯示用）：景點 ID → 時段清單，格式跟店家資料、掃 QR Code 的 operating_hours 一樣（含星期），
+        /// 管理員商家列表、商家優惠券、我的優惠券一次查多間店用。行程規劃判斷有沒有開請用 GetOpeningHoursAsync。
+        /// 沒有營業時間的景點不會出現在結果裡；Neo4j 連不上時回空的（MySQL 的 p_open_time 只有文字、沒有星期，不拿來補），
+        /// 列表照樣回傳，只是沒有營業時間。
+        /// </summary>
+        public async Task<Dictionary<string, List<PlaceOperatingHourItem>>> GetOperatingHoursAsync(IEnumerable<string> placeIds)
+        {
+            List<string> uids = (placeIds ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id) && !id.StartsWith(MySqlPlacePrefix))
+                .Distinct()
+                .ToList();
+
+            var result = new Dictionary<string, List<PlaceOperatingHourItem>>();
+            if (uids.Count == 0) return result;
+
+            try
+            {
+                var rows = await _gateway.ExecuteCypherAsync(@"
+                    MATCH (p:Place)-[:HAS_OPERATING_HOURS]->(oh:OperatingHours)
+                    WHERE p.uid IN $uids
+                    RETURN p.uid AS uid,
+                           collect(DISTINCT {day_of_week: oh.dayOfWeek, open_time: oh.openTime, close_time: oh.closeTime}) AS operatingHours", new { uids });
+
+                foreach (var row in rows ?? new List<Dictionary<string, object>>())
+                {
+                    string uid = Neo4jValueConverter.AsString(row.GetValueOrDefault("uid"));
+                    if (string.IsNullOrWhiteSpace(uid)) continue;
+
+                    List<PlaceOperatingHourItem> hours = PlaceVersionChainService.ToOperatingHours(row.GetValueOrDefault("operatingHours"));
+                    if (hours.Count > 0) result[uid] = hours;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "向 Neo4j 查店家營業時間失敗，這次回傳不含營業時間。");
             }
 
             return result;

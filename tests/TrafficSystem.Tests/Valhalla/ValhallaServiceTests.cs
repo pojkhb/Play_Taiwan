@@ -106,4 +106,31 @@ public class ValhallaServiceTests
     }
 
     #endregion
+
+    #region 路線與替代路線
+
+    /// <summary>Valhalla route 回應裡的一條路線（trip）：一段，時間（秒）與距離（公里）</summary>
+    private static string Trip(double seconds, double km) =>
+        $$"""{ "legs": [ { "summary": { "time": {{seconds}}, "length": {{km}} }, "shape": "_p~iF~ps|U_ulLnnqC" } ], "summary": { "time": {{seconds}}, "length": {{km}} } }""";
+
+    [Fact]
+    public void 路線回應_主路線排第一_後面接替代路線()
+    {
+        string json = $$"""{ "trip": {{Trip(1288.5, 1.806)}}, "alternates": [ { "trip": {{Trip(1285.1, 1.811)}} }, { "trip": {{Trip(1313.6, 1.826)}} } ] }""";
+
+        List<ValhallaRoute> routes = ValhallaService.ParseRoutes(json, "pedestrian");
+
+        Assert.Equal(new[] { 1288.5, 1285.1, 1313.6 }, routes.Select(r => r.legs.Single().seconds));
+        Assert.Equal(new[] { 1.806, 1.811, 1.826 }, routes.Select(r => r.legs.Single().km));
+        Assert.All(routes, r => Assert.Equal(("pedestrian", 2), (r.costing, r.legs[0].coordinates.Count)));
+    }
+
+    [Fact]
+    public void 路線回應沒有替代路線時_只有主路線()
+    {
+        Assert.Single(ValhallaService.ParseRoutes($$"""{ "trip": {{Trip(600, 0.8)}} }""", "auto"));
+        Assert.Single(ValhallaService.ParseRoutes($$"""{ "trip": {{Trip(600, 0.8)}}, "alternates": [] }""", "auto"));
+    }
+
+    #endregion
 }

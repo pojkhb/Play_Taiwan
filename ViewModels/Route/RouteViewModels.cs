@@ -13,12 +13,16 @@ namespace backend.ViewModels
         public const string Bicycle = "腳踏車";
         public const string Scooter = "機車";
         public const string Car = "汽車";
+        /// <summary>公車：市區公車、客運。不含台灣好行（另外一個交通方式，可以單獨勾選）</summary>
         public const string Bus = "公車";
+
+        /// <summary>台灣好行（觀光公車，bus_route.route_type = 3）</summary>
+        public const string Tripper = "台灣好行";
         public const string Metro = "捷運";
         public const string Transfer = "轉乘";
 
         /// <summary>前端可勾選的交通方式，依顯示順序</summary>
-        public static readonly string[] All = { Walk, Bicycle, Scooter, Car, Bus, Metro };
+        public static readonly string[] All = { Walk, Bicycle, Scooter, Car, Bus, Tripper, Metro };
 
         public static string Color(string mode)
         {
@@ -29,6 +33,7 @@ namespace backend.ViewModels
                 case Scooter: return "#7B1FA2";
                 case Car: return "#37474F";
                 case Bus: return "#C62828";
+                case Tripper: return "#1565C0";
                 case Metro: return "#00897B";
                 default: return "#757575";
             }
@@ -38,7 +43,7 @@ namespace backend.ViewModels
     /// <summary>某個交通方式在這個區域能不能用</summary>
     public class TransportAvailability
     {
-        /// <summary>交通方式：步行 / 腳踏車 / 機車 / 汽車 / 公車 / 捷運</summary>
+        /// <summary>交通方式：步行 / 腳踏車 / 機車 / 汽車 / 公車 / 台灣好行 / 捷運</summary>
         public string mode { get; set; }
 
         /// <summary>是否可勾選；false 時前端反灰不能選</summary>
@@ -88,7 +93,8 @@ namespace backend.ViewModels
         public List<RoutePoint> points { get; set; }
 
         /// <summary>
-        /// 交通方式（可複選）：步行、腳踏車、機車、汽車、公車、捷運。每一段會各自挑最快的方式。
+        /// 交通方式（可複選）：步行、腳踏車、機車、汽車、公車、台灣好行、捷運。每一段會各自挑最快的方式。
+        /// 公車只找市區公車與客運，台灣好行要另外勾「台灣好行」才會找。
         /// 帶 story_id 而沒帶這個欄位時，用生成劇本時使用者選的交通方式；都沒有就用步行
         /// </summary>
         public List<string> transportation { get; set; }
@@ -222,15 +228,31 @@ namespace backend.ViewModels
         /// <summary>採用方案的每一小段（公車/捷運會拆成 步行 → 搭車 → 步行），地圖依序畫出</summary>
         public List<RouteSegment> segments { get; set; }
 
-        /// <summary>這段所有算得出來的方案（含採用的那個），前端可讓使用者切換</summary>
+        /// <summary>
+        /// 這段所有算得出來的方案（含採用的那個），前端可以全部畫在地圖上讓使用者點選切換：is_chosen 的那條是主路線，其餘畫成灰色。
+        /// 每種交通方式一條；現在要走的那一段（帶劇本時是 is_current 的那一段，自選地點是第一段）
+        /// 步行／腳踏車／機車／汽車還會多給最多 2 條同一種交通方式的替代走法（is_alternative = true）
+        /// </summary>
         public List<RouteOption> options { get; set; }
     }
 
     /// <summary>一段路線的其中一種走法</summary>
     public class RouteOption
     {
+        /// <summary>
+        /// 這個走法的代號，同一段路線裡不重複，例如「步行-1」（步行的主路線）、「步行-2」（步行的替代走法）、「公車-1」。
+        /// 前端記住使用者選了哪一條時用
+        /// </summary>
+        public string option_id { get; set; }
+
         /// <summary>主要交通方式</summary>
         public string mode { get; set; }
+
+        /// <summary>
+        /// 是不是同一種交通方式的替代走法：false＝這種交通方式的主路線；true＝同一種交通方式的另一條走法
+        /// （只有現在要走的那一段會有，見 RouteLeg.options）
+        /// </summary>
+        public bool is_alternative { get; set; }
 
         /// <summary>所需時間（分鐘）</summary>
         public double minutes { get; set; }
@@ -241,7 +263,7 @@ namespace backend.ViewModels
         /// <summary>一句話說明</summary>
         public string summary { get; set; }
 
-        /// <summary>是否為目前採用的方案（最快）</summary>
+        /// <summary>是否為目前採用的方案：各種交通方式的主路線裡最快的那一條（替代走法不會被預設採用）</summary>
         public bool is_chosen { get; set; }
 
         /// <summary>每一小段</summary>

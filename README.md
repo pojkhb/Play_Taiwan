@@ -35,10 +35,11 @@
 | 喜愛 | 把劇本標成喜愛、查看「我喜愛的劇本」清單 | `/api/Story/{story_id}/Favorite`、`/api/Story/Favorites` |
 | 行事曆 | 把喜歡的劇本加入 Google 行事曆（回傳填好的新增活動連結，不需要 Google 帳號授權） | `/api/Story/{story_id}/Calendar` |
 | 解謎地圖 | 地圖節點、抵達打卡、導航、周邊推薦。迷霧由後端處理：未解鎖的站只回傳地點代號、景點照片的霧化版與大概位置，而且不能查看、導航或打卡 | `/api/Map/*` |
+| NPC 提醒 | 地圖上的 NPC 會自己跳出來提醒：會下雨、太熱、偏涼（中央氣象署資料），以及用餐時間推薦附近的店家；要不要跳出來由後端判斷 | `/api/Map/Reminders`、`/api/Map/Weather`、`/api/Map/NearbyFood` |
 | NPC 語音 | 劇情前傳與任意文字轉語音 | `/api/Npc/*` |
 | 任務 | 任務清單、答題、提示、隱藏關卡 | `/api/Task/*` |
 | 交通規劃 | 等時圈可到達景點、多點路線規劃（步行／自行車／機車／汽車／公車／捷運）、公車即時到站 | `/api/Route/*`、`/api/Bus/*`、`/api/Metro/*` |
-| 明信片 | AI 生成明信片、ibon 列印、分享 | `/api/PostcardCatalog/*` |
+| 明信片 | AI 生成明信片、ibon 列印、分享。每張明信片有顯示網址（打開就是圖片）與下載網址（存成檔案），圖片抓回後端後由後端回傳 | `/api/PostcardCatalog/*` |
 | 勳章 | 完成劇本後依劇本內容抽一枚勳章，夜間劇本才能抽「午夜台灣」系列 | `/api/Badge/*` |
 | 過往旅途 | 通關紀錄；劇本回顧一次回傳每一站的景點與劇情、玩家照片、作答結果、明信片、勳章、Vlog，以及旁白（文字與語音） | `/api/History/*` |
 | 遊客 Vlog | 依玩家走過的景點與照片，由 AI 產生旁白並合成影片 | `/api/VisitorVlog/*` |
@@ -195,6 +196,7 @@ dotnet run
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |
 | `Fog:RadiusMeters` | 地圖迷霧範圍的半徑（公尺），預設 300 | |
+| `Weather:CwaApiKey` | 中央氣象署開放資料的授權碼（到 <https://opendata.cwa.gov.tw> 註冊會員後取得） | 地圖的天氣提醒需要；沒有設定時改用備援的 Open-Meteo |
 
 ---
 

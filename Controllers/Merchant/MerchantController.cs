@@ -37,6 +37,8 @@ namespace backend.Controllers
         /// 新景點的名稱、地址、介紹用 store_name（必填）、store_address、store_dec；地址與 lat / lng 至少填一個，只填一個時後端自動轉另一個；
         /// category 可選 Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
         /// lat、lng、category、phone、website、operating_hours 只在建立新景點時使用，帶了 place_uid 會忽略。
+        /// image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，
+        /// 遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。
         ///
         /// operating_hours（營業時間，選填）跟 Neo4j 政府資料同格式，一個時段一筆，公休日不填、中午休息就同一天填兩筆；
         /// 跨夜營業結束時間填隔天的時間，營業到半夜 12 點填 00:00，全天營業填 00:00～23:59。格式不對或同一天時段重疊回 400：
@@ -69,7 +71,10 @@ namespace backend.Controllers
         #region 2. 店家資料
         /// <summary>查詢登入商家的店家資料。</summary>
         /// <remarks>
-        /// 多回傳 operating_hours（目前的營業時間，格式同註冊）與 is_self_built_place（true 才能修改座標與營業時間），給編輯畫面帶入。
+        /// 多回傳 operating_hours（目前的營業時間，格式同註冊，依星期與開始時間排序）與 is_self_built_place（true 才能修改座標與營業時間），給編輯畫面帶入。
+        /// 綁定政府資料景點的商家也會回傳營業時間（來自政府資料，只能看不能改），時間一樣是 "HH:mm"；
+        /// 政府資料可能有 TyphoonDay（颱風天）這種非星期的值，排在最後。
+        /// image_url 是商家在店家資料填的店家照片網址，沒填時為 null。
         /// </remarks>
         [Authorize(Roles = "Merchant")]
         [HttpGet]
@@ -92,6 +97,9 @@ namespace backend.Controllers
         ///
         /// operating_hours（營業時間）只對商家自建景點有效（GET Profile 的 is_self_built_place = true），格式跟註冊相同；
         /// 有帶就整份取代，帶 [] 代表清空，不帶維持原值。格式不對或同一天時段重疊回 400，其他欄位也不會被改到。
+        ///
+        /// image_url（店家照片網址，http／https 完整網址）自建景點、綁定既有景點都可以改：不帶維持原值，帶 "" 代表清掉，
+        /// 格式不對回 400。存在 Neo4j 的版本節點，遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張，沒填才用景點照片。
         ///
         /// **Request 範例**：
         /// ```json
@@ -119,17 +127,21 @@ namespace backend.Controllers
         }
 
         /// <summary>查詢商家列表（限管理員）。</summary>
+        /// <remarks>
+        /// 每間店多回傳 operating_hours（目前的營業時間，格式同 GET Profile，依星期與開始時間排序）；
+        /// 沒有綁定景點、沒填營業時間或 Neo4j 連不上時為空陣列。
+        /// </remarks>
         [Authorize(Roles = "Admin")]
         [HttpGet]
         [Route("List")]
         [ProducesResponseType(typeof(ResultViewModel<MerchantListResponse>), 200)]
-        public IActionResult List([FromQuery] MerchantListQuery query)
+        public async Task<IActionResult> List([FromQuery] MerchantListQuery query)
         {
             return Ok(new ResultViewModel<MerchantListResponse>
             {
                 isSuccess = true,
                 message = "查詢成功",
-                Result = _service.List(query)
+                Result = await _service.ListAsync(query)
             });
         }
         #endregion

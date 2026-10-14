@@ -34,6 +34,8 @@ namespace backend.Services
         private const double MetroWaitMinutes = 4;
         private const double MinMetroTripMeters = 800;
 
+        private const int MaxAlternatives = 2;             // 現在要走的那一段，同一種交通方式最多再給幾條替代走法
+
         private static readonly string[] RoadModes = { TransportModes.Walk, TransportModes.Bicycle, TransportModes.Scooter, TransportModes.Car };
 
         private readonly ValhallaService _valhalla;
@@ -67,25 +69,31 @@ namespace backend.Services
                 mode = m, enabled = true, reason = "隨時可用", color = TransportModes.Color(m)
             }).ToList();
 
-            // ── 公車 ──
-            RouteDao.StopRow nearestStop = null;
-            foreach (RoutePoint p in points)
+            // ── 公車（市區公車、客運）與台灣好行：各自看附近有沒有那一種路線經過的站牌 ──
+            foreach (bool tripper in new[] { false, true })
             {
-                var hub = (await _dao.GetBusHubsNearAsync(p.lat, p.lng, BusAvailableRadiusM, 30)).OrderBy(s => s.distance_m).FirstOrDefault();
-                if (hub != null && (nearestStop == null || hub.distance_m < nearestStop.distance_m)) nearestStop = hub;
-            }
+                string mode = tripper ? TransportModes.Tripper : TransportModes.Bus;
+                RouteDao.StopRow nearestStop = null;
+                foreach (RoutePoint p in points)
+                {
+                    var hub = (await _dao.GetBusHubsNearAsync(p.lat, p.lng, BusAvailableRadiusM, 30, tripper)).OrderBy(s => s.distance_m).FirstOrDefault();
+                    if (hub != null && (nearestStop == null || hub.distance_m < nearestStop.distance_m)) nearestStop = hub;
+                }
 
-            result.Add(new TransportAvailability
-            {
-                mode = TransportModes.Bus,
-                enabled = nearestStop != null,
-                reason = nearestStop != null
-                    ? $"附近 {Math.Round(nearestStop.distance_m)} 公尺有「{nearestStop.stop_name}」站牌"
-                    : $"這一帶 {BusAvailableRadiusM} 公尺內沒有公車站牌，或尚未匯入這個縣市的公車資料",
-                nearest_name = nearestStop?.stop_name,
-                nearest_distance_m = nearestStop == null ? (int?)null : (int)Math.Round(nearestStop.distance_m),
-                color = TransportModes.Color(TransportModes.Bus)
-            });
+                result.Add(new TransportAvailability
+                {
+                    mode = mode,
+                    enabled = nearestStop != null,
+                    reason = nearestStop != null
+                        ? $"附近 {Math.Round(nearestStop.distance_m)} 公尺有「{nearestStop.stop_name}」站牌"
+                        : tripper
+                            ? $"這一帶 {BusAvailableRadiusM} 公尺內沒有台灣好行的站牌"
+                            : $"這一帶 {BusAvailableRadiusM} 公尺內沒有公車站牌，或尚未匯入這個縣市的公車資料",
+                    nearest_name = nearestStop?.stop_name,
+                    nearest_distance_m = nearestStop == null ? (int?)null : (int)Math.Round(nearestStop.distance_m),
+                    color = TransportModes.Color(mode)
+                });
+            }
 
             // ── 捷運 ──
             MetroNetwork network = await _metro.GetNetworkAsync();
@@ -215,7 +223,12 @@ namespace backend.Services
 
                 // 沒帶交通方式：用生成劇本時使用者自己選的那些（推薦的交通方式就是他選的）
                 if (req.transportation == null || req.transportation.Count == 0)
+                {
                     req.transportation = StoryTransports(story.sd_transport);
+                    // 劇本存的「公車」是台灣好行獨立出來之前選的，當時包含台灣好行：兩種都找
+                    if (req.transportation.Contains(TransportModes.Bus) && !req.transportation.Contains(TransportModes.Tripper))
+                        req.transportation.Add(TransportModes.Tripper);
+                }
             }
             else
             {
@@ -255,10 +268,11 @@ namespace backend.Services
             if (modes.Count == 0) modes.Add(TransportModes.Walk);
 
             var allPoints = new List<RoutePoint> { start }.Concat(stops.Select(s => new RoutePoint { lat = s.lat, lng = s.lng })).ToList();
-            if (modes.Contains(TransportModes.Bus) || modes.Contains(TransportModes.Metro))
+            string[] transitModes = { TransportModes.Bus, TransportModes.Tripper, TransportModes.Metro };
+            if (transitModes.Any(modes.Contains))
             {
                 var availability = await GetAvailabilityAsync(allPoints);
-                foreach (string mode in new[] { TransportModes.Bus, TransportModes.Metro })
+                foreach (string mode in transitModes)
                 {
                     var a = availability.First(x => x.mode == mode);
                     if (modes.Contains(mode) && !a.enabled)
@@ -276,8 +290,12 @@ namespace backend.Services
             // 還有站在迷霧中時不規劃返程：行程還沒走完，最後一站不是現在這一站；只規劃目前這一段時也不規劃返程
             if (req.include_return && response.locked_stop_count == 0 && !currentOnly) waypoints.Add((start, "返程"));
 
+            // 現在要走的那一段多給同一種交通方式的替代走法，讓使用者在地圖上點選切換：
+            // 帶劇本時是前往目前這一關的那一段，自選地點是第一段。已經走過的路和返程只給主路線
+            bool IsActiveLeg(int i) => i <= legStops.Count && (req.story_id.HasValue ? legStops[i - 1].is_current : i == 1);
+
             RouteLeg[] legs = await Task.WhenAll(Enumerable.Range(1, waypoints.Count - 1).Select(i =>
-                PlanLegAsync(i, waypoints[i - 1].point, waypoints[i].point, waypoints[i].direction, modes)));
+                PlanLegAsync(i, waypoints[i - 1].point, waypoints[i].point, waypoints[i].direction, modes, IsActiveLeg(i))));
 
             // 第 i 段的目的地是第 i 站；前往目前這一關的那一段要標出來，藏寶圖上只亮這一段
             for (int i = 0; i < legStops.Count; i++)
@@ -317,24 +335,47 @@ namespace backend.Services
                  : t;
         }
 
-        /// <summary>一段路：每個交通方式各算一個方案，採用最快的</summary>
-        private async Task<RouteLeg> PlanLegAsync(int order, RoutePoint from, RoutePoint to, string direction, List<string> modes)
+        /// <summary>
+        /// 一段路：每個交通方式各算一個方案，採用最快的。
+        /// withAlternatives：步行／腳踏車／機車／汽車另外多給同一種交通方式的替代走法（現在要走的那一段才需要）
+        /// </summary>
+        private async Task<RouteLeg> PlanLegAsync(int order, RoutePoint from, RoutePoint to, string direction, List<string> modes, bool withAlternatives)
         {
-            var tasks = new List<Task<RouteOption>>();
-            foreach (string mode in RoadModes.Where(modes.Contains))
-                tasks.Add(SafeAsync(mode, () => PlanRoadAsync(from, to, mode)));
-            if (modes.Contains(TransportModes.Bus))
-                tasks.Add(SafeAsync(TransportModes.Bus, () => PlanBusAsync(from, to)));
-            if (modes.Contains(TransportModes.Metro))
-                tasks.Add(SafeAsync(TransportModes.Metro, () => PlanMetroAsync(from, to)));
+            int alternatives = withAlternatives ? MaxAlternatives : 0;
 
-            List<RouteOption> options = (await Task.WhenAll(tasks)).Where(o => o != null).ToList();
+            var tasks = new List<Task<List<RouteOption>>>();
+            foreach (string mode in RoadModes.Where(modes.Contains))
+                tasks.Add(SafeAsync(mode, () => PlanRoadAsync(from, to, mode, alternatives)));
+            if (modes.Contains(TransportModes.Bus))
+                tasks.Add(SafeAsync(TransportModes.Bus, async () => new List<RouteOption> { await PlanBusAsync(from, to, tripper: false) }));
+            if (modes.Contains(TransportModes.Tripper))
+                tasks.Add(SafeAsync(TransportModes.Tripper, async () => new List<RouteOption> { await PlanBusAsync(from, to, tripper: true) }));
+            if (modes.Contains(TransportModes.Metro))
+                tasks.Add(SafeAsync(TransportModes.Metro, async () => new List<RouteOption> { await PlanMetroAsync(from, to) }));
+
+            List<RouteOption> options = (await Task.WhenAll(tasks))
+                .Where(list => list != null)
+                .SelectMany(list => list)
+                .Where(o => o != null)
+                .ToList();
 
             // 只勾公車/捷運但這段搭不到時，退回步行
             if (options.Count == 0)
-                options.Add(await SafeAsync(TransportModes.Walk, () => PlanRoadAsync(from, to, TransportModes.Walk)) ?? StraightWalkOption(from, to));
+            {
+                List<RouteOption> walk = await SafeAsync(TransportModes.Walk, () => PlanRoadAsync(from, to, TransportModes.Walk, alternatives));
+                options.AddRange(walk?.Count > 0 ? walk : new List<RouteOption> { StraightWalkOption(from, to) });
+            }
 
-            RouteOption chosen = options.OrderBy(o => o.minutes).First();
+            // 走法代號：同一種交通方式的主路線是 1，替代走法接著編
+            foreach (var sameMode in options.GroupBy(o => o.mode))
+            {
+                int number = 0;
+                foreach (RouteOption option in sameMode.OrderBy(o => o.is_alternative))
+                    option.option_id = $"{sameMode.Key}-{++number}";
+            }
+
+            // 預設採用各交通方式主路線裡最快的；替代走法就算快個幾秒也不搶主路線，使用者自己點了才換
+            RouteOption chosen = options.Where(o => !o.is_alternative).OrderBy(o => o.minutes).First();
             chosen.is_chosen = true;
 
             return new RouteLeg
@@ -352,7 +393,7 @@ namespace backend.Services
             };
         }
 
-        private async Task<RouteOption> SafeAsync(string mode, Func<Task<RouteOption>> plan)
+        private async Task<T> SafeAsync<T>(string mode, Func<Task<T>> plan) where T : class
         {
             try
             {
@@ -366,38 +407,54 @@ namespace backend.Services
         }
 
 
-        /// <summary>步行 / 腳踏車 / 機車 / 汽車：Valhalla 直接算</summary>
-        private async Task<RouteOption> PlanRoadAsync(RoutePoint from, RoutePoint to, string mode)
+        /// <summary>
+        /// 步行 / 腳踏車 / 機車 / 汽車：Valhalla 直接算。第一筆是主路線；alternatives 大於 0 時，
+        /// 後面接同一種交通方式的替代走法（Valhalla 找得到夠不一樣的路才有，所以可能一條都沒有）
+        /// </summary>
+        private async Task<List<RouteOption>> PlanRoadAsync(RoutePoint from, RoutePoint to, string mode, int alternatives)
         {
-            ValhallaRoute route = await _valhalla.GetRouteAsync(new List<(double lat, double lng)> { (from.lat, from.lng), (to.lat, to.lng) }, ValhallaService.ToCosting(mode));
-            ValhallaRouteLeg leg = route.legs.FirstOrDefault();
-            if (leg == null) return null;
-
-            double minutes = Math.Round(leg.seconds / 60, 1);
-            double km = Math.Round(leg.km, 2);
+            List<ValhallaRoute> routes = await _valhalla.GetRoutesAsync((from.lat, from.lng), (to.lat, to.lng), ValhallaService.ToCosting(mode), alternatives);
             string verb = mode == TransportModes.Walk ? "步行" : mode == TransportModes.Car ? "開車" : $"騎{mode}";
 
-            return new RouteOption
+            var options = new List<RouteOption>();
+            foreach (ValhallaRoute route in routes)
             {
-                mode = mode,
-                minutes = minutes,
-                distance_km = km,
-                summary = $"{verb} {km} 公里，約 {Math.Ceiling(minutes)} 分鐘",
-                segments = new List<RouteSegment>
+                ValhallaRouteLeg leg = route.legs.FirstOrDefault();
+                if (leg == null) continue;
+
+                bool alternative = options.Count > 0;
+                double minutes = Math.Round(leg.seconds / 60, 1);
+                double km = Math.Round(leg.km, 2);
+                string text = $"{verb} {km} 公里，約 {Math.Ceiling(minutes)} 分鐘";
+
+                options.Add(new RouteOption
                 {
-                    new RouteSegment
+                    mode = mode,
+                    is_alternative = alternative,
+                    minutes = minutes,
+                    distance_km = km,
+                    summary = alternative ? $"替代路線：{text}" : text,
+                    segments = new List<RouteSegment>
                     {
-                        mode = mode, color = TransportModes.Color(mode), minutes = minutes, distance_km = km,
-                        coordinates = leg.coordinates,
-                        instruction = $"從「{from.name}」{verb}到「{to.name}」，{km} 公里約 {Math.Ceiling(minutes)} 分鐘"
+                        new RouteSegment
+                        {
+                            mode = mode, color = TransportModes.Color(mode), minutes = minutes, distance_km = km,
+                            coordinates = leg.coordinates,
+                            instruction = $"從「{from.name}」{verb}到「{to.name}」，{km} 公里約 {Math.Ceiling(minutes)} 分鐘{(alternative ? "（替代路線）" : "")}"
+                        }
                     }
-                }
-            };
+                });
+            }
+
+            return options;
         }
 
 
-        /// <summary>公車：起點附近站牌上車、終點附近站牌下車的直達路線，挑總時間最短的</summary>
-        private async Task<RouteOption> PlanBusAsync(RoutePoint from, RoutePoint to)
+        /// <summary>
+        /// 公車：起點附近站牌上車、終點附近站牌下車的直達路線，挑總時間最短的。
+        /// tripper = true 只找台灣好行（交通方式是「台灣好行」），false 只找市區公車與客運（交通方式是「公車」）
+        /// </summary>
+        private async Task<RouteOption> PlanBusAsync(RoutePoint from, RoutePoint to, bool tripper)
         {
             if (Geo.DistanceMeters(from.lat, from.lng, to.lat, to.lng) < MinBusTripMeters) return null;
 
@@ -405,8 +462,12 @@ namespace backend.Services
             var alightStops = await _dao.GetBusStopsNearAsync(to.lat, to.lng, BusStopRadiusM, 30);
             if (boardStops.Count == 0 || alightStops.Count == 0) return null;
 
-            var candidates = await _dao.FindDirectBusAsync(boardStops.Select(s => s.bs_id).ToList(), alightStops.Select(s => s.bs_id).ToList());
+            var candidates = (await _dao.FindDirectBusAsync(boardStops.Select(s => s.bs_id).ToList(), alightStops.Select(s => s.bs_id).ToList()))
+                .Where(c => (c.route_type == BusDao.RouteTypeTaiwanTrip) == tripper)
+                .ToList();
             if (candidates.Count == 0) return null;
+
+            string mode = tripper ? TransportModes.Tripper : TransportModes.Bus;
 
             var boardById = boardStops.ToDictionary(s => s.bs_id);
             var alightById = alightStops.ToDictionary(s => s.bs_id);
@@ -449,8 +510,8 @@ namespace backend.Services
 
             var busSegment = new RouteSegment
             {
-                mode = TransportModes.Bus,
-                color = TransportModes.Color(TransportModes.Bus),
+                mode = mode,
+                color = TransportModes.Color(mode),
                 minutes = rideMinutes,
                 wait_minutes = wait,
                 distance_km = rideKm,
@@ -465,7 +526,7 @@ namespace backend.Services
                 instruction = $"在「{boardPoint.name}」搭 {((info.route_name ?? "").StartsWith(routeTypeName) ? "" : routeTypeName + " ")}{info.route_name}{(headsign == null ? "" : $"（{headsign}）")}，坐 {stopCountFinal} 站到「{alightPoint.name}」下車"
             };
 
-            return BuildTransitOption(TransportModes.Bus, walkA, new List<RouteSegment> { busSegment }, walkB,
+            return BuildTransitOption(mode, walkA, new List<RouteSegment> { busSegment }, walkB,
                 $"{info.route_name} {stopCountFinal} 站");
         }
 

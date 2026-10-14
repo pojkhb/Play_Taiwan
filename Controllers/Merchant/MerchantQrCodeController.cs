@@ -22,7 +22,7 @@ namespace backend.Controllers
         /// <summary>綁定 QR Code 與優惠券。</summary>
         /// <remarks>
         /// 商家掃描到 QR Code 的 qr_uid 後呼叫；優惠券必須是自己店家的，
-        /// 同一個 QR Code 重複綁定會回傳 409。
+        /// 同一個 QR Code 重複綁定、或優惠券已經綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）都會回傳 409。
         /// </remarks>
         [HttpPost]
         [Route("bind")]

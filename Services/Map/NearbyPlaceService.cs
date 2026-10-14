@@ -166,10 +166,17 @@ namespace backend.Services
 
         /// <summary>是不是這份劇本的站：Neo4j uid、MySQL p_id 或名稱對得上就算</summary>
         internal static bool IsStoryPlace(NearbyPlaceResponse place, List<NearbyFoodDao.StoryPlaceRow> storyPlaces) =>
+            IsStoryPlace(place.place_uid, place.place_id, place.name, storyPlaces);
+
+        /// <summary>用餐提醒推薦的店家也用同一套判斷（NearbyFoodPlace 的 place_id 就是這裡的 place_uid）</summary>
+        internal static bool IsStoryPlace(NearbyFoodPlace place, List<NearbyFoodDao.StoryPlaceRow> storyPlaces) =>
+            IsStoryPlace(place.place_id, PlaceIdOf(place.place_id), place.name, storyPlaces);
+
+        private static bool IsStoryPlace(string placeUid, int placeId, string name, List<NearbyFoodDao.StoryPlaceRow> storyPlaces) =>
             storyPlaces.Any(s =>
-                (s.uid != null && s.uid == place.place_uid)
-                || (s.p_id.HasValue && place.place_id != 0 && s.p_id == place.place_id)
-                || (!string.IsNullOrWhiteSpace(s.name) && NearbyFoodService.NormalizeName(s.name) == NearbyFoodService.NormalizeName(place.name)));
+                (s.uid != null && s.uid == placeUid)
+                || (s.p_id.HasValue && placeId != 0 && s.p_id == placeId)
+                || (!string.IsNullOrWhiteSpace(s.name) && NearbyFoodService.NormalizeName(s.name) == NearbyFoodService.NormalizeName(name)));
 
         /// <summary>只有 MySQL 資料的地點 place_uid 是 place-{p_id}，取出 p_id；Neo4j 的地點回傳 0</summary>
         private static int PlaceIdOf(string placeUid) =>

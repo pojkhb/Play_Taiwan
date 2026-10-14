@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
 using backend.Models;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -53,11 +54,14 @@ namespace backend.Controllers
         {
             try
             {
+                HomeOverviewResponse overview = _service.GetOverview(User.GetAuId());
+                overview.ho_recent_cards?.ForEach(card => card.hc_image = PublicUrl.Of(Request, card.hc_image));
+
                 return Ok(new ResultViewModel<HomeOverviewResponse>
                 {
                     isSuccess = true,
                     message = "查詢成功",
-                    Result = _service.GetOverview(User.GetAuId())
+                    Result = overview
                 });
             }
             catch (UnauthorizedAccessException e)

@@ -114,7 +114,13 @@ namespace backend.ViewModels
     {
         public int postcard_id { get; set; }
         public string name { get; set; }
+
+        /// <summary>明信片圖片的顯示網址：直接拿來顯示，打開就是圖片</summary>
         public string image_url { get; set; }
+
+        /// <summary>明信片圖片的下載網址：打開會存成檔案，檔名是明信片名稱</summary>
+        public string download_url { get; set; }
+
         public bool is_night_edition { get; set; }
     }
 

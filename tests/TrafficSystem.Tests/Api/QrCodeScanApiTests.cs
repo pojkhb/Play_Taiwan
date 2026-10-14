@@ -31,6 +31,8 @@ public class QrCodeScanApiTests
     {
         public string StoreUid { get; init; }
         public List<string> Images { get; init; } = new();
+        /// <summary>景點的營業時段（day_of_week, open_time, close_time），照 Neo4j collect 回來的順序放</summary>
+        public List<(string day, string open, string close)> Hours { get; init; } = new();
 
         public Task<List<Dictionary<string, object>>> ExecuteCypherAsync(string query, object parameters = null)
         {
@@ -43,7 +45,11 @@ public class QrCodeScanApiTests
                     ["uid"] = StoreUid,
                     ["identityLabels"] = new List<object> { "Place", "MerchantPlace" },
                     ["govAddress"] = "臺中市西區三民路一段198號",
-                    ["images"] = Images.Select(url => (object)new Dictionary<string, object> { ["url"] = url, ["description"] = null }).ToList()
+                    ["images"] = Images.Select(url => (object)new Dictionary<string, object> { ["url"] = url, ["description"] = null }).ToList(),
+                    ["operatingHours"] = Hours.Select(h => (object)new Dictionary<string, object>
+                    {
+                        ["day_of_week"] = h.day, ["open_time"] = h.open, ["close_time"] = h.close
+                    }).ToList()
                 });
             }
             else if (query.Contains("collect(img.url)[0]"))
@@ -124,5 +130,28 @@ public class QrCodeScanApiTests
         Assert.Empty(scan.merchant_place.images);
         Assert.Equal(couponId, scan.coupon.coupon_id);
         Assert.True(scan.is_newly_claimed);   // 遊客登入掃描，同時領到優惠券
+        Assert.Empty(scan.operating_hours);   // 沒有營業時間時是空陣列，不是 null
+    }
+
+    [Fact]
+    public async Task 掃QRCode頂層也有營業時間_跟merchant_place同一份_依星期排序()
+    {
+        var (qrUid, storeUid, _) = await CreateQrCodeAsync();
+        var gateway = new StubGateway
+        {
+            StoreUid = storeUid,
+            Hours = { ("Saturday", "18:00", "02:00"), ("Tuesday", "17:00", "21:00"), ("Tuesday", "11:00", "14:00") }
+        };
+
+        HttpResponseMessage response = await ClientWith(gateway).GetAsync($"/api/qrcode/scan/{qrUid}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        QrCodeScanResponse scan = (await response.ReadResultAsync<QrCodeScanResponse>()).Result;
+        Assert.Equal(
+            new[] { "Tuesday 11:00-14:00", "Tuesday 17:00-21:00", "Saturday 18:00-02:00" },
+            scan.operating_hours.Select(h => $"{h.day_of_week} {h.open_time}-{h.close_time}"));
+        Assert.Equal(
+            scan.operating_hours.Select(h => $"{h.day_of_week} {h.open_time}-{h.close_time}"),
+            scan.merchant_place.operating_hours.Select(h => $"{h.day_of_week} {h.open_time}-{h.close_time}"));
     }
 }

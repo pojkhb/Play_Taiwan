@@ -121,6 +121,9 @@ public class StoryRecapApiTests
 
         StoryRecapPostcard card = Assert.Single(recap.postcards);
         Assert.True(card.is_night_edition);
+        // 明信片給顯示網址與下載網址（後端自己回傳圖片），不是 AI 服務的檔案連結
+        Assert.Equal($"http://localhost/api/PostcardCatalog/{card.postcard_id}/image", card.image_url);
+        Assert.Equal($"http://localhost/api/PostcardCatalog/{card.postcard_id}/download", card.download_url);
         Assert.Equal(1, recap.badge.badge_id);
         Assert.Equal("🏝️ 島嶼城市", recap.badge.series);
         Assert.StartsWith("http", recap.badge.image_url);

@@ -36,7 +36,7 @@ namespace backend.Models
         /// <summary>卡片標題</summary>
         public string hc_title { get; set; }
 
-        /// <summary>卡片圖片網址</summary>
+        /// <summary>卡片圖片網址，直接拿來顯示；明信片是顯示網址（GET api/PostcardCatalog/{id}/image），劇本沒有圖片時為 null</summary>
         public string hc_image { get; set; }
     }
 }

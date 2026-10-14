@@ -1,4 +1,5 @@
-// 商家營業時間規則（OperatingHoursRules.Normalize）：整理成 Neo4j (:OperatingHours) 的格式，格式不對回 400
+// 商家營業時間規則（OperatingHoursRules.Normalize）：整理成 Neo4j (:OperatingHours) 的格式，格式不對回 400；
+// ForDisplay：Neo4j 讀回來的營業時間統一成 HH:mm、去重複、依星期與開始時間排好再回給前端
 using backend.Models;
 using backend.Services;
 using backend.ViewModels;
@@ -146,6 +147,40 @@ public class OperatingHoursRulesTests
         Assert.Contains("最多 4 個",
             Error(H("Monday", "01:00", "02:00"), H("Monday", "03:00", "04:00"), H("Monday", "05:00", "06:00"),
                   H("Monday", "07:00", "08:00"), H("Monday", "09:00", "10:00")));
+    }
+
+    #endregion
+
+    #region 顯示用的排序（Neo4j 讀回來的營業時間）
+
+    private static List<string> ForDisplay(params PlaceOperatingHourItem[] items) =>
+        OperatingHoursRules.ForDisplay(items)
+            .Select(h => $"{h.day_of_week} {h.open_time}-{h.close_time}")
+            .ToList();
+
+    [Fact]
+    public void 顯示時依星期再依開始時間排序_政府資料的颱風天排最後()
+    {
+        Assert.Equal(
+            new[] { "Monday 06:00-14:00", "Monday 17:00-21:00", "Wednesday 10:00-18:00", "Sunday 08:00-12:00", "TyphoonDay 10:00-16:00" },
+            ForDisplay(
+                H("TyphoonDay", "10:00", "16:00"),
+                H("Sunday", "08:00", "12:00"),
+                H("Monday", "17:00", "21:00"),
+                H("Monday", "06:00", "14:00"),
+                H("Wednesday", "10:00", "18:00")));
+    }
+
+    [Fact]
+    public void 政府資料帶秒數的時間改成HHmm_同一時段的兩種寫法只留一筆()
+    {
+        Assert.Equal(
+            new[] { "Monday 06:00-20:00", "Saturday 04:00-20:00" },
+            ForDisplay(
+                H("Monday", "06:00:00", "20:00:00"),
+                H("Saturday", "04:00:00", "20:00:00"),
+                H("Monday", "06:00", "20:00"),
+                H("Saturday", "04:00", "20:00")));
     }
 
     #endregion

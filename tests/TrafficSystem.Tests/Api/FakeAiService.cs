@@ -43,6 +43,19 @@ public class FakeAiService : HttpMessageHandler
         }
     };
 
+    /// <summary>遊客 VLOG 旁白草稿（/api/visitor/vlog/preview）要回的內容</summary>
+    public object VisitorPreviewResponse { get; } = new
+    {
+        status = "success",
+        draft_preview = new
+        {
+            itinerary = new[] { new { spot_name = "宮原眼科", location_codename = "紅磚眼科", visit_time = "2026-10-12 21:48", db_description = "日治時期的眼科診所" } },
+            suggested_script = "今天跟著鐘聲走了一趟舊城。",
+            seo_keywords = new[] { "台中散步" },
+            promo_copy = "一起來舊城尋寶！"
+        }
+    };
+
     /// <summary>AI Agent 找不到地點時的回應：HTTP 200，只有 message</summary>
     public static readonly object AgentNoPlace = new { message = "附近沒有符合您當下心情的地點。" };
 
@@ -129,6 +142,7 @@ public class FakeAiService : HttpMessageHandler
         object body = path switch
         {
             "/api/merchant/vlog/preview" => MerchantPreviewResponse,
+            "/api/visitor/vlog/preview" => VisitorPreviewResponse,
             "/api/visitor/vlog/create_final" => new { status = "processing", task_id = TaskId, message = "已排入佇列" },
             _ when path == "/api/check_status/" + TaskId => CheckStatusResponse,
             "/upload" => new { pincode = "PT123456", qrcode_base64 = "iVBORw0KGgo=" },   // ibon 列印服務

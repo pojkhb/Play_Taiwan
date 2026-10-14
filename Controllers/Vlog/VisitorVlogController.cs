@@ -1,10 +1,12 @@
 // 檔案路徑：System\Controllers\Vlog\VisitorVlogController.cs
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using backend.Services;
+using backend.util;
 using backend.utils;
 using backend.ViewModels;
 
@@ -44,6 +46,11 @@ namespace backend.Controllers
         ///
         /// 回傳的 `script` 給玩家確認或修改，改完送到 CreateFinal。
         /// `photo_count` 為 0 時無法合成影片，前端可以先提示玩家。
+        ///
+        /// `spots` 是走過的景點，每一站的 `images` 是會放進影片的照片網址，可以直接顯示：
+        /// - 玩家在這站拍的照片（`uses_place_photo` = false）
+        /// - 玩家沒拍照的站改用景點照片（`uses_place_photo` = true）；還沒抵達的站不給景點的真實照片，`images` 是空陣列
+        /// - 這一站完全沒有照片時 `images` 是空陣列、`photo_count` 是 0
         /// </remarks>
         [HttpPost]
         [Route("Preview")]
@@ -53,6 +60,11 @@ namespace backend.Controllers
             try
             {
                 var result = await _service.PreviewAsync(User.GetAuId(), request.story_id);
+                foreach (VisitorVlogSpot spot in result.spots)
+                {
+                    spot.images = spot.images.Select(url => PublicUrl.Of(Request, url)).ToList();
+                }
+
                 return Ok(new ResultViewModel<VisitorVlogPreviewResponse>
                 {
                     isSuccess = true,

@@ -65,7 +65,11 @@ namespace backend.ViewModels
         /// <summary>抵達時間，格式 yyyy-MM-dd HH:mm；沒有作答紀錄時為 null</summary>
         public string visit_time { get; set; }
 
-        /// <summary>這個景點的照片在 image_zip 裡的檔名（Preview 時為空，只看 photo_count）</summary>
+        /// <summary>
+        /// 這個景點會放進影片的照片。Preview 回傳的是照片網址，可以直接顯示：玩家在這站拍的；
+        /// 沒拍照的站是景點照片（uses_place_photo = true），但還沒抵達這一站時不給（空陣列，只看 photo_count）。
+        /// 送給 AI 的 spot_meta_json 裡則是照片在 image_zip 裡的檔名
+        /// </summary>
         public List<string> images { get; set; }
 
         /// <summary>這個景點放進影片的照片數</summary>

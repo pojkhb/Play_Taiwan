@@ -55,6 +55,12 @@ namespace backend.Services
         private const string OldTaiwanCategory = "老台灣";
         private const string NightCategory = "午夜台灣";
 
+        /// <summary>所有勳章分類（不含圖示），依圖鑑順序；管理員新增 / 修改勳章時只能選這幾個</summary>
+        public static readonly IReadOnlyList<string> AllCategories = new[]
+        {
+            CityCategory, FoodCategory, LandmarkCategory, WildlifeCategory, OldTaiwanCategory, NightCategory
+        };
+
         /// <summary>
         /// 回傳給前端的分類名稱前面加上圖示，例如「🌙 午夜台灣」，前端直接顯示。
         /// 只用在 API 回應；資料庫、story.story_badge 與抽勳章的比對規則仍用原本的分類名稱。

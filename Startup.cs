@@ -262,6 +262,10 @@ namespace backend
                     client.Timeout = TimeSpan.FromMinutes(5);
                 });
             #endregion
+            #region 管理員後台（用戶、劇本、勳章管理）
+            services.AddScoped<Services.AdminService>();
+            services.AddScoped<dao.AdminDao>();
+            #endregion
             // JWT Authorize
             // services.AddScoped<JWTUserService>();
             // services.AddScoped<JWTDao>();

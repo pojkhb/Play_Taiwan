@@ -35,6 +35,7 @@ namespace backend.dao
                     ab.created_at AS obtained_at
                 FROM badge b
                 LEFT JOIN au_badge ab ON ab.b_id = b.b_id AND ab.au_id = @auId
+                WHERE b.is_active = 1
                 ORDER BY b.b_id;
             ";
 
@@ -54,7 +55,7 @@ namespace backend.dao
         {
             using var conn = Open();
             return (await conn.QueryAsync<BadgeInfo>(
-                "SELECT b_id, b_name, b_fication, b_thing, b_image FROM badge ORDER BY b_id;")).ToList();
+                "SELECT b_id, b_name, b_fication, b_thing, b_image FROM badge WHERE is_active = 1 ORDER BY b_id;")).ToList();
         }
 
         /// <summary>判斷劇本可抽哪些勳章要看的資料</summary>

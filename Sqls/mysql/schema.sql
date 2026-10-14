@@ -81,6 +81,7 @@ CREATE TABLE `badge` (
   `b_thing` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '勳章對應物件',
   `b_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '勳章名字',
   `b_image` text COLLATE utf8mb4_general_ci COMMENT '勳章圖片網址',
+  `is_active` tinyint NOT NULL DEFAULT '1' COMMENT '是否啟用：1＝啟用、0＝已刪除（管理員後台軟刪除）',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '創建時間',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新時間',
   PRIMARY KEY (`b_id`) USING BTREE

@@ -303,7 +303,7 @@ namespace backend.Services
 
             JwtSecurityToken token = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_appSettings.expires),
+                expires: DateTime.UtcNow.AddDays(_appSettings.expires),
                 signingCredentials: credentials
             );
 

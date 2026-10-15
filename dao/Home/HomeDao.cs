@@ -28,9 +28,7 @@ namespace backend.dao
                     (SELECT COUNT(*) FROM story_session
                       WHERE au_id = @auId AND ss_status = 'completed')      AS ho_completed_story,
                     (SELECT COUNT(*) FROM postcard  WHERE au_id = @auId)     AS ho_postcard_count,
-                    (SELECT COUNT(*) FROM au_badge ab
-                      INNER JOIN badge b ON b.b_id = ab.b_id AND b.is_active = 1
-                      WHERE ab.au_id = @auId)                                AS ho_badge_count,
+                    (SELECT COUNT(*) FROM au_badge  WHERE au_id = @auId)     AS ho_badge_count,
                     (SELECT COUNT(*) FROM au_vlog
                       WHERE au_id = @auId AND av_vlog_status = 3)            AS ho_vlog_count;
             ";

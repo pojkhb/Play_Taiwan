@@ -197,8 +197,12 @@ namespace backend.Services
             if (string.IsNullOrWhiteSpace(req.final_script))
                 throw new Exception("請提供最終旁白 (final_script)");
 
+            using IDisposable submit = VlogAiGateway.BeginSubmit($"merchant:{req.mm_id}");
+
             MerchantMedia media = await _dao.GetMediaAsync(req.mm_id, auId) ?? throw new Exception("找不到此影音專案");
-            if (media.mm_status == 2)
+            // 處理中的先向 AI 確認；任務已失敗、已遺失，或是沒有 task_id 可以確認的舊資料，都可以重送
+            await RefreshAsync(media);
+            if (media.mm_status == 2 && !string.IsNullOrWhiteSpace(media.mm_task_id))
                 throw new Exception("影片已在合成中，請用 Status 查詢進度");
 
             List<string> urls = await _dao.GetAssetUrlsAsync(media.mm_id);
@@ -241,31 +245,14 @@ namespace backend.Services
         public async Task<MerchantVlogStatusResponse> GetStatusAsync(int auId, int mmId)
         {
             MerchantMedia media = await _dao.GetMediaAsync(mmId, auId) ?? throw new Exception("找不到此影音專案");
-
-            if (media.mm_status == 2 && !string.IsNullOrWhiteSpace(media.mm_task_id))
-            {
-                VlogTaskStatusApiResponse r = await _ai.CheckStatusAsync(media.mm_task_id);
-                switch (VlogAiGateway.ParseState(r))
-                {
-                    case VlogTaskState.Ready:
-                        media.mm_video_url = VlogAiGateway.ResolveUrl(r.download_url);
-                        media.mm_status = 3;
-                        media.error_message = null;
-                        await _dao.MarkCompletedAsync(mmId, media.mm_video_url);
-                        break;
-                    case VlogTaskState.Failed:
-                        media.mm_status = 4;
-                        media.error_message = VlogAiGateway.FailureMessage(r);
-                        await _dao.MarkFailedAsync(mmId, media.error_message);
-                        break;
-                }
-            }
+            VlogJobApiResponse job = await RefreshAsync(media);
 
             return new MerchantVlogStatusResponse
             {
                 mm_id = media.mm_id,
                 status = media.mm_status,
                 status_text = VlogAiGateway.StatusText(media.mm_status),
+                stage = media.mm_status == 2 ? job?.stage : null,
                 title = media.mm_title,
                 caption = media.mm_text,
                 hashtags = VlogAiGateway.SplitList(media.mm_hashtage),
@@ -274,6 +261,32 @@ namespace backend.Services
                 error_message = media.error_message,
                 updated_at = media.updated_at
             };
+        }
+
+        /// <summary>
+        /// 處理中的專案向 AI 查一次進度，完成或失敗（含 AI 重啟後任務遺失）就寫回資料庫並更新 media；
+        /// AI 暫時連不上就維持處理中。回傳 AI 的任務狀態（給 Status 顯示目前階段），沒有查就回傳 null
+        /// </summary>
+        private async Task<VlogJobApiResponse> RefreshAsync(MerchantMedia media)
+        {
+            if (media.mm_status != 2 || string.IsNullOrWhiteSpace(media.mm_task_id)) return null;
+
+            VlogJobApiResponse r = await _ai.CheckStatusAsync(media.mm_task_id);
+            switch (VlogAiGateway.ParseState(r))
+            {
+                case VlogTaskState.Ready:
+                    media.mm_video_url = VlogAiGateway.ResolveUrl(r.result.download_url);
+                    media.mm_status = 3;
+                    media.error_message = null;
+                    await _dao.MarkCompletedAsync(media.mm_id, media.mm_video_url);
+                    break;
+                case VlogTaskState.Failed:
+                    media.mm_status = 4;
+                    media.error_message = VlogAiGateway.FailureMessage(r);
+                    await _dao.MarkFailedAsync(media.mm_id, media.error_message);
+                    break;
+            }
+            return r;
         }
 
         #endregion

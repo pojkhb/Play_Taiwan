@@ -125,6 +125,9 @@ namespace backend.ViewModels
         public int status { get; set; }
         public string status_text { get; set; }
 
+        /// <summary>處理中（status=2）時 AI 目前的階段，例如「等待處理」「正在生成 XTTS 旁白」；其他狀態或 AI 暫時連不上時是 null</summary>
+        public string stage { get; set; }
+
         public string title { get; set; }
 
         /// <summary>推薦配文</summary>
@@ -172,7 +175,7 @@ namespace backend.ViewModels
         public string promo_copy { get; set; }
     }
 
-    /// <summary>外部 API /api/visitor/vlog/create_final 的原始回應結構。</summary>
+    /// <summary>外部 API /api/visitor/vlog/create_final 的原始回應結構（排隊模式，HTTP 202，status=queued）。</summary>
     public class VlogCreateFinalApiResponse
     {
         public string status { get; set; }
@@ -181,14 +184,41 @@ namespace backend.ViewModels
         public string check_url { get; set; }
     }
 
-    /// <summary>外部 API /api/check_status/{task_id} 的原始回應結構。</summary>
-    public class VlogTaskStatusApiResponse
+    /// <summary>外部 API /api/jobs/{task_id} 的原始回應結構（排隊中的任務查詢）。</summary>
+    public class VlogJobApiResponse
+    {
+        /// <summary>AI 服務查不到任務（HTTP 404：已過期或 AI 服務重啟過）時，閘道填入的狀態</summary>
+        public const string NotFound = "not_found";
+
+        /// <summary>queued=排隊中、running=處理中、done=完成、failed=失敗</summary>
+        public string status { get; set; }
+        public string task_id { get; set; }
+
+        /// <summary>目前階段，例如「等待處理」「正在生成 XTTS 旁白」「完成」</summary>
+        public string stage { get; set; }
+        public VlogJobResult result { get; set; }
+
+        /// <summary>失敗原因；AI 沒有固定格式，可能是字串或物件</summary>
+        public System.Text.Json.JsonElement? error { get; set; }
+    }
+
+    public class VlogJobResult
+    {
+        public string filename { get; set; }
+        public string download_url { get; set; }
+        public string video_orientation { get; set; }
+    }
+
+    /// <summary>
+    /// 外部 API /api/check_status/{task_id} 的原始回應結構：只看影片檔在不在（ready + download_url），
+    /// 不認得的任務一律回 processing。AI 重啟後 /api/jobs 查不到任務時才用它確認影片是否已經做好。
+    /// </summary>
+    public class VlogCheckStatusApiResponse
     {
         public string status { get; set; }
         public string task_id { get; set; }
         public string filename { get; set; }
         public string download_url { get; set; }
-        public string message { get; set; }
     }
 
     #endregion

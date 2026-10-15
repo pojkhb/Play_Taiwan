@@ -114,6 +114,28 @@ public class VisitorVlogFlowApiTests
     }
 
     [Fact]
+    public async Task 送出合成後查進度不用帶task_id_完成時拿到影片()
+    {
+        int user = _api.NewUserId();
+        string place = $"進度景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, place);
+        await _api.GivePlacePhotoAsync(place);
+        HttpClient client = _api.ClientFor(user);
+
+        ApiResult<VisitorVlogTaskResponse> created = await (await client.PostAsJsonAsync("/api/VisitorVlog/CreateFinal",
+            new { story_id = storyId, final_script = "旁白" })).ReadResultAsync<VisitorVlogTaskResponse>();
+        Assert.True(created.isSuccess, created.message);
+        Assert.Equal(FakeAiService.TaskId, created.Result.task_id);
+
+        _api.FakeAi.JobResponse = FakeAiService.DoneJob("https://ai.example.com/api/download/v.mp4");
+        VisitorVlogStatusResponse done = (await (await client.GetAsync($"/api/VisitorVlog/Status/{storyId}"))
+            .ReadResultAsync<VisitorVlogStatusResponse>()).Result;
+
+        Assert.Equal(3, done.status);
+        Assert.Equal("https://ai.example.com/api/download/v.mp4", done.video_url);
+    }
+
+    [Fact]
     public async Task 玩家和景點都沒有照片時不送出合成()
     {
         int user = _api.NewUserId();

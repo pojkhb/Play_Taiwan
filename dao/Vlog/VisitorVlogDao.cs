@@ -168,6 +168,9 @@ namespace backend.dao
 
             /// <summary>1=待處理、2=處理中、3=已完成、4=失敗</summary>
             public int av_vlog_status { get; set; }
+
+            /// <summary>AI 影片合成任務 ID（CreateFinal 送出後寫入，Status 用它查進度）</summary>
+            public string av_task_id { get; set; }
             public string error_message { get; set; }
             public DateTime updated_at { get; set; }
         }
@@ -177,7 +180,7 @@ namespace backend.dao
             using var conn = Open();
             return await conn.QueryFirstOrDefaultAsync<AuVlogRow>(@"
                 SELECT av_id, au_id, s_id, av_title, av_final_script, av_seo_keywords, av_promo_copy,
-                       av_video_url, av_thumbnail, av_vlog_status, error_message, updated_at
+                       av_video_url, av_thumbnail, av_vlog_status, av_task_id, error_message, updated_at
                 FROM au_vlog
                 WHERE au_id = @auId AND s_id = @storyId
                 ORDER BY av_id DESC
@@ -207,14 +210,14 @@ namespace backend.dao
                 SELECT LAST_INSERT_ID();", new { auId, storyId, title, promoCopy, seoKeywords });
         }
 
-        public async Task MarkProcessingAsync(int avId, string finalScript, string promoCopy, string seoKeywords)
+        public async Task MarkProcessingAsync(int avId, string taskId, string finalScript, string promoCopy, string seoKeywords)
         {
             using var conn = Open();
             await conn.ExecuteAsync(@"
                 UPDATE au_vlog
-                SET av_final_script = @finalScript, av_promo_copy = @promoCopy, av_seo_keywords = @seoKeywords,
+                SET av_task_id = @taskId, av_final_script = @finalScript, av_promo_copy = @promoCopy, av_seo_keywords = @seoKeywords,
                     av_video_url = NULL, av_vlog_status = 2, error_message = NULL
-                WHERE av_id = @avId;", new { avId, finalScript, promoCopy, seoKeywords });
+                WHERE av_id = @avId;", new { avId, taskId, finalScript, promoCopy, seoKeywords });
         }
 
         public async Task MarkCompletedAsync(int avId, string videoUrl)

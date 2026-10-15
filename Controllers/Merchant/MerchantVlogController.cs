@@ -145,8 +145,9 @@ namespace backend.Controllers
         /// 查詢商家 VLOG 專案：影片、推薦配文、TAG。
         /// </summary>
         /// <remarks>
-        /// status：1=草稿、2=處理中、3=已完成（`video_url` 有值）、4=失敗（看 `error_message`）。
-        /// 處理中時每次呼叫都會向 AI 服務查一次進度，建議每 5–10 秒輪詢一次。
+        /// status：1=草稿、2=處理中、3=已完成（`video_url` 有值）、4=失敗（看 `error_message`，可以再呼叫 CreateFinal 重送）。
+        /// 處理中時每次呼叫都會向 AI 服務查一次進度，建議每 5–10 秒輪詢一次；
+        /// 處理中時 `stage` 是 AI 目前的階段（例如「等待處理」「正在生成 XTTS 旁白」）。
         /// </remarks>
         [HttpGet]
         [Route("Status/{mm_id:int}")]

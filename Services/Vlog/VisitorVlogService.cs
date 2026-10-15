@@ -142,8 +142,12 @@ namespace backend.Services
 
             var (story, _) = await LoadPlayAsync(auId, req.story_id);
 
+            using IDisposable submit = VlogAiGateway.BeginSubmit($"visitor:{auId}:{req.story_id}");
+
             VisitorVlogDao.AuVlogRow vlog = await _dao.GetVlogAsync(auId, req.story_id);
-            if (vlog?.av_vlog_status == 2)
+            // 處理中的先向 AI 確認；任務已失敗、已遺失，或是沒有 task_id 可以確認的舊資料，都可以重送
+            if (vlog != null) await RefreshAsync(vlog);
+            if (vlog?.av_vlog_status == 2 && !string.IsNullOrWhiteSpace(vlog.av_task_id))
                 throw new Exception("影片已在合成中，請用 Status 查詢進度");
 
             PlayMaterial material = await CollectAsync(auId, req.story_id);
@@ -171,7 +175,7 @@ namespace backend.Services
                 throw;
             }
 
-            await _dao.MarkProcessingAsync(avId, req.final_script.Trim(), promoCopy, seoKeywords);
+            await _dao.MarkProcessingAsync(avId, task.task_id, req.final_script.Trim(), promoCopy, seoKeywords);
 
             return new VisitorVlogTaskResponse
             {
@@ -210,31 +214,13 @@ namespace backend.Services
         #region 3. 查詢進度
 
         /// <summary>
-        /// 回傳這個劇本的 VLOG。處理中且有帶 task_id 時會向 AI 查一次進度，完成或失敗就寫回 au_vlog。
+        /// 回傳這個劇本的 VLOG。處理中時會用資料庫存的 task_id 向 AI 查一次進度，完成或失敗就寫回 au_vlog。
         /// </summary>
-        public async Task<VisitorVlogStatusResponse> GetStatusAsync(int auId, int storyId, string taskId)
+        public async Task<VisitorVlogStatusResponse> GetStatusAsync(int auId, int storyId)
         {
             VisitorVlogDao.AuVlogRow vlog = await _dao.GetVlogAsync(auId, storyId)
                 ?? throw new Exception("這個劇本還沒有 VLOG，請先呼叫 Preview");
-
-            if (vlog.av_vlog_status == 2 && !string.IsNullOrWhiteSpace(taskId))
-            {
-                VlogTaskStatusApiResponse r = await _ai.CheckStatusAsync(taskId);
-                switch (VlogAiGateway.ParseState(r))
-                {
-                    case VlogTaskState.Ready:
-                        vlog.av_video_url = VlogAiGateway.ResolveUrl(r.download_url);
-                        vlog.av_vlog_status = 3;
-                        vlog.error_message = null;
-                        await _dao.MarkCompletedAsync(vlog.av_id, vlog.av_video_url);
-                        break;
-                    case VlogTaskState.Failed:
-                        vlog.av_vlog_status = 4;
-                        vlog.error_message = VlogAiGateway.FailureMessage(r);
-                        await _dao.MarkFailedAsync(vlog.av_id, vlog.error_message);
-                        break;
-                }
-            }
+            VlogJobApiResponse job = await RefreshAsync(vlog);
 
             return new VisitorVlogStatusResponse
             {
@@ -242,6 +228,7 @@ namespace backend.Services
                 story_id = storyId,
                 status = vlog.av_vlog_status,
                 status_text = VlogAiGateway.StatusText(vlog.av_vlog_status),
+                stage = vlog.av_vlog_status == 2 ? job?.stage : null,
                 title = vlog.av_title,
                 final_script = vlog.av_final_script,
                 promo_copy = vlog.av_promo_copy,
@@ -251,6 +238,32 @@ namespace backend.Services
                 error_message = vlog.error_message,
                 updated_at = vlog.updated_at
             };
+        }
+
+        /// <summary>
+        /// 處理中的 VLOG 向 AI 查一次進度，完成或失敗（含 AI 重啟後任務遺失）就寫回 au_vlog 並更新 vlog；
+        /// AI 暫時連不上就維持處理中。回傳 AI 的任務狀態（給 Status 顯示目前階段），沒有查就回傳 null
+        /// </summary>
+        private async Task<VlogJobApiResponse> RefreshAsync(VisitorVlogDao.AuVlogRow vlog)
+        {
+            if (vlog.av_vlog_status != 2 || string.IsNullOrWhiteSpace(vlog.av_task_id)) return null;
+
+            VlogJobApiResponse r = await _ai.CheckStatusAsync(vlog.av_task_id);
+            switch (VlogAiGateway.ParseState(r))
+            {
+                case VlogTaskState.Ready:
+                    vlog.av_video_url = VlogAiGateway.ResolveUrl(r.result.download_url);
+                    vlog.av_vlog_status = 3;
+                    vlog.error_message = null;
+                    await _dao.MarkCompletedAsync(vlog.av_id, vlog.av_video_url);
+                    break;
+                case VlogTaskState.Failed:
+                    vlog.av_vlog_status = 4;
+                    vlog.error_message = VlogAiGateway.FailureMessage(r);
+                    await _dao.MarkFailedAsync(vlog.av_id, vlog.error_message);
+                    break;
+            }
+            return r;
         }
 
         #endregion

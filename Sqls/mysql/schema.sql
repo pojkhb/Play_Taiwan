@@ -40,6 +40,7 @@ CREATE TABLE `au_vlog` (
   `av_video_url` text COLLATE utf8mb4_general_ci COMMENT '正式完成的影片網址',
   `av_thumbnail` text COLLATE utf8mb4_general_ci COMMENT 'vlog封面',
   `av_vlog_status` tinyint NOT NULL DEFAULT '1' COMMENT 'vlog狀態(1=待處理、2=處理中、3=已完成、4=失敗)',
+  `av_task_id` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT 'AI 影片合成任務ID（用來查詢進度）',
   `error_message` text COLLATE utf8mb4_general_ci COMMENT '失敗錯誤訊息',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',

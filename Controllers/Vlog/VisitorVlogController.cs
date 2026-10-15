@@ -15,7 +15,7 @@ namespace backend.Controllers
     /// <summary>
     /// 遊客 VLOG（旅遊回憶影片）。
     /// 流程：遊戲結束 → Preview（story_id）拿到旁白草稿 → 玩家確認旁白 → CreateFinal（story_id + 旁白），
-    /// 後端自動抓這次遊玩拍的照片與景點資料打包送出 → 輪詢 Status/{story_id}?task_id= 直到 status=3。
+    /// 後端自動抓這次遊玩拍的照片與景點資料打包送出 → 輪詢 Status/{story_id} 直到 status=3。
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
@@ -130,19 +130,20 @@ namespace backend.Controllers
         /// <remarks>
         /// status：1=待處理、2=處理中、3=已完成（`video_url` 有值）、4=失敗（看 `error_message`）。
         ///
-        /// 處理中時要帶 CreateFinal 回傳的 `task_id` 才會向 AI 更新進度，建議每 5–10 秒輪詢一次；
-        /// 不帶 `task_id` 只回傳資料庫目前的紀錄（例如從歷史紀錄頁查看已完成的影片）。
+        /// 只要帶劇本 ID：後端用登入的帳號 + 劇本找到這個人的 VLOG，處理中時用 CreateFinal 時記下的 task_id 向 AI 查一次進度，
+        /// 建議每 5–10 秒輪詢一次。AI 回報失敗、或 AI 重啟後任務遺失時會變成 4，這時可以再呼叫 CreateFinal 重送。
+        /// 處理中時 `stage` 是 AI 目前的階段（例如「等待處理」「正在生成 XTTS 旁白」）。
         ///
-        ///     GET /api/VisitorVlog/Status/1?task_id=xxxx
+        ///     GET /api/VisitorVlog/Status/1
         /// </remarks>
         [HttpGet]
         [Route("Status/{story_id:int}")]
         [ProducesResponseType(typeof(ResultViewModel<VisitorVlogStatusResponse>), 200)]
-        public async Task<IActionResult> Status(int story_id, [FromQuery] string task_id)
+        public async Task<IActionResult> Status(int story_id)
         {
             try
             {
-                var result = await _service.GetStatusAsync(User.GetAuId(), story_id, task_id);
+                var result = await _service.GetStatusAsync(User.GetAuId(), story_id);
                 return Ok(new ResultViewModel<VisitorVlogStatusResponse>
                 {
                     isSuccess = true,

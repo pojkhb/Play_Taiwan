@@ -118,13 +118,15 @@ public class MerchantVlogFlowApiTests : IDisposable
         MerchantVlogStatusResponse processing = await StatusAsync(client, draft.mm_id);
         Assert.Equal(2, processing.status);
         Assert.Null(processing.video_url);
+        Assert.Equal("等待處理", processing.stage);      // AI 目前的階段
 
         // ── 4. AI 完成 → 拿到影片、推薦配文、TAG ──
-        _api.FakeAi.CheckStatusResponse = new { status = "completed", task_id = FakeAiService.TaskId, download_url = "/download/fake-task-001.mp4" };
+        _api.FakeAi.JobResponse = FakeAiService.DoneJob("/download/fake-task-001.mp4");
         MerchantVlogStatusResponse done = await StatusAsync(client, draft.mm_id);
 
         Assert.Equal(3, done.status);
         Assert.Equal("已完成", done.status_text);
+        Assert.Null(done.stage);                          // 不是處理中就沒有進度
         Assert.Equal(AiServiceConfig.Url("/download/fake-task-001.mp4"), done.video_url);   // 影片
         Assert.Equal("限定芒果冰買一送一，快揪朋友來！", done.caption);                      // 推薦配文
         Assert.Equal(new[] { "#芒果冰", "#夏日" }, done.hashtags);                           // TAG（商家改過的）
@@ -162,11 +164,64 @@ public class MerchantVlogFlowApiTests : IDisposable
         MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
         await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
 
-        _api.FakeAi.CheckStatusResponse = new { status = "failed", task_id = FakeAiService.TaskId, message = "照片解析度太低" };
+        _api.FakeAi.JobResponse = FakeAiService.FailedJob("照片解析度太低");
         MerchantVlogStatusResponse status = await StatusAsync(client, draft.mm_id);
 
         Assert.Equal(4, status.status);
         Assert.Equal("AI 影片合成失敗：照片解析度太低", status.error_message);
+    }
+
+    [Fact]
+    public async Task AI重啟後任務遺失時標成失敗_可以重送()
+    {
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
+        MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
+        await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
+
+        _api.FakeAi.JobResponse = null;   // AI 查不到這個任務（404）
+        MerchantVlogStatusResponse lost = await StatusAsync(client, draft.mm_id);
+
+        Assert.Equal(4, lost.status);
+        Assert.Contains("找不到這個合成任務", lost.error_message);
+
+        ApiResult<MerchantVlogTaskResponse> again = await (await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal",
+            new { mm_id = draft.mm_id, final_script = "旁白" })).ReadResultAsync<MerchantVlogTaskResponse>();
+        Assert.True(again.isSuccess, again.message);
+        Assert.Equal(2, again.Result.status);
+    }
+
+    [Fact]
+    public async Task AI重啟後查不到任務_但影片已經做好時算完成()
+    {
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
+        MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
+        await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
+
+        _api.FakeAi.JobResponse = null;   // jobs 忘了這個任務，影片檔還在
+        _api.FakeAi.CheckStatusResponse = new
+        {
+            status = "ready", task_id = FakeAiService.TaskId,
+            filename = "vlog_visitor_fake-task-001.mp4", download_url = "/api/download/vlog_visitor_fake-task-001.mp4"
+        };
+        MerchantVlogStatusResponse done = await StatusAsync(client, draft.mm_id);
+
+        Assert.Equal(3, done.status);
+        Assert.Equal(AiServiceConfig.Url("/api/download/vlog_visitor_fake-task-001.mp4"), done.video_url);
+    }
+
+    [Fact]
+    public async Task 還在排隊時重送會被擋下_不會重複送給AI()
+    {
+        HttpClient client = _api.MerchantClientFor(_api.NewUserId());
+        MerchantVlogPreviewResponse draft = (await PreviewAsync(client, Form(imageCount: 1))).Result;
+        await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = draft.mm_id, final_script = "旁白" });
+
+        ApiResult<MerchantVlogTaskResponse> again = await (await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal",
+            new { mm_id = draft.mm_id, final_script = "旁白" })).ReadResultAsync<MerchantVlogTaskResponse>();
+
+        Assert.False(again.isSuccess);
+        Assert.Equal("影片已在合成中，請用 Status 查詢進度", again.message);
+        Assert.Single(_api.FakeAi.Requests, r => r.Path == "/api/visitor/vlog/create_final");
     }
 
     [Fact]

@@ -122,7 +122,7 @@
 | 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
 | Vlog 旁白草稿 | `POST /api/VisitorVlog/Preview` | ⚠️ 卡在 AI 服務 | 後端已用模擬 AI 測過；AI 服務 10/6 連不上（502），9/30 時 AI 端是 CUDA 錯誤 |
 | Vlog 合成 | `POST /api/VisitorVlog/CreateFinal` | ✅ 實測可用 | 照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url |
-| Vlog 進度與影片 | `GET /api/VisitorVlog/Status/{story_id}` | ✅ 實測可用 |  |
+| Vlog 進度與影片 | `GET /api/VisitorVlog/Status/{story_id}` | ✅ 實測可用 | 只帶劇本 ID，後端用 CreateFinal 時記下的 task_id 向 AI 查進度；AI 回報失敗或任務遺失（AI 重啟）會變 status=4，可以再呼叫 CreateFinal 重送 |
 
 ### 商家端
 
@@ -131,7 +131,7 @@
 | 敘事語氣選項 | `GET /api/MerchantVlog/Tones` | ✅ 實測可用 |  |
 | 商家 VLOG 草稿 | `POST /api/MerchantVlog/Preview` | ⚠️ 卡在 AI 服務 | multipart/form-data；images 可重複放多張。AI 會先到它自己的 Neo4j 查店家，查不到就回「不進行幻覺補全」；AI 端 Neo4j 目前沒開 |
 | 商家 VLOG 合成 | `POST /api/MerchantVlog/CreateFinal` | ✅ 實測可用 | 自動附上背景音樂 wwwroot/bgm/default_bgm.mp3 |
-| 商家 VLOG 進度 | `GET /api/MerchantVlog/Status/{mm_id}` | ✅ 實測可用 |  |
+| 商家 VLOG 進度 | `GET /api/MerchantVlog/Status/{mm_id}` | ✅ 實測可用 | AI 回報失敗或任務遺失（AI 重啟）會變 status=4，可以再呼叫 CreateFinal 重送 |
 | 已生成檔案 | `GET /api/Merchant/Files` | ✅ 實測可用 |  |
 | 商家註冊 | `POST /api/Merchant/Register` | ⬜ 未實測 | place_uid 與 new_place 二擇一；需要 Neo4j 的 playtaiwandb。Email 重複註冊失敗時不會在 Neo4j 留下孤兒景點 |
 | 商家登入 | `POST /api/Merchant/Login` | ⬜ 未實測 | 商家專用登入（auth_type=2），Token 帶 s_id 與 Role=Merchant |
@@ -286,7 +286,7 @@
 |---|---|---|---|---|
 | `POST /api/VisitorVlog/CreateFinal` | 送出確認後的旁白，後端打包照片與景點資料送去合成影片 | 需要 | ✅ 實測可用 | JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]） |
 | `POST /api/VisitorVlog/Preview` | 遊戲結束後，依 story_id 產生 VLOG 旁白草稿 | 需要 | ⚠️ 卡在 AI 服務 | JSON：story_id（integer） |
-| `GET /api/VisitorVlog/Status/{story_id}` | 查詢這個劇本的 VLOG（影片、旁白、宣傳文案） | 需要 | ✅ 實測可用 | story_id（路徑，integer）；task_id（查詢，string） |
+| `GET /api/VisitorVlog/Status/{story_id}` | 查詢這個劇本的 VLOG（影片、旁白、宣傳文案） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 
 ### 商家帳號（8）
 
@@ -2574,7 +2574,7 @@ Request：
 
 #### `GET /api/VisitorVlog/Status/{story_id}`　查詢這個劇本的 VLOG（影片、旁白、宣傳文案）
 
-參數：story_id（路徑，integer）；task_id（查詢，string）
+參數：story_id（路徑，integer）
 
 回傳：
 
@@ -2584,6 +2584,7 @@ Request：
   "story_id": 0,
   "status": 0,
   "status_text": "string",
+  "stage": "string",
   "title": "string",
   "final_script": "string",
   "promo_copy": "string",
@@ -2902,6 +2903,7 @@ Request：
   "mm_id": 0,
   "status": 0,
   "status_text": "string",
+  "stage": "string",
   "title": "string",
   "caption": "string",
   "hashtags": [

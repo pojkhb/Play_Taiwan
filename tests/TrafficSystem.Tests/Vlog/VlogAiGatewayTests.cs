@@ -1,4 +1,5 @@
 // 商家 / 遊客 VLOG 共用的判斷（VlogAiGateway）：照片篩選、TAG 整理、合成狀態、檔案路徑安全
+using System.Text.Json;
 using backend.Services;
 using backend.utils;
 using backend.ViewModels;
@@ -76,15 +77,21 @@ public class VlogAiGatewayTests
     #region AI 合成進度
 
     [Theory]
+    [InlineData("queued", null, VlogTaskState.Processing)]
+    [InlineData("running", null, VlogTaskState.Processing)]
+    [InlineData("done", "https://ai/a.mp4", VlogTaskState.Ready)]
+    [InlineData("done", null, VlogTaskState.Failed)]                   // 說完成卻沒給網址
     [InlineData("failed", null, VlogTaskState.Failed)]
     [InlineData("ERROR", "https://ai/a.mp4", VlogTaskState.Failed)]    // 說失敗就算失敗，即使有網址
-    [InlineData("processing", "https://ai/a.mp4", VlogTaskState.Ready)] // 有影片網址就算完成
-    [InlineData("completed", null, VlogTaskState.Failed)]              // 說完成卻沒給網址
-    [InlineData("processing", null, VlogTaskState.Processing)]
+    [InlineData(VlogJobApiResponse.NotFound, null, VlogTaskState.Failed)] // AI 查不到任務（重啟過）
     [InlineData(null, null, VlogTaskState.Processing)]
     public void 判斷AI影片合成的進度(string status, string downloadUrl, VlogTaskState expected)
     {
-        var response = new VlogTaskStatusApiResponse { status = status, download_url = downloadUrl };
+        var response = new VlogJobApiResponse
+        {
+            status = status,
+            result = downloadUrl == null ? null : new VlogJobResult { download_url = downloadUrl }
+        };
 
         Assert.Equal(expected, VlogAiGateway.ParseState(response));
     }
@@ -103,13 +110,36 @@ public class VlogAiGatewayTests
         Assert.Null(VlogAiGateway.ResolveUrl(null));
     }
 
-    [Fact]
-    public void 失敗訊息優先用AI給的說明()
+    [Theory]
+    [InlineData("\"照片太少\"", "AI 影片合成失敗：照片太少")]                       // error 是字串
+    [InlineData("{\"message\":\"TTS 403\"}", "AI 影片合成失敗：TTS 403")]          // error 是物件
+    [InlineData("null", "AI 影片合成失敗（status=failed）")]                        // 沒有說明
+    public void 失敗訊息優先用AI給的說明(string errorJson, string expected)
     {
-        Assert.Equal("AI 影片合成失敗：照片太少",
-            VlogAiGateway.FailureMessage(new VlogTaskStatusApiResponse { status = "failed", message = "照片太少" }));
-        Assert.Equal("AI 影片合成失敗（status=failed）",
-            VlogAiGateway.FailureMessage(new VlogTaskStatusApiResponse { status = "failed" }));
+        var response = JsonSerializer.Deserialize<VlogJobApiResponse>($"{{\"status\":\"failed\",\"error\":{errorJson}}}");
+
+        Assert.Equal(expected, VlogAiGateway.FailureMessage(response));
+    }
+
+    [Fact]
+    public void AI查不到任務時提示重新送出()
+    {
+        string message = VlogAiGateway.FailureMessage(new VlogJobApiResponse { status = VlogJobApiResponse.NotFound });
+
+        Assert.Equal("AI 服務找不到這個合成任務（可能已過期或 AI 服務重啟過），請重新送出", message);
+    }
+
+    [Fact]
+    public void 同一支影片同時只能送出一次()
+    {
+        string key = $"test:{Guid.NewGuid():N}";
+        using (VlogAiGateway.BeginSubmit(key))
+        {
+            Exception e = Assert.Throws<Exception>(() => VlogAiGateway.BeginSubmit(key));
+            Assert.Contains("正在送出合成", e.Message);
+        }
+
+        using (VlogAiGateway.BeginSubmit(key)) { }   // 前一個結束後就可以再送
     }
 
     #endregion

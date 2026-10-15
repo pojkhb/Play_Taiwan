@@ -163,6 +163,9 @@ namespace backend.ViewModels
         public int status { get; set; }
         public string status_text { get; set; }
 
+        /// <summary>處理中（status=2）時 AI 目前的階段，例如「等待處理」「正在生成 XTTS 旁白」；其他狀態或 AI 暫時連不上時是 null</summary>
+        public string stage { get; set; }
+
         public string title { get; set; }
         public string final_script { get; set; }
         public string promo_copy { get; set; }

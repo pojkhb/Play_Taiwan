@@ -18,10 +18,35 @@ public class FakeAiService : HttpMessageHandler
     /// <summary>模擬外部圖片網址（景點照片）：完整網址 → 圖片 bytes</summary>
     public ConcurrentDictionary<string, byte[]> Images { get; } = new();
 
-    /// <summary>check_status 目前要回的內容，測試可以改</summary>
-    public object CheckStatusResponse { get; set; } = new { status = "processing", task_id = TaskId };
+    /// <summary>影片合成任務查詢（/api/jobs/{TaskId}）目前要回的內容，測試可以改；null 代表 AI 查不到任務（回 404，例如 AI 服務重啟過）</summary>
+    public object JobResponse { get; set; } = QueuedJob;
 
     public const string TaskId = "fake-task-001";
+
+    /// <summary>/api/check_status/{task_id} 要回的內容：跟正式 AI 一樣，影片檔不在時一律回 processing</summary>
+    public object CheckStatusResponse { get; set; } = new { status = "processing", task_id = TaskId };
+
+    /// <summary>排隊中的影片合成任務（跟正式 AI 的 /api/jobs 格式相同）</summary>
+    public static readonly object QueuedJob = new
+    {
+        task_id = TaskId, task_type = "vlog", status = "queued", stage = "等待處理",
+        result = (object)null, error = (object)null, check_url = "/api/jobs/" + TaskId, queue_position = 1
+    };
+
+    /// <summary>做完的影片合成任務，影片網址放在 result.download_url</summary>
+    public static object DoneJob(string downloadUrl) => new
+    {
+        task_id = TaskId, task_type = "vlog", status = "done", stage = "完成",
+        result = new { filename = $"vlog_visitor_{TaskId}.mp4", video_orientation = "landscape", download_url = downloadUrl },
+        error = (object)null, check_url = "/api/jobs/" + TaskId, queue_position = (int?)null
+    };
+
+    /// <summary>失敗的影片合成任務</summary>
+    public static object FailedJob(object error) => new
+    {
+        task_id = TaskId, task_type = "vlog", status = "failed", stage = "失敗",
+        result = (object)null, error, check_url = "/api/jobs/" + TaskId, queue_position = (int?)null
+    };
 
     /// <summary>「遊你說了算」背景工作代號</summary>
     public const string TextJobId = "fake-text-job";
@@ -119,6 +144,7 @@ public class FakeAiService : HttpMessageHandler
         Requests.Clear();
         TextJobPolls.Clear();
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
+        JobResponse = QueuedJob;
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
         AgentOrchestrateResponse = AgentNoPlace;
         PostcardResponse = null;
@@ -201,7 +227,8 @@ public class FakeAiService : HttpMessageHandler
         {
             "/api/merchant/vlog/preview" => MerchantPreviewResponse,
             "/api/visitor/vlog/preview" => VisitorPreviewResponse,
-            "/api/visitor/vlog/create_final" => new { status = "processing", task_id = TaskId, message = "已排入佇列" },
+            "/api/visitor/vlog/create_final" => QueuedJob,   // 排隊模式：先回 task_id（HTTP 202）
+            _ when path == "/api/jobs/" + TaskId => JobResponse,
             _ when path == "/api/check_status/" + TaskId => CheckStatusResponse,
             "/upload" => new { pincode = "PT123456", qrcode_base64 = "iVBORw0KGgo=" },   // ibon 列印服務
             "/api/npc/speak" => new { status = "success", task_id = "npc-001", download_url = "/api/download/npc_npc-001.mp3" },
@@ -223,7 +250,7 @@ public class FakeAiService : HttpMessageHandler
         if (body == null)
             return new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("fake ai: no route " + path) };
 
-        return new HttpResponseMessage(HttpStatusCode.OK)
+        return new HttpResponseMessage(path == "/api/visitor/vlog/create_final" ? HttpStatusCode.Accepted : HttpStatusCode.OK)
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
         };

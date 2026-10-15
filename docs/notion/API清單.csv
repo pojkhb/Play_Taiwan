@@ -1182,11 +1182,12 @@ NPC 說話：任意文字轉語音（節點對話、任務說明等）,POST,/api
     }
   ]
 }",遊戲結束後，依 story_id 產生 VLOG 旁白草稿。 後端會從資料庫組出玩家走過的景點、遊玩時長、任務數，交給 AI 產生旁白。 回傳的 script 給玩家確認或修改，改完送到 CreateFinal。 photo_count 為 0 時無法合成影片，前端可以先提示玩家。,後端已用模擬 AI 測過；AI 服務 10/6 連不上（502），9/30 時 AI 端是 CUDA 錯誤
-查詢這個劇本的 VLOG（影片、旁白、宣傳文案）,GET,/api/VisitorVlog/Status/{story_id},遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,story_id（路徑，integer）；task_id（查詢，string）,av_id、story_id、status、status_text、title、final_script、promo_copy、seo_keywords、video_url、thumbnail、error_message、updated_at,,"{
+查詢這個劇本的 VLOG（影片、旁白、宣傳文案）,GET,/api/VisitorVlog/Status/{story_id},遊客 VLOG,九、過往旅途,✅ 實測可用,需要,要接,story_id（路徑，integer）,av_id、story_id、status、status_text、stage、title、final_script、promo_copy、seo_keywords、video_url、thumbnail、error_message、updated_at,,"{
   ""av_id"": 0,
   ""story_id"": 0,
   ""status"": 0,
   ""status_text"": ""string"",
+  ""stage"": ""string"",
   ""title"": ""string"",
   ""final_script"": ""string"",
   ""promo_copy"": ""string"",
@@ -1197,7 +1198,7 @@ NPC 說話：任意文字轉語音（節點對話、任務說明等）,POST,/api
   ""thumbnail"": ""string"",
   ""error_message"": ""string"",
   ""updated_at"": ""2026-10-07T12:00:00""
-}",查詢這個劇本的 VLOG（影片、旁白、宣傳文案）。 status：1=待處理、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 處理中時要帶 CreateFinal 回傳的 task_id 才會向 AI 更新進度，建議每 5–10 秒輪詢一次； 不帶 task_id 只回傳資料庫目前的紀錄（例如從歷史紀錄頁查看已完成的影片）。 GET /api/VisitorVlog/Status/1?task_id=xxxx,
+}",查詢這個劇本的 VLOG（影片、旁白、宣傳文案）。 status：1=待處理、2=處理中、3=已完成（video_url 有值）、4=失敗（看 error_message）。 只要帶劇本 ID：後端用登入的帳號 + 劇本找到這個人的 VLOG，處理中時用 CreateFinal 時記下的 task_id 向 AI 查一次進度， 建議每 5–10 秒輪詢一次。AI 回報失敗、或 AI 重啟後任務遺失時會變成 4，這時可以再呼叫 CreateFinal 重送。 GET /api/VisitorVlog/Status/1,
 查詢商家列表（限管理員）,GET,/api/Merchant/List,商家帳號,商家端,⬜ 未實測,需要,要接,keyword（查詢，string）；page（查詢，integer）；page_size（查詢，integer）,items、total、page、page_size,,"{
   ""items"": [
     {
@@ -1363,10 +1364,11 @@ NPC 說話：任意文字轉語音（節點對話、任務說明等）,POST,/api
     ""string""
   ]
 }",輸入店家資訊與照片，產生 AI 旁白草稿、推薦配文、TAG。 multipart/form-data。對應「生成（輸入資訊）」頁面。 - store_name、address 不填會帶商家資訊表的資料 - images 可重複多次（多張照片），順序就是影片中的順序；新專案至少一張 - 想換語氣重新產生：帶同一個 mm_id 再呼叫一次，不帶 images 就沿用已上傳的照片 回傳的 script 給商家確認或修改，改完送到 CreateFinal。,multipart/form-data；images 可重複放多張。AI 會先到它自己的 Neo4j 查店家，查不到就回「不進行幻覺補全」；AI 端 Neo4j 目前沒開
-查詢商家 VLOG 專案：影片、推薦配文、TAG,GET,/api/MerchantVlog/Status/{mm_id},商家 VLOG,商家端,✅ 實測可用,需要,要接,mm_id（路徑，integer）,mm_id、status、status_text、title、caption、hashtags、video_url、thumbnail、error_message、updated_at,,"{
+查詢商家 VLOG 專案：影片、推薦配文、TAG,GET,/api/MerchantVlog/Status/{mm_id},商家 VLOG,商家端,✅ 實測可用,需要,要接,mm_id（路徑，integer）,mm_id、status、status_text、stage、title、caption、hashtags、video_url、thumbnail、error_message、updated_at,,"{
   ""mm_id"": 0,
   ""status"": 0,
   ""status_text"": ""string"",
+  ""stage"": ""string"",
   ""title"": ""string"",
   ""caption"": ""string"",
   ""hashtags"": [

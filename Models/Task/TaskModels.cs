@@ -162,7 +162,7 @@ namespace backend.Models
         public string npc_name { get; set; }           // 例如「墨先生」
         public string npc_role { get; set; }           // 身分／角色設定
         public string npc_avatar_url { get; set; }     // NPC 圖片（完整網址）
-        public string npc_voice { get; set; }          // 語音聲線，台詞轉語音時傳給 POST api/Npc/Speak 的 voice
+        public string npc_voice { get; set; }          // NPC 原本設定的語音聲線；台詞轉語音改傳 npc_name 給 POST api/Npc/Speak，不用這個欄位
     }
 
     public class NodePlayNode

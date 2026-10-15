@@ -151,7 +151,7 @@ public class StoryNpcApiTests
     }
 
     [Fact]
-    public async Task 劇情前傳語音用劇本NPC的聲線()
+    public async Task 劇情前傳語音用劇本的NPC發聲()
     {
         int user = _api.NewUserId();
         var (storyId, _) = await CreateStoryWithNpcAsync(user, "霓霓");
@@ -159,7 +159,7 @@ public class StoryNpcApiTests
         HttpResponseMessage response = await _api.ClientFor(user).PostAsync($"/api/Npc/Prologue/{storyId}", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("zh-TW-HsiaoYuNeural", _api.FakeAi.Last("/api/npc/speak").Fields["voice"]);
+        Assert.Equal("霓霓", _api.FakeAi.Last("/api/npc/speak").Fields["npc_name"]);
     }
 
     private static object CompletedWithNpc(string npcName, string place1, string place2) => new

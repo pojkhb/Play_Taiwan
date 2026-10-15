@@ -31,7 +31,7 @@ namespace backend.Models
         /// <summary>NPC 圖片（完整網址）</summary>
         public string npc_avatar_url { get; set; }
 
-        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
+        /// <summary>NPC 原本設定的語音聲線；AI 語音已改用 NPC 名稱指定，台詞轉語音時傳 npc_name 給 POST /api/Npc/Speak，不用這個欄位</summary>
         public string npc_voice { get; set; }
 
         // 對話

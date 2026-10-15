@@ -60,8 +60,8 @@ public class AiTrafficLogApiTests : IDisposable
         Assert.Equal(text, log.GetProperty("request").GetProperty("fields").GetProperty("text").GetString());
 
         JsonElement response = log.GetProperty("response");
-        Assert.Equal(200, response.GetProperty("status").GetInt32());
-        Assert.Equal("/api/download/npc_npc-001.mp3", response.GetProperty("body").GetProperty("download_url").GetString());   // JSON 存成 JSON，不是字串
+        Assert.Equal(202, response.GetProperty("status").GetInt32());   // 排隊模式：排入佇列
+        Assert.Equal(FakeAiService.NpcTaskId, response.GetProperty("body").GetProperty("task_id").GetString());   // JSON 存成 JSON，不是字串
 
         // 只記錄 AI Service 的網址（Nominatim、ibon 等其他外部服務不記）
         Assert.All(AllLogs(), l => Assert.StartsWith(AiServiceConfig.BaseUrl, l.GetProperty("url").GetString()));

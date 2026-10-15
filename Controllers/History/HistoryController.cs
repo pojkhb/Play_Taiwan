@@ -219,12 +219,13 @@ namespace backend.Controllers
         /// 產生回顧旁白的語音（mp3），回傳 audio_url。
         /// </summary>
         /// <remarks>
-        /// 使用者按下播放時呼叫。第一次會交給 AI 服務轉成語音（要等幾秒），之後同一段旁白直接回傳存好的檔案。
-        /// body 可省略；voice 可換聲音，預設 zh-TW-HsiaoChenNeural。
+        /// 使用者按下播放時呼叫。第一次會交給 AI 服務轉成語音，後端等到做好才回傳（AI 要排隊，可能要等幾秒到一兩分鐘），
+        /// 之後同一段旁白直接回傳存好的檔案。等超過 2 分鐘還沒做好會回 502，請稍後再按一次。
+        /// body 可省略；npc_name 可換唸旁白的 NPC，預設薯光。
         ///
         /// **Request 範例**：
         /// ```json
-        /// { "voice": "zh-TW-YunJheNeural" }
+        /// { "npc_name": "珍奶奶" }
         /// ```
         /// </remarks>
         [Authorize]
@@ -237,7 +238,7 @@ namespace backend.Controllers
         {
             try
             {
-                StoryRecapNarration result = await _recap.NarrateAsync(User.GetAuId(), story_id, req?.voice, $"{Request.Scheme}://{Request.Host}");
+                StoryRecapNarration result = await _recap.NarrateAsync(User.GetAuId(), story_id, req?.npc_name,$"{Request.Scheme}://{Request.Host}");
                 return Ok(new ResultViewModel<StoryRecapNarration> { isSuccess = true, message = "旁白語音已產生", Result = result });
             }
             catch (KeyNotFoundException e)

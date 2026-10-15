@@ -23,6 +23,25 @@ public class FakeAiService : HttpMessageHandler
 
     public const string TaskId = "fake-task-001";
 
+    /// <summary>NPC 語音任務代號：POST /api/npc/speak 排入佇列後回傳，再用 GET /api/jobs/{task_id} 查</summary>
+    public const string NpcTaskId = "npc-001";
+
+    /// <summary>NPC 語音做好時 /api/jobs 的回應（AI 文件沒寫完成時的格式，這裡假設結果放在 result.download_url）</summary>
+    public static readonly object NpcJobCompleted = new
+    {
+        task_id = NpcTaskId,
+        task_type = "npc_tts",
+        status = "completed",
+        stage = "完成",
+        result = new { download_url = "/api/download/npc_npc-001.mp3" },
+        error = (string)null,
+        check_url = "/api/jobs/" + NpcTaskId,
+        queue_position = (int?)null
+    };
+
+    /// <summary>GET /api/jobs/{NpcTaskId} 要回的內容，測試可以改；預設已做好。其他任務代號回 404（AI 服務重啟後任務消失）</summary>
+    public object NpcJobResponse { get; set; } = NpcJobCompleted;
+
     /// <summary>「遊你說了算」背景工作代號</summary>
     public const string TextJobId = "fake-text-job";
 
@@ -120,6 +139,7 @@ public class FakeAiService : HttpMessageHandler
         TextJobPolls.Clear();
         _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
+        NpcJobResponse = NpcJobCompleted;
         AgentOrchestrateResponse = AgentNoPlace;
         PostcardResponse = null;
         WeatherResponse = null;
@@ -204,7 +224,14 @@ public class FakeAiService : HttpMessageHandler
             "/api/visitor/vlog/create_final" => new { status = "processing", task_id = TaskId, message = "已排入佇列" },
             _ when path == "/api/check_status/" + TaskId => CheckStatusResponse,
             "/upload" => new { pincode = "PT123456", qrcode_base64 = "iVBORw0KGgo=" },   // ibon 列印服務
-            "/api/npc/speak" => new { status = "success", task_id = "npc-001", download_url = "/api/download/npc_npc-001.mp3" },
+            // NPC 語音是排隊模式：送出後回 202 與 task_id，用 /api/jobs/{task_id} 查進度（格式照正式服務實際的回應）
+            "/api/npc/speak" => new
+            {
+                task_id = NpcTaskId, task_type = "npc_tts", status = "queued", stage = "等待處理",
+                created_at = 1792066526.48, updated_at = 1792066526.48, result = (object)null, error = (object)null,
+                check_url = "/api/jobs/" + NpcTaskId, queue_position = 1
+            },
+            _ when path == "/api/jobs/" + NpcTaskId => NpcJobResponse,
             "/api/api/admin/generate_script_blueprint_by_text" => new { status = "processing", job_id = TextJobId, check_url = "fake" },
             _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId => NextTextPoll(),
             "/api/agent/orchestrate" => AgentOrchestrateResponse,
@@ -223,7 +250,8 @@ public class FakeAiService : HttpMessageHandler
         if (body == null)
             return new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("fake ai: no route " + path) };
 
-        return new HttpResponseMessage(HttpStatusCode.OK)
+        // 排隊模式的生成 API 回 202 Accepted
+        return new HttpResponseMessage(path == "/api/npc/speak" ? HttpStatusCode.Accepted : HttpStatusCode.OK)
         {
             Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
         };

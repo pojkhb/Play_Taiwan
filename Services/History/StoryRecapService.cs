@@ -17,7 +17,7 @@ namespace backend.Services
 {
     /// <summary>
     /// 劇本回顧：玩完的劇本一次回傳劇情、每一站（真正的景點、劇情、玩家照片、作答結果）、明信片、勳章、Vlog 與旁白。
-    /// 旁白語音按需產生：交給 AI 服務轉成 mp3 後存在 wwwroot/audio/narration/，同一段文字與聲音只產生一次。
+    /// 旁白語音按需產生：交給 AI 服務轉成 mp3 後存在 wwwroot/audio/narration/，同一段文字與 NPC 只產生一次。
     /// </summary>
     public class StoryRecapService
     {
@@ -69,8 +69,8 @@ namespace backend.Services
             }
 
             StoryRecapNarration narration = BuildNarration(story, nodeRows, vlog);
-            string cached = PhysicalPath(NarrationKey(NpcVoiceService.DefaultVoice, narration.text));
-            narration.audio_url = File.Exists(cached) ? AudioUrl(NarrationKey(NpcVoiceService.DefaultVoice, narration.text), baseUrl) : null;
+            string cached = PhysicalPath(NarrationKey(NpcVoiceService.DefaultNpc, narration.text));
+            narration.audio_url = File.Exists(cached) ? AudioUrl(NarrationKey(NpcVoiceService.DefaultNpc, narration.text), baseUrl) : null;
 
             return new StoryRecapResponse
             {
@@ -211,16 +211,19 @@ namespace backend.Services
             return end < 0 ? text : text[..(end + 1)];
         }
 
+        /// <summary>AI 語音是排隊模式，旁白最多等多久</summary>
+        private static readonly TimeSpan NarrationTimeout = TimeSpan.FromMinutes(2);
+
         /// <summary>
-        /// 產生旁白語音（mp3）：同一段文字與聲音產生過就直接回傳；沒有就交給 AI 服務轉成語音並存到後端。
+        /// 產生旁白語音（mp3）：同一段文字與 NPC 產生過就直接回傳；沒有就交給 AI 服務轉成語音（等到做好）並存到後端。
         /// </summary>
-        public async Task<StoryRecapNarration> NarrateAsync(int auId, int storyId, string voice, string baseUrl)
+        public async Task<StoryRecapNarration> NarrateAsync(int auId, int storyId, string npcName, string baseUrl)
         {
             var (story, _, nodes, vlog) = await LoadAsync(auId, storyId);
             StoryRecapNarration narration = BuildNarration(story, nodes, vlog);
-            voice = string.IsNullOrWhiteSpace(voice) ? NpcVoiceService.DefaultVoice : voice.Trim();
+            npcName = string.IsNullOrWhiteSpace(npcName) ? NpcVoiceService.DefaultNpc : npcName.Trim();
 
-            string key = NarrationKey(voice, narration.text);
+            string key = NarrationKey(npcName, narration.text);
             string physical = PhysicalPath(key);
             if (File.Exists(physical))
             {
@@ -228,11 +231,11 @@ namespace backend.Services
                 return narration;
             }
 
-            NpcSpeakResponse speech = await _voice.SpeakAsync(narration.text, voice);   // AI 服務失敗會丟出錯誤
+            string speechUrl = await _voice.SpeakAndWaitAsync(narration.text, npcName, NarrationTimeout);   // AI 服務失敗或等太久會丟出錯誤
             try
             {
                 HttpClient client = _httpClientFactory.CreateClient();
-                byte[] audio = await client.GetByteArrayAsync(speech.audio_url);
+                byte[] audio = await client.GetByteArrayAsync(speechUrl);
                 Directory.CreateDirectory(Path.GetDirectoryName(physical));
                 await File.WriteAllBytesAsync(physical, audio);
                 narration.audio_url = AudioUrl(key, baseUrl);
@@ -240,15 +243,15 @@ namespace backend.Services
             catch (Exception e)
             {
                 // 存不下來就先直接給 AI 服務的網址，下次再試著存
-                _logger.LogWarning(e, "旁白語音存檔失敗，改回傳 AI 服務的網址：{Url}", speech.audio_url);
-                narration.audio_url = speech.audio_url;
+                _logger.LogWarning(e, "旁白語音存檔失敗，改回傳 AI 服務的網址：{Url}", speechUrl);
+                narration.audio_url = speechUrl;
             }
             return narration;
         }
 
-        /// <summary>聲音 + 文字的 SHA-1，當作語音檔名</summary>
-        internal static string NarrationKey(string voice, string text) =>
-            Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(voice + "\n" + text))).ToLowerInvariant();
+        /// <summary>NPC + 文字的 SHA-1，當作語音檔名</summary>
+        internal static string NarrationKey(string npcName, string text) =>
+            Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(npcName + "\n" + text))).ToLowerInvariant();
 
         private string PhysicalPath(string key) => Path.Combine(_outputRoot, "audio", "narration", key + ".mp3");
 

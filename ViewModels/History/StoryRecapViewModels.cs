@@ -164,7 +164,7 @@ namespace backend.ViewModels
     /// <summary>產生旁白語音的請求（body 可省略）</summary>
     public class StoryRecapNarrationRequest
     {
-        /// <summary>聲音，例如 zh-TW-HsiaoChenNeural（預設）、zh-TW-YunJheNeural</summary>
-        public string voice { get; set; }
+        /// <summary>唸旁白的 NPC，例如薯光（預設）、珍奶奶、阿達力、墨先生、霓霓、阿吉伯</summary>
+        public string npc_name { get; set; }
     }
 }

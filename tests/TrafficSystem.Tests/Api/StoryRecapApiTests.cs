@@ -164,15 +164,32 @@ public class StoryRecapApiTests
         StoryRecapNarration narration = (await first.ReadResultAsync<StoryRecapNarration>()).Result;
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        string key = StoryRecapService.NarrationKey(NpcVoiceService.DefaultVoice, narration.text);
+        string key = StoryRecapService.NarrationKey(NpcVoiceService.DefaultNpc, narration.text);
         Assert.EndsWith($"/audio/narration/{key}.mp3", narration.audio_url);
         Assert.True(File.Exists(Path.Combine(_api.FogRoot, "audio", "narration", key + ".mp3")));
         Assert.Equal(narration.text, _api.FakeAi.Last("/api/npc/speak").Fields["text"]);
+        Assert.Equal(NpcVoiceService.DefaultNpc, _api.FakeAi.Last("/api/npc/speak").Fields["npc_name"]);
+        Assert.NotNull(_api.FakeAi.Last("/api/jobs/" + FakeAiService.NpcTaskId));   // AI 是排隊模式，後端查到做好才下載
 
         // 第二次直接回傳存好的檔案，不再呼叫 AI；回顧也會帶出語音網址
         await client.PostAsync($"/api/History/{storyId}/Recap/Narration", null);
         Assert.Single(_api.FakeAi.Requests, r => r.Path == "/api/npc/speak");
         Assert.Equal(narration.audio_url, (await RecapAsync(user, storyId)).narration.audio_url);
+    }
+
+    [Fact]
+    public async Task 旁白語音_AI生成失敗回傳502_不存檔()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFinishedStoryAsync(user);
+        _api.FakeAi.NpcJobResponse = new { task_id = FakeAiService.NpcTaskId, task_type = "npc_tts", status = "failed", error = "TTS 服務逾時" };
+
+        HttpResponseMessage response = await _api.ClientFor(user).PostAsync($"/api/History/{storyId}/Recap/Narration", null);
+        ApiResult<StoryRecapNarration> result = await response.ReadResultAsync<StoryRecapNarration>();
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Contains("TTS 服務逾時", result.message);
+        Assert.Null((await RecapAsync(user, storyId)).narration.audio_url);
     }
 
     [Fact]

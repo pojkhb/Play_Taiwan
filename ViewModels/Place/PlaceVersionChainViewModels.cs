@@ -27,6 +27,22 @@ namespace backend.ViewModels
         public string image_url { get; set; }
     }
 
+    /// <summary>商家自建景點可選的分類與細分類（Neo4j 的 MainCategory → Category），註冊表單的下拉選單用。</summary>
+    public class MerchantPlaceCategoryItem
+    {
+        /// <summary>註冊請求的 category：Attraction / Restaurant / Hotel / Event</summary>
+        public string category { get; set; }
+
+        /// <summary>中文名稱（Neo4j 的主分類）：景點 / 餐廳 / 住宿 / 活動</summary>
+        public string name { get; set; }
+
+        /// <summary>沒帶 sub_category 時掛的細分類；null 代表不掛</summary>
+        public string default_sub_category { get; set; }
+
+        /// <summary>可選的細分類（註冊請求的 sub_category），常用的排前面、「其他」排最後</summary>
+        public List<string> sub_categories { get; set; }
+    }
+
     /// <summary>Neo4j 的鄉鎮市區節點（:Town），town_id 為「縣市_鄉鎮市區」。</summary>
     public class TownRef
     {

@@ -121,7 +121,7 @@ namespace backend.Models
     /// <summary>劇本中的 NPC</summary>
     public class NpcDetail
     {
-        /// <summary>NPC 名稱</summary>
+        /// <summary>NPC 名稱；要把台詞唸出來時，當成 POST /api/Npc/Speak 的 npc_name</summary>
         public string name { get; set; }
 
         /// <summary>NPC 身分/角色設定</summary>
@@ -132,9 +132,6 @@ namespace backend.Models
 
         /// <summary>NPC 圖片（完整網址）</summary>
         public string avatar_url { get; set; }
-
-        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
-        public string voice { get; set; }
     }
 
     /// <summary>劇本中的一個節點</summary>
@@ -342,11 +339,27 @@ public class ConfirmStoryRequest
         public AgentOrchestrateResponse agent_result { get; set; }
     }
 
-    /// <summary>自然語言生成劇本（遊你說了算）結果</summary>
+    /// <summary>自然語言生成劇本（遊你說了算）的工作進度；送出與輪詢回傳同一種格式</summary>
     public class GenerateByTextResult
     {
-        /// <summary>劇本代號（story.s_id）</summary>
-        public int story_id { get; set; }
+        public const string Processing = "processing";
+        public const string Done = "done";
+        public const string Failed = "failed";
+
+        /// <summary>AI 背景工作代號，輪詢 GET /api/Story/GenerateByText/{job_id} 時帶入</summary>
+        public string job_id { get; set; }
+
+        /// <summary>processing（生成中，繼續輪詢）、done（完成，story_id 有值）、failed（失敗，看 error）</summary>
+        public string status { get; set; }
+
+        /// <summary>AI 目前進行到的階段，例如「解析使用者需求」「查詢 Neo4j 地點」「生成劇本藍圖」</summary>
+        public string stage { get; set; }
+
+        /// <summary>status = failed 時的原因</summary>
+        public string error { get; set; }
+
+        /// <summary>劇本代號（story.s_id），status = done 才有值</summary>
+        public int? story_id { get; set; }
 
         /// <summary>AI 解析出的城市</summary>
         public string detected_city { get; set; }

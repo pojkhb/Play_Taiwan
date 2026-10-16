@@ -60,8 +60,8 @@ public class AiTrafficLogApiTests : IDisposable
         Assert.Equal(text, log.GetProperty("request").GetProperty("fields").GetProperty("text").GetString());
 
         JsonElement response = log.GetProperty("response");
-        Assert.Equal(200, response.GetProperty("status").GetInt32());
-        Assert.Equal("/api/download/npc_npc-001.mp3", response.GetProperty("body").GetProperty("download_url").GetString());   // JSON 存成 JSON，不是字串
+        Assert.Equal(202, response.GetProperty("status").GetInt32());
+        Assert.Equal("queued", response.GetProperty("body").GetProperty("status").GetString());   // JSON 存成 JSON，不是字串
 
         // 只記錄 AI Service 的網址（Nominatim、ibon 等其他外部服務不記）
         Assert.All(AllLogs(), l => Assert.StartsWith(AiServiceConfig.BaseUrl, l.GetProperty("url").GetString()));
@@ -83,7 +83,7 @@ public class AiTrafficLogApiTests : IDisposable
         Assert.True(preview.isSuccess, preview.message);
         _projects.Add(preview.Result.mm_id);
 
-        // 送出合成：照片打包成 image_zip、加上背景音樂 bgm_file，一起用 multipart 送給 AI
+        // 送出合成：照片打包成 image_zip、每張照片的地點資料 spot_meta_json，一起用 multipart 送給 AI
         string finalScript = $"紀錄測試旁白{Guid.NewGuid():N}";
         await client.PostAsJsonAsync("/api/MerchantVlog/CreateFinal", new { mm_id = preview.Result.mm_id, final_script = finalScript });
 
@@ -92,11 +92,9 @@ public class AiTrafficLogApiTests : IDisposable
         Dictionary<string, JsonElement> parts = log.GetProperty("request").GetProperty("parts").EnumerateArray()
             .ToDictionary(p => p.GetProperty("name").GetString());
         Assert.Equal(finalScript, parts["final_script"].GetProperty("value").GetString());
-        foreach (string file in new[] { "image_zip", "bgm_file" })
-        {
-            Assert.True(parts[file].GetProperty("bytes").GetInt32() > 0);
-            Assert.False(parts[file].TryGetProperty("value", out _));   // 不記檔案內容
-        }
+        Assert.Equal("紀錄測試小吃", parts["spot_meta_json"].GetProperty("value")[0].GetProperty("spot_name").GetString());   // JSON 文字欄位記成 JSON
+        Assert.True(parts["image_zip"].GetProperty("bytes").GetInt32() > 0);
+        Assert.False(parts["image_zip"].TryGetProperty("value", out _));   // 不記檔案內容
 
         // 記錄時讀過一次檔案，AI 還是收到完整的照片壓縮檔
         FakeAiService.Received sent = _api.FakeAi.Last("/api/visitor/vlog/create_final");

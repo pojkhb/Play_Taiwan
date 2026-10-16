@@ -516,15 +516,19 @@ namespace backend.Controllers
 
 
         /// <summary>
-        /// 接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件，
-        /// 並直接生成完整劇本、寫入資料庫。對應前端「遊你說了算」功能。
+        /// 接收使用者輸入的一句自然語言描述，送給外部 AI 服務解析出城市/行政區/人數/偏好等條件並生成劇本。
+        /// 對應前端「遊你說了算」功能。**送出後立刻回傳 job_id，劇本在背景生成**，前端再輪詢 GET /api/Story/GenerateByText/{job_id}。
         /// </summary>
         /// <remarks>
         /// 跟 GenerateGameStory 的差異：GenerateGameStory 需要前端帶定位或城市/行政區、人數、偏好等結構化參數；
         /// 這支只需要一句話，解析與生成都在外部 AI 服務端完成，後端只負責存檔。
         ///
-        /// **這支一次只會生成一份劇本**（AI 服務一次回一份），回傳的 story_id 就是那一份；
-        /// GenerateGameStory 才是一次生成三份讓使用者挑。
+        /// **這支一次只會生成一份劇本**（AI 服務一次回一份）；GenerateGameStory 才是一次生成三份讓使用者挑。
+        ///
+        /// 流程：
+        /// 1. 呼叫這支，回傳 `job_id`、`status = processing`。
+        /// 2. 每 3 秒呼叫 GET /api/Story/GenerateByText/{job_id}，`status` 還是 processing 就繼續，`stage` 可以顯示在等待畫面。
+        /// 3. `status = done` 時 `story_id`、`data` 有值；`status = failed` 時看 `error`，可以請使用者重新送出。
         ///
         /// **Request 範例**：
         /// ```json
@@ -543,92 +547,62 @@ namespace backend.Controllers
             {
                 int auId = User.GetAuId();
 
-
                 if (string.IsNullOrWhiteSpace(req?.user_prompt))
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
 
-
-                var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromMinutes(1);   // 單次請求的逾時；整個生成最多等 TextBlueprintTimeout
-
-                GenerateScriptBlueprintByTextResponse aiResult = await RunTextBlueprintJobAsync(client, req.user_prompt);
-
-
-                if (aiResult?.data == null)
-                    throw new Exception("AI 服務回傳的劇本內容為空");
-
-
-                string cityName = aiResult.parsed_intent?.city_name ?? "";
-                string townName = aiResult.parsed_intent?.town_name ?? "";
-                int newStoryId = await _service.SaveFullAiGeneratedStory(auId, cityName, townName, aiResult.data);
-
-
-                return Ok(new ResultViewModel<GenerateByTextResult>
-                {
-                    isSuccess = true,
-                    message = "劇本生成成功",
-                    Result = new GenerateByTextResult
-                    {
-                        story_id = newStoryId,
-                        detected_city = cityName,
-                        detected_town = townName,
-                        parsed_intent = aiResult.parsed_intent,
-                        data = aiResult.data
-                    }
-                });
+                GenerateByTextResult result = await _service.SubmitTextBlueprintJobAsync(auId, req.user_prompt.Trim());
+                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = result });
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "自然語言生成劇本失敗");
+                _logger.LogError(e, "自然語言生成劇本送出失敗");
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
         }
-        #endregion
-         private const string TextBlueprintPath = "/api/api/admin/generate_script_blueprint_by_text";
-        private static readonly TimeSpan TextBlueprintTimeout = TimeSpan.FromMinutes(10);
 
-        /// <summary>輪詢 AI 工作的間隔，測試時可以調短</summary>
-        internal static TimeSpan TextBlueprintPollInterval = TimeSpan.FromSeconds(3);
 
         /// <summary>
-        /// 「遊你說了算」的 AI 端點是非同步的：送出後立刻回傳 job_id，劇本在背景生成；
-        /// 這裡每隔幾秒查一次 GET {path}/{job_id}，拿到 data 就回傳，status = error 就把 AI 給的原因丟出來。
+        /// 查詢「遊你說了算」的生成進度；生成完成時在這次查詢存成劇本並回傳。
         /// </summary>
-        private static async Task<GenerateScriptBlueprintByTextResponse> RunTextBlueprintJobAsync(HttpClient client, string userPrompt)
+        /// <remarks>
+        /// 只查得到自己送出的工作，別人的 job_id 會回 404。
+        ///
+        /// - `status = processing`：還在生成，`stage` 是 AI 目前的階段（例如「解析使用者需求」「查詢 Neo4j 地點」「生成劇本藍圖」），請繼續輪詢。
+        /// - `status = done`：`story_id`、`detected_city`、`detected_town`、`parsed_intent`、`data` 有值；之後再查都回傳同一份劇本，不會重複存檔。
+        /// - `status = failed`：`error` 是失敗原因（AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成），可以請使用者重新送出。
+        ///
+        ///     GET /api/Story/GenerateByText/a1b2c3d4
+        /// </remarks>
+        [Authorize]
+        [HttpGet]
+        [Route("GenerateByText/{job_id}")]
+        [ProducesResponseType(typeof(ResultViewModel<GenerateByTextResult>), 200)]
+        public async Task<IActionResult> GenerateByTextStatus(string job_id)
         {
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var content = new StringContent(JsonSerializer.Serialize(new { user_prompt = userPrompt }), System.Text.Encoding.UTF8, "application/json");
-
-            using HttpResponseMessage submit = await client.PostAsync(AiServiceConfig.Url(TextBlueprintPath), content);
-            string body = await submit.Content.ReadAsStringAsync();
-            if (!submit.IsSuccessStatusCode)
-                throw new Exception($"外部 AI 服務回應錯誤 (Status: {(int)submit.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
-
-            GenerateScriptBlueprintByTextResponse job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, options);
-            if (job?.data != null) return job;   // AI 若直接回傳結果就不用輪詢
-            if (string.IsNullOrWhiteSpace(job?.job_id))
-                throw new Exception($"AI 服務沒有回傳 job_id：{VlogAiGateway.AiErrorMessage(body)}");
-
-            DateTime deadline = DateTime.UtcNow + TextBlueprintTimeout;
-            while (DateTime.UtcNow < deadline)
+            try
             {
-                await Task.Delay(TextBlueprintPollInterval);
-
-                using HttpResponseMessage poll = await client.GetAsync(AiServiceConfig.Url($"{TextBlueprintPath}/{Uri.EscapeDataString(job.job_id)}"));
-                body = await poll.Content.ReadAsStringAsync();
-                if (!poll.IsSuccessStatusCode)
-                    throw new Exception($"查詢 AI 劇本生成進度失敗 (Status: {(int)poll.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
-
-                job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, options);
-                if (job?.data != null) return job;
-
-                string status = (job?.status ?? "").Trim().ToLowerInvariant();
-                if (status is "error" or "failed" or "failure")
-                    throw new Exception($"AI 劇本生成失敗（{job.stage}）：{job.error}");
+                GenerateByTextResult result = await _service.GetTextBlueprintJobAsync(User.GetAuId(), job_id);
+                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = result });
             }
-
-            throw new Exception($"AI 劇本生成超過 {TextBlueprintTimeout.TotalMinutes} 分鐘仍未完成");
+            catch (NotFoundException e)
+            {
+                return NotFound(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "查詢自然語言生成劇本進度失敗（job_id={JobId}）", job_id);
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
         }
+
+
+        private static string TextJobMessage(GenerateByTextResult result) => result.status switch
+        {
+            GenerateByTextResult.Done => "劇本生成成功",
+            GenerateByTextResult.Failed => result.error,
+            _ => "劇本生成中，請用 job_id 查詢進度"
+        };
+        #endregion
 
 
         #region 交通等時圈：依交通方式查詢可到達的景點與真實交通時間（Valhalla）
@@ -702,11 +676,18 @@ namespace backend.Controllers
  
  
  
-        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
+        #region 劇本任務生成（AI service /api/stories/tasks，一次只送一份劇本）
         /// <summary>
-        /// 依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。
+        /// 依使用者位置與交通方式自動挑景點，由 AI 生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫。
+        /// **規劃好景點、送給 AI 後立刻回傳 job_id，劇本在背景生成**，前端再輪詢 GET /api/Story/GenerateGameStory/{job_id}。
         /// </summary>
         /// <remarks>
+        /// 前端串接：
+        /// 1. 呼叫這支，回傳 `job_id`、`status = processing`。條件有問題（例如範圍內景點不夠）時直接回 400，不會送出工作。
+        /// 2. 每 3 秒呼叫 GET /api/Story/GenerateGameStory/{job_id}，`status` 還是 processing 就繼續；
+        ///    `stage`、`finished_count`／`total_count` 可以顯示在等待畫面。AI 一份大約 20～40 秒，3 份依序生成。
+        /// 3. `status = done` 時 `stories` 是生成好的劇本；`status = failed` 時看 `error`，可以請使用者重新送出。
+        ///
         /// 中心點優先使用 lat/lng（使用者當前定位）；沒有定位時改傳 city_name/town_name，後端轉成經緯度。
         /// 流程：
         /// 1. 規劃旅遊行程：3 份劇本各自一組景點（範圍內隨機抽 8 個並排好順路順序，景點夠多時各份不重複）
@@ -724,20 +705,9 @@ namespace backend.Controllers
         ///    2 人以上加協作解謎型；再從景點可出的文化問答型／景點猜猜樂／e人訪談型（place_type）隨機抽一題。
         ///    景點在 place_type 標有 9（商家新增題目時自動標記）時，另外必出一題商家知識問答
         ///    （直接引用題庫，不經 AI，task 帶 question_id）。商家自建的景點也會列入行程規劃候選。
-        /// 3. 打包成一包丟給 AI service，一次拿回 3 份劇本。
+        /// 3. 每份劇本各自送給 AI service（AI 一次只收一份，在 AI 端排隊依序生成）。
         ///
-        /// 回傳陣列，每一份都有自己的 story_id；使用者選定後用那份的 story_id 呼叫 Confirm 開始遊玩。
-        /// transportation 有選「公車」、「客運」或「台灣好行」時，會找出相鄰節點之間的直達公車，
-        /// 寫入 story_node_transit，並在每個節點的 transit 回傳上下車站與中間經過的所有站牌。
-        ///
-        /// 會寫入 story、story_tag、story_node、task、task_option、task_clue、story_node_transit。
-        /// task_id 是進入節點遊玩畫面、作答時要用的任務代號；回應不含正確答案、提示與各座位線索，
-        /// 抵達節點後由 GET api/Task/Node/{node_id} 取得自己座位的線索與作答方式。
-        ///
-        /// nodes[].image_url 是每一站的圖片：剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖
-        /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，後端會在背景做，之後用劇本詳情 Detail 就拿得到每一站自己的迷霧圖）。
-        /// 景點照片用景點 ID 向 Neo4j 拿，真實照片抵達後才會回傳（地圖、劇本詳情）。
-        ///
+        /// 劇本的內容與欄位說明見 GET /api/Story/GenerateGameStory/{job_id}。
         /// **Request 範例**：
         /// ```json
         /// {
@@ -751,10 +721,12 @@ namespace backend.Controllers
         /// }
         /// ```
         /// </remarks>
+        /// <response code="200">Result.status = processing，用 Result.job_id 輪詢進度</response>
+        /// <response code="400">條件有問題，例如範圍內景點不夠、地名轉不出經緯度</response>
         [Authorize]
         [HttpPost]
         [Route("GenerateGameStory")]
-        [ProducesResponseType(typeof(ResultViewModel<List<GameStoryResult>>), 200)]
+        [ProducesResponseType(typeof(ResultViewModel<GameStoryJobResult>), 200)]
         public async Task<IActionResult> GenerateGameStory([FromBody] GameStoryGenerateRequest req)
         {
             try
@@ -791,20 +763,8 @@ namespace backend.Controllers
                     req.town_name = string.IsNullOrWhiteSpace(req.town_name) ? districtName : req.town_name;
                 }
 
-                List<GameStoryResult> result = await _service.GenerateGameStoryAsync(auId, req);
-                foreach (GameStoryResult r in result)
-                {
-                    if (r.story?.npc != null)
-                        r.story.npc.npc_avatar_url = PublicUrl.Of(Request, r.story.npc.npc_avatar_url);
-                    r.nodes?.ForEach(n => n.image_url = PublicUrl.Of(Request, n.image_url));
-                }
-
-                return Ok(new ResultViewModel<List<GameStoryResult>>
-                {
-                    isSuccess = true,
-                    message = $"劇本生成成功，共 {result.Count} 份劇本",
-                    Result = result
-                });
+                GameStoryJobResult result = await _service.SubmitGameStoryJobAsync(auId, req);
+                return Ok(new ResultViewModel<GameStoryJobResult> { isSuccess = true, message = GameJobMessage(result), Result = WithPublicUrls(result) });
             }
             catch (BadRequestException e)
             {
@@ -813,9 +773,80 @@ namespace backend.Controllers
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "劇本任務生成失敗");
+                _logger.LogError(e, "劇本任務生成送出失敗");
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
+        }
+
+
+        /// <summary>
+        /// 查詢 GenerateGameStory 的生成進度；AI 全部做完時在這次查詢存成劇本並回傳。
+        /// </summary>
+        /// <remarks>
+        /// 只查得到自己送出的工作，別人的 job_id 會回 404。
+        ///
+        /// - `status = processing`：還在生成，`stage` 是目前進度（排隊中、劇本生成中（已完成 1/3 份）、存檔中），請繼續輪詢。
+        /// - `status = done`：`stories` 是生成好的劇本；之後再查都回傳同一批劇本，不會重複存檔。
+        ///   某一份 AI 生成失敗時那份不存，只回傳其他份（可能少於 `total_count` 份）。
+        /// - `status = failed`：`error` 是失敗原因（AI 全部生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒有任何一份完成），可以請使用者重新送出。
+        ///   超過 10 分鐘時已經做好的幾份照樣存起來回傳，沒做完的不存。
+        ///
+        /// `stories` 每一份都有自己的 story_id；使用者選定後用那份的 story_id 呼叫 Confirm 開始遊玩。
+        /// story.npc 是 AI 為這份劇本挑的 NPC（不在 NPC 名單上時用薯光）。
+        /// transportation 有選「公車」、「客運」或「台灣好行」時，會找出相鄰節點之間的直達公車，
+        /// 寫入 story_node_transit，並在每個節點的 transit 回傳上下車站與中間經過的所有站牌。
+        ///
+        /// 會寫入 story、story_tag、story_node、task、task_option、task_clue、story_node_transit。
+        /// task_id 是進入節點遊玩畫面、作答時要用的任務代號；回應不含正確答案、提示與各座位線索，
+        /// 抵達節點後由 GET api/Task/Node/{node_id} 取得自己座位的線索與作答方式。
+        ///
+        /// nodes[].image_url 是每一站的圖片：剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖
+        /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，後端會在背景做，之後用劇本詳情 Detail 就拿得到每一站自己的迷霧圖）。
+        /// 景點照片用景點 ID 向 Neo4j 拿，真實照片抵達後才會回傳（地圖、劇本詳情）。
+        ///
+        ///     GET /api/Story/GenerateGameStory/3f2a9c1b0d4e4b5f8a6c7d8e9f0a1b2c
+        /// </remarks>
+        [Authorize]
+        [HttpGet]
+        [Route("GenerateGameStory/{job_id}")]
+        [ProducesResponseType(typeof(ResultViewModel<GameStoryJobResult>), 200)]
+        public async Task<IActionResult> GenerateGameStoryStatus(string job_id)
+        {
+            try
+            {
+                GameStoryJobResult result = await _service.GetGameStoryJobAsync(User.GetAuId(), job_id);
+                return Ok(new ResultViewModel<GameStoryJobResult> { isSuccess = true, message = GameJobMessage(result), Result = WithPublicUrls(result) });
+            }
+            catch (NotFoundException e)
+            {
+                return NotFound(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "查詢劇本任務生成進度失敗（job_id={JobId}）", job_id);
+                return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+        }
+
+
+        private static string GameJobMessage(GameStoryJobResult result) => result.status switch
+        {
+            GameStoryJobResult.Done => $"劇本生成成功，共 {result.stories?.Count ?? 0} 份劇本",
+            GameStoryJobResult.Failed => result.error,
+            _ => "劇本生成中，請用 job_id 查詢進度"
+        };
+
+
+        /// <summary>NPC 圖片、每一站的迷霧圖從站內路徑組成完整網址</summary>
+        private GameStoryJobResult WithPublicUrls(GameStoryJobResult result)
+        {
+            foreach (GameStoryResult r in result.stories ?? new List<GameStoryResult>())
+            {
+                if (r.story?.npc != null)
+                    r.story.npc.npc_avatar_url = PublicUrl.Of(Request, r.story.npc.npc_avatar_url);
+                r.nodes?.ForEach(n => n.image_url = PublicUrl.Of(Request, n.image_url));
+            }
+            return result;
         }
         #endregion
     }

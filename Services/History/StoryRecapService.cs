@@ -1,48 +1,31 @@
 // 檔案路徑：System\Services\History\StoryRecapService.cs
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.ViewModels;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace backend.Services
 {
     /// <summary>
     /// 劇本回顧：玩完的劇本一次回傳劇情、每一站（真正的景點、劇情、玩家照片、作答結果）、明信片、勳章、Vlog 與旁白。
-    /// 旁白語音按需產生：交給 AI 服務轉成 mp3 後存在 wwwroot/audio/narration/，同一段文字與聲音只產生一次。
+    /// 旁白語音按需產生：由劇本的 NPC 唸，交給 NpcVoiceService（AI 排隊產生 wav、存在後端），同一段文字與 NPC 只產生一次。
     /// </summary>
     public class StoryRecapService
     {
-        public const string NarrationFolder = "/audio/narration/";
-
         private readonly StoryRecapDao _dao;
         private readonly VisitorVlogDao _vlogDao;
         private readonly NpcVoiceService _voice;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly ILogger<StoryRecapService> _logger;
         private readonly Neo4j.PlaceLookupService _placeLookup;
-        private readonly string _outputRoot;
 
-        public StoryRecapService(StoryRecapDao dao, VisitorVlogDao vlogDao, NpcVoiceService voice, IHttpClientFactory httpClientFactory,
-                                 IWebHostEnvironment environment, IConfiguration configuration, ILogger<StoryRecapService> logger,
-                                 Neo4j.PlaceLookupService placeLookup)
+        public StoryRecapService(StoryRecapDao dao, VisitorVlogDao vlogDao, NpcVoiceService voice, Neo4j.PlaceLookupService placeLookup)
         {
             _dao = dao;
             _placeLookup = placeLookup;
             _vlogDao = vlogDao;
             _voice = voice;
-            _httpClientFactory = httpClientFactory;
-            _logger = logger;
-            // 旁白語音存放的根目錄，預設就是 wwwroot（測試時改到暫存資料夾）
-            _outputRoot = string.IsNullOrWhiteSpace(configuration["Narration:OutputRoot"]) ? environment.WebRootPath : configuration["Narration:OutputRoot"];
         }
 
         #region 回顧
@@ -69,8 +52,9 @@ namespace backend.Services
             }
 
             StoryRecapNarration narration = BuildNarration(story, nodeRows, vlog);
-            string cached = PhysicalPath(NarrationKey(NpcVoiceService.DefaultVoice, narration.text));
-            narration.audio_url = File.Exists(cached) ? AudioUrl(NarrationKey(NpcVoiceService.DefaultVoice, narration.text), baseUrl) : null;
+            narration.npc_name = await _voice.ResolveNpcAsync(null, story.npc_name);
+            string cached = _voice.CachedAudioPath(narration.npc_name, narration.text);
+            narration.audio_url = cached == null ? null : $"{baseUrl?.TrimEnd('/')}{cached}";
 
             return new StoryRecapResponse
             {
@@ -212,47 +196,15 @@ namespace backend.Services
         }
 
         /// <summary>
-        /// 產生旁白語音（mp3）：同一段文字與聲音產生過就直接回傳；沒有就交給 AI 服務轉成語音並存到後端。
+        /// 產生旁白語音：沒指定 NPC 時由劇本的 NPC 唸。做好過直接回傳 done，否則交給 AI 排隊，
+        /// 回傳 processing 與 job_id（用 GET /api/Npc/Speak/{job_id} 查進度）
         /// </summary>
-        public async Task<StoryRecapNarration> NarrateAsync(int auId, int storyId, string voice, string baseUrl)
+        public async Task<NpcSpeakResponse> NarrateAsync(int auId, int storyId, string npcName)
         {
             var (story, _, nodes, vlog) = await LoadAsync(auId, storyId);
             StoryRecapNarration narration = BuildNarration(story, nodes, vlog);
-            voice = string.IsNullOrWhiteSpace(voice) ? NpcVoiceService.DefaultVoice : voice.Trim();
-
-            string key = NarrationKey(voice, narration.text);
-            string physical = PhysicalPath(key);
-            if (File.Exists(physical))
-            {
-                narration.audio_url = AudioUrl(key, baseUrl);
-                return narration;
-            }
-
-            NpcSpeakResponse speech = await _voice.SpeakAsync(narration.text, voice);   // AI 服務失敗會丟出錯誤
-            try
-            {
-                HttpClient client = _httpClientFactory.CreateClient();
-                byte[] audio = await client.GetByteArrayAsync(speech.audio_url);
-                Directory.CreateDirectory(Path.GetDirectoryName(physical));
-                await File.WriteAllBytesAsync(physical, audio);
-                narration.audio_url = AudioUrl(key, baseUrl);
-            }
-            catch (Exception e)
-            {
-                // 存不下來就先直接給 AI 服務的網址，下次再試著存
-                _logger.LogWarning(e, "旁白語音存檔失敗，改回傳 AI 服務的網址：{Url}", speech.audio_url);
-                narration.audio_url = speech.audio_url;
-            }
-            return narration;
+            return await _voice.RequestAsync(await _voice.ResolveNpcAsync(npcName, story.npc_name), narration.text);
         }
-
-        /// <summary>聲音 + 文字的 SHA-1，當作語音檔名</summary>
-        internal static string NarrationKey(string voice, string text) =>
-            Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(voice + "\n" + text))).ToLowerInvariant();
-
-        private string PhysicalPath(string key) => Path.Combine(_outputRoot, "audio", "narration", key + ".mp3");
-
-        private static string AudioUrl(string key, string baseUrl) => $"{baseUrl?.TrimEnd('/')}{NarrationFolder}{key}.mp3";
 
         #endregion
     }

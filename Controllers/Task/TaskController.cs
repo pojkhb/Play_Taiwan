@@ -93,8 +93,8 @@ namespace backend.Controllers
         /// 協作解謎型的 clue_text 是自己座位的線索；hint_available 為 true 時可呼叫 GET api/Task/{task_id}/Hint 取提示；
         /// success_text 在這一站任務全部通過後才有值。
         ///
-        /// npc 是這一站說開場白、出題與完成劇情的 NPC（名稱、身分、圖片、聲線）；
-        /// 要把台詞唸出來時，把 npc.npc_voice 當成 POST api/Npc/Speak 的 voice。
+        /// npc 是這一站說開場白、出題與完成劇情的 NPC（名稱、身分、圖片）；
+        /// 要把台詞唸出來時，把 npc.npc_name 當成 POST api/Npc/Speak 的 npc_name。
         ///
         ///     GET /api/Task/Node/5
         /// </remarks>

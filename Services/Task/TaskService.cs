@@ -60,8 +60,7 @@ namespace backend.Services
                     npc_id = node.npc_id,
                     npc_name = node.npc_name ?? MapDao.DefaultNpcName,   // NPC 名單還沒匯入時
                     npc_role = node.npc_role,
-                    npc_avatar_url = node.npc_avatar,                     // 站內路徑，Controller 組成完整網址
-                    npc_voice = node.npc_voice
+                    npc_avatar_url = node.npc_avatar                      // 站內路徑，Controller 組成完整網址
                 },
                 my_seat_no = seatNo,
                 progress = progress,

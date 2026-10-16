@@ -117,6 +117,8 @@ namespace backend
             services.AddScoped<Services.StoryService>();
             services.AddScoped<dao.StoryDao>();
             services.AddScoped<Services.NpcVoiceService>();
+            services.AddScoped<dao.NpcDao>();
+            services.AddSingleton<Services.NpcVoiceJobs>();   // 進行中的 NPC 語音任務：只放在記憶體，整個後端共用一份
             #endregion
             #region S08-地圖/節點/導航
             services.AddScoped<Services.MapService>();
@@ -193,6 +195,9 @@ namespace backend
             // 每次請求都在 DI 解析時就失敗。
             services.AddScoped<Services.MerchantService>();
             services.AddScoped<Services.StoreLocationService>();
+            // 商家景點介紹轉向量（tools/embedding_service），一段介紹不到 1 秒；服務卡住時最多等這麼久，註冊、修改資料照常完成
+            services.AddHttpClient(Services.EmbeddingService.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(20));
+            services.AddScoped<Services.EmbeddingService>();
             services.AddScoped<dao.MerchantDao>();
             services.AddScoped<Services.MerchantVlogService>();
             services.AddScoped<dao.VlogDao>();
@@ -329,6 +334,9 @@ namespace backend
     var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
     c.IncludeXmlComments(xmlPath);
     // ↑↑↑ 新增這 3 行 ↑↑↑
+
+    // 遊客 VLOG 合成選項（bgm_mood、video_orientation）在 Schema 列出可選值
+    c.SchemaFilter<backend.util.VlogOptionsSchemaFilter>();
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {

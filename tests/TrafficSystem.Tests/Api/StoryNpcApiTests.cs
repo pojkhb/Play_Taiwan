@@ -22,7 +22,6 @@ public class StoryNpcApiTests
     {
         _api = api;
         _api.FakeAi.Reset();
-        StoryController.TextBlueprintPollInterval = TimeSpan.FromMilliseconds(20);
     }
 
     private Task<int> NpcIdAsync(string name) =>
@@ -67,7 +66,6 @@ public class StoryNpcApiTests
         Assert.Equal("博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案", interaction.npc_role);
         Assert.StartsWith("http", interaction.npc_avatar_url);
         Assert.EndsWith("/images/npc/mo-xian-sheng.png", interaction.npc_avatar_url);
-        Assert.Equal("zh-TW-YunJheNeural", interaction.npc_voice);
         Assert.Equal("開場", interaction.npc_dialogue);   // 台詞是這一站的開場白
 
         NodeDetailResponse node = (await (await client.GetAsync($"/api/Map/Node/{firstNode}")).ReadResultAsync<NodeDetailResponse>()).Result;
@@ -79,7 +77,6 @@ public class StoryNpcApiTests
         Assert.Equal("博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案", detail.npc.role);
         Assert.False(string.IsNullOrWhiteSpace(detail.npc.intro));
         Assert.StartsWith("http", detail.npc.avatar_url);
-        Assert.Equal("zh-TW-YunJheNeural", detail.npc.voice);
         Assert.All(detail.nodes, n => Assert.Equal("墨先生", n.npc_name));
     }
 
@@ -132,7 +129,6 @@ public class StoryNpcApiTests
         Assert.Equal("掌管地方數十年的記憶與失落古老配方的守密人", play.npc.npc_role);
         Assert.StartsWith("http", play.npc.npc_avatar_url);
         Assert.EndsWith("/images/npc/zhen-nainai.png", play.npc.npc_avatar_url);
-        Assert.Equal("zh-TW-HsiaoChenNeural", play.npc.npc_voice);
         Assert.Equal("開場", play.node.opening_text);   // 開場白就是這位 NPC 說的
     }
 
@@ -151,7 +147,7 @@ public class StoryNpcApiTests
     }
 
     [Fact]
-    public async Task 劇情前傳語音用劇本NPC的聲線()
+    public async Task 劇情前傳語音由劇本的NPC唸()
     {
         int user = _api.NewUserId();
         var (storyId, _) = await CreateStoryWithNpcAsync(user, "霓霓");
@@ -159,7 +155,7 @@ public class StoryNpcApiTests
         HttpResponseMessage response = await _api.ClientFor(user).PostAsync($"/api/Npc/Prologue/{storyId}", null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("zh-TW-HsiaoYuNeural", _api.FakeAi.Last("/api/npc/speak").Fields["voice"]);
+        Assert.Equal("霓霓", _api.FakeAi.Last("/api/npc/speak").Fields["npc_name"]);
     }
 
     private static object CompletedWithNpc(string npcName, string place1, string place2) => new
@@ -190,10 +186,10 @@ public class StoryNpcApiTests
         _api.FakeAi.TextJobPolls.Enqueue(CompletedWithNpc(aiNpc, $"NPC測試景點A{Guid.NewGuid():N}", $"NPC測試景點B{Guid.NewGuid():N}"));
         int user = _api.NewUserId();
 
-        ApiResult<GenerateByTextResult> result = await (await _api.ClientFor(user)
-            .PostAsJsonAsync("/api/Story/GenerateByText", new { user_prompt = "兩個人想去台北中正區走走" })).ReadResultAsync<GenerateByTextResult>();
+        ApiResult<GenerateByTextResult> result = await GenerateByTextApiTests.GenerateAsync(_api.ClientFor(user), "兩個人想去台北中正區走走");
         Assert.True(result.isSuccess, result.message);
-        int storyId = result.Result.story_id;
+        Assert.Equal(GenerateByTextResult.Done, result.Result.status);
+        int storyId = result.Result.story_id!.Value;
 
         int expectedId = await NpcIdAsync(expected);
         Assert.Equal(expectedId, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @storyId;", new { storyId }));
@@ -233,7 +229,6 @@ public class StoryNpcApiTests
         Assert.Equal(niniId, saved.story.npc.npc_id);
         Assert.Equal("對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索", saved.story.npc.npc_role);
         Assert.Equal("/images/npc/ni-ni.png", saved.story.npc.npc_avatar_url);   // DAO 回傳站內路徑，Controller 再組成完整網址
-        Assert.Equal("zh-TW-HsiaoYuNeural", saved.story.npc.npc_voice);
         Assert.All(saved.nodes, n => Assert.Equal(niniId, n.npc_id));
         Assert.Equal(niniId, await _api.QueryAsync<int?>("SELECT npc_id FROM story WHERE s_id = @id;", new { id = saved.story_id }));
     }

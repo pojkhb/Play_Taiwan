@@ -1,10 +1,43 @@
 // 檔案路徑：System\ViewModels\Vlog\VisitorVlogViewModels.cs
-// VlogCreateFinalApiResponse 與 VlogTaskStatusApiResponse 定義在 MerchantVlogViewModels.cs（商家、遊客共用同一組外部端點）。
+// VlogSpotMeta、VlogCreateFinalApiResponse 與 VlogJobApiResponse 定義在 MerchantVlogViewModels.cs（商家、遊客共用同一組外部端點）。
 using System;
 using System.Collections.Generic;
 
 namespace backend.ViewModels
 {
+    #region Options（CreateFinal 選填欄位的下拉選單）
+
+    /// <summary>下拉選單的一個選項</summary>
+    public class VlogOptionItem
+    {
+        /// <summary>送給 CreateFinal 的值，例如 warm</summary>
+        public string value { get; init; }
+
+        /// <summary>選單上顯示的文字，例如「溫馨」</summary>
+        public string label { get; init; }
+
+        /// <summary>補充說明，可以當選項下方的小字；沒有時為 null</summary>
+        public string description { get; init; }
+
+        /// <summary>預設選項：CreateFinal 不帶這個欄位時，AI 用的就是它</summary>
+        public bool is_default { get; init; }
+    }
+
+    /// <summary>CreateFinal 選填欄位的選項（來自 AI 服務 create_final 的規格）</summary>
+    public class VisitorVlogOptionsResponse
+    {
+        /// <summary>配樂風格，對應 CreateFinal 的 bgm_mood</summary>
+        public List<VlogOptionItem> bgm_moods { get; set; }
+
+        /// <summary>影片方向，對應 CreateFinal 的 video_orientation</summary>
+        public List<VlogOptionItem> video_orientations { get; set; }
+
+        /// <summary>旅遊感想（CreateFinal 的 user_memory_text）字數上限</summary>
+        public int user_memory_text_max_length { get; set; }
+    }
+
+    #endregion
+
     #region Preview（遊戲結束 → 旁白草稿）
 
     public class VisitorVlogPreviewRequest
@@ -43,7 +76,7 @@ namespace backend.ViewModels
         public List<ItineraryItem> itinerary { get; set; }
     }
 
-    /// <summary>VLOG 裡的一個景點；同時也是送給 AI 的 spot_meta_json 元素格式</summary>
+    /// <summary>VLOG 裡的一個景點；送出合成時，這個景點的每張照片各轉成一筆 spot_meta_json（VlogSpotMeta）</summary>
     public class VisitorVlogSpot
     {
         /// <summary>劇本節點順序</summary>
@@ -68,7 +101,7 @@ namespace backend.ViewModels
         /// <summary>
         /// 這個景點會放進影片的照片。Preview 回傳的是照片網址，可以直接顯示：玩家在這站拍的；
         /// 沒拍照的站是景點照片（uses_place_photo = true），但還沒抵達這一站時不給（空陣列，只看 photo_count）。
-        /// 送給 AI 的 spot_meta_json 裡則是照片在 image_zip 裡的檔名
+        /// HEIC 照片不能合成影片，不會出現在這裡
         /// </summary>
         public List<string> images { get; set; }
 
@@ -132,6 +165,21 @@ namespace backend.ViewModels
 
         /// <summary>選填：修改後的關鍵字；不帶就沿用草稿</summary>
         public List<string> seo_keywords { get; set; }
+
+        /// <summary>
+        /// 選填：玩家自己寫的旅遊感想，最多 3000 字。AI 自動配樂時會跟旁白一起判斷風格，不會出現在影片裡；
+        /// 不帶就只看旁白
+        /// </summary>
+        public string user_memory_text { get; set; }
+
+        /// <summary>
+        /// 選填：配樂風格。auto（預設，AI 依旁白自動挑選）、cheerful 輕快、relaxed 悠閒、warm 溫馨、
+        /// nostalgic 回憶、adventurous 探索、neutral 中性、none 不配樂
+        /// </summary>
+        public string bgm_mood { get; set; }
+
+        /// <summary>選填：影片方向。landscape（預設，橫式 1920×1080）、portrait（直式 1080×1920）</summary>
+        public string video_orientation { get; set; }
     }
 
     public class VisitorVlogTaskResponse

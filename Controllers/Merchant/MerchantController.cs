@@ -36,7 +36,11 @@ namespace backend.Controllers
         /// 並寫入 MySQL place（座標）與 place_type（通用任務類型 6、7、8），讓這個景點能被排進劇本行程。
         /// 新景點的名稱、地址、介紹用 store_name（必填）、store_address、store_dec；地址與 lat / lng 至少填一個，只填一個時後端自動轉另一個；
         /// category 可選 Attraction / Restaurant / Hotel / Event，不帶時為 Restaurant（Restaurant 會多出地方美食型任務）。
-        /// lat、lng、category、phone、website、operating_hours 只在建立新景點時使用，帶了 place_uid 會忽略。
+        /// sub_category（細分類，選填，例如「中式料理」）要是 category 底下的細分類，可選的值見 GET api/merchant/register/categories，不是的話回 400；
+        /// 不帶時 Restaurant、Attraction 為「其他」，Event 為「一般活動」，Hotel 不掛。
+        /// 新景點在 Neo4j 跟政府資料的景點一樣：加上 category 的類型標籤（:Restaurant…）、掛細分類，
+        /// 節點上帶名稱、介紹與介紹的語意向量（description_embedding，由 tools/embedding_service 計算，服務沒開時註冊照常成功、先不寫向量）。
+        /// lat、lng、category、sub_category、phone、website、operating_hours 只在建立新景點時使用，帶了 place_uid 會忽略。
         /// image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，
         /// 遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。
         ///

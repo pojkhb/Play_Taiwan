@@ -92,6 +92,7 @@ public class ApiFactory : WebApplicationFactory<Startup>, IAsyncLifetime
             ["Postcard:ImageRoot"] = Path.Combine(FogRoot, "postcards"),   // 抓回後端的明信片圖片也是
             ["AiService:TrafficLogRoot"] = AiLogRoot,
             ["VisitorAnalysisAi:BaseUrl"] = "http://localhost:8001",
+            ["EmbeddingService:BaseUrl"] = "http://localhost:8003",   // 由 FakeAi 的 /embed 回應
         }));
         builder.ConfigureTestServices(services =>
         {

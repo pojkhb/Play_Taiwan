@@ -181,8 +181,8 @@ namespace backend.Controllers
         /// - nodes：每一站的真正景點與照片、章節標題、到站與完成時的劇情、玩家在這站拍的照片、任務作答結果（玩完了迷霧都已散開）
         /// - postcards、badge、vlog：這趟拿到的明信片、抽到的勳章、做好的 Vlog
         /// - stats：站數、作答數、答對數、照片數、明信片數
-        /// - narration：旁白。text 直接顯示；audio_url 是 mp3，還沒產生過時為 null，
-        ///   使用者按播放時呼叫 POST /api/History/{story_id}/Recap/Narration 產生（第一次要等幾秒，之後直接回傳）
+        /// - narration：旁白，由劇本的 NPC（npc_name）唸。text 直接顯示；audio_url 是 wav，還沒產生過時為 null，
+        ///   使用者按播放時呼叫 POST /api/History/{story_id}/Recap/Narration 產生
         ///
         /// 旁白來源 narration.source：vlog＝玩家確認過的 Vlog 旁白；story＝依各站劇情自動組成。
         /// </remarks>
@@ -216,43 +216,52 @@ namespace backend.Controllers
         }
 
         /// <summary>
-        /// 產生回顧旁白的語音（mp3），回傳 audio_url。
+        /// 產生回顧旁白的語音（wav），由劇本的 NPC 唸。
         /// </summary>
         /// <remarks>
-        /// 使用者按下播放時呼叫。第一次會交給 AI 服務轉成語音（要等幾秒），之後同一段旁白直接回傳存好的檔案。
-        /// body 可省略；voice 可換聲音，預設 zh-TW-HsiaoChenNeural。
+        /// 使用者按下播放時呼叫。回應跟 POST /api/Npc/Speak 一樣：
+        /// - `done`：直接播放 audio_url（同一段旁白做過就直接回傳存好的檔案）
+        /// - `processing`：AI 排隊或生成中，每 2 秒用 GET /api/Npc/Speak/{job_id} 查進度，直到 done 或 failed
+        ///
+        /// body 可省略；`npc_name` 可改由其他 NPC 唸（選項由 GET /api/Npc/Options 取得）。
+        /// 錯誤：還沒玩完回 400；npc_name 不在名單上回 400；AI 服務任務已滿回 503（請稍後再試）。
         ///
         /// **Request 範例**：
         /// ```json
-        /// { "voice": "zh-TW-YunJheNeural" }
+        /// { "npc_name": "墨先生" }
         /// ```
         /// </remarks>
         [Authorize]
         [HttpPost]
         [Route("{story_id:int}/Recap/Narration")]
-        [ProducesResponseType(typeof(ResultViewModel<StoryRecapNarration>), 200)]
+        [ProducesResponseType(typeof(ResultViewModel<NpcSpeakResponse>), 200)]
         public async Task<IActionResult> Narrate(
             int story_id,
             [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] StoryRecapNarrationRequest req)
         {
             try
             {
-                StoryRecapNarration result = await _recap.NarrateAsync(User.GetAuId(), story_id, req?.voice, $"{Request.Scheme}://{Request.Host}");
-                return Ok(new ResultViewModel<StoryRecapNarration> { isSuccess = true, message = "旁白語音已產生", Result = result });
+                NpcSpeakResponse result = await _recap.NarrateAsync(User.GetAuId(), story_id, req?.npc_name);
+                result.audio_url = PublicUrl.Of(Request, result.audio_url);
+                return Ok(new ResultViewModel<NpcSpeakResponse> { isSuccess = true, message = NpcController.SpeakMessage(result), Result = result });
             }
             catch (KeyNotFoundException e)
             {
-                return NotFound(new ResultViewModel<StoryRecapNarration> { isSuccess = false, message = e.Message, Result = null });
+                return NotFound(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
-            catch (InvalidOperationException e)
+            catch (Exception e) when (e is InvalidOperationException or ArgumentException)
             {
-                return BadRequest(new ResultViewModel<StoryRecapNarration> { isSuccess = false, message = e.Message, Result = null });
+                return BadRequest(new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
+            }
+            catch (AiBusyException e)
+            {
+                return StatusCode(503, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
             catch (Exception e)
             {
                 // 語音由外部 AI 服務產生，失敗多半是 AI 服務的問題
                 _logger.LogError(e, "產生回顧旁白語音失敗");
-                return StatusCode(502, new ResultViewModel<StoryRecapNarration> { isSuccess = false, message = e.Message, Result = null });
+                return StatusCode(502, new ResultViewModel<string> { isSuccess = false, message = e.Message, Result = null });
             }
         }
 

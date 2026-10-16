@@ -203,6 +203,7 @@ namespace backend.Services
             if (File.Exists(stored)) return await File.ReadAllBytesAsync(stored);
 
             var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PlayTaiwan/1.0 (postcard)");   // Wikimedia 會擋沒有 User-Agent 的下載
             byte[] bytes = await client.GetByteArrayAsync(VlogAiGateway.ResolveUrl(postcard.p_imag_url));
             if (ContentTypeOf(bytes) == null)
                 throw new Exception($"明信片 (ID: {postcardId}) 的圖片連結回傳的不是圖片");

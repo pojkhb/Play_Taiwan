@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using backend.Services;
 using backend.util;
 using backend.utils;
@@ -67,12 +68,15 @@ namespace backend.Controllers
         }
 
         /// <summary>修改用戶資料（整筆覆蓋，不含密碼）。</summary>
-        /// <remarks>不能停用自己或拿掉自己的管理員身分；Email 跟其他帳號重複回 409。</remarks>
+        /// <remarks>
+        /// 不能停用自己或拿掉自己的管理員身分；Email 跟其他帳號重複回 409。
+        /// 商家帳號停用（is_active=false）時，自建景點在 Neo4j 跟著軟刪除，改回 true 時還原（同 DELETE）。
+        /// </remarks>
         [HttpPut]
         [Route("Users/{auId:int}")]
-        public IActionResult UpdateUser(int auId, [FromBody] AdminUserUpdateRequest req)
+        public async Task<IActionResult> UpdateUser(int auId, [FromBody] AdminUserUpdateRequest req)
         {
-            _service.UpdateUser(User.GetAuId(), auId, req);
+            await _service.UpdateUserAsync(User.GetAuId(), auId, req);
             return Ok(new ResultViewModel<object> { isSuccess = true, message = "用戶修改成功", Result = null });
         }
 
@@ -90,12 +94,16 @@ namespace backend.Controllers
         }
 
         /// <summary>刪除（停用）用戶。</summary>
-        /// <remarks>只把 is_active 設為 0，資料都保留，停用後無法登入；不能停用自己。</remarks>
+        /// <remarks>
+        /// 只把 is_active 設為 0，資料都保留，停用後無法登入；不能停用自己。
+        /// 商家帳號的自建景點在 Neo4j 跟著軟刪除：拿掉類型標籤與細分類、標成「永久歇業」，附近美食、劇本排景點、分類與語意搜尋都查不到；
+        /// 節點、版本與營業時間保留，舊劇本照樣查得到。同一個景點還有其他啟用中的商家綁定時不動；綁定政府資料景點的商家不動 Neo4j。
+        /// </remarks>
         [HttpDelete]
         [Route("Users/{auId:int}")]
-        public IActionResult DeleteUser(int auId)
+        public async Task<IActionResult> DeleteUser(int auId)
         {
-            _service.DeleteUser(User.GetAuId(), auId);
+            await _service.DeleteUserAsync(User.GetAuId(), auId);
             return Ok(new ResultViewModel<object> { isSuccess = true, message = "用戶已停用", Result = null });
         }
 

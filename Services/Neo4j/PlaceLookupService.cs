@@ -398,7 +398,7 @@ namespace backend.Services.Neo4j
 
         /// <summary>
         /// 指定 uid 中，座標落在範圍內的景點（行程規劃補商家景點用）。
-        /// 已刪除帳號的商家不在 uid 清單中（呼叫端傳現有商家的 store_uid），不會被查到。
+        /// 已停用帳號的商家不在 uid 清單中（呼叫端傳啟用中商家的 store_uid），不會被查到。
         /// </summary>
         public async Task<List<PlaceInfo>> GetPlacesInBoundsAsync(IEnumerable<string> uids, double minLat, double maxLat, double minLon, double maxLon)
         {

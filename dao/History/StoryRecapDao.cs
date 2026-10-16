@@ -32,15 +32,17 @@ namespace backend.dao
             public string city_name { get; set; }
             public string district_name { get; set; }
             public int is_night_mode { get; set; }
+            public string npc_name { get; set; }        // 劇本的 NPC（唸回顧旁白）；沒有指定時是預設 NPC
         }
 
         public async Task<StoryRow> GetStoryAsync(int storyId)
         {
             using var conn = Open();
-            return await conn.QueryFirstOrDefaultAsync<StoryRow>(@"
-                SELECT s_id, story_title, story_prologue, story_synopsis, city_name, district_name, is_night_mode
-                FROM story
-                WHERE s_id = @storyId AND is_active = 1;", new { storyId });
+            return await conn.QueryFirstOrDefaultAsync<StoryRow>($@"
+                SELECT s.s_id, s.story_title, s.story_prologue, s.story_synopsis, s.city_name, s.district_name, s.is_night_mode, n.npc_name
+                FROM story s
+                LEFT JOIN npc n ON n.npc_id = COALESCE(s.npc_id, {MapDao.DefaultNpcIdSql})
+                WHERE s.s_id = @storyId AND s.is_active = 1;", new { storyId });
         }
 
         public class CompletedSession

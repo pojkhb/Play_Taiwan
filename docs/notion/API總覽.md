@@ -1,6 +1,6 @@
 # Play Taiwan 後端 API 總覽
 
-更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 105 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
+更新日期：2026-10-07 ・ 依 GitHub main（239bbc9） 產生 ・ 共 109 支 API ・ 詳細參數請看 Swagger：`http://<伺服器>:5501/`（後端首頁就是 Swagger）
 
 完整清單在「API 清單」資料庫（同時匯入的 `API清單.csv`），可以依分類、狀態、對應畫面篩選。每支 API 的 Request／回傳 JSON 在最後的「每支 API 的 JSON」。
 
@@ -14,14 +14,14 @@
 | 欄位命名 | 跟 C# 屬性同名（`story_id`、`isSuccess`、`Result`），不會自動轉成小駝峰 |
 | JSON 範例的值 | 只代表型別：`"string"` 是字串、`0` 是整數、`0.0` 是小數、`false` 是布林、陣列只放一筆示意；實際值依資料而定，可能是 null |
 | 圖片網址 | `/` 開頭的（例如上傳的檔案）是後端上的檔案，要接在**伺服器網址**後面；`http` 開頭的（例如景點照片 `image_url`）直接用 |
-| 很久才回應的 API | 劇本生成（`GenerateGameStory`、`GenerateByText`）可能要好幾分鐘，請把逾時設長並顯示等待畫面；VLOG 合成送出後用 Status 輪詢 |
+| 很久才回應的 API | 現在揪出發（`GenerateGameStory`）送出後用 `GET /api/Story/GenerateGameStory/{job_id}` 輪詢；遊你說算（`GenerateByText`）送出後用 `GET /api/Story/GenerateByText/{job_id}` 輪詢；VLOG 合成送出後用 Status 輪詢；NPC 語音（Speak、Prologue、回顧旁白）拿到 processing 時用 `GET /api/Npc/Speak/{job_id}` 輪詢 |
 
 ## 狀態說明
 
 | 狀態 | 意思 | 數量 |
 |---|---|---|
-| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 78 |
-| ⚠️ 卡在 AI 服務 | 後端已用模擬的 AI 服務測過，正式環境卡在配璇的 AI 服務（10/6 AI 服務連不上，回 502） | 5 |
+| ✅ 實測可用 | 有自動化測試打過，或實際打過，正常 | 80 |
+| ⚠️ 卡在 AI 服務 | 後端已用模擬的 AI 服務測過，正式環境卡在配璇的 AI 服務（10/6 AI 服務連不上，回 502） | 6 |
 | ❌ 目前不能用 | 程式查的資料表不存在，呼叫會出錯 | 1 |
 | 🗑 舊版（不用接） | 舊版或內部用，前端不用接 | 2 |
 | 🛠 管理員用 | 管理員同步資料用 | 4 |
@@ -43,9 +43,11 @@
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 現在揪出發（定位或指定地區） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 一次生成 3 份劇本（劇本檔案館的 3 張車票）。會呼叫 AI，可能要好幾分鐘，前端請把逾時設長並顯示等待畫面。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支。節點有 image_url（車票圖片：剛生成的劇本每一站都還沒抵達，一律是迷霧圖）與 location_codename（模糊線索）；story.npc 是這份劇本的 NPC（名稱、身分、圖片、聲線） |
+| 現在揪出發（送出） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 一次生成 3 份劇本（劇本檔案館的 3 張車票）。規劃好景點、送給 AI 後立刻回 job_id（status=processing），劇本在背景生成；條件有問題（例如範圍內景點不夠）直接回 400。需要 Valhalla（Docker）。來點遊意思：前端轉盤抽出縣市後，用 city_name 呼叫這支 |
+| 現在揪出發（查進度） | `GET /api/Story/GenerateGameStory/{job_id}` | ⚠️ 卡在 AI 服務 | 每 3 秒查一次，直到 status 是 done（stories 有值）或 failed（看 error，可以請使用者重新送出）；processing 時 stage、finished_count／total_count 可以顯示在等待畫面（AI 一份約 20～40 秒，3 份依序生成）。完成後再查都回同一批劇本，不會重複存檔；只查得到自己送出的；某一份 AI 失敗時那份不會出現。節點有 image_url（車票圖片：剛生成的劇本每一站都還沒抵達，一律是迷霧圖）與 location_codename（模糊線索）；story.npc 是這份劇本的 NPC（名稱、身分、圖片、聲線） |
 | 來點遊意思（前端轉盤抽縣市後呼叫） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 同上方說明 |
-| 遊你說算 | `POST /api/Story/GenerateByText` | ⚠️ 卡在 AI 服務 | 遊你說算。AI 在背景生成，後端每 3 秒查一次進度，最多等 10 分鐘才回應；失敗時 message 會寫卡在哪個階段 |
+| 遊你說算（送出） | `POST /api/Story/GenerateByText` | ⚠️ 卡在 AI 服務 | 遊你說算。送出後立刻回 job_id（status=processing），劇本在背景生成 |
+| 遊你說算（查進度） | `GET /api/Story/GenerateByText/{job_id}` | ⚠️ 卡在 AI 服務 | 每 3 秒查一次，直到 status 是 done（story_id、data 有值）或 failed（看 error，可以請使用者重新送出）；processing 時 stage 可以顯示在等待畫面。完成後再查都回同一份劇本，不會重複存檔；只查得到自己送出的 |
 
 ### 三、組隊集結
 
@@ -62,8 +64,8 @@
 
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
-| 三份劇本（標題、前傳、照片、模糊線索、預計獲得） | `POST /api/Story/GenerateGameStory` | ⚠️ 卡在 AI 服務 | 同上方說明 |
-| 重新查詢劇本內容 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | npc：劇本的 NPC（name、role、intro、avatar_url、voice），沒指定時是預設的薯光；每站有 npc_name 與 task_type（任務類型）；is_night_mode 是日夜；每站的 image_url 跟地圖同一個規則：抵達過是景點照片（Neo4j），還沒抵達是迷霧圖 |
+| 三份劇本（標題、前傳、照片、模糊線索、預計獲得） | `GET /api/Story/GenerateGameStory/{job_id}` | ⚠️ 卡在 AI 服務 | status 是 done 時的 stories（用 POST /api/Story/GenerateGameStory 送出後輪詢） |
+| 重新查詢劇本內容 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | npc：劇本的 NPC（name、role、intro、avatar_url），沒指定時是預設的薯光；每站有 npc_name 與 task_type（任務類型）；is_night_mode 是日夜；每站的 image_url 跟地圖同一個規則：抵達過是景點照片（Neo4j），還沒抵達是迷霧圖 |
 | 加入 Google 行事曆 | `POST /api/Story/{story_id}/Calendar` | ✅ 實測可用 | 回傳 google_calendar_url，前端用 url_launcher 打開，使用者按「儲存」就加進自己的 Google 行事曆，不需要授權。body 可省略（預設明天 10:00，夜間劇本 19:00）。地點只放第一站，其他站在迷霧中不會出現 |
 | 喜愛／取消喜愛 | `POST /api/Story/{story_id}/Favorite` | ✅ 實測可用 | body：{ "is_favorite": true/false }。只能設定自己的劇本，劇本詳情會帶 is_favorite |
 | 我喜愛的劇本 | `GET /api/Story/Favorites` | ✅ 實測可用 | 每筆有標題、簡介、地區、站數、日夜、封面、是否已玩完。封面 cover_image_url 是第一站的圖片：抵達過是景點照片（Neo4j），還沒抵達是迷霧圖 |
@@ -74,7 +76,8 @@
 |---|---|---|---|
 | 確認劇本、開始遊玩 | `POST /api/Story/Confirm` | ✅ 實測可用 | 回傳內容跟 Detail 一樣；每站的 image_url 還沒抵達是迷霧圖 |
 | 前傳文字 | `GET /api/Story/{story_id}/Detail` | ✅ 實測可用 | 同上方說明 |
-| NPC 語音 | `POST /api/Npc/Prologue/{story_id}` | ✅ 實測可用 | 回傳 audio_url（mp3），直接播放。voice 可省略，預設用劇本 NPC 的聲線 |
+| NPC 語音 | `POST /api/Npc/Prologue/{story_id}` | ✅ 實測可用 | 由劇本的 NPC 唸前傳（npc_name 可省略）。status 是 done 直接播放 audio_url（wav）；processing 時每 2 秒用 `GET /api/Npc/Speak/{job_id}` 查到 done |
+| 語音進度 | `GET /api/Npc/Speak/{job_id}` | ✅ 實測可用 | processing＝還在排隊或生成；done＝播放 audio_url；failed＝看 error，使用者再按一次播放就重新送出 |
 
 ### 六、解謎地圖
 
@@ -85,7 +88,9 @@
 | 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 | 要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開 |
 | 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_avatar_url 是這一站的 NPC |
 | 開始導航 | `POST /api/Map/Navigate` | ✅ 實測可用 | 還在迷霧中的站回傳 403（避免洩漏精確位置） |
-| NPC 互動 | `GET /api/Map/Node/{node_id}/Interact` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url、npc_voice 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白。內容是固定的（不是隨機）：同一站每次呼叫都一樣，跟 Task/Node 的 node.opening_text 是同一段；「回顧劇情」的背景圖用 scene_image_url |
+| NPC 互動 | `GET /api/Map/Node/{node_id}/Interact` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白。內容是固定的（不是隨機）：同一站每次呼叫都一樣，跟 Task/Node 的 node.opening_text 是同一段；「回顧劇情」的背景圖用 scene_image_url |
+| NPC 台詞語音 | `POST /api/Npc/Speak` | ✅ 實測可用 | text 帶台詞（NPC 互動的 npc_dialogue、節點遊玩畫面的 opening_text／success_text 等），npc_name 帶畫面上的 NPC 名字；回應跟劇情前傳語音一樣，processing 時用 `GET /api/Npc/Speak/{job_id}` 查進度 |
+| NPC 下拉選單 | `GET /api/Npc/Options` | ✅ 實測可用 | 可以唸台詞的 NPC 名單（value 帶進 npc_name），預設選項是薯光。前傳、回顧旁白預設由劇本的 NPC 唸，用劇本詳情的 npc.name、回顧的 narration.npc_name 選好預設值 |
 | 交通規劃 | `POST /api/Route/Plan` | ✅ 實測可用 | 帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來）。legs[].options 是這一段所有的走法，可以全部畫在地圖上讓使用者點選切換：is_chosen 的那條是主路線，其餘畫成灰色；用 option_id 記住使用者選了哪一條。每種交通方式一條，現在要走的那一段（帶劇本是 is_current 的那一段，自選地點是第一段）步行／腳踏車／機車／汽車還會多給最多 2 條同一種交通方式的替代走法（is_alternative = true）|
 | 節點遊玩畫面（劇情、NPC、題目） | `GET /api/Task/Node/{node_id}` | ✅ 實測可用 | 取代舊的 Task/List。要先 Arrive 抵達這一站（否則 409）；npc 是說開場白、出題的 NPC（名稱、身分、圖片、聲線）；每題的 answer_mode 決定作答時帶哪個欄位 |
 | 周邊好去處 | `GET /api/Map/{story_id}/Nearby` | ✅ 實測可用 |  |
@@ -117,10 +122,11 @@
 |---|---|---|---|
 | 通關紀錄 | `GET /api/History` | ✅ 實測可用 | 同上方說明 |
 | 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 | photos：上方左右滑動的照片，玩家拍的照片（is_place_photo = false），沒拍照片的站補上那一站的景點照片（is_place_photo = true，Neo4j）；cover_image_url 跟列表同一張 |
-| 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
-| 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫。第一次交給 AI 轉語音要等幾秒，之後直接回傳存好的 mp3。body 可省略，voice 可換聲音 |
+| 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.npc_name 是唸旁白的 NPC（劇本的 NPC）；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
+| 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫，由劇本的 NPC 唸。done 直接播放 audio_url（wav，做過的旁白直接回傳）；processing 時每 2 秒用 `GET /api/Npc/Speak/{job_id}` 查進度。body 可省略，npc_name 可改由其他 NPC 唸 |
 | 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
 | Vlog 旁白草稿 | `POST /api/VisitorVlog/Preview` | ⚠️ 卡在 AI 服務 | 後端已用模擬 AI 測過；AI 服務 10/6 連不上（502），9/30 時 AI 端是 CUDA 錯誤 |
+| Vlog 合成選項（下拉選單） | `GET /api/VisitorVlog/Options` | ⬜ 未實測 | 選單顯示 label（description 有值時可當小字），送 CreateFinal 時帶 value；is_default 是預設值，玩家沒選可以不帶 |
 | Vlog 合成 | `POST /api/VisitorVlog/CreateFinal` | ✅ 實測可用 | 照片：玩家拍的優先，某站沒拍就用景點照片。送出後用 Status 輪詢（建議每 5–10 秒）直到 status=3 拿 video_url |
 | Vlog 進度與影片 | `GET /api/VisitorVlog/Status/{story_id}` | ✅ 實測可用 | 只帶劇本 ID，後端用 CreateFinal 時記下的 task_id 向 AI 查進度；AI 回報失敗或任務遺失（AI 重啟）會變 status=4，可以再呼叫 CreateFinal 重送 |
 
@@ -130,7 +136,7 @@
 |---|---|---|---|
 | 敘事語氣選項 | `GET /api/MerchantVlog/Tones` | ✅ 實測可用 |  |
 | 商家 VLOG 草稿 | `POST /api/MerchantVlog/Preview` | ⚠️ 卡在 AI 服務 | multipart/form-data；images 可重複放多張。AI 會先到它自己的 Neo4j 查店家，查不到就回「不進行幻覺補全」；AI 端 Neo4j 目前沒開 |
-| 商家 VLOG 合成 | `POST /api/MerchantVlog/CreateFinal` | ✅ 實測可用 | 自動附上背景音樂 wwwroot/bgm/default_bgm.mp3 |
+| 商家 VLOG 合成 | `POST /api/MerchantVlog/CreateFinal` | ✅ 實測可用 | 每張照片標上店名一起送給 AI；背景音樂由 AI 依旁白自動挑選。HEIC 照片不能合成（Preview 上傳時就會擋下） |
 | 商家 VLOG 進度 | `GET /api/MerchantVlog/Status/{mm_id}` | ✅ 實測可用 | AI 回報失敗或任務遺失（AI 重啟）會變 status=4，可以再呼叫 CreateFinal 重送 |
 | 已生成檔案 | `GET /api/Merchant/Files` | ✅ 實測可用 |  |
 | 商家註冊 | `POST /api/Merchant/Register` | ⬜ 未實測 | place_uid 與 new_place 二擇一；需要 Neo4j 的 playtaiwandb。Email 重複註冊失敗時不會在 Neo4j 留下孤兒景點 |
@@ -164,12 +170,14 @@
 |---|---|---|---|---|
 | `GET /api/Home/Overview` | 取得首頁目前總覽資訊 | 需要 | ✅ 實測可用 |  |
 
-### 劇本生成（3）
+### 劇本生成（4）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
-| `POST /api/Story/GenerateByText` | 接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入 | 需要 | ⚠️ 卡在 AI 服務 | JSON：user_prompt（string） |
-| `POST /api/Story/GenerateGameStory` | 依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫 | 需要 | ⚠️ 卡在 AI 服務 | JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preference |
+| `POST /api/Story/GenerateByText` | 接收使用者輸入的一句自然語言描述，送給外部 AI 服務解析條件並生成劇本（送出後立刻回傳 job_id） | 需要 | ⚠️ 卡在 AI 服務 | JSON：user_prompt（string） |
+| `GET /api/Story/GenerateByText/{job_id}` | 查詢「遊你說了算」的生成進度；生成完成時在這次查詢存成劇本並回傳 | 需要 | ⚠️ 卡在 AI 服務 | job_id（路徑，string） |
+| `POST /api/Story/GenerateGameStory` | 依使用者位置與交通方式自動挑景點，由 AI 生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫（送出後立刻回傳 job_id） | 需要 | ⚠️ 卡在 AI 服務 | JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preference |
+| `GET /api/Story/GenerateGameStory/{job_id}` | 查詢「現在揪出發」的生成進度；AI 全部做完時在這次查詢存成劇本並回傳 | 需要 | ⚠️ 卡在 AI 服務 | job_id（路徑，string） |
 | `POST /api/Story/spin` | 接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推 | 需要 | ⚠️ 卡在 AI 服務 | JSON：input_text（string）、emotion_label（string）、city_name（string）、town_name（string） |
 
 ### 劇本（7）
@@ -196,12 +204,14 @@
 | `POST /api/Pair/Story/{story_id}/Location` | 回報自己的位置，並拿到隊友的位置（地圖上顯示隊友在哪） | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：lat（number）、lng（number）、accuracy（number）、heading（number） |
 | `GET /api/Pair/Story/{story_id}/Locations` | 查看隊友的位置（不回報自己的位置） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 
-### NPC 語音（2）
+### NPC 語音（4）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
-| `POST /api/Npc/Prologue/{story_id}` | 劇情前傳語音：唸指定劇本的前傳 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；voice（查詢，string） |
-| `POST /api/Npc/Speak` | NPC 說話：任意文字轉語音（節點對話、任務說明等） | 需要 | ✅ 實測可用 | JSON：text（string）、voice（string） |
+| `GET /api/Npc/Options` | NPC 下拉選單：可以唸台詞的 NPC 名單 | 需要 | ✅ 實測可用 |  |
+| `POST /api/Npc/Prologue/{story_id}` | 劇情前傳語音：唸指定劇本的前傳 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；npc_name（查詢，string） |
+| `POST /api/Npc/Speak` | NPC 說話：任意文字轉語音（節點對話、任務說明等） | 需要 | ✅ 實測可用 | JSON：text（string）、npc_name（string） |
+| `GET /api/Npc/Speak/{job_id}` | 查詢 NPC 語音進度 | 需要 | ✅ 實測可用 | job_id（路徑，string） |
 
 ### 解謎地圖（9）
 
@@ -278,13 +288,14 @@
 | `GET /api/History` | 取得目前探員的所有過往劇本清單 | 需要 | ✅ 實測可用 |  |
 | `GET /api/History/{story_id}` | 取得單一過往劇本的詳細內容 (包含所有經歷過的景點清單) | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 | `GET /api/History/{story_id}/Recap` | 劇本回顧：玩完的劇本一次拿到劇情、每一站、收穫、統計與旁白 | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
-| `POST /api/History/{story_id}/Recap/Narration` | 產生回顧旁白的語音（mp3），回傳 audio_url | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：voice（string） |
+| `POST /api/History/{story_id}/Recap/Narration` | 產生回顧旁白的語音（wav），由劇本的 NPC 唸 | 需要 | ✅ 實測可用 | story_id（路徑，integer）；JSON：npc_name（string） |
 
-### 遊客 VLOG（3）
+### 遊客 VLOG（4）
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
-| `POST /api/VisitorVlog/CreateFinal` | 送出確認後的旁白，後端打包照片與景點資料送去合成影片 | 需要 | ✅ 實測可用 | JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]） |
+| `POST /api/VisitorVlog/CreateFinal` | 送出確認後的旁白，後端打包照片與景點資料送去合成影片 | 需要 | ✅ 實測可用 | JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]）、user_memory_text（string，選填）、bgm_mood（string，選填）、video_orientation（string，選填） |
+| `GET /api/VisitorVlog/Options` | 取得 CreateFinal 選填欄位的下拉選單選項（配樂風格、影片方向） | 需要 | ⬜ 未實測 |  |
 | `POST /api/VisitorVlog/Preview` | 遊戲結束後，依 story_id 產生 VLOG 旁白草稿 | 需要 | ⚠️ 卡在 AI 服務 | JSON：story_id（integer） |
 | `GET /api/VisitorVlog/Status/{story_id}` | 查詢這個劇本的 VLOG（影片、旁白、宣傳文案） | 需要 | ✅ 實測可用 | story_id（路徑，integer） |
 
@@ -523,7 +534,7 @@ Request：
 
 ### 劇本生成
 
-#### `POST /api/Story/GenerateByText`　接收使用者輸入的一句自然語言描述，由外部 AI 服務自動解析出城市/行政區/人數/偏好等條件， 並直接生成完整劇本、寫入
+#### `POST /api/Story/GenerateByText`　接收使用者輸入的一句自然語言描述，送給外部 AI 服務解析條件並生成劇本（送出後立刻回傳 job_id）
 
 參數：JSON：user_prompt（string）
 
@@ -535,10 +546,14 @@ Request：
 }
 ```
 
-回傳：
+回傳（送出時 status 是 processing，只有 job_id、status、stage 有值）：
 
 ```json
 {
+  "job_id": "string",
+  "status": "string",
+  "stage": "string",
+  "error": "string",
   "story_id": 0,
   "detected_city": "string",
   "detected_town": "string",
@@ -569,6 +584,7 @@ Request：
       {
         "node_order": 0,
         "place_name": "string",
+        "spot_uuid": "string",
         "location_codename": "string",
         "node_title": "string",
         "task_type": "string",
@@ -583,7 +599,64 @@ Request：
 }
 ```
 
-#### `POST /api/Story/GenerateGameStory`　依使用者位置與交通方式自動挑景點，由 AI 一次生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫
+#### `GET /api/Story/GenerateByText/{job_id}`　查詢「遊你說了算」的生成進度；生成完成時在這次查詢存成劇本並回傳
+
+參數：job_id（路徑，string）
+
+回傳（status：processing＝還在生成，stage 是目前階段；done＝story_id、data 有值；failed＝看 error）：
+
+```json
+{
+  "job_id": "string",
+  "status": "string",
+  "stage": "string",
+  "error": "string",
+  "story_id": 0,
+  "detected_city": "string",
+  "detected_town": "string",
+  "parsed_intent": {
+    "city_name": "string",
+    "town_name": "string",
+    "traveler_count": 0,
+    "preferences": [
+      "string"
+    ],
+    "transportation": [
+      "string"
+    ],
+    "node_count": 0,
+    "is_night": false
+  },
+  "data": {
+    "title": "string",
+    "preface": "string",
+    "synopsis": "string",
+    "is_night_mode": false,
+    "npc": {
+      "name": "string",
+      "role": "string",
+      "intro": "string"
+    },
+    "nodes": [
+      {
+        "node_order": 0,
+        "place_name": "string",
+        "spot_uuid": "string",
+        "location_codename": "string",
+        "node_title": "string",
+        "task_type": "string",
+        "task_description": "string",
+        "dialogues": {
+          "opening": "string",
+          "success": "string"
+        }
+      }
+    ]
+  }
+}
+```
+
+#### `POST /api/Story/GenerateGameStory`　依使用者位置與交通方式自動挑景點，由 AI 生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫（送出後立刻回傳 job_id）
 
 參數：JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、max_minutes（integer，可省略）、start_time（datetime，可省略）
 
@@ -611,100 +684,127 @@ Request：
 }
 ```
 
+- 送出後立刻回傳 job_id（status 是 processing），再每 3 秒呼叫 `GET /api/Story/GenerateGameStory/{job_id}` 查進度，劇本內容在那支的回傳
+- 條件有問題（例如範圍內景點不夠、地名轉不出經緯度）直接回 400，不會送出工作
+
+回傳（送出時 status 是 processing，stories 是 null）：
+
+```json
+{
+  "job_id": "string",
+  "status": "string",
+  "stage": "string",
+  "total_count": 0,
+  "finished_count": 0,
+  "error": "string",
+  "stories": null
+}
+```
+
+#### `GET /api/Story/GenerateGameStory/{job_id}`　查詢「現在揪出發」的生成進度；AI 全部做完時在這次查詢存成劇本並回傳
+
+參數：job_id（路徑，string）
+
+- status：processing＝還在生成（stage 是目前進度，例如「排隊中」「劇本生成中（已完成 1/3 份）」「存檔中」）；done＝stories 有值；failed＝看 error
+- 某一份 AI 生成失敗時那份不會出現，stories 可能少於 total_count 份；超過 10 分鐘時已經做好的幾份照樣回傳，一份都沒做好才是 failed
+- 回應不含正確答案、提示與各座位線索（task_hint、correct_answer、task_clue、選項的 is_correct 都是 null），抵達節點後由 `GET /api/Task/Node/{node_id}` 取得
+
 回傳：
 
 ```json
-[
-  {
-    "story_id": 0,
-    "story_no": 0,
-    "nt_name": "string",
-    "story": {
-      "city_name": "string",
-      "district_name": "string",
-      "party_size": 0,
-      "sd_transport": [
-        "string"
-      ],
-      "story_title": "string",
-      "story_prologue": "string",
-      "story_synopsis": "string",
-      "story_badge": [
-        "string"
-      ],
-      "story_postcards": 0,
-      "is_night_mode": 0,
-      "npc": {
-        "npc_id": 0,
-        "npc_name": "string",
-        "npc_role": "string",
-        "npc_intro": "string",
-        "npc_avatar_url": "string",
-        "npc_voice": "string"
-      }
-    },
-    "nodes": [
-      {
-        "sn_id": 0,
-        "place_id": "string",
-        "p_name": "string",
-        "npc_id": 0,
-        "sn_order": 0,
-        "sn_title": "string",
-        "location_codename": "string",
-        "image_url": "string",
-        "sn_task_type": "string",
-        "is_hidden": 0,
-        "is_night_only": 0,
-        "estimated_arrival": "2026-10-14T13:42:00",
-        "sn_opening_text": "string",
-        "sn_success_text": "string",
-        "tasks": [
-          {
-            "task_id": 0,
-            "task_type": 0,
-            "type_name": "string",
-            "question_id": 0,
-            "task_describe": "string",
-            "task_hint": "string",
-            "correct_answer": "string",
-            "task_option": [
-              {}
-            ],
-            "task_clue": [
-              {}
-            ]
-          }
+{
+  "job_id": "string",
+  "status": "string",
+  "stage": "string",
+  "total_count": 0,
+  "finished_count": 0,
+  "error": "string",
+  "stories": [
+    {
+      "story_id": 0,
+      "story_no": 0,
+      "nt_name": "string",
+      "story": {
+        "city_name": "string",
+        "district_name": "string",
+        "party_size": 0,
+        "sd_transport": [
+          "string"
         ],
-        "transit": [
-          {
-            "from_sn_id": 0,
-            "to_sn_id": 0,
-            "leg_order": 0,
-            "route_name": "string",
-            "sub_route_name": "string",
-            "route_type": 0,
-            "route_type_name": "string",
-            "tripper_theme": "string",
-            "headsign": "string",
-            "board_stop_name": "string",
-            "alight_stop_name": "string",
-            "stop_count": 0,
-            "est_ride_minutes": 0.0,
-            "stops": [
-              {}
-            ],
-            "coordinates": [
-              [
-                0.0
+        "story_title": "string",
+        "story_prologue": "string",
+        "story_synopsis": "string",
+        "story_badge": [
+          "string"
+        ],
+        "story_postcards": 0,
+        "is_night_mode": 0,
+        "npc": {
+          "npc_id": 0,
+          "npc_name": "string",
+          "npc_role": "string",
+          "npc_intro": "string",
+          "npc_avatar_url": "string"
+        }
+      },
+      "nodes": [
+        {
+          "sn_id": 0,
+          "place_id": "string",
+          "p_name": "string",
+          "npc_id": 0,
+          "sn_order": 0,
+          "sn_title": "string",
+          "location_codename": "string",
+          "image_url": "string",
+          "sn_task_type": "string",
+          "is_hidden": 0,
+          "is_night_only": 0,
+          "estimated_arrival": "2026-10-14T13:42:00",
+          "sn_opening_text": "string",
+          "sn_success_text": "string",
+          "tasks": [
+            {
+              "task_id": 0,
+              "task_type": 0,
+              "type_name": "string",
+              "question_id": 0,
+              "task_describe": "string",
+              "task_option": [
+                {}
               ]
-            ]
-          }
-        ]
-      }
-    ]
-  }
-]
+            }
+          ],
+          "transit": [
+            {
+              "from_sn_id": 0,
+              "to_sn_id": 0,
+              "leg_order": 0,
+              "route_name": "string",
+              "sub_route_name": "string",
+              "route_type": 0,
+              "route_type_name": "string",
+              "tripper_theme": "string",
+              "headsign": "string",
+              "board_stop_name": "string",
+              "alight_stop_name": "string",
+              "stop_count": 0,
+              "est_ride_minutes": 0.0,
+              "stops": [
+                {}
+              ],
+              "coordinates": [
+                [
+                  0.0
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
 ```
 
 #### `POST /api/Story/spin`　接收前端傳入的語音文字、情緒標籤與城市/行政區， 後端先將城市/行政區轉換為經緯度，再透過 AI Agent 服務即時推
@@ -794,8 +894,7 @@ Request：
     "name": "string",
     "role": "string",
     "intro": "string",
-    "avatar_url": "string",
-    "voice": "string"
+    "avatar_url": "string"
   },
   "nodes": [
     {
@@ -917,8 +1016,7 @@ Request：
     "name": "string",
     "role": "string",
     "intro": "string",
-    "avatar_url": "string",
-    "voice": "string"
+    "avatar_url": "string"
   },
   "nodes": [
     {
@@ -1173,30 +1271,49 @@ Request：
 
 ### NPC 語音
 
+#### `GET /api/Npc/Options`　NPC 下拉選單：可以唸台詞的 NPC 名單
+
+回傳：
+
+```json
+[
+  {
+    "value": "string",
+    "label": "string",
+    "description": "string",
+    "avatar_url": "string",
+    "is_default": false
+  }
+]
+```
+
 #### `POST /api/Npc/Prologue/{story_id}`　劇情前傳語音：唸指定劇本的前傳
 
-參數：story_id（路徑，integer）；voice（查詢，string）
+參數：story_id（路徑，integer）；npc_name（查詢，string）
 
 回傳：
 
 ```json
 {
-  "text": "string",
-  "voice": "string",
-  "audio_url": "string"
+  "status": "string",
+  "job_id": "string",
+  "stage": "string",
+  "queue_position": 0,
+  "audio_url": "string",
+  "error": "string"
 }
 ```
 
 #### `POST /api/Npc/Speak`　NPC 說話：任意文字轉語音（節點對話、任務說明等）
 
-參數：JSON：text（string）、voice（string）
+參數：JSON：text（string）、npc_name（string）
 
 Request：
 
 ```json
 {
   "text": "string",
-  "voice": "string"
+  "npc_name": "string"
 }
 ```
 
@@ -1204,9 +1321,29 @@ Request：
 
 ```json
 {
-  "text": "string",
-  "voice": "string",
-  "audio_url": "string"
+  "status": "string",
+  "job_id": "string",
+  "stage": "string",
+  "queue_position": 0,
+  "audio_url": "string",
+  "error": "string"
+}
+```
+
+#### `GET /api/Npc/Speak/{job_id}`　查詢 NPC 語音進度
+
+參數：job_id（路徑，string）
+
+回傳：
+
+```json
+{
+  "status": "string",
+  "job_id": "string",
+  "stage": "string",
+  "queue_position": 0,
+  "audio_url": "string",
+  "error": "string"
 }
 ```
 
@@ -1317,7 +1454,6 @@ Request：
   "npc_name": "string",
   "npc_role": "string",
   "npc_avatar_url": "string",
-  "npc_voice": "string",
   "npc_dialogue": "string",
   "emotion": "string",
   "skip_button_text": "string",
@@ -2049,8 +2185,7 @@ Request：
     "npc_id": 0,
     "npc_name": "string",
     "npc_role": "string",
-    "npc_avatar_url": "string",
-    "npc_voice": "string"
+    "npc_avatar_url": "string"
   },
   "my_seat_no": 0,
   "progress": {
@@ -2459,20 +2594,21 @@ Request：
   "narration": {
     "source": "string",
     "text": "string",
+    "npc_name": "string",
     "audio_url": "string"
   }
 }
 ```
 
-#### `POST /api/History/{story_id}/Recap/Narration`　產生回顧旁白的語音（mp3），回傳 audio_url
+#### `POST /api/History/{story_id}/Recap/Narration`　產生回顧旁白的語音（wav），由劇本的 NPC 唸
 
-參數：story_id（路徑，integer）；JSON：voice（string）
+參數：story_id（路徑，integer）；JSON：npc_name（string）
 
 Request：
 
 ```json
 {
-  "voice": "string"
+  "npc_name": "string"
 }
 ```
 
@@ -2480,9 +2616,12 @@ Request：
 
 ```json
 {
-  "source": "string",
-  "text": "string",
-  "audio_url": "string"
+  "status": "string",
+  "job_id": "string",
+  "stage": "string",
+  "queue_position": 0,
+  "audio_url": "string",
+  "error": "string"
 }
 ```
 
@@ -2490,7 +2629,13 @@ Request：
 
 #### `POST /api/VisitorVlog/CreateFinal`　送出確認後的旁白，後端打包照片與景點資料送去合成影片
 
-參數：JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]）
+參數：JSON：story_id（integer）、final_script（string）、promo_copy（string）、seo_keywords（string[]）、user_memory_text（string，選填）、bgm_mood（string，選填）、video_orientation（string，選填）
+
+選填的合成選項（不帶就用預設值）：
+
+- `user_memory_text`：玩家自己寫的旅遊感想，最多 3000 字，只給 AI 判斷配樂風格，不會出現在影片裡
+- `bgm_mood`：配樂風格，`auto`（預設，依旁白自動挑選）、`cheerful` 輕快、`relaxed` 悠閒、`warm` 溫馨、`nostalgic` 回憶、`adventurous` 探索、`neutral` 中性、`none` 不配樂
+- `video_orientation`：`landscape`（預設，橫式 1920×1080）、`portrait`（直式 1080×1920）
 
 Request：
 
@@ -2501,7 +2646,10 @@ Request：
   "promo_copy": "string",
   "seo_keywords": [
     "string"
-  ]
+  ],
+  "user_memory_text": "string",
+  "bgm_mood": "auto",
+  "video_orientation": "landscape"
 }
 ```
 
@@ -2515,6 +2663,34 @@ Request：
   "photo_count": 0,
   "status": 0,
   "status_text": "string"
+}
+```
+
+#### `GET /api/VisitorVlog/Options`　取得 CreateFinal 選填欄位的下拉選單選項（配樂風格、影片方向）
+
+選單顯示 label（description 有值時可當小字），送 CreateFinal 時帶 value；is_default 是預設值，玩家沒選可以不帶。
+
+回傳：
+
+```json
+{
+  "bgm_moods": [
+    {
+      "value": "auto",
+      "label": "自動選曲",
+      "description": "AI 分析旁白和旅遊感想，自動挑選配樂",
+      "is_default": true
+    }
+  ],
+  "video_orientations": [
+    {
+      "value": "landscape",
+      "label": "橫式",
+      "description": "1920×1080",
+      "is_default": true
+    }
+  ],
+  "user_memory_text_max_length": 3000
 }
 ```
 

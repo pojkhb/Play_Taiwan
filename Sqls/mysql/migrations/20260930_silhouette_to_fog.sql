@@ -2,7 +2,7 @@
 -- 未解鎖的站顯示景點照片的霧化版，後端在生成劇本（或第一次打開地圖）時自動產生
 -- 已經建好的資料庫執行一次即可；新建的資料庫直接用 schema.sql + seed_reference.sql，不用跑這支
 --
---   mysql -u root -p play_taiwan_db < Sqls/mysql/20260930_silhouette_to_fog.sql
+--   mysql -u root -p play_taiwan_db < Sqls/mysql/migrations/20260930_silhouette_to_fog.sql
 --
 -- 注意：會刪除 silhouette、story_node_silhouette 兩張表與裡面的剪影資料
 

@@ -1,5 +1,5 @@
 // 檔案路徑：System\ViewModels\History\StoryRecapViewModels.cs
-// 劇本回顧：GET /api/History/{story_id}/Recap（一次回傳整趟旅程）、POST .../Recap/Narration（旁白語音）
+// 劇本回顧：GET /api/History/{story_id}/Recap（一次回傳整趟旅程）、POST .../Recap/Narration（旁白語音，由劇本的 NPC 唸）
 using System;
 using System.Collections.Generic;
 
@@ -157,14 +157,17 @@ namespace backend.ViewModels
         /// <summary>旁白文字（最多 1000 字）</summary>
         public string text { get; set; }
 
-        /// <summary>旁白語音（mp3）；還沒產生過時為 null，按播放時呼叫 POST .../Recap/Narration 產生</summary>
+        /// <summary>唸旁白的 NPC：這個劇本的 NPC（沒有指定時是薯光）</summary>
+        public string npc_name { get; set; }
+
+        /// <summary>旁白語音（wav，由 npc_name 唸）；還沒產生過時為 null，按播放時呼叫 POST .../Recap/Narration 產生</summary>
         public string audio_url { get; set; }
     }
 
     /// <summary>產生旁白語音的請求（body 可省略）</summary>
     public class StoryRecapNarrationRequest
     {
-        /// <summary>聲音，例如 zh-TW-HsiaoChenNeural（預設）、zh-TW-YunJheNeural</summary>
-        public string voice { get; set; }
+        /// <summary>改由哪位 NPC 唸（選項由 GET /api/Npc/Options 取得）；不帶時由這個劇本的 NPC 唸</summary>
+        public string npc_name { get; set; }
     }
 }

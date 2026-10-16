@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using backend.dao;
 using backend.Models;
+using backend.Services.Neo4j;
 using backend.utils;
 using backend.ViewModels;
 using Microsoft.Extensions.Options;
@@ -19,11 +21,13 @@ namespace backend.Services
         private const int AdminAuthType = 3;
 
         private readonly AdminDao _dao;
+        private readonly PlaceVersionChainService _placeService;
         private readonly AppSettings _appSettings;
 
-        public AdminService(AdminDao dao, IOptions<AppSettings> appSettings)
+        public AdminService(AdminDao dao, PlaceVersionChainService placeService, IOptions<AppSettings> appSettings)
         {
             _dao = dao;
+            _placeService = placeService;
             _appSettings = appSettings.Value;
         }
 
@@ -66,8 +70,11 @@ namespace backend.Services
             return _dao.CreateUser(req, HashPassword(req.auth_pswd));
         }
 
-        /// <summary>operatorAuId 是目前登入的管理員，不能停用自己或拿掉自己的管理員身分</summary>
-        public void UpdateUser(int operatorAuId, int auId, AdminUserUpdateRequest req)
+        /// <summary>
+        /// operatorAuId 是目前登入的管理員，不能停用自己或拿掉自己的管理員身分。
+        /// 商家帳號停用、啟用時，自建景點在 Neo4j 跟著軟刪除、還原（見 SyncMerchantPlaceAsync）。
+        /// </summary>
+        public async Task UpdateUserAsync(int operatorAuId, int auId, AdminUserUpdateRequest req)
         {
             req.auth_name = Required(req.auth_name, "使用者名稱");
             req.auth_email = Required(req.auth_email, "Email");
@@ -79,6 +86,7 @@ namespace backend.Services
             if (_dao.EmailTaken(req.auth_email, auId)) throw new ConflictException("此 Email 已被其他帳號使用");
 
             _dao.UpdateUser(auId, req);
+            await SyncMerchantPlaceAsync(auId);
         }
 
         public void ResetUserPassword(int auId, string newPassword)
@@ -89,13 +97,35 @@ namespace backend.Services
             _dao.UpdateUserPassword(auId, HashPassword(newPassword));
         }
 
-        /// <summary>停用帳號（軟刪除），停用後無法登入</summary>
-        public void DeleteUser(int operatorAuId, int auId)
+        /// <summary>停用帳號（軟刪除），停用後無法登入；商家的自建景點在 Neo4j 跟著軟刪除</summary>
+        public async Task DeleteUserAsync(int operatorAuId, int auId)
         {
             if (auId == operatorAuId) throw new BadRequestException("不能停用自己的帳號");
             if (!_dao.UserExists(auId)) throw new NotFoundException($"找不到 au_id={auId} 的用戶");
 
             _dao.SetUserActive(auId, false);
+            await SyncMerchantPlaceAsync(auId);
+        }
+
+        /// <summary>
+        /// 商家帳號停用、啟用後，自建景點在 Neo4j 跟著軟刪除、還原（PlaceVersionChainService.DeactivateMerchantPlaceAsync / ReactivateMerchantPlaceAsync）：
+        /// 停用後附近美食、劇本排景點、分類與語意搜尋都查不到，啟用後補回分類。
+        /// 同一個景點還有其他啟用中的帳號綁定時不停用；綁定政府資料景點的商家不動 Neo4j（只處理 :MerchantPlace）。
+        /// 兩個操作重複執行也沒關係，MySQL 改好但 Neo4j 失敗時，管理員再送一次就會補上。
+        /// </summary>
+        private async Task SyncMerchantPlaceAsync(int auId)
+        {
+            string storeUid = _dao.GetStoreUid(auId);
+            if (storeUid == null) return;
+
+            if (_dao.HasActiveStore(storeUid))
+            {
+                await _placeService.ReactivateMerchantPlaceAsync(storeUid);
+            }
+            else
+            {
+                await _placeService.DeactivateMerchantPlaceAsync(storeUid);
+            }
         }
 
         private static void ValidateAuthType(int authType)

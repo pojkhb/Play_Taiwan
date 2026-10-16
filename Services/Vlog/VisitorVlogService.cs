@@ -4,9 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Unicode;
 using System.Threading.Tasks;
 using backend.dao;
 using backend.utils;
@@ -18,7 +16,7 @@ namespace backend.Services
     /// 遊客 VLOG：
     /// 1. Preview：遊戲結束給 story_id → 從資料庫組出走過的景點與遊玩時長 → AI 旁白草稿，回傳給玩家確認。
     /// 2. CreateFinal：story_id + 確認後的旁白 → 抓這次遊玩拍的照片、依景點命名打包成 zip，
-    ///    連同景點資料（spot_meta_json）送去合成影片。
+    ///    每張照片附上所在景點的資料（spot_meta_json）送去合成影片。
     /// 3. Status：輪詢合成進度，完成時寫回 au_vlog。
     /// </summary>
     public class VisitorVlogService
@@ -28,10 +26,8 @@ namespace backend.Services
         /// <summary>找不到任何遊玩時間紀錄時送給 AI 的時長</summary>
         private const string DefaultPlayTime = "2.5小時";
 
-        private static readonly JsonSerializerOptions MetaJsonOptions = new()
-        {
-            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All)
-        };
+        /// <summary>沒掛在任何景點的照片，影片左上角顯示的地點名稱（AI 規定每張照片都要有地點名稱）</summary>
+        internal const string UnassignedSpotName = "旅程回憶";
 
         private readonly VisitorVlogDao _dao;
         private readonly VlogAiGateway _ai;
@@ -45,6 +41,17 @@ namespace backend.Services
             _ai = ai;
             _mapDao = mapDao;
         }
+
+        #region 0. CreateFinal 選填欄位的選項
+
+        public VisitorVlogOptionsResponse GetOptions() => new()
+        {
+            bgm_moods = VlogAiGateway.BgmMoodOptions.ToList(),
+            video_orientations = VlogAiGateway.VideoOrientationOptions.ToList(),
+            user_memory_text_max_length = VlogAiGateway.MaxUserMemoryTextLength
+        };
+
+        #endregion
 
         #region 1. 旁白草稿
 
@@ -139,6 +146,7 @@ namespace backend.Services
         {
             if (string.IsNullOrWhiteSpace(req.final_script))
                 throw new Exception("請提供最終旁白 (final_script)");
+            VlogCreateOptions options = VlogAiGateway.ParseOptions(req.user_memory_text, req.bgm_mood, req.video_orientation);
 
             var (story, _) = await LoadPlayAsync(auId, req.story_id);
 
@@ -154,10 +162,7 @@ namespace backend.Services
             if (material.photos.Count == 0)
                 throw new Exception("這次遊玩沒有照片，景點也沒有照片，無法合成影片");
 
-            byte[] bgm = _ai.LoadBgm();   // 找不到背景音樂就先擋下，不把 VLOG 標成合成失敗
-
-            List<(string entryName, string url)> entries = NameZipEntries(material.photos);
-            string spotMetaJson = JsonSerializer.Serialize(material.spots, MetaJsonOptions);
+            List<(VlogSpotMeta meta, string url)> photos = NamePhotos(material.photos);
 
             string promoCopy = req.promo_copy ?? vlog?.av_promo_copy;
             string seoKeywords = req.seo_keywords != null ? string.Join(",", req.seo_keywords) : vlog?.av_seo_keywords;
@@ -166,8 +171,7 @@ namespace backend.Services
             VlogCreateFinalApiResponse task;
             try
             {
-                byte[] zip = await _ai.BuildZipAsync(entries);
-                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, bgm, spotMetaJson);
+                task = await _ai.CreateFinalAsync(req.final_script.Trim(), photos, options);
             }
             catch (Exception e)
             {
@@ -182,31 +186,35 @@ namespace backend.Services
                 av_id = avId,
                 story_id = req.story_id,
                 task_id = task.task_id,
-                photo_count = entries.Count,
+                photo_count = photos.Count,
                 status = 2,
                 status_text = VlogAiGateway.StatusText(2)
             };
         }
 
         /// <summary>
-        /// zip 內檔名 = {景點順序}_{第幾張}，例如 03_02.jpg 是第 3 站的第 2 張；沒掛節點的照片用 99_xx 排在最後。
-        /// 同時把檔名寫回各景點的 images，讓 spot_meta_json 對得上照片。
+        /// 依景點順序排好照片（也就是影片播放順序），每張配上一筆 spot_meta_json：
+        /// zip 內檔名 = {景點順序}_{第幾張}，例如 03_02.jpg 是第 3 站的第 2 張；沒掛節點的照片用 99_xx 排在最後，地點顯示「旅程回憶」。
         /// </summary>
-        internal static List<(string entryName, string url)> NameZipEntries(List<(VisitorVlogSpot spot, string url)> photos)
+        internal static List<(VlogSpotMeta meta, string url)> NamePhotos(List<(VisitorVlogSpot spot, string url)> photos)
         {
             var counters = new Dictionary<int, int>();
-            var entries = new List<(string, string)>();
+            var named = new List<(VlogSpotMeta, string)>();
 
             foreach (var (spot, url) in photos.OrderBy(p => p.spot?.order ?? int.MaxValue))
             {
                 int group = spot?.order ?? 99;
                 counters[group] = counters.TryGetValue(group, out int n) ? n + 1 : 1;
 
-                string name = $"{group:D2}_{counters[group]:D2}{VlogAiGateway.ImageExtension(url)}";
-                spot?.images.Add(name);
-                entries.Add((name, url));
+                named.Add((new VlogSpotMeta
+                {
+                    file_name = $"{group:D2}_{counters[group]:D2}{VlogAiGateway.ImageExtension(url)}",
+                    spot_name = spot?.spot_name ?? UnassignedSpotName,
+                    location_codename = spot?.location_codename,
+                    visit_time = spot?.visit_time
+                }, url));
             }
-            return entries;
+            return named;
         }
 
         #endregion
@@ -292,7 +300,7 @@ namespace backend.Services
 
         /// <summary>
         /// 景點清單（隱藏節點只有玩家真的去過才算）＋ 影片素材照片：
-        /// 先用這次遊玩拍的照片（record_media、answer_media_url，去重、排除影片與錄音），
+        /// 先用這次遊玩拍的照片（record_media、answer_media_url，去重；排除影片、錄音與 AI 不能合成的 HEIC），
         /// 玩家在某站沒有照片時補上該景點的照片（用景點 ID 向 Neo4j 拿）
         /// </summary>
         private async Task<PlayMaterial> CollectAsync(int auId, int storyId)
@@ -328,7 +336,7 @@ namespace backend.Services
             var photos = new List<(VisitorVlogSpot spot, string url)>();
             foreach (var m in await _dao.GetMediaAsync(auId, storyId))
             {
-                if (!VlogAiGateway.LooksLikeImage(m.url) || !seen.Add(m.url)) continue;
+                if (!VlogAiGateway.CanCompose(m.url) || !seen.Add(m.url)) continue;
                 spotByNode.TryGetValue(m.node_id ?? 0, out VisitorVlogSpot spot);
                 photos.Add((spot, m.url));
             }
@@ -338,7 +346,7 @@ namespace backend.Services
             foreach (var r in rows)
             {
                 if (!spotByNode.TryGetValue(r.sn_id, out VisitorVlogSpot spot) || covered.Contains(spot)) continue;
-                if (string.IsNullOrWhiteSpace(r.place_image) || !seen.Add(r.place_image)) continue;
+                if (string.IsNullOrWhiteSpace(r.place_image) || !VlogAiGateway.CanCompose(r.place_image) || !seen.Add(r.place_image)) continue;
                 photos.Add((spot, r.place_image));
                 spot.uses_place_photo = true;
             }

@@ -33,8 +33,18 @@ namespace backend.ViewModels
         /// <summary>經度（選填）</summary>
         public double? lng { get; set; }
 
-        /// <summary>景點分類：Attraction / Restaurant / Hotel / Event，不帶時預設 Restaurant（Restaurant 會多出地方美食型任務）</summary>
+        /// <summary>
+        /// 景點分類：Attraction / Restaurant / Hotel / Event，不帶時預設 Restaurant（Restaurant 會多出地方美食型任務）。
+        /// 跟政府資料一樣變成 Neo4j 景點節點的類型標籤（:Attraction、:Restaurant…）。
+        /// </summary>
         public string category { get; set; }
+
+        /// <summary>
+        /// 細分類（選填），例如「中式料理」「甜點冰品」「民宿」，要是 category 底下的細分類，可選的值見 GET api/merchant/register/categories，不是的話回 400。
+        /// 景點會掛到 Neo4j 的這個細分類（HAS_CATEGORY），旅宿另外掛同名的旅宿等級（HAS_CLASS）。
+        /// 不帶時 Restaurant、Attraction 掛「其他」，Event 掛「一般活動」，Hotel 不掛。
+        /// </summary>
+        public string sub_category { get; set; }
 
         public string phone { get; set; }
         public string website { get; set; }
@@ -93,13 +103,31 @@ namespace backend.ViewModels
         /// 格式跟註冊相同；有帶就整份取代原本的營業時間，帶空陣列 [] 代表清空，不帶（null）維持原值。
         /// </summary>
         public System.Collections.Generic.List<PlaceOperatingHourItem> operating_hours { get; set; }
+
+        /// <summary>
+        /// 景點分類（選填，只對商家自建景點有效）：Attraction / Restaurant / Hotel / Event，換掉 Neo4j 的類型標籤，
+        /// MySQL place_type 的分類（任務類型判斷用）也一起改。不帶維持原值；換了分類沒帶 sub_category 時用新分類的預設細分類。
+        /// </summary>
+        public string category { get; set; }
+
+        /// <summary>
+        /// 細分類（選填，只對商家自建景點有效），要是分類底下的細分類，可選的值見 GET api/merchant/register/categories，不是的話回 400。
+        /// 只帶細分類時沿用目前的分類；不帶且分類沒變時維持原值。
+        /// </summary>
+        public string sub_category { get; set; }
     }
 
     /// <summary>登入商家查詢自己的店家資料（GET api/Merchant/Profile），多了營業時間給編輯畫面帶入。</summary>
     public class MerchantProfileResponse : MerchantDetailResponse
     {
-        /// <summary>是否為商家自建景點：true 才能修改座標（lat/lng）與營業時間</summary>
+        /// <summary>是否為商家自建景點：true 才能修改座標（lat/lng）、營業時間與分類</summary>
         public bool is_self_built_place { get; set; }
+
+        /// <summary>自建景點目前的分類（Attraction / Restaurant / Hotel / Event），綁定既有景點時為 null</summary>
+        public string category { get; set; }
+
+        /// <summary>自建景點目前的細分類，沒掛或綁定既有景點時為 null</summary>
+        public string sub_category { get; set; }
 
         /// <summary>目前的營業時間（Neo4j 景點的 operating_hours），沒有綁定景點或沒填時為空陣列</summary>
         public System.Collections.Generic.List<PlaceOperatingHourItem> operating_hours { get; set; }

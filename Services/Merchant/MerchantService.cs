@@ -20,6 +20,7 @@ namespace backend.Services
         private readonly PlaceVersionChainService _placeService;
         private readonly PlaceLookupService _placeLookup;
         private readonly StoreLocationService _storeLocation;
+        private readonly EmbeddingService _embedding;
         private readonly AppSettings _appSettings;
         private readonly ILogger<MerchantService> _logger;
 
@@ -28,6 +29,7 @@ namespace backend.Services
             PlaceVersionChainService placeService,
             PlaceLookupService placeLookup,
             StoreLocationService storeLocation,
+            EmbeddingService embedding,
             IOptions<AppSettings> appSettings,
             ILogger<MerchantService> logger)
         {
@@ -35,6 +37,7 @@ namespace backend.Services
             _placeService = placeService;
             _placeLookup = placeLookup;
             _storeLocation = storeLocation;
+            _embedding = embedding;
             _appSettings = appSettings.Value;
             _logger = logger;
         }
@@ -65,6 +68,7 @@ namespace backend.Services
                 }
 
                 ValidateNewPlace(req);
+                req.sub_category = await ResolveSubCategoryAsync(req.category, req.sub_category);
 
                 newPlaceLocation = await _storeLocation.ResolveAsync(req.store_city, req.store_town, req.store_address, req.lat, req.lng);
 
@@ -88,7 +92,10 @@ namespace backend.Services
                     website = req.website,
                     image_url = imageUrl
                 };
-                storeUid = await _placeService.CreateMerchantPlaceAsync(fields, req.operating_hours, newPlaceLocation, req.store_name);
+                // 介紹轉成語意向量，跟政府資料的景點一樣寫在身分節點；embedding 服務沒開時先不寫，之後商家修改資料時補上
+                List<double> embedding = await _embedding.EmbedAsync(EmbeddingText(req.store_name, req.store_dec));
+                storeUid = await _placeService.CreateMerchantPlaceAsync(fields, req.category, req.sub_category, embedding,
+                    req.operating_hours, newPlaceLocation, req.store_name);
             }
             else
             {
@@ -141,8 +148,7 @@ namespace backend.Services
             return new MerchantRegisterResponse { au_id = auId, s_id = sId, store_uid = storeUid };
         }
 
-        // 商家自建景點可選的分類（對應 place_type.place_category），沒帶時預設 Restaurant
-        private static readonly string[] NewPlaceCategories = { "Attraction", "Restaurant", "Hotel", "Event" };
+        // 商家自建景點沒帶分類時預設 Restaurant（可選的分類見 PlaceVersionChainService.MerchantPlaceCategories）
         private const string DefaultNewPlaceCategory = "Restaurant";
 
         /// <summary>
@@ -153,16 +159,64 @@ namespace backend.Services
         {
             StoreLocationService.ValidateCoordinates(req.lat, req.lng, "lat、lng");
             req.operating_hours = OperatingHoursRules.Normalize(req.operating_hours);
+            req.category = string.IsNullOrWhiteSpace(req.category) ? DefaultNewPlaceCategory : NormalizeCategory(req.category);
+        }
 
-            if (string.IsNullOrWhiteSpace(req.category))
+        /// <summary>分類統一成類型標籤的寫法（不分大小寫），不是 Attraction、Restaurant、Hotel、Event 時回 400</summary>
+        private static string NormalizeCategory(string category)
+        {
+            return PlaceVersionChainService.MerchantPlaceCategories.Keys
+                .FirstOrDefault(c => string.Equals(c, category.Trim(), System.StringComparison.OrdinalIgnoreCase))
+                ?? throw new BadRequestException("category 只能是 Attraction、Restaurant、Hotel 或 Event");
+        }
+
+        /// <summary>
+        /// 細分類（Neo4j 的 Category）：沒帶時用 category 的預設細分類（Restaurant、Attraction 為「其他」，Event 為「一般活動」，Hotel 不掛）；
+        /// 有帶時要是 category 底下的細分類，不是的話回 400。category 要先經過 NormalizeCategory 整理。
+        /// </summary>
+        private async Task<string> ResolveSubCategoryAsync(string category, string subCategory)
+        {
+            if (string.IsNullOrWhiteSpace(subCategory))
             {
-                req.category = DefaultNewPlaceCategory;
-                return;
+                return PlaceVersionChainService.MerchantPlaceCategories[category].defaultSubCategory;
             }
 
-            string category = NewPlaceCategories.FirstOrDefault(c => string.Equals(c, req.category.Trim(), System.StringComparison.OrdinalIgnoreCase));
-            req.category = category ?? throw new BadRequestException("category 只能是 Attraction、Restaurant、Hotel 或 Event");
+            string trimmed = subCategory.Trim();
+            MerchantPlaceCategoryItem item = (await _placeService.GetMerchantPlaceCategoriesAsync())
+                .First(c => c.category == category);
+            if (!item.sub_categories.Contains(trimmed))
+            {
+                throw new BadRequestException(
+                    $"sub_category「{trimmed}」不是{item.name}（{item.category}）的細分類，可選的值請查 GET api/merchant/register/categories");
+            }
+            return trimmed;
         }
+
+        /// <summary>
+        /// 商家自建景點修改資料時要換成的分類與細分類；都沒帶、或分類沒變也沒指定細分類時回 null（不用改）。
+        /// 只帶細分類時沿用目前的分類；換了分類沒帶細分類時用新分類的預設細分類。
+        /// </summary>
+        private async Task<(string category, string subCategory)?> ResolveCategoryChangeAsync(PlaceCurrentInfo current, MerchantUpdateRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.category) && string.IsNullOrWhiteSpace(req.sub_category)) return null;
+
+            string currentCategory = PlaceCategory(current);
+            string category = string.IsNullOrWhiteSpace(req.category)
+                ? currentCategory ?? _dao.GetPlaceCategory(current.uid) ?? DefaultNewPlaceCategory
+                : NormalizeCategory(req.category);
+            if (category == currentCategory && string.IsNullOrWhiteSpace(req.sub_category)) return null;
+
+            return (category, await ResolveSubCategoryAsync(category, req.sub_category));
+        }
+
+        /// <summary>景點身分節點的類型標籤（Attraction / Restaurant / Hotel / Event）；沒有時（舊資料或已停用）為 null</summary>
+        private static string PlaceCategory(PlaceCurrentInfo place) =>
+            place?.identity_labels?.FirstOrDefault(PlaceVersionChainService.MerchantPlaceCategories.ContainsKey);
+
+        /// <summary>
+        /// 算語意向量的文字：跟資料清洗一樣用景點介紹原文；沒填介紹時用店名，景點才不會在語意搜尋中完全找不到。
+        /// </summary>
+        private static string EmbeddingText(string name, string description) => string.IsNullOrWhiteSpace(description) ? name : description;
 
         private static string FirstNonBlank(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
 
@@ -211,6 +265,8 @@ namespace backend.Services
                 auth_email = merchant.auth_email,
                 is_active = merchant.is_active,
                 is_self_built_place = IsSelfBuiltPlace(place),
+                category = IsSelfBuiltPlace(place) ? PlaceCategory(place) : null,
+                sub_category = IsSelfBuiltPlace(place) ? place.categories?.FirstOrDefault() : null,
                 operating_hours = place?.operating_hours ?? new List<PlaceOperatingHourItem>(),
                 image_url = CurrentImageUrl(place?.merchant_override)
             };
@@ -231,7 +287,9 @@ namespace backend.Services
         /// 商家自建景點改了地址或重新選點時，景點重新掛鄉鎮市區並更新位置：
         /// 地址、座標都有改就照填的；只改地址會重轉座標；只帶座標會重轉地址（連同縣市、鄉鎮市區寫回店家資料）。
         /// 商家自建景點帶了營業時間就整份取代（不在版本鏈，直接換掉身分節點底下的 (:OperatingHours)）。
-        /// 新位置與營業時間在寫入任何資料前就先檢查好，不對時回 400，不會只改到一半。
+        /// 商家自建景點改了店名或介紹時，身分節點上的名稱、介紹與介紹的語意向量也跟著更新（見 SyncSelfBuiltPlaceTextAsync）。
+        /// 商家自建景點帶了分類或細分類時，換掉 Neo4j 的類型標籤與細分類，MySQL place_type 的分類也一起改（見 ResolveCategoryChangeAsync）。
+        /// 新位置、營業時間與分類在寫入任何資料前就先檢查好，不對時回 400，不會只改到一半。
         /// </summary>
         public async Task UpdateProfileAsync(int sId, MerchantUpdateRequest req)
         {
@@ -258,8 +316,11 @@ namespace backend.Services
                 : await _placeService.GetCurrentVersionAsync(before.store_uid);
 
             MerchantPlaceLocation newLocation = null;
+            (string category, string subCategory)? newCategory = null;
             if (IsSelfBuiltPlace(current))
             {
+                newCategory = await ResolveCategoryChangeAsync(current, req);
+
                 if (AddressChanged(before, req))
                 {
                     newLocation = await _storeLocation.ResolveAsync(
@@ -294,7 +355,7 @@ namespace backend.Services
 
             if (IsSelfBuiltPlace(current))
             {
-                _dao.SyncSelfBuiltPlace(store.store_uid, store.store_name);
+                _dao.SyncSelfBuiltPlace(store.store_uid, store.store_name, newCategory?.category);
 
                 if (newLocation != null)
                 {
@@ -305,6 +366,14 @@ namespace backend.Services
                 {
                     await _placeService.ReplaceMerchantOperatingHoursAsync(store.store_uid, operatingHours);
                 }
+
+                // 先換分類（活動的名稱、介紹屬性名稱不同），再同步名稱、介紹
+                if (newCategory != null)
+                {
+                    await _placeService.UpdateMerchantPlaceCategoryAsync(store.store_uid, newCategory.Value.category, newCategory.Value.subCategory);
+                }
+
+                await SyncSelfBuiltPlaceTextAsync(current, store);
             }
 
             var fields = new MerchantPlaceFields
@@ -318,6 +387,23 @@ namespace backend.Services
             };
             await _placeService.CreateNewVersionAsync(store.store_uid, fields, "merchant", sId.ToString());
         }
+
+        /// <summary>
+        /// 自建景點身分節點上的名稱、介紹（跟政府資料一樣放在節點上）同步成店家資料，並重新算介紹的語意向量。
+        /// 名稱、介紹都沒改而且已經有向量時不用動；還沒有向量（例如註冊時 embedding 服務沒開）時就算沒改也補算。
+        /// current 是更新店家資料前查的，身分節點這時還是舊的名稱、介紹。
+        /// </summary>
+        private async Task SyncSelfBuiltPlaceTextAsync(PlaceCurrentInfo current, MerchantDetailResponse store)
+        {
+            bool textChanged = !SameText(current.gov_name, store.store_name) || !SameText(current.gov_description, store.store_dec);
+            if (!textChanged && await _placeService.HasDescriptionEmbeddingAsync(store.store_uid)) return;
+
+            List<double> embedding = await _embedding.EmbedAsync(EmbeddingText(store.store_name, store.store_dec));
+            await _placeService.UpdateMerchantPlaceTextAsync(store.store_uid, store.store_name, store.store_dec, embedding);
+        }
+
+        /// <summary>null 跟空字串視為相同</summary>
+        private static bool SameText(string a, string b) => (a ?? "") == (b ?? "");
 
         /// <summary>縣市／鄉鎮市區／地址是否跟原本不同（前端每次都帶全部欄位時，沒改的不算）</summary>
         private static bool AddressChanged(MerchantDetailResponse before, MerchantUpdateRequest req)

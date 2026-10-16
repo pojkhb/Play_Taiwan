@@ -292,7 +292,6 @@ namespace backend.dao
             public string npc_name { get; set; }
             public string npc_role { get; set; }
             public string npc_avatar { get; set; }      // 站內路徑，Controller 組成完整網址
-            public string npc_voice { get; set; }
         }
 
         public NodePlayRow GetNodePlayRow(int snId)
@@ -300,7 +299,7 @@ namespace backend.dao
             using var conn = new MySqlConnection(mydb);
             return conn.QueryFirstOrDefault<NodePlayRow>($@"
                 SELECT sn.sn_id, sn.s_id, sn.sn_order, sn.sn_title, sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
-                       n.npc_id, n.npc_name, n.npc_role, n.npc_avatar, n.npc_voice
+                       n.npc_id, n.npc_name, n.npc_role, n.npc_avatar
                 FROM story_node sn
                 {MapDao.NpcJoin}
                 WHERE sn.sn_id = @snId;", new { snId });

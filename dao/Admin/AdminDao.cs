@@ -153,6 +153,25 @@ namespace backend.dao
             connection.Execute("UPDATE auth SET is_active = @isActive WHERE au_id = @auId;", new { auId, isActive });
         }
 
+        /// <summary>商家帳號綁定的景點 uid（store.store_uid）；不是商家或沒有店家資料時為 null</summary>
+        public string GetStoreUid(int auId)
+        {
+            using var connection = Open();
+            return connection.QueryFirstOrDefault<string>(
+                "SELECT store_uid FROM store WHERE au_id = @auId AND store_uid IS NOT NULL AND store_uid <> '' LIMIT 1;", new { auId });
+        }
+
+        /// <summary>還有沒有啟用中的帳號綁定這個景點（同一個景點可能有多間店綁定）</summary>
+        public bool HasActiveStore(string storeUid)
+        {
+            using var connection = Open();
+            return connection.ExecuteScalar<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM store s
+                    INNER JOIN auth a ON a.au_id = s.au_id
+                    WHERE s.store_uid = @storeUid AND a.is_active = 1);", new { storeUid });
+        }
+
         #endregion
 
         #region 劇本

@@ -244,7 +244,7 @@ namespace backend.dao
             // 劇本沒有指定 NPC（舊劇本、AI 沒挑）時用預設 NPC（薯光）。NPC 圖片回傳站內路徑，由 Controller 組成完整網址
             string storySql = $@"
                 SELECT s.s_id, s.story_title, s.story_prologue, s.story_synopsis, s.is_night_mode, s.is_favorite,
-                       n.npc_name, n.npc_role, n.npc_intro, n.npc_avatar, n.npc_voice
+                       n.npc_name, n.npc_role, n.npc_intro, n.npc_avatar
                 FROM story s
                 LEFT JOIN npc n ON n.npc_id = COALESCE(s.npc_id, {MapDao.DefaultNpcIdSql})
                 WHERE s.s_id = @storyId AND s.is_active = 1;
@@ -292,8 +292,7 @@ namespace backend.dao
                         name = story.npc_name as string,
                         role = story.npc_role as string,
                         intro = story.npc_intro as string,
-                        avatar_url = story.npc_avatar as string,
-                        voice = story.npc_voice as string
+                        avatar_url = story.npc_avatar as string
                     },
                     nodes = new List<NodeDetail>(),
                     route_nodes = new List<StoryOptionResponse.RouteNode>()
@@ -585,19 +584,24 @@ namespace backend.dao
         /// 2. place 的主鍵是 int 自增，沒辦法再用 Neo4j uid 當主鍵。
         ///    節點仍然把 Neo4j uid 寫進 story_node.place_id（任務生成靠這個關聯），
         ///    另外把景點名稱與座標補進 place 表，避免地理資訊整個遺失。
+        /// 3. 遊你說算的工作（story_text_job）在同一個交易裡標成完成，劇本存了就一定記得存成哪一份，重複輪詢不會再存。
         /// </summary>
+        /// <param name="partySize">AI 從那句話解析出的旅遊人數（parsed_intent.traveler_count）；2 人以上才能協作配對，解析不出來（0）存 NULL</param>
+        /// <param name="places">spot_uuid → PlaceLookupService 查到的景點（名稱、座標）</param>
         public async Task<int> SaveFullAiGeneratedStory(
-            int auId, string cityName, string districtName, ScriptBlueprintData data)
+            int auId, string cityName, string districtName, int partySize, ScriptBlueprintData data,
+            IReadOnlyDictionary<string, backend.Services.Neo4j.PlaceLookupService.PlaceInfo> places,
+            string textJobId, string textJobResultJson)
         {
             if (data == null) throw new Exception("AI 回傳的劇本資料為空！");
 
             string insertStorySql = @"
                 INSERT INTO story (
-                    au_id, npc_id, city_name, district_name, sd_transport,
+                    au_id, npc_id, city_name, district_name, party_size, sd_transport,
                     story_title, story_prologue, story_synopsis,
                     story_badge, story_postcards, is_active, is_night_mode
                 ) VALUES (
-                    @auId, @npcId, @cityName, @districtName, '客製化交通',
+                    @auId, @npcId, @cityName, @districtName, @partySize, '客製化交通',
                     @title, @prologue, @synopsis,
                     '', @expectedPostcards, 1, @isNightMode
                 );
@@ -638,6 +642,7 @@ namespace backend.dao
                             npcId,
                             cityName = cityName ?? "",
                             districtName = districtName ?? "",
+                            partySize = partySize > 0 ? partySize : (int?)null,
                             title = data.title ?? "專屬客製化旅程",
                             prologue = data.preface ?? "",
                             synopsis = data.synopsis ?? "",
@@ -647,11 +652,24 @@ namespace backend.dao
 
                         foreach (var node in data.nodes ?? new List<ScriptBlueprintNode>())
                         {
-                            // 座標先查 Neo4j 真實景點（準確且會回傳 uid），查不到才退回 Nominatim 地理編碼。
-                            var neo4jMatch = await _neo4jService.FindAttractionCoordinatesAsync(node.place_name);
-                            double? lat = neo4jMatch.lat;
-                            double? lng = neo4jMatch.lon;
-                            string neo4jUid = neo4jMatch.uid;
+                            // AI 給的 spot_uuid 就是 Neo4j uid（景點、餐廳、旅宿都有），座標用 PlaceLookupService 查到的；
+                            // 沒有 spot_uuid 時才用名稱找 Neo4j 景點；都沒有座標就退回 Nominatim 地理編碼。
+                            string neo4jUid = string.IsNullOrWhiteSpace(node.spot_uuid) ? null : node.spot_uuid.Trim();
+                            double? lat = null;
+                            double? lng = null;
+
+                            if (neo4jUid != null && places != null && places.TryGetValue(neo4jUid, out var place))
+                            {
+                                lat = place.lat;
+                                lng = place.lng;
+                            }
+                            else if (neo4jUid == null)
+                            {
+                                var neo4jMatch = await _neo4jService.FindAttractionCoordinatesAsync(node.place_name);
+                                lat = neo4jMatch.lat;
+                                lng = neo4jMatch.lon;
+                                neo4jUid = neo4jMatch.uid;
+                            }
 
                             if (!lat.HasValue || !lng.HasValue)
                             {
@@ -692,6 +710,12 @@ namespace backend.dao
                             }, transaction);
                         }
 
+                        await conn.ExecuteAsync(@"
+                            UPDATE story_text_job
+                            SET status = @done, s_id = @storyId, result_json = @resultJson, error_message = NULL
+                            WHERE job_id = @jobId;",
+                            new { done = TextJobRow.Done, storyId = newStoryId, resultJson = textJobResultJson, jobId = textJobId }, transaction);
+
                         transaction.Commit();
                         return newStoryId;
                     }
@@ -704,7 +728,187 @@ namespace backend.dao
             }
         }
 
-        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
+
+        #region 遊你說算：AI 生成工作（story_text_job）
+
+        /// <summary>遊你說算的一個 AI 生成工作</summary>
+        public class TextJobRow
+        {
+            public const int Processing = 1;
+            public const int Saving = 2;
+            public const int Done = 3;
+            public const int Failed = 4;
+
+            public string job_id { get; set; }
+            public int au_id { get; set; }
+            public int status { get; set; }
+            public int? s_id { get; set; }
+            public string result_json { get; set; }
+            public string error_message { get; set; }
+
+            /// <summary>送出到現在幾秒</summary>
+            public long elapsed_seconds { get; set; }
+
+            /// <summary>最後一次更新到現在幾秒（存檔中卡太久時用來判斷能不能接手）</summary>
+            public long idle_seconds { get; set; }
+        }
+
+        /// <summary>
+        /// 記下這個 AI 工作是誰送的。AI 的 job_id 只有 8 碼，重啟後可能發到以前用過的代號，同代號就當成新工作覆蓋。
+        /// </summary>
+        public async Task CreateTextJobAsync(string jobId, int auId, string userPrompt)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync(@"
+                INSERT INTO story_text_job (job_id, au_id, user_prompt, status)
+                VALUES (@jobId, @auId, @userPrompt, @processing)
+                ON DUPLICATE KEY UPDATE
+                    au_id = @auId, user_prompt = @userPrompt, status = @processing,
+                    s_id = NULL, result_json = NULL, error_message = NULL, created_at = NOW();",
+                new { jobId, auId, userPrompt, processing = TextJobRow.Processing });
+        }
+
+        /// <summary>查自己送出的工作，別人的查不到</summary>
+        public async Task<TextJobRow> GetTextJobAsync(string jobId, int auId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return await conn.QueryFirstOrDefaultAsync<TextJobRow>(@"
+                SELECT job_id, au_id, status, s_id, result_json, error_message,
+                       TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds,
+                       TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS idle_seconds
+                FROM story_text_job
+                WHERE job_id = @jobId AND au_id = @auId;", new { jobId, auId });
+        }
+
+        /// <summary>
+        /// 搶存檔權：生成中 → 存檔中，搶到的請求才存劇本；存檔中卡超過 savingTimeout 的也可以接手。
+        /// </summary>
+        public async Task<bool> TryStartSavingTextJobAsync(string jobId, TimeSpan savingTimeout)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            int affected = await conn.ExecuteAsync(@"
+                UPDATE story_text_job SET status = @saving
+                WHERE job_id = @jobId
+                  AND (status = @processing
+                       OR (status = @saving AND updated_at < NOW() - INTERVAL @timeoutSeconds SECOND));",
+                new { jobId, saving = TextJobRow.Saving, processing = TextJobRow.Processing, timeoutSeconds = (int)savingTimeout.TotalSeconds });
+            return affected == 1;
+        }
+
+        /// <summary>存檔失敗：存檔中 → 生成中，下次輪詢再存一次</summary>
+        public async Task ResetTextJobAsync(string jobId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync("UPDATE story_text_job SET status = @processing WHERE job_id = @jobId AND status = @saving;",
+                new { jobId, processing = TextJobRow.Processing, saving = TextJobRow.Saving });
+        }
+
+        /// <summary>生成失敗（AI 回報失敗、查不到工作或逾時）</summary>
+        public async Task FailTextJobAsync(string jobId, string error)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync("UPDATE story_text_job SET status = @failed, error_message = @error WHERE job_id = @jobId AND status = @processing;",
+                new { jobId, failed = TextJobRow.Failed, processing = TextJobRow.Processing, error = error?.Length > 500 ? error[..500] : error });
+        }
+
+        #endregion
+
+        #region 現在揪出發：劇本生成工作（story_game_job）
+
+        /// <summary>現在揪出發（GenerateGameStory）的一個生成工作，一個工作包含好幾份劇本</summary>
+        public class GameJobRow
+        {
+            public const int Processing = 1;
+            public const int Saving = 2;
+            public const int Done = 3;
+            public const int Failed = 4;
+
+            public string job_id { get; set; }
+            public int au_id { get; set; }
+            public int status { get; set; }
+
+            /// <summary>送給 AI 的每份劇本條件、AI 任務代號，以及存檔要用的資料（StoryService.GameJobPlan）</summary>
+            public string plan_json { get; set; }
+
+            /// <summary>
+            /// 存好的劇本：完成（status = 3）時是回傳給前端的最終結果；還沒完成卻有值，代表劇本已寫進資料庫、只差最後整理
+            /// </summary>
+            public string result_json { get; set; }
+            public string error_message { get; set; }
+
+            /// <summary>送出到現在幾秒</summary>
+            public long elapsed_seconds { get; set; }
+
+            /// <summary>最後一次更新到現在幾秒（存檔中卡太久時用來判斷能不能接手）</summary>
+            public long idle_seconds { get; set; }
+        }
+
+        public async Task CreateGameJobAsync(string jobId, int auId, string planJson)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync(@"
+                INSERT INTO story_game_job (job_id, au_id, status, plan_json)
+                VALUES (@jobId, @auId, @processing, @planJson);",
+                new { jobId, auId, planJson, processing = GameJobRow.Processing });
+        }
+
+        /// <summary>查自己送出的工作，別人的查不到</summary>
+        public async Task<GameJobRow> GetGameJobAsync(string jobId, int auId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return await conn.QueryFirstOrDefaultAsync<GameJobRow>(@"
+                SELECT job_id, au_id, status, plan_json, result_json, error_message,
+                       TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds,
+                       TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS idle_seconds
+                FROM story_game_job
+                WHERE job_id = @jobId AND au_id = @auId;", new { jobId, auId });
+        }
+
+        /// <summary>
+        /// 搶存檔權：生成中 → 存檔中，搶到的請求才存劇本；存檔中卡超過 savingTimeout 的也可以接手。
+        /// </summary>
+        public async Task<bool> TryStartSavingGameJobAsync(string jobId, TimeSpan savingTimeout)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            int affected = await conn.ExecuteAsync(@"
+                UPDATE story_game_job SET status = @saving, updated_at = NOW()
+                WHERE job_id = @jobId
+                  AND (status = @processing
+                       OR (status = @saving AND updated_at < NOW() - INTERVAL @timeoutSeconds SECOND));",
+                new { jobId, saving = GameJobRow.Saving, processing = GameJobRow.Processing, timeoutSeconds = (int)savingTimeout.TotalSeconds });
+            return affected == 1;
+        }
+
+        /// <summary>存檔失敗：存檔中 → 生成中，下次輪詢再存一次（劇本已寫進資料庫的話，下次只做最後整理）</summary>
+        public async Task ResetGameJobAsync(string jobId)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync("UPDATE story_game_job SET status = @processing WHERE job_id = @jobId AND status = @saving;",
+                new { jobId, processing = GameJobRow.Processing, saving = GameJobRow.Saving });
+        }
+
+        /// <summary>完成：記下回傳給前端的最終結果</summary>
+        public async Task CompleteGameJobAsync(string jobId, string resultJson)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync("UPDATE story_game_job SET status = @done, result_json = @resultJson, error_message = NULL WHERE job_id = @jobId;",
+                new { jobId, resultJson, done = GameJobRow.Done });
+        }
+
+        /// <summary>生成失敗（AI 全部失敗、查不到工作或逾時）</summary>
+        public async Task FailGameJobAsync(string jobId, string error)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            await conn.ExecuteAsync(@"
+                UPDATE story_game_job SET status = @failed, error_message = @error
+                WHERE job_id = @jobId AND status IN (@processing, @saving);",
+                new { jobId, failed = GameJobRow.Failed, processing = GameJobRow.Processing, saving = GameJobRow.Saving,
+                      error = error?.Length > 500 ? error[..500] : error });
+        }
+
+        #endregion
+
+        #region 劇本任務生成（AI service /api/stories/tasks，一次只送一份劇本）
 
         /// <summary>place_type + type 查出的單筆景點任務類型</summary>
         public class PlaceTaskTypeRow
@@ -839,14 +1043,17 @@ namespace backend.dao
 
         /// <summary>
         /// 現有商家的景點 uid（store.store_uid，含自建景點與綁定的既有景點），行程規劃補商家候選用，
-        /// 座標由 PlaceLookupService 向 Neo4j 查。已刪除帳號的商家沒有 store 資料，不會列入。
+        /// 座標由 PlaceLookupService 向 Neo4j 查（依 uid 查，不看類型標籤）。已停用帳號的商家不列入。
         /// </summary>
         public async Task<List<string>> GetStoreUidsAsync()
         {
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
-                var rows = await conn.QueryAsync<string>(
-                    "SELECT DISTINCT store_uid FROM store WHERE store_uid IS NOT NULL AND store_uid <> '';");
+                var rows = await conn.QueryAsync<string>(@"
+                    SELECT DISTINCT s.store_uid
+                    FROM store s
+                    INNER JOIN auth a ON a.au_id = s.au_id
+                    WHERE s.store_uid IS NOT NULL AND s.store_uid <> '' AND a.is_active = 1;");
                 return rows.ToList();
             }
         }
@@ -875,8 +1082,11 @@ namespace backend.dao
         /// 把 AI 生成的多份劇本 + 任務整包寫入 story、story_tag、story_node、task、task_option、task_clue（同一個交易，全部成功才寫入）。
         /// 商家知識問答（task.question_id 有值）只寫 task 本身，題目與選項沿用商家題庫。
         /// 寫入後把 story_id、sn_id、task_db_id 回填到 results。
+        /// 有帶 gameJobId 時，在同一個交易把存好的劇本（savedJson，回填代號後才產生）記進 story_game_job.result_json：
+        /// 劇本存了就一定記得存成哪幾份，存到一半中斷、下次輪詢接手時不會重複存。
         /// </summary>
-        public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit)
+        public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit,
+                                               string gameJobId = null, Func<string> savedJson = null)
         {
             string insertStorySql = @"
                 INSERT INTO story (
@@ -1041,6 +1251,12 @@ namespace backend.dao
                             result.story_id = storyId;
                         }
 
+                        if (gameJobId != null)
+                        {
+                            await conn.ExecuteAsync("UPDATE story_game_job SET result_json = @json WHERE job_id = @jobId;",
+                                new { json = savedJson?.Invoke(), jobId = gameJobId }, transaction);
+                        }
+
                         transaction.Commit();
                     }
                     catch (Exception ex)
@@ -1065,7 +1281,7 @@ namespace backend.dao
         private static async Task<GameStoryNpc> ResolveNpcAsync(MySqlConnection conn, MySqlTransaction transaction, string name)
         {
             return await conn.QueryFirstOrDefaultAsync<GameStoryNpc>(@"
-                SELECT npc_id, npc_name, npc_role, npc_intro, npc_avatar AS npc_avatar_url, npc_voice
+                SELECT npc_id, npc_name, npc_role, npc_intro, npc_avatar AS npc_avatar_url
                 FROM npc
                 WHERE npc_name = @name OR is_default = 1
                 ORDER BY npc_name = @name DESC, npc_id

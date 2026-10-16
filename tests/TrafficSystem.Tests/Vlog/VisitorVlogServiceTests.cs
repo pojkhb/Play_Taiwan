@@ -10,7 +10,7 @@ namespace TrafficSystem.Tests.Vlog;
 [AllureBddHierarchy("VLOG 與回顧", "單元測試")]
 public class VisitorVlogServiceTests
 {
-    #region zip 照片命名
+    #region zip 照片命名 + 每張照片的地點資料
 
     private static VisitorVlogSpot Spot(int order) => new() { order = order, spot_name = $"第{order}站", images = new List<string>() };
 
@@ -26,7 +26,7 @@ public class VisitorVlogServiceTests
             (first, "https://cdn/d.webp"),
         };
 
-        var entries = VisitorVlogService.NameZipEntries(photos);
+        var named = VisitorVlogService.NamePhotos(photos);
 
         Assert.Equal(new[]
         {
@@ -34,21 +34,28 @@ public class VisitorVlogServiceTests
             ("01_02.webp", "https://cdn/d.webp"),
             ("03_01.png", "https://cdn/a.png"),
             ("99_01.jpg", "https://cdn/c.jpg"),
-        }, entries);
+        }, named.Select(p => (p.meta.file_name, p.url)));
     }
 
     [Fact]
-    public void 檔名會寫回各景點_讓AI對得上照片()
+    public void 每張照片各一筆地點資料_沒掛景點的顯示旅程回憶()
     {
-        VisitorVlogSpot first = Spot(1), third = Spot(3);
+        VisitorVlogSpot first = Spot(1);
+        first.location_codename = "紅磚眼科";
+        first.visit_time = "2026-10-12 21:48";
 
-        VisitorVlogService.NameZipEntries(new List<(VisitorVlogSpot, string)>
+        var named = VisitorVlogService.NamePhotos(new List<(VisitorVlogSpot, string)>
         {
-            (third, "a.png"), (first, "b.jpg"), (first, "d.webp"),
+            (first, "b.jpg"), (null, "c.jpg"), (first, "d.webp"),
         });
 
-        Assert.Equal(new[] { "01_01.jpg", "01_02.webp" }, first.images);
-        Assert.Equal(new[] { "03_01.png" }, third.images);
+        Assert.Equal(new[] { "第1站", "第1站", VisitorVlogService.UnassignedSpotName }, named.Select(p => p.meta.spot_name));
+        Assert.All(named.Take(2), p =>
+        {
+            Assert.Equal("紅磚眼科", p.meta.location_codename);
+            Assert.Equal("2026-10-12 21:48", p.meta.visit_time);
+        });
+        Assert.Null(named[2].meta.location_codename);
     }
 
     #endregion

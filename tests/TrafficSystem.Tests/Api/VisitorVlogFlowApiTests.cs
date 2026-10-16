@@ -1,5 +1,5 @@
 // 遊客 VLOG（AI 服務由 FakeAiService 模擬）：
-// 旁白草稿回傳每一站會放進影片的照片網址；送出合成時玩家沒拍照的站改用景點照片、一定附上背景音樂、景點資料一起送出
+// 旁白草稿回傳每一站會放進影片的照片網址；送出合成時玩家沒拍照的站改用景點照片、每張照片附上所在景點的資料、HEIC 不放進影片
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
@@ -86,7 +86,7 @@ public class VisitorVlogFlowApiTests
     }
 
     [Fact]
-    public async Task 玩家沒拍照時用景點照片合成_並附上背景音樂()
+    public async Task 玩家沒拍照時用景點照片合成_每張照片一筆地點資料()
     {
         int user = _api.NewUserId();
         string withPhoto = $"有照片的景點{Guid.NewGuid():N}", noPhoto = $"沒照片的景點{Guid.NewGuid():N}";
@@ -103,14 +103,124 @@ public class VisitorVlogFlowApiTests
         FakeAiService.Received sent = _api.FakeAi.Last("/api/visitor/vlog/create_final");
         using (var zip = new ZipArchive(new MemoryStream(sent.Files["image_zip"])))
             Assert.Equal(new[] { "01_01.png" }, zip.Entries.Select(e => e.FullName));   // 第 1 站的景點照片
+        Assert.False(sent.Files.ContainsKey("bgm_file"));   // 背景音樂由 AI 自動挑選
+        foreach (string optional in new[] { "user_memory_text", "bgm_mood", "video_orientation" })
+            Assert.False(sent.Fields.ContainsKey(optional));   // 前端沒帶就不送，AI 用預設值
 
-        byte[] bgm = File.ReadAllBytes(Path.Combine(ApiFactory.RepoRoot, "wwwroot", "bgm", "default_bgm.mp3"));
-        Assert.Equal(bgm, sent.Files["bgm_file"]);
+        // 一張照片一筆，檔名對得上 zip；沒照片的第 2 站不會出現
+        JsonElement meta = JsonDocument.Parse(sent.Fields["spot_meta_json"]).RootElement;
+        Assert.Equal(1, meta.GetArrayLength());
+        Assert.Equal("01_01.png", meta[0].GetProperty("file_name").GetString());
+        Assert.Equal(withPhoto, meta[0].GetProperty("spot_name").GetString());
+    }
 
-        JsonElement spots = JsonDocument.Parse(sent.Fields["spot_meta_json"]).RootElement;
-        Assert.True(spots[0].GetProperty("uses_place_photo").GetBoolean());
-        Assert.Equal("01_01.png", spots[0].GetProperty("images")[0].GetString());
-        Assert.Equal(0, spots[1].GetProperty("photo_count").GetInt32());
+    [Fact]
+    public async Task 下拉選單選項_照AI的規格_預設值就是CreateFinal不帶欄位時的值()
+    {
+        ApiResult<VisitorVlogOptionsResponse> result = await (await _api.ClientFor(_api.NewUserId()).GetAsync("/api/VisitorVlog/Options"))
+            .ReadResultAsync<VisitorVlogOptionsResponse>();
+
+        Assert.True(result.isSuccess, result.message);
+        VisitorVlogOptionsResponse options = result.Result;
+        Assert.Equal(new[] { "auto", "cheerful", "relaxed", "warm", "nostalgic", "adventurous", "neutral", "none" },
+            options.bgm_moods.Select(o => o.value));
+        Assert.Equal(new[] { "自動選曲", "輕快", "悠閒", "溫馨", "回憶", "探索", "中性", "不配樂" }, options.bgm_moods.Select(o => o.label));
+        Assert.Equal(new[] { "landscape", "portrait" }, options.video_orientations.Select(o => o.value));
+        Assert.Equal(new[] { "橫式", "直式" }, options.video_orientations.Select(o => o.label));
+        Assert.Equal("auto", Assert.Single(options.bgm_moods, o => o.is_default).value);            // AI 的預設值
+        Assert.Equal("landscape", Assert.Single(options.video_orientations, o => o.is_default).value);
+        Assert.Equal(3000, options.user_memory_text_max_length);
+    }
+
+    [Fact]
+    public async Task 沒登入不能取得下拉選單選項()
+    {
+        HttpResponseMessage response = await _api.ClientFor(null).GetAsync("/api/VisitorVlog/Options");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Swagger列出配樂風格與影片方向的可選值()
+    {
+        string json = await (await _api.ClientFor(null).GetAsync("/swagger/v1/swagger.json")).Content.ReadAsStringAsync();
+        JsonElement props = JsonDocument.Parse(json).RootElement
+            .GetProperty("components").GetProperty("schemas").GetProperty("VisitorVlogCreateFinalRequest").GetProperty("properties");
+
+        Assert.Equal(new[] { "auto", "cheerful", "relaxed", "warm", "nostalgic", "adventurous", "neutral", "none" },
+            props.GetProperty("bgm_mood").GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+        Assert.Equal("auto", props.GetProperty("bgm_mood").GetProperty("default").GetString());
+        Assert.Equal(new[] { "landscape", "portrait" },
+            props.GetProperty("video_orientation").GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+        Assert.Equal("landscape", props.GetProperty("video_orientation").GetProperty("default").GetString());
+        Assert.Equal(3000, props.GetProperty("user_memory_text").GetProperty("maxLength").GetInt32());
+    }
+
+    [Fact]
+    public async Task 前端帶的感想_配樂風格_影片方向會轉給AI()
+    {
+        int user = _api.NewUserId();
+        string place = $"選項景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, place);
+        await _api.GivePlacePhotoAsync(place);
+
+        ApiResult<VisitorVlogTaskResponse> result = await (await _api.ClientFor(user).PostAsJsonAsync("/api/VisitorVlog/CreateFinal", new
+        {
+            story_id = storyId,
+            final_script = "旁白",
+            user_memory_text = "  和朋友一起解開所有謎題，很有成就感  ",
+            bgm_mood = "WARM",
+            video_orientation = " Portrait "
+        })).ReadResultAsync<VisitorVlogTaskResponse>();
+
+        Assert.True(result.isSuccess, result.message);
+        FakeAiService.Received sent = _api.FakeAi.Last("/api/visitor/vlog/create_final");
+        Assert.Equal("和朋友一起解開所有謎題，很有成就感", sent.Fields["user_memory_text"]);   // 去頭尾空白
+        Assert.Equal("warm", sent.Fields["bgm_mood"]);                                       // 轉小寫
+        Assert.Equal("portrait", sent.Fields["video_orientation"]);
+    }
+
+    [Theory]
+    [InlineData("rock", null, 0, "bgm_mood")]
+    [InlineData(null, "square", 0, "video_orientation")]
+    [InlineData(null, null, 3001, "最多 3000 字")]
+    public async Task 合成選項不合規定時擋下_不送給AI(string bgmMood, string orientation, int memoryLength, string expected)
+    {
+        int user = _api.NewUserId();
+        string place = $"選項錯誤景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, place);
+        await _api.GivePlacePhotoAsync(place);
+
+        ApiResult<string> result = await (await _api.ClientFor(user).PostAsJsonAsync("/api/VisitorVlog/CreateFinal", new
+        {
+            story_id = storyId,
+            final_script = "旁白",
+            user_memory_text = new string('好', memoryLength),
+            bgm_mood = bgmMood,
+            video_orientation = orientation
+        })).ReadResultAsync<string>();
+
+        Assert.False(result.isSuccess);
+        Assert.Contains(expected, result.message);
+        Assert.Null(_api.FakeAi.Last("/api/visitor/vlog/create_final"));
+    }
+
+    [Fact]
+    public async Task 玩家拍的HEIC照片不放進影片_改用景點照片()
+    {
+        int user = _api.NewUserId();
+        string place = $"HEIC景點{Guid.NewGuid():N}";
+        int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, place);
+        await _api.GivePlacePhotoAsync(place);
+        await AddPlayerPhotoAsync(user, storyId, await NodeAsync(storyId, 1), $"/uploads/selfie-{Guid.NewGuid():N}.heic");
+
+        ApiResult<VisitorVlogTaskResponse> result = await (await _api.ClientFor(user)
+            .PostAsJsonAsync("/api/VisitorVlog/CreateFinal", new { story_id = storyId, final_script = "旁白" })).ReadResultAsync<VisitorVlogTaskResponse>();
+
+        Assert.True(result.isSuccess, result.message);
+        FakeAiService.Received sent = _api.FakeAi.Last("/api/visitor/vlog/create_final");
+        using var zip = new ZipArchive(new MemoryStream(sent.Files["image_zip"]));
+        Assert.Equal(new[] { "01_01.png" }, zip.Entries.Select(e => e.FullName));
     }
 
     [Fact]

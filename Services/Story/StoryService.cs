@@ -7,10 +7,12 @@ using backend.Models;
 using backend.ViewModels;
 using backend.utils;
 using backend.util;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 
 namespace backend.Services
@@ -26,12 +28,15 @@ namespace backend.Services
         private readonly Neo4j.PlaceLookupService _placeLookup;
         private readonly TaskDifficultyService _difficulty;
         private readonly MapDao _mapDao;
+        private readonly ILogger<StoryService> _logger;
 
 
         public StoryService(StoryDao dao, Neo4jService neo4jService, ValhallaService valhallaService, IHttpClientFactory httpClientFactory,
                             BadgeService badgeService, FogGenerationQueue fogQueue,
-                            Neo4j.PlaceLookupService placeLookup, TaskDifficultyService difficulty, MapDao mapDao)
+                            Neo4j.PlaceLookupService placeLookup, TaskDifficultyService difficulty, MapDao mapDao,
+                            ILogger<StoryService> logger)
         {
+            _logger = logger;
             _dao = dao;
             _neo4jService = neo4jService;
             _valhallaService = valhallaService;
@@ -279,15 +284,175 @@ namespace backend.Services
         #endregion
 
 
-        #region 存入 AI 生成的劇本（遊你說算）
+        #region 遊你說算：送出 AI 生成工作、輪詢進度、完成後存檔
 
 
-        public async Task<int> SaveFullAiGeneratedStory(int auId, string cityName, string districtName, ScriptBlueprintData data)
+        private const string TextBlueprintPath = "/api/api/admin/generate_script_blueprint_by_text";
+
+        /// <summary>送出後超過這個時間 AI 還沒做完就算失敗</summary>
+        private static readonly TimeSpan TextJobTimeout = TimeSpan.FromMinutes(10);
+
+        /// <summary>存檔中超過這個時間還沒結果（例如後端存到一半重啟），下一次輪詢可以接手重存</summary>
+        private static readonly TimeSpan TextJobSavingTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>完成結果存進 story_text_job.result_json，中文不轉成 \uXXXX，資料庫裡看得懂</summary>
+        private static readonly JsonSerializerOptions TextJobJsonOptions = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+
+        /// <summary>
+        /// 把使用者的一句話送給 AI 生成劇本。AI 立刻回 job_id，劇本在背景生成；
+        /// 這裡記下 job_id 是誰送的就回傳，前端再用 GetTextBlueprintJobAsync 輪詢到完成。
+        /// </summary>
+        public async Task<GenerateByTextResult> SubmitTextBlueprintJobAsync(int auId, string userPrompt)
         {
-            int storyId = await _dao.SaveFullAiGeneratedStory(auId, cityName, districtName, data);
-            await _badgeService.RefreshStoryCategoriesAsync(storyId);
-            _fogQueue.Enqueue(storyId, force: true);   // 在背景把每一站的照片做成迷霧圖
-            return storyId;
+            using var content = new StringContent(JsonSerializer.Serialize(new { user_prompt = userPrompt }), Encoding.UTF8, "application/json");
+            using HttpResponseMessage response = await CreateTextJobClient().PostAsync(AiServiceConfig.Url(TextBlueprintPath), content);
+            string body = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+                throw new Exception($"外部 AI 服務回應錯誤 (Status: {(int)response.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
+
+            GenerateScriptBlueprintByTextResponse job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, AiJsonOptions);
+            if (string.IsNullOrWhiteSpace(job?.job_id))
+                throw new Exception($"AI 服務沒有回傳 job_id：{VlogAiGateway.AiErrorMessage(body)}");
+
+            await _dao.CreateTextJobAsync(job.job_id, auId, userPrompt);
+
+            if (job.data != null) return await SaveTextJobAsync(auId, job.job_id, job);   // AI 若直接回傳結果就不用等輪詢
+            return TextJobProcessing(job.job_id, job.stage ?? "排隊中");
+        }
+
+
+        /// <summary>
+        /// 查遊你說算的生成進度，只查得到自己送出的。還在生成時向 AI 問一次進度；
+        /// AI 做完就在這次請求存成劇本，之後再查都回傳同一個劇本，不會重複存。
+        /// </summary>
+        public async Task<GenerateByTextResult> GetTextBlueprintJobAsync(int auId, string jobId)
+        {
+            StoryDao.TextJobRow row = await _dao.GetTextJobAsync(jobId, auId)
+                ?? throw new NotFoundException("找不到這個劇本生成工作");
+
+            if (row.status == StoryDao.TextJobRow.Done) return TextJobDone(row);
+            if (row.status == StoryDao.TextJobRow.Failed) return TextJobFailed(jobId, row.error_message);
+            if (row.status == StoryDao.TextJobRow.Saving && row.idle_seconds < TextJobSavingTimeout.TotalSeconds)
+                return TextJobProcessing(jobId, "存檔中");
+
+            GenerateScriptBlueprintByTextResponse job;
+            try
+            {
+                using HttpResponseMessage response = await CreateTextJobClient().GetAsync(AiServiceConfig.Url($"{TextBlueprintPath}/{Uri.EscapeDataString(jobId)}"));
+                string body = await response.Content.ReadAsStringAsync();
+
+                // AI 只把結果放在記憶體裡保留 1 小時，重啟或過期就查不到了
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                    return await FailTextJobAsync(jobId, "AI 服務找不到這個生成工作（可能已重啟或超過保留時間），請重新送出");
+                if (!response.IsSuccessStatusCode)
+                    throw new HttpRequestException($"HTTP {(int)response.StatusCode}：{VlogAiGateway.AiErrorMessage(body)}");
+
+                job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, AiJsonOptions);
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                // AI 暫時連不上就當作還在生成，下次輪詢再查；一直連不上就等逾時
+                _logger.LogWarning(e, "查詢遊你說算生成進度失敗（job_id={JobId}），下次輪詢再查", jobId);
+                if (row.elapsed_seconds > TextJobTimeout.TotalSeconds)
+                    return await FailTextJobAsync(jobId, $"AI 劇本生成超過 {TextJobTimeout.TotalMinutes} 分鐘仍未完成，請重新送出");
+                return TextJobProcessing(jobId, "暫時查不到 AI 進度，稍後再試");
+            }
+
+            if (job?.data != null) return await SaveTextJobAsync(auId, jobId, job);
+
+            string status = (job?.status ?? "").Trim().ToLowerInvariant();
+            if (status is "error" or "failed" or "failure")
+                return await FailTextJobAsync(jobId, $"AI 劇本生成失敗（{job.stage}）：{job.error}");
+            if (row.elapsed_seconds > TextJobTimeout.TotalSeconds)
+                return await FailTextJobAsync(jobId, $"AI 劇本生成超過 {TextJobTimeout.TotalMinutes} 分鐘仍未完成，請重新送出");
+
+            return TextJobProcessing(jobId, job?.stage);
+        }
+
+
+        /// <summary>
+        /// AI 做完的劇本存檔。同一個工作只讓一個請求存（把狀態搶成「存檔中」的那個），
+        /// 同時進來的其他請求回「存檔中」，下次輪詢就會拿到存好的劇本。
+        /// </summary>
+        private async Task<GenerateByTextResult> SaveTextJobAsync(int auId, string jobId, GenerateScriptBlueprintByTextResponse job)
+        {
+            if (!await _dao.TryStartSavingTextJobAsync(jobId, TextJobSavingTimeout))
+            {
+                StoryDao.TextJobRow row = await _dao.GetTextJobAsync(jobId, auId);
+                return row?.status == StoryDao.TextJobRow.Done ? TextJobDone(row) : TextJobProcessing(jobId, "存檔中");
+            }
+
+            var result = new GenerateByTextResult
+            {
+                job_id = jobId,
+                status = GenerateByTextResult.Done,
+                stage = "完成",
+                detected_city = job.parsed_intent?.city_name ?? "",
+                detected_town = job.parsed_intent?.town_name ?? "",
+                parsed_intent = job.parsed_intent,
+                data = job.data
+            };
+
+            try
+            {
+                // spot_uuid 是 AI 依站點順序填入的 Neo4j uid：用它查正確的名稱與座標，
+                // 順便把 LLM 寫壞的罕用字（例如「簃居青衖」變成「�居青衖」）換回來
+                Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places =
+                    await _placeLookup.GetPlacesAsync((job.data.nodes ?? new List<ScriptBlueprintNode>()).Select(n => n.spot_uuid));
+                BlueprintTextRepair.Repair(job.data, places.ToDictionary(p => p.Key, p => p.Value.name));
+
+                result.story_id = await _dao.SaveFullAiGeneratedStory(auId, result.detected_city, result.detected_town,
+                    job.parsed_intent?.traveler_count ?? 0, job.data, places,
+                    jobId, JsonSerializer.Serialize(result, TextJobJsonOptions));
+            }
+            catch
+            {
+                await _dao.ResetTextJobAsync(jobId);   // 沒存成功，下次輪詢再存一次
+                throw;
+            }
+
+            await _badgeService.RefreshStoryCategoriesAsync(result.story_id.Value);
+            _fogQueue.Enqueue(result.story_id.Value, force: true);   // 在背景把每一站的照片做成迷霧圖
+            return result;
+        }
+
+
+        private async Task<GenerateByTextResult> FailTextJobAsync(string jobId, string error)
+        {
+            await _dao.FailTextJobAsync(jobId, error);
+            return TextJobFailed(jobId, error);
+        }
+
+
+        private HttpClient CreateTextJobClient()
+        {
+            HttpClient client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(1);
+            return client;
+        }
+
+
+        private static GenerateByTextResult TextJobProcessing(string jobId, string stage) =>
+            new() { job_id = jobId, status = GenerateByTextResult.Processing, stage = stage };
+
+
+        private static GenerateByTextResult TextJobFailed(string jobId, string error) =>
+            new() { job_id = jobId, status = GenerateByTextResult.Failed, error = error };
+
+
+        /// <summary>已存好的工作：回傳當初存下的完整結果，story_id 以資料庫為準</summary>
+        private static GenerateByTextResult TextJobDone(StoryDao.TextJobRow row)
+        {
+            GenerateByTextResult result = string.IsNullOrEmpty(row.result_json)
+                ? new GenerateByTextResult()
+                : JsonSerializer.Deserialize<GenerateByTextResult>(row.result_json, TextJobJsonOptions);
+            result.job_id = row.job_id;
+            result.status = GenerateByTextResult.Done;
+            result.stage = "完成";
+            result.error = null;
+            result.story_id = row.s_id;
+            return result;
         }
 
 
@@ -581,7 +746,7 @@ namespace backend.Services
         #endregion
 
 
-        #region 劇本任務一次生成（AI service /api/stories/tasks/batch）
+        #region 劇本任務生成（AI service /api/stories/tasks，一次只送一份劇本）
 
         // 任務類型代號（type.type_id）
         private const int CrossLevelTypeId = 2;         // 跨關集結型：最後一站
@@ -611,13 +776,70 @@ namespace backend.Services
         private static readonly string[] DefaultNarrativeTones = { "溫情走心", "幽默詼諧", "懸疑推理" };
 
 
+        /// <summary>送出後超過這個時間 AI 還沒全部做完，就把做好的幾份存起來，沒做完的算失敗</summary>
+        private static readonly TimeSpan GameJobTimeout = TimeSpan.FromMinutes(10);
+
+        /// <summary>存檔中超過這個時間還沒結果（例如後端存到一半重啟），下一次輪詢可以接手</summary>
+        private static readonly TimeSpan GameJobSavingTimeout = TimeSpan.FromMinutes(5);
+
+        /// <summary>工作內容與存好的劇本存進 story_game_job，中文不轉成 \uXXXX，資料庫裡看得懂</summary>
+        private static readonly JsonSerializerOptions GameJobJsonOptions = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+
         /// <summary>
-        /// GenerateGameStory：依使用者位置一次生成 3 份劇本（每份 8 個景點）讓使用者挑。
-        /// 呼叫前 req.lat/lng、city_name、town_name 必須已由 Controller 補齊。
+        /// 劇本生成工作的內容（story_game_job.plan_json）：送給 AI 的每份劇本條件與 AI 任務代號，
+        /// 以及 AI 做完後組成劇本、寫入資料庫要用的資料
         /// </summary>
-        public Task<List<GameStoryResult>> GenerateGameStoryAsync(int auId, GameStoryGenerateRequest req)
+        private class GameJobPlan
         {
-            return GenerateStoriesAsync(auId, new GameStoryPlan
+            public int party_size { get; set; }
+            public List<string> preferences { get; set; }
+
+            /// <summary>整理過的交通方式（沒選時是步行）</summary>
+            public List<string> transport { get; set; }
+
+            /// <summary>有選公車、客運或台灣好行：存檔時一併寫入節點之間的直達公車</summary>
+            public bool plan_bus_transit { get; set; }
+
+            /// <summary>景點 → 必出的商家知識問答（從商家題庫挑好的那一題，各份劇本用同一題）</summary>
+            public Dictionary<string, StoryDao.MerchantQuestionRow> merchant_questions { get; set; }
+
+            public List<GameJobStory> stories { get; set; }
+        }
+
+        private class GameJobStory
+        {
+            /// <summary>第幾份（1、2、3）</summary>
+            public int story_no { get; set; }
+
+            /// <summary>AI 任務代號；送給 AI 失敗時是 null</summary>
+            public string task_id { get; set; }
+
+            /// <summary>送給 AI 失敗的原因</summary>
+            public string error { get; set; }
+
+            public AiGameStoryRequest request { get; set; }
+
+            /// <summary>每一站預計幾點到、是不是天黑後才到（順序同 request.places）</summary>
+            public List<GameJobStop> stops { get; set; }
+        }
+
+        private class GameJobStop
+        {
+            public string place_id { get; set; }
+            public DateTime arrival { get; set; }
+            public bool is_night { get; set; }
+        }
+
+
+        /// <summary>
+        /// GenerateGameStory：依使用者位置規劃 3 份劇本（每份 8 個景點），每份各自送給 AI 生成，送出後立刻回傳 job_id，
+        /// 前端再用 GetGameStoryJobAsync 輪詢到完成。AI 同一時間只做一個任務，幾份會在 AI 端排隊依序生成。
+        /// 呼叫前 req.lat/lng、city_name、town_name 必須已由 Controller 補齊；範圍內景點不夠這類條件問題在這裡就丟出 BadRequestException，不會送出工作。
+        /// </summary>
+        public async Task<GameStoryJobResult> SubmitGameStoryJobAsync(int auId, GameStoryGenerateRequest req)
+        {
+            GameJobPlan plan = await PlanGameStoriesAsync(auId, new GameStoryPlan
             {
                 lat = req.lat,
                 lng = req.lng,
@@ -631,25 +853,173 @@ namespace backend.Services
                 story_count = StoryCount,
                 places_per_story = AttractionCount
             });
+
+            // 送出的 request 與 AI 的 response 由 AiTrafficLogHandler 記錄在 logs/ai/{日期}/
+            using (HttpClient client = CreateGameJobClient())
+            {
+                foreach (GameJobStory item in plan.stories)
+                {
+                    try
+                    {
+                        using var content = new StringContent(JsonSerializer.Serialize(item.request), Encoding.UTF8, "application/json");
+                        using HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(GameStoryPath), content);
+                        AiGameStoryJob job = await VlogAiGateway.ReadJsonAsync<AiGameStoryJob>(response, "送出 AI 劇本任務生成");
+                        if (string.IsNullOrWhiteSpace(job?.task_id))
+                            throw new Exception("AI 劇本任務生成沒有回傳 task_id");
+                        item.task_id = job.task_id;
+                    }
+                    catch (Exception e)
+                    {
+                        // 這份不做，其他份照常
+                        _logger.LogWarning(e, "送出第 {StoryNo} 份劇本給 AI 失敗", item.story_no);
+                        item.error = e.Message;
+                    }
+                }
+            }
+
+            if (plan.stories.All(s => s.task_id == null))
+                throw new Exception(string.Join("；", plan.stories.Select(s => s.error).Distinct()));
+
+            string jobId = Guid.NewGuid().ToString("N");
+            await _dao.CreateGameJobAsync(jobId, auId, JsonSerializer.Serialize(plan, GameJobJsonOptions));
+            return GameJobProcessing(jobId, plan, 0, "排隊中");
         }
 
 
         /// <summary>
-        /// 劇本 + 任務一次生成（GenerateGameStory 使用；依城市／行政區生成也走這裡，由 Controller 先轉成中心點）：
+        /// 查 GenerateGameStory 的生成進度，只查得到自己送出的。還在生成時向 AI 問一次每份的進度；
+        /// 全部做完（或超過 10 分鐘）就在這次請求把做好的幾份存成劇本，之後再查都回傳同樣的劇本，不會重複存。
+        /// </summary>
+        public async Task<GameStoryJobResult> GetGameStoryJobAsync(int auId, string jobId)
+        {
+            StoryDao.GameJobRow row = await _dao.GetGameJobAsync(jobId, auId)
+                ?? throw new NotFoundException("找不到這個劇本生成工作");
+            GameJobPlan plan = JsonSerializer.Deserialize<GameJobPlan>(row.plan_json, GameJobJsonOptions);
+
+            if (row.status == StoryDao.GameJobRow.Done) return GameJobDone(row, plan);
+            if (row.status == StoryDao.GameJobRow.Failed) return GameJobFailed(jobId, plan, row.error_message);
+            if (row.status == StoryDao.GameJobRow.Saving && row.idle_seconds < GameJobSavingTimeout.TotalSeconds)
+                return GameJobProcessing(jobId, plan, plan.stories.Count, "存檔中");
+
+            // 劇本已經寫進資料庫、只差最後整理（上次存到一半中斷）：不用再問 AI
+            if (row.result_json != null) return await SaveGameJobAsync(auId, row, plan, null);
+
+            var generated = new AiGameStoryResult[plan.stories.Count];
+            var errors = new List<string>();
+            int pending = 0;
+
+            using (HttpClient client = CreateGameJobClient())
+            {
+                for (int i = 0; i < plan.stories.Count; i++)
+                {
+                    GameJobStory item = plan.stories[i];
+                    if (item.task_id == null)
+                    {
+                        errors.Add(item.error);   // 送給 AI 時就失敗了
+                        continue;
+                    }
+
+                    AiGameStoryJob job = await GetAiStoryJobAsync(client, item.task_id);
+                    string error = AiStoryJobError(job);
+
+                    if (job?.result != null)
+                        generated[i] = job.result;
+                    else if (error == null)
+                        pending++;   // 還在排隊或生成中；AI 暫時連不上也當作還在生成
+                    else
+                    {
+                        _logger.LogWarning("第 {StoryNo} 份劇本 AI 生成失敗（task_id={TaskId}）：{Error}", item.story_no, item.task_id, error);
+                        errors.Add(error);
+                    }
+                }
+            }
+
+            int finished = generated.Count(g => g != null);
+            if (pending > 0)
+            {
+                if (row.elapsed_seconds <= GameJobTimeout.TotalSeconds)
+                    return GameJobProcessing(jobId, plan, finished, $"劇本生成中（已完成 {finished}/{plan.stories.Count} 份）");
+
+                _logger.LogWarning("劇本生成工作 {JobId} 超過 {Minutes} 分鐘，還有 {Pending} 份沒做完", jobId, GameJobTimeout.TotalMinutes, pending);
+                errors.Add($"AI 劇本任務生成超過 {GameJobTimeout.TotalMinutes} 分鐘仍未完成");
+            }
+
+            // 全部做完（或逾時）：做好的幾份存起來，沒做好的不存
+            if (finished == 0)
+                return await FailGameJobAsync(jobId, plan, $"{string.Join("；", errors.Distinct())}，請重新生成");
+            return await SaveGameJobAsync(auId, row, plan, generated);
+        }
+
+
+        /// <summary>
+        /// AI 做完的劇本存檔。同一個工作只讓一個請求存（把狀態搶成「存檔中」的那個），同時進來的其他請求回「存檔中」，
+        /// 下次輪詢就會拿到存好的劇本。generated 是 null 代表劇本已經寫進資料庫（row.result_json），只做最後整理。
+        /// </summary>
+        private async Task<GameStoryJobResult> SaveGameJobAsync(int auId, StoryDao.GameJobRow row, GameJobPlan plan, AiGameStoryResult[] generated)
+        {
+            string jobId = row.job_id;
+            if (!await _dao.TryStartSavingGameJobAsync(jobId, GameJobSavingTimeout))
+            {
+                StoryDao.GameJobRow latest = await _dao.GetGameJobAsync(jobId, auId);
+                return latest?.status == StoryDao.GameJobRow.Done
+                    ? GameJobDone(latest, plan)
+                    : GameJobProcessing(jobId, plan, plan.stories.Count, "存檔中");
+            }
+
+            List<GameStoryResult> results;
+            try
+            {
+                if (generated == null)
+                {
+                    results = JsonSerializer.Deserialize<List<GameStoryResult>>(row.result_json, GameJobJsonOptions);
+                }
+                else
+                {
+                    results = await BuildGameStoriesAsync(plan, generated);
+                    if (results.Count == 0)
+                        return await FailGameJobAsync(jobId, plan, "AI 劇本任務回傳內容為空，請重新生成");
+
+                    // 寫入資料庫（回填 story_id、sn_id、task_id；有選公車時一併寫入節點間的直達公車），同一個交易記下存好的劇本
+                    await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, plan.plan_bus_transit,
+                        jobId, () => JsonSerializer.Serialize(results, GameJobJsonOptions));
+                }
+
+                await FinishGameStoriesAsync(results, plan.plan_bus_transit);
+                HideAnswers(results);
+                await _dao.CompleteGameJobAsync(jobId, JsonSerializer.Serialize(results, GameJobJsonOptions));
+            }
+            catch
+            {
+                await _dao.ResetGameJobAsync(jobId);   // 沒存成功，下次輪詢再試；劇本已寫進資料庫的話只會重做最後整理
+                throw;
+            }
+
+            return GameJobDone(jobId, plan, results);
+        }
+
+
+        /// <summary>
+        /// 規劃這次要生成的幾份劇本（GenerateGameStory 使用）：
         /// 1. 規劃旅遊行程：交通等時圈（玩家選最遠願意花幾分鐘）找出可到達的景點（含商家自建景點），
         ///    抽出每份劇本的景點組合、排好順路的參觀順序，再依出發時間估算每一站幾點到，把不合適的站換掉
         ///    （到的時候沒開；天黑後才到的站改挑適合晚上的景點）。日夜由抵達時間決定，前端不用選。
         /// 2. 判斷任務類型：照舊架構規則決定每站要出哪些題型；景點在 place_type 標有 9（商家有題庫）時，
         ///    另外必出一題商家知識問答。隨機題型依玩家紀錄調整（動態難度，見 TaskDifficultyService）
-        /// 3. 打包成一包丟給 AI service /api/stories/tasks/batch，一次拿回所有劇本
-        /// 4. 補上 AI 不回傳的欄位、掛入商家題庫任務，全部寫入資料庫（同一個交易），回傳給前端挑選
+        /// 3. 每份劇本各自打包成 AI service /api/stories/tasks 的條件（一次只收一份）
+        /// AI 做完後由 BuildGameStoriesAsync 補上 AI 不回傳的欄位、掛入商家題庫任務，再寫入資料庫。
         /// </summary>
-        public async Task<List<GameStoryResult>> GenerateStoriesAsync(int auId, GameStoryPlan plan)
+        private async Task<GameJobPlan> PlanGameStoriesAsync(int auId, GameStoryPlan plan)
         {
             int partySize = plan.party_size > 0 ? plan.party_size : 2;
             int storyCount = plan.story_count > 0 ? plan.story_count : StoryCount;
             int placesPerStory = plan.places_per_story > 0 ? plan.places_per_story : AttractionCount;
             DateTime startTime = plan.start_time is DateTime t ? ToTaiwanTime(t) : DateTime.UtcNow.AddHours(8);
+
+            // AI 規格的城市、行政區不可為空：行政區判斷不出來時用城市代替
+            string cityName = plan.city_name?.Trim() ?? "";
+            if (cityName.Length == 0)
+                throw new BadRequestException("無法判斷所在的城市，請帶 city_name 再試一次");
+            string districtName = string.IsNullOrWhiteSpace(plan.town_name) ? cityName : plan.town_name.Trim();
 
             // ── 1. 規劃旅遊行程（每一站都帶著預計抵達時間）──
             List<List<ItineraryRules.PlannedStop>> itineraries =
@@ -668,9 +1038,6 @@ namespace backend.Services
             TaskDifficultyService.PlayerProfile player = await _difficulty.GetPlayerProfileAsync(auId);
             HashSet<string> firstVisitPlaces =
                 await _difficulty.GetFirstVisitPlaceIdsAsync(player, placeIds, plan.city_name, plan.town_name);
-
-            string TypeName(int id) => typeNames.TryGetValue(id, out string name) && !string.IsNullOrWhiteSpace(name) ? name
-                                     : FallbackTypeNames.TryGetValue(id, out string fallback) ? fallback : "";
 
             // 商家知識問答：place_type 有 (景點, 9) 標記、且商家題庫有題目的景點，每站必出一題
             // （從題庫隨機挑，同一景點在各份劇本用同一題）
@@ -695,34 +1062,11 @@ namespace backend.Services
                     is_hotel = category == "Lodging" || category == "Hotel" ? 1 : 2,
                     is_hidden = 2,
                     type_list = DecideTaskTypes(rows, category, isLastNode, partySize, player, firstVisitPlaces.Contains(a.uid))
-                        .Select(id => new AiTaskTypeRef { type_id = id, type_name = TypeName(id) })
+                        .Select(id => new AiTaskTypeRef { type_id = id, type_name = TaskTypeName(typeNames, id) })
                         .ToList()
                 };
             }
 
-            // ── 3. 打包成一包丟給 AI（places 已排成順路的參觀順序，AI 照陣列順序排 sn_order）──
-            List<AiStoryCondition> conditions = placeSets.Select((set, i) => new AiStoryCondition
-            {
-                story_no = i + 1,
-                nt_name = tones[i],
-                places = set.Select((a, index) => ToAiPlace(a, index == set.Count - 1)).ToList()
-            }).ToList();
-
-            var aiRequest = new AiGameStoryRequest
-            {
-                city_name = plan.city_name ?? "",
-                district_name = plan.town_name ?? "",
-                party_size = partySize,
-                s_tag = plan.preferences ?? new List<string>(),
-                // AI 文件定義 1＝夜間、2＝白天（跟 story.is_night_mode 的 0／1 不同）。一次送出的幾份劇本共用這個值，
-                // 所以看全部的站：過半數天黑後才到就當夜間
-                is_night_mode = MostlyNight(itineraries.SelectMany(stops => stops)) ? 1 : 2,
-                stories = conditions
-            };
-
-            AiGameStoryResponse aiResponse = await RequestAiStoriesAsync(aiRequest);
-
-            // ── 4. 補上 AI 不回傳的欄位、掛入商家題庫任務 ──
             List<string> transport = (plan.transportation ?? new List<string>())
                 .Where(t => !string.IsNullOrWhiteSpace(t))
                 .Select(t => t.Trim())
@@ -730,15 +1074,52 @@ namespace backend.Services
                 .ToList();
             if (transport.Count == 0) transport.Add("步行");
 
-            bool planBusTransit = transport.Any(t => BusTransports.Contains(t));
+            // ── 3. 每份劇本各自打包成 AI 的條件（/api/stories/tasks 一次只收一份；places 已排成順路的參觀順序，AI 照陣列順序排 sn_order）──
+            return new GameJobPlan
+            {
+                party_size = partySize,
+                preferences = plan.preferences ?? new List<string>(),
+                transport = transport,
+                plan_bus_transit = transport.Any(t => BusTransports.Contains(t)),
+                merchant_questions = pickedQuestions,
+                stories = placeSets.Select((set, i) => new GameJobStory
+                {
+                    story_no = i + 1,
+                    request = new AiGameStoryRequest
+                    {
+                        city_name = cityName,
+                        district_name = districtName,
+                        party_size = partySize,
+                        s_tag = plan.preferences ?? new List<string>(),
+                        // AI 文件定義 1＝夜間、2＝白天（跟 story.is_night_mode 的 0／1 不同）；每份看自己的站，過半數天黑後才到就當夜間
+                        is_night_mode = MostlyNight(itineraries[i]) ? 1 : 2,
+                        nt_name = tones[i],
+                        places = set.Select((a, index) => ToAiPlace(a, index == set.Count - 1)).ToList()
+                    },
+                    stops = itineraries[i]
+                        .Select(s => new GameJobStop { place_id = s.place.uid, arrival = s.arrival, is_night = s.is_night })
+                        .ToList()
+                }).ToList()
+            };
+        }
 
+
+        /// <summary>
+        /// AI 生成好的幾份劇本補上 AI 不回傳的欄位（景點名稱、預計抵達時間、日夜）、只留規劃好的題型、掛入商家題庫任務。
+        /// AI 生成失敗的那份不放進來。
+        /// </summary>
+        private async Task<List<GameStoryResult>> BuildGameStoriesAsync(GameJobPlan plan, AiGameStoryResult[] generatedStories)
+        {
+            Dictionary<int, string> typeNames = await _dao.GetTaskTypeNamesAsync();
             var results = new List<GameStoryResult>();
 
-            foreach (AiStoryCondition condition in conditions)
+            for (int storyIndex = 0; storyIndex < plan.stories.Count; storyIndex++)
             {
-                AiGeneratedStory generated = aiResponse?.stories?.FirstOrDefault(s => s.story_no == condition.story_no);
+                GameJobStory item = plan.stories[storyIndex];
+                AiGameStoryRequest condition = item.request;
+                AiGameStoryResult generated = generatedStories[storyIndex];
                 if (generated?.story == null || generated.nodes == null || generated.nodes.Count == 0)
-                    continue;   // AI 漏掉的那份就不存，其他份照常
+                    continue;   // AI 生成失敗的那份就不存，其他份照常
 
                 // 節點順序以後端送出的 places 為準（規格要求 AI 不可重排），對不到的節點丟掉
                 List<string> order = condition.places.Select(p => p.place_id).ToList();
@@ -752,15 +1133,15 @@ namespace backend.Services
                 if (nodes.Count == 0) continue;
 
                 // 這份劇本每一站規劃好的抵達時間
-                List<ItineraryRules.PlannedStop> stops = itineraries[condition.story_no - 1]
-                    .Where(s => nodes.Any(n => n.place_id == s.place.uid))
+                List<GameJobStop> stops = item.stops
+                    .Where(s => nodes.Any(n => n.place_id == s.place_id))
                     .ToList();
 
                 for (int i = 0; i < nodes.Count; i++)
                 {
                     GameStoryNode node = nodes[i];
                     AiGamePlace place = condition.places.First(p => p.place_id == node.place_id);
-                    ItineraryRules.PlannedStop stop = stops.First(s => s.place.uid == node.place_id);
+                    GameJobStop stop = stops.First(s => s.place_id == node.place_id);
                     HashSet<int> plannedTypes = place.type_list.Select(t => t.type_id).ToHashSet();
 
                     node.sn_order = i + 1;
@@ -774,7 +1155,7 @@ namespace backend.Services
                         .Where(t => plannedTypes.Contains(t.task_type))
                         .ToList();
 
-                    if (pickedQuestions.TryGetValue(node.place_id, out StoryDao.MerchantQuestionRow question))
+                    if (plan.merchant_questions != null && plan.merchant_questions.TryGetValue(node.place_id, out StoryDao.MerchantQuestionRow question))
                     {
                         node.tasks.Add(new GameStoryTask
                         {
@@ -787,36 +1168,40 @@ namespace backend.Services
                     }
 
                     foreach (GameStoryTask task in node.tasks)
-                        task.type_name = TypeName(task.task_type);
+                        task.type_name = TaskTypeName(typeNames, task.task_type);
 
                     node.sn_task_type = string.Join(",", node.tasks.Select(t => t.type_name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct());
                 }
 
                 GameStoryInfo story = generated.story;
-                story.city_name = aiRequest.city_name;
-                story.district_name = aiRequest.district_name;
-                story.party_size = partySize;
-                story.sd_transport = transport;
-                story.is_night_mode = MostlyNight(stops) ? 1 : 0;   // 白天=0、夜間=1（story.is_night_mode）
+                story.npc = new GameStoryNpc { npc_name = generated.npc?.name };   // 寫入資料庫時對應 npc 表，名單上沒有就用薯光
+                story.city_name = condition.city_name;
+                story.district_name = condition.district_name;
+                story.party_size = plan.party_size;
+                story.sd_transport = plan.transport;
+                story.is_night_mode = stops.Count(s => s.is_night) * 2 > stops.Count ? 1 : 0;   // 白天=0、夜間=1（story.is_night_mode），過半數的站天黑後才到就是夜間
                 story.story_postcards = nodes.Count;
                 story.story_badge = new List<string>();   // 寫入資料庫後依劇本內容算出可抽的勳章類別
 
                 results.Add(new GameStoryResult
                 {
-                    story_no = condition.story_no,
+                    story_no = item.story_no,
                     nt_name = condition.nt_name,
                     story = story,
                     nodes = nodes
                 });
             }
 
-            if (results.Count == 0)
-                throw new Exception("AI 劇本任務回傳內容為空");
+            return results;
+        }
 
-            // 寫入資料庫（回填 story_id、sn_id、task_id；有選公車時一併寫入節點間的直達公車）
-            await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit);
 
-            // ── 6. 可抽的勳章類別、每一站的照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
+        /// <summary>
+        /// 寫入資料庫後的整理：可抽的勳章類別、每一站的照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點，
+        /// 並在背景把每一站的照片做成迷霧圖。
+        /// </summary>
+        private async Task FinishGameStoriesAsync(List<GameStoryResult> results, bool planBusTransit)
+        {
             // 剛生成的劇本每一站都還沒抵達，照片一律是迷霧圖（真實照片抵達後才給，見 StationImages）。
             // 這張照片以前做過迷霧圖就用它，沒做過先用通用迷霧圖（下面會在背景做，之後劇本詳情、地圖就會換上）
             StationImages images = await GetStationImagesAsync(results.SelectMany(r => r.nodes).Select(n => n.place_id));
@@ -840,10 +1225,52 @@ namespace backend.Services
 
             foreach (GameStoryResult r in results)
                 _fogQueue.Enqueue(r.story_id, force: true);   // 在背景把每一站的照片做成迷霧圖
-
-            HideAnswers(results);
-            return results;
         }
+
+
+        private async Task<GameStoryJobResult> FailGameJobAsync(string jobId, GameJobPlan plan, string error)
+        {
+            await _dao.FailGameJobAsync(jobId, error);
+            return GameJobFailed(jobId, plan, error);
+        }
+
+
+        private HttpClient CreateGameJobClient()
+        {
+            HttpClient client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(1);
+            return client;
+        }
+
+
+        private static GameStoryJobResult GameJobProcessing(string jobId, GameJobPlan plan, int finished, string stage) =>
+            new() { job_id = jobId, status = GameStoryJobResult.Processing, stage = stage, total_count = plan.stories.Count, finished_count = finished };
+
+
+        private static GameStoryJobResult GameJobFailed(string jobId, GameJobPlan plan, string error) =>
+            new() { job_id = jobId, status = GameStoryJobResult.Failed, error = error, total_count = plan.stories.Count };
+
+
+        private static GameStoryJobResult GameJobDone(string jobId, GameJobPlan plan, List<GameStoryResult> stories) =>
+            new()
+            {
+                job_id = jobId,
+                status = GameStoryJobResult.Done,
+                stage = "完成",
+                total_count = plan.stories.Count,
+                finished_count = stories.Count,
+                stories = stories
+            };
+
+
+        /// <summary>已存好的工作：回傳當初存下的劇本</summary>
+        private static GameStoryJobResult GameJobDone(StoryDao.GameJobRow row, GameJobPlan plan) =>
+            GameJobDone(row.job_id, plan, JsonSerializer.Deserialize<List<GameStoryResult>>(row.result_json, GameJobJsonOptions));
+
+
+        private static string TaskTypeName(Dictionary<int, string> typeNames, int id) =>
+            typeNames.TryGetValue(id, out string name) && !string.IsNullOrWhiteSpace(name) ? name
+            : FallbackTypeNames.TryGetValue(id, out string fallback) ? fallback : "";
 
 
         /// <summary>
@@ -924,7 +1351,7 @@ namespace backend.Services
         /// 把範圍內的商家景點（現有商家的 store_uid，含自建景點與綁定的既有景點）補進行程候選。
         /// FindAllReachableAttractionsAsync 只查 :Attraction，商家自建景點（:MerchantPlace）與綁定的餐廳、旅宿都不在其中，
         /// 所以座標向 Neo4j 查（PlaceLookupService），用同一組等時圈判斷是否在範圍內、同樣用 Valhalla 算真實交通時間與圈層後再加進候選。
-        /// 已刪除帳號的商家沒有 store 資料，不會被排入。
+        /// 已停用帳號的商家不會被排入。
         /// 刻意不改 FindAllReachableAttractionsAsync（交通規劃核心），這裡的圈內判斷與圈層規則要跟它保持一致。
         /// </summary>
         private async Task AddReachableMerchantPlacesAsync(ReachableAttractionsResponse reachable, List<string> transportation)
@@ -1031,31 +1458,60 @@ namespace backend.Services
         }
 
 
-        /// <summary>AI service 的劇本任務批次生成：一次送出多份劇本條件，AI 依序生成後一次回傳（取代舊的 /api/v1/generate）</summary>
-        internal const string GameStoryPath = "/api/stories/tasks/batch";
+        /// <summary>
+        /// AI service 的劇本任務生成：一次只收一份劇本（一組景點、一種敘事語氣），取代舊的 /api/stories/tasks/batch。
+        /// 排隊模式：POST 立刻回 202 與 task_id，劇本在 AI 背景生成，用 GET /api/jobs/{task_id} 查進度與結果
+        /// （AI 只把結果放在記憶體保留 1 小時，重啟或過期就查不到）
+        /// </summary>
+        internal const string GameStoryPath = "/api/stories/tasks";
+        private const string AiJobsPath = "/api/jobs/";
 
-        /// <summary>打包好的劇本條件一次送給 AI service，拿回所有劇本。</summary>
-        private async Task<AiGameStoryResponse> RequestAiStoriesAsync(AiGameStoryRequest aiRequest)
+        private static readonly JsonSerializerOptions AiJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+        /// <summary>
+        /// 查詢 AI 劇本生成任務。AI 查不到任務（404）時回傳 status = not_found；
+        /// AI 連不上、逾時或回 5xx 時回傳 null，當作還在處理中、下次輪詢再查
+        /// </summary>
+        private async Task<AiGameStoryJob> GetAiStoryJobAsync(HttpClient client, string taskId)
         {
-            HttpClient client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromMinutes(10);
-
-            // 送出的 request 與 AI 的 response 由 AiTrafficLogHandler 記錄在 logs/ai/{日期}/
-            var content = new StringContent(JsonSerializer.Serialize(aiRequest), Encoding.UTF8, "application/json");
-            HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(GameStoryPath), content);
-            string responseString = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"AI 劇本任務生成服務回應錯誤 (Status: {(int)response.StatusCode}): {responseString}");
-
             try
             {
-                return JsonSerializer.Deserialize<AiGameStoryResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                using HttpResponseMessage response = await client.GetAsync(AiServiceConfig.Url(AiJobsPath + Uri.EscapeDataString(taskId)));
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                    return new AiGameStoryJob { task_id = taskId, status = AiGameStoryJob.NotFound };
+                if ((int)response.StatusCode >= 500)
+                {
+                    _logger.LogWarning("查詢劇本生成進度失敗（task_id={TaskId}，HTTP {Status}），下次輪詢再查", taskId, (int)response.StatusCode);
+                    return null;
+                }
+
+                return await VlogAiGateway.ReadJsonAsync<AiGameStoryJob>(response, "查詢 AI 劇本任務生成進度");
             }
-            catch (Exception ex)
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
             {
-                throw new Exception($"AI 劇本任務回傳格式無法解析: {ex.Message}");
+                _logger.LogWarning(e, "連不上 AI 服務查詢劇本生成進度（task_id={TaskId}），下次輪詢再查", taskId);
+                return null;
             }
+            catch (Exception e)
+            {
+                // 4xx 或回傳格式無法解析：這份當作失敗，不影響其他份
+                return new AiGameStoryJob { task_id = taskId, status = "error", stage = "查詢進度", error = e.Message };
+            }
+        }
+
+        /// <summary>AI 任務失敗的原因；還在排隊、生成中、已經做好，或 AI 暫時連不上（job 是 null）時回傳 null</summary>
+        private static string AiStoryJobError(AiGameStoryJob job)
+        {
+            if (job == null || job.result != null) return null;
+
+            return (job.status ?? "").Trim().ToLowerInvariant() switch
+            {
+                AiGameStoryJob.NotFound => "AI 服務找不到劇本生成任務（可能已過期或 AI 服務重啟過）",
+                "error" or "failed" or "failure" or "cancelled" or "canceled" => $"AI 劇本任務生成失敗（{job.stage}）：{job.error}",
+                "done" or "completed" or "success" => "AI 劇本任務生成完成，但沒有回傳劇本",
+                _ => null   // queued、running
+            };
         }
 
         /// <summary>

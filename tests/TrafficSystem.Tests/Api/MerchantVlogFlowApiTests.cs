@@ -2,6 +2,7 @@
 // 輸入店家名稱、營業時間、地址、敘事語氣、推廣資訊、多張照片 → 旁白草稿、推薦配文、TAG → 送出合成 → 影片網址
 using System.IO.Compression;
 using System.Net.Http.Json;
+using System.Text.Json;
 using backend.utils;
 using backend.ViewModels;
 using Allure.Net.Commons.Attributes;
@@ -105,14 +106,17 @@ public class MerchantVlogFlowApiTests : IDisposable
         Assert.Equal(FakeAiService.TaskId, task.task_id);
         Assert.Equal(2, task.status);
 
-        // 送給 AI 的合成資料：最終旁白 + 3 張照片依順序打包成 zip
+        // 送給 AI 的合成資料：最終旁白 + 3 張照片依順序打包成 zip，每張照片一筆地點資料（店名）；背景音樂由 AI 自動挑選，不附檔
         FakeAiService.Received sentFinal = _api.FakeAi.Last("/api/visitor/vlog/create_final");
         Assert.Equal("商家確認後的旁白", sentFinal.Fields["final_script"]);
-        Assert.True(sentFinal.Files["bgm_file"].Length > 0);   // AI 規定背景音樂必填
+        Assert.False(sentFinal.Files.ContainsKey("bgm_file"));
         using (var zip = new ZipArchive(new MemoryStream(sentFinal.Files["image_zip"])))
         {
             Assert.Equal(new[] { "01.jpg", "02.jpg", "03.jpg" }, zip.Entries.Select(e => e.FullName));
         }
+        JsonElement meta = JsonDocument.Parse(sentFinal.Fields["spot_meta_json"]).RootElement;
+        Assert.Equal(new[] { "01.jpg", "02.jpg", "03.jpg" }, meta.EnumerateArray().Select(m => m.GetProperty("file_name").GetString()));
+        Assert.All(meta.EnumerateArray(), m => Assert.Equal("阿嬤的芒果冰", m.GetProperty("spot_name").GetString()));
 
         // ── 3. 合成中查進度 ──
         MerchantVlogStatusResponse processing = await StatusAsync(client, draft.mm_id);
@@ -239,6 +243,7 @@ public class MerchantVlogFlowApiTests : IDisposable
     [Theory]
     [InlineData(0, "photo.jpg", "image/jpeg", "請至少上傳一張照片")]
     [InlineData(1, "clip.mp4", "video/mp4", "不是照片")]
+    [InlineData(1, "IMG_0001.HEIC", "image/heic", "影片合成只支援 jpg/png/webp")]   // AI 的 image_zip 不收 HEIC
     [InlineData(31, "photo.jpg", "image/jpeg", "照片最多 30 張")]
     public async Task 照片不符合規定時擋下(int count, string fileName, string contentType, string expected)
     {

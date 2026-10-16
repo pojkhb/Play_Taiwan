@@ -2,7 +2,7 @@
 -- AI 生成劇本時從名單挑一位，story.npc_id、story_node.npc_id 記錄用了哪一位；沒有指定時用預設的薯光
 -- 已經建好的資料庫執行一次即可（重複執行會更新成最新的 NPC 資料）；新建的資料庫直接用 schema.sql + seed_reference.sql
 --
---   mysql -u root -p play_taiwan_db < Sqls/mysql/20261001_story_npc.sql
+--   mysql -u root -p play_taiwan_db < Sqls/mysql/migrations/20261001_story_npc.sql
 
 CREATE TABLE IF NOT EXISTS `npc` (
   `npc_id` int NOT NULL AUTO_INCREMENT COMMENT 'NPC 流水號（story.npc_id、story_node.npc_id 對應這裡）',

@@ -1,6 +1,6 @@
 // 檔案路徑：System\dao\Badge\BadgeDao.cs
 // 對應新資料表 `badge` + `au_badge`，取代舊的 md_badge / ep_badge。
-// au_badge.s_id 記錄勳章是從哪個劇本抽到的，一個劇本只能抽一枚（Sqls/mysql/AuBadgeStoryId.sql）。
+// au_badge.s_id 記錄勳章是從哪個劇本抽到的，一個劇本只能抽一枚（Sqls/mysql/migrations/AuBadgeStoryId.sql）。
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;

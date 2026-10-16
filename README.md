@@ -85,7 +85,7 @@
 ├── Middleware/         JWT 驗證、例外處理
 ├── Extensions/         擴充方法
 ├── util/               共用工具（設定、雜湊、迷霧圖影像處理…）
-├── Sqls/mysql/         MySQL 建表、初始資料與資料庫遷移腳本
+├── Sqls/mysql/         MySQL 建表、初始資料（遷移腳本在 Sqls/mysql/migrations/）
 ├── wwwroot/            靜態檔案（背景音樂、迷霧圖、上傳檔案）
 ├── tests/              單元測試與 API 整合測試
 ├── docs/               文件（API 清單、Valhalla 架設…）
@@ -122,13 +122,17 @@ mysql -u root -p play_taiwan_db < Sqls/mysql/schema.sql            # 所有資�
 mysql -u root -p play_taiwan_db < Sqls/mysql/seed_reference.sql    # 勳章、敘事語氣、任務類型、迷霧圖等基本資料
 ```
 
-已經建好的資料庫，依需要各執行一次遷移腳本：
+已經建好的資料庫，依需要各執行一次 `Sqls/mysql/migrations/` 裡的遷移腳本（新建的資料庫用 `schema.sql` 就好，不用跑）：
 
 | 狀況 | 執行 |
 |---|---|
-| 還有 `silhouette`、`story_node_silhouette` 兩張表 | `Sqls/mysql/20260930_silhouette_to_fog.sql`（換成迷霧圖表 `fog`） |
-| `story` 表還沒有 `is_favorite` 欄位 | `Sqls/mysql/20260930_story_favorite.sql`（劇本的「喜愛」欄位） |
-| 還沒有 `npc` 表 | `Sqls/mysql/20261001_story_npc.sql`（NPC 名單：薯光等六位角色與圖片） |
+| 還有 `silhouette`、`story_node_silhouette` 兩張表 | `Sqls/mysql/migrations/20260930_silhouette_to_fog.sql`（換成迷霧圖表 `fog`） |
+| `story` 表還沒有 `is_favorite` 欄位 | `Sqls/mysql/migrations/20260930_story_favorite.sql`（劇本的「喜愛」欄位） |
+| 還沒有 `npc` 表 | `Sqls/mysql/migrations/20261001_story_npc.sql`（NPC 名單：薯光等六位角色與圖片） |
+| `au_badge` 表還沒有 `s_id` 欄位 | `Sqls/mysql/migrations/AuBadgeStoryId.sql`（勳章是從哪個劇本抽到的，一個劇本只能抽一枚） |
+| `badge` 表還沒有 `is_active` 欄位 | `Sqls/mysql/migrations/20261014_badge_soft_delete.sql`（勳章改成軟刪除） |
+| 還沒有 `story_text_job` 表 | `Sqls/mysql/migrations/20261016_story_text_job.sql`（遊你說算的生成工作） |
+| 還沒有 `story_game_job` 表 | `Sqls/mysql/migrations/20261016_story_game_job.sql`（現在揪出發的生成工作） |
 
 公車與捷運資料有兩種來源，擇一即可：
 
@@ -293,7 +297,6 @@ docker run -d --name play-taiwan -p 5501:5501 \
 |---|---|
 | [docs/valhalla-setup.md](docs/valhalla-setup.md) | Valhalla（Docker）架設步驟 |
 | [docs/notion/API總覽.md](docs/notion/API總覽.md) | API 總覽（依 App 畫面整理） |
-| [wwwroot/bgm/README.md](wwwroot/bgm/README.md) | Vlog 背景音樂說明 |
 
 ---
 

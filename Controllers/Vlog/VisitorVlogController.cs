@@ -14,7 +14,8 @@ namespace backend.Controllers
 {
     /// <summary>
     /// 遊客 VLOG（旅遊回憶影片）。
-    /// 流程：遊戲結束 → Preview（story_id）拿到旁白草稿 → 玩家確認旁白 → CreateFinal（story_id + 旁白），
+    /// 流程：遊戲結束 → Preview（story_id）拿到旁白草稿 → 玩家確認旁白（配樂風格、影片方向可選，選項由 Options 取得）
+    /// → CreateFinal（story_id + 旁白），
     /// 後端自動抓這次遊玩拍的照片與景點資料打包送出 → 輪詢 Status/{story_id} 直到 status=3。
     /// </summary>
     [ApiController]
@@ -30,6 +31,46 @@ namespace backend.Controllers
             _logger = logger;
             _service = service;
         }
+
+        #region 0. CreateFinal 選填欄位的選項（下拉選單）
+
+        /// <summary>
+        /// 取得 CreateFinal 選填欄位的下拉選單選項：配樂風格（bgm_mood）、影片方向（video_orientation），以及旅遊感想的字數上限。
+        /// </summary>
+        /// <remarks>
+        /// 選單顯示 `label`（`description` 有值時可以當小字說明），送 CreateFinal 時帶 `value`。
+        /// `is_default = true` 的是預設選項：玩家沒選時可以不帶這個欄位，AI 會用它。
+        ///
+        /// **回傳範例**（節錄）：
+        /// ```json
+        /// {
+        ///   "bgm_moods": [
+        ///     { "value": "auto", "label": "自動選曲", "description": "AI 分析旁白和旅遊感想，自動挑選配樂", "is_default": true },
+        ///     { "value": "warm", "label": "溫馨", "description": null, "is_default": false },
+        ///     { "value": "none", "label": "不配樂", "description": "只有旁白，沒有背景音樂", "is_default": false }
+        ///   ],
+        ///   "video_orientations": [
+        ///     { "value": "landscape", "label": "橫式", "description": "1920×1080", "is_default": true },
+        ///     { "value": "portrait", "label": "直式", "description": "1080×1920", "is_default": false }
+        ///   ],
+        ///   "user_memory_text_max_length": 3000
+        /// }
+        /// ```
+        /// </remarks>
+        [HttpGet]
+        [Route("Options")]
+        [ProducesResponseType(typeof(ResultViewModel<VisitorVlogOptionsResponse>), 200)]
+        public IActionResult Options()
+        {
+            return Ok(new ResultViewModel<VisitorVlogOptionsResponse>
+            {
+                isSuccess = true,
+                message = "查詢成功",
+                Result = _service.GetOptions()
+            });
+        }
+
+        #endregion
 
         #region 1. 旁白草稿
 
@@ -93,9 +134,17 @@ namespace backend.Controllers
         ///   "story_id": 1,
         ///   "final_script": "確認後的旁白…",
         ///   "promo_copy": "（選填）修改後的宣傳文案",
-        ///   "seo_keywords": ["台中散步", "宮原眼科"]
+        ///   "seo_keywords": ["台中散步", "宮原眼科"],
+        ///   "user_memory_text": "（選填）和朋友一起解開所有謎題，很有成就感",
+        ///   "bgm_mood": "auto",
+        ///   "video_orientation": "portrait"
         /// }
         /// ```
+        /// 選填的合成選項（不帶就用預設值；bgm_mood、video_orientation 的下拉選單選項由 GET /api/VisitorVlog/Options 取得）：
+        /// - `user_memory_text`：玩家自己寫的旅遊感想，最多 3000 字，只給 AI 判斷配樂風格，不會出現在影片裡
+        /// - `bgm_mood`：配樂風格，auto（預設，依旁白自動挑選）、cheerful 輕快、relaxed 悠閒、warm 溫馨、nostalgic 回憶、adventurous 探索、neutral 中性、none 不配樂
+        /// - `video_orientation`：landscape（預設，橫式 1920×1080）、portrait（直式 1080×1920）
+        ///
         /// 回傳的 `task_id` 要保存好，輪詢 Status 時帶回來。
         /// </remarks>
         [HttpPost]

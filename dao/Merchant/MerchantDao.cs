@@ -135,15 +135,27 @@ namespace backend.dao
         }
 
         /// <summary>
-        /// 商家自建景點的店名變更後，同步 place_type.place_name（題型抽選與任務生成用的景點名稱）。
+        /// 商家自建景點的店名變更後，同步 place_type.place_name（題型抽選與任務生成用的景點名稱）；
+        /// 換了分類時 place_category 也一起改（null 代表分類沒變）。
         /// 地址、介紹等內容在 Neo4j 的版本節點（PlaceVersionChainService），不存 MySQL。
         /// </summary>
-        public void SyncSelfBuiltPlace(string storeUid, string placeName)
+        public void SyncSelfBuiltPlace(string storeUid, string placeName, string placeCategory = null)
         {
             using var connection = new MySqlConnection(_appSettings.mydb);
-            connection.Execute(
-                "UPDATE place_type SET place_name = @placeName WHERE place_id = @storeUid;",
-                new { placeName, storeUid });
+            connection.Execute(@"
+                UPDATE place_type
+                SET place_name = @placeName,
+                    place_category = COALESCE(@placeCategory, place_category)
+                WHERE place_id = @storeUid;",
+                new { placeName, placeCategory, storeUid });
+        }
+
+        /// <summary>景點在 place_type 的分類（Attraction、Restaurant…），沒有資料時為 null</summary>
+        public string GetPlaceCategory(string storeUid)
+        {
+            using var connection = new MySqlConnection(_appSettings.mydb);
+            return connection.ExecuteScalar<string>(
+                "SELECT MIN(place_category) FROM place_type WHERE place_id = @storeUid;", new { storeUid });
         }
 
         public (List<MerchantListItem> items, int total) List(MerchantListQuery query)

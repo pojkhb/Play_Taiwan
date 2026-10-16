@@ -153,26 +153,52 @@ public class StoryRecapApiTests
     }
 
     [Fact]
-    public async Task 按播放時產生旁白語音_之後直接用存好的檔案()
+    public async Task 按播放時由劇本的NPC產生旁白語音_之後直接用存好的檔案()
     {
         int user = _api.NewUserId();
         var (storyId, _) = await CreateFinishedStoryAsync(user);
-        _api.FakeAi.Images[AiServiceConfig.Url("/api/download/npc_npc-001.mp3")] = new byte[] { 0x49, 0x44, 0x33, 1, 2, 3 };   // 假的 mp3
+        await _api.ExecuteAsync("UPDATE story SET npc_id = (SELECT npc_id FROM npc WHERE npc_name = '墨先生') WHERE s_id = @storyId;", new { storyId });
         HttpClient client = _api.ClientFor(user);
 
-        HttpResponseMessage first = await client.PostAsync($"/api/History/{storyId}/Recap/Narration", null);
-        StoryRecapNarration narration = (await first.ReadResultAsync<StoryRecapNarration>()).Result;
+        StoryRecapNarration narration = (await RecapAsync(user, storyId)).narration;
+        Assert.Equal("墨先生", narration.npc_name);
+        Assert.Null(narration.audio_url);   // 還沒產生過
 
+        // 按播放：交給 AI 排隊，由劇本的 NPC 唸
+        HttpResponseMessage first = await client.PostAsync($"/api/History/{storyId}/Recap/Narration", null);
+        NpcSpeakResponse sent = (await first.ReadResultAsync<NpcSpeakResponse>()).Result;
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
-        string key = StoryRecapService.NarrationKey(NpcVoiceService.DefaultVoice, narration.text);
-        Assert.EndsWith($"/audio/narration/{key}.mp3", narration.audio_url);
-        Assert.True(File.Exists(Path.Combine(_api.FogRoot, "audio", "narration", key + ".mp3")));
-        Assert.Equal(narration.text, _api.FakeAi.Last("/api/npc/speak").Fields["text"]);
+        Assert.Equal(NpcSpeakResponse.Processing, sent.status);
+        FakeAiService.Received ai = _api.FakeAi.Last("/api/npc/speak");
+        Assert.Equal(narration.text, ai.Fields["text"]);
+        Assert.Equal("墨先生", ai.Fields["npc_name"]);
+
+        // 用 NPC 語音的查進度 API 等到做好
+        _api.FakeAi.CompleteNpcJob(_api.FakeAi.LastNpcTaskId, new byte[] { 0x52, 0x49, 0x46, 0x46, 1, 2, 3 });
+        NpcSpeakResponse done = (await (await client.GetAsync($"/api/Npc/Speak/{sent.job_id}")).ReadResultAsync<NpcSpeakResponse>()).Result;
+        Assert.Equal(NpcSpeakResponse.Done, done.status);
+        Assert.EndsWith($"/audio/npc/{sent.job_id}.wav", done.audio_url);
+        Assert.True(File.Exists(Path.Combine(_api.FogRoot, "audio", "npc", sent.job_id + ".wav")));
 
         // 第二次直接回傳存好的檔案，不再呼叫 AI；回顧也會帶出語音網址
-        await client.PostAsync($"/api/History/{storyId}/Recap/Narration", null);
+        NpcSpeakResponse again = (await (await client.PostAsync($"/api/History/{storyId}/Recap/Narration", null)).ReadResultAsync<NpcSpeakResponse>()).Result;
+        Assert.Equal(NpcSpeakResponse.Done, again.status);
         Assert.Single(_api.FakeAi.Requests, r => r.Path == "/api/npc/speak");
-        Assert.Equal(narration.audio_url, (await RecapAsync(user, storyId)).narration.audio_url);
+        Assert.Equal(done.audio_url, (await RecapAsync(user, storyId)).narration.audio_url);
+    }
+
+    [Fact]
+    public async Task 旁白可以改由其他NPC唸_不在名單上回400()
+    {
+        int user = _api.NewUserId();
+        var (storyId, _) = await CreateFinishedStoryAsync(user);
+        HttpClient client = _api.ClientFor(user);
+
+        await client.PostAsJsonAsync($"/api/History/{storyId}/Recap/Narration", new { npc_name = "霓霓" });
+        Assert.Equal("霓霓", _api.FakeAi.Last("/api/npc/speak").Fields["npc_name"]);
+
+        HttpResponseMessage bad = await client.PostAsJsonAsync($"/api/History/{storyId}/Recap/Narration", new { npc_name = "夜市阿婆" });
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
     }
 
     [Fact]

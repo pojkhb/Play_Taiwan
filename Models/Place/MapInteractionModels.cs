@@ -22,7 +22,7 @@ namespace backend.Models
         /// <summary>NPC 代號（npc.npc_id）；劇本沒有指定 NPC 時是預設的薯光</summary>
         public string npc_id { get; set; }
 
-        /// <summary>NPC 名稱，例如「墨先生」</summary>
+        /// <summary>NPC 名稱，例如「墨先生」；要把台詞唸出來時，當成 POST /api/Npc/Speak 的 npc_name</summary>
         public string npc_name { get; set; }
 
         /// <summary>NPC 身分／角色設定，例如「博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案」</summary>
@@ -30,9 +30,6 @@ namespace backend.Models
 
         /// <summary>NPC 圖片（完整網址）</summary>
         public string npc_avatar_url { get; set; }
-
-        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
-        public string npc_voice { get; set; }
 
         // 對話
         /// <summary>NPC 對話內容</summary>

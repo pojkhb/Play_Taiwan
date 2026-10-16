@@ -175,6 +175,36 @@ namespace backend.ViewModels
         public string promo_copy { get; set; }
     }
 
+    /// <summary>
+    /// 送給外部 API /api/visitor/vlog/create_final 的 spot_meta_json 一筆：一張照片剛好一筆，陣列順序就是影片播放順序。
+    /// AI 會逐一比對 file_name 和 image_zip 裡的檔名，有任何一張對不上整個請求就會被退回（HTTP 400）。
+    /// </summary>
+    public class VlogSpotMeta
+    {
+        /// <summary>照片在 image_zip 裡的檔名（含副檔名，區分大小寫）</summary>
+        public string file_name { get; set; }
+
+        /// <summary>影片左上角顯示的地點名稱，必填</summary>
+        public string spot_name { get; set; }
+
+        /// <summary>選填：景點或任務代號</summary>
+        public string location_codename { get; set; }
+
+        /// <summary>選填：造訪時間</summary>
+        public string visit_time { get; set; }
+    }
+
+    /// <summary>
+    /// 送給外部 API /api/visitor/vlog/create_final 的選填合成選項（已檢查、整理過）。
+    /// null 的欄位不送，AI 用預設值：不參考感想、bgm_mood=auto 自動配樂、video_orientation=landscape 橫式
+    /// </summary>
+    public class VlogCreateOptions
+    {
+        public string user_memory_text { get; set; }
+        public string bgm_mood { get; set; }
+        public string video_orientation { get; set; }
+    }
+
     /// <summary>外部 API /api/visitor/vlog/create_final 的原始回應結構（排隊模式，HTTP 202，status=queued）。</summary>
     public class VlogCreateFinalApiResponse
     {
@@ -196,6 +226,9 @@ namespace backend.ViewModels
 
         /// <summary>目前階段，例如「等待處理」「正在生成 XTTS 旁白」「完成」</summary>
         public string stage { get; set; }
+
+        /// <summary>排隊中時前面還有幾個任務（1＝下一個就輪到）；不在排隊時為 null</summary>
+        public int? queue_position { get; set; }
         public VlogJobResult result { get; set; }
 
         /// <summary>失敗原因；AI 沒有固定格式，可能是字串或物件</summary>

@@ -48,6 +48,9 @@ wwwroot/images/fog/generated/
 # 劇本回顧的旁白語音：由 AI 服務產生後存在後端，每個環境自己產生，不進版控
 wwwroot/audio/narration/
 
+# NPC 語音（劇情前傳、對話、回顧旁白）：由 AI 服務產生後存在後端，每個環境自己產生，不進版控
+wwwroot/audio/npc/
+
 # 明信片圖片：從 AI 服務抓回後端存起來（顯示、下載、ibon 列印共用），每個環境自己產生，不進版控
 wwwroot/images/postcards/
 openapi_full.json
@@ -59,3 +62,7 @@ logs/
 
 # 使用者上傳的檔案（照片、影片、語音、商家 Vlog 等）：每個環境自己產生，不進版控
 wwwroot/uploads/
+
+# embedding 小服務的 Python 虛擬環境（依 tools/embedding_service/README.md 自己建）
+tools/embedding_service/.venv/
+__pycache__/

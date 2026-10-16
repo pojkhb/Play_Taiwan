@@ -49,6 +49,9 @@ namespace backend.ViewModels
         /// <summary>景點名稱</summary>
         public string place_name { get; set; }
 
+        /// <summary>景點在 Neo4j 的 uid（AI 依站點順序填入，景點、餐廳、旅宿都有），存進 story_node.place_id</summary>
+        public string spot_uuid { get; set; }
+
         /// <summary>地點代號（劇情中對這個地點的暗號/別稱）</summary>
         public string location_codename { get; set; }
 

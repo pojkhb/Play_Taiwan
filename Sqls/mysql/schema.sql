@@ -549,6 +549,22 @@ CREATE TABLE `story` (
   KEY `idx_story_au_favorite` (`au_id`,`is_favorite`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本表';
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `story_game_job`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `story_game_job` (
+  `job_id` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT '生成工作代號（後端產生）',
+  `au_id` int NOT NULL COMMENT '送出工作的使用者',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '1＝生成中、2＝存檔中、3＝完成、4＝失敗',
+  `plan_json` mediumtext COLLATE utf8mb4_general_ci NOT NULL COMMENT '送給 AI 的每份劇本條件、AI 任務代號、每站預計抵達時間、商家題目等存檔要用的資料',
+  `result_json` mediumtext COLLATE utf8mb4_general_ci COMMENT '存好的劇本（含 story_id、sn_id、task_id），完成後重複輪詢時原樣回傳',
+  `error_message` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '失敗原因',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '送出時間',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
+  PRIMARY KEY (`job_id`) USING BTREE,
+  KEY `idx_sgj_au_id` (`au_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='現在揪出發的劇本生成工作';
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `story_node`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -655,6 +671,23 @@ CREATE TABLE `story_tag` (
   `s_tag` varchar(100) COLLATE utf8mb4_general_ci NOT NULL COMMENT '偏好標籤',
   PRIMARY KEY (`s_id`,`s_tag`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='劇本偏好標籤';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `story_text_job`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `story_text_job` (
+  `job_id` varchar(64) COLLATE utf8mb4_general_ci NOT NULL COMMENT 'AI 背景工作代號',
+  `au_id` int NOT NULL COMMENT '送出工作的使用者',
+  `user_prompt` text COLLATE utf8mb4_general_ci NOT NULL COMMENT '使用者輸入的一句話',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '1＝生成中、2＝存檔中、3＝完成、4＝失敗',
+  `s_id` int DEFAULT NULL COMMENT '存成的劇本（完成後才有）',
+  `result_json` mediumtext COLLATE utf8mb4_general_ci COMMENT '完成時 AI 回傳的解析條件與劇本內容，重複輪詢時原樣回傳',
+  `error_message` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '失敗原因',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '送出時間',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
+  PRIMARY KEY (`job_id`) USING BTREE,
+  KEY `idx_stj_au_id` (`au_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci ROW_FORMAT=DYNAMIC COMMENT='遊你說了算的 AI 生成工作';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `taiwan_tripper_route`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

@@ -1,5 +1,5 @@
 // 檔案路徑：System\ViewModels\Story\GameStoryViewModels.cs
-// 劇本 + 任務一次生成（AI service /api/stories/tasks/batch），一次生成多份劇本讓使用者挑
+// 劇本 + 任務生成（AI service /api/stories/tasks，一次只送一份劇本），每份各自送給 AI，一次生成多份劇本讓使用者挑
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -52,7 +52,7 @@ namespace backend.ViewModels
 
     /// <summary>
     /// 劇本生成條件（GenerateGameStory 使用，後端內部使用）。
-    /// 中心點經緯度、城市/行政區由 Controller 補齊後傳入 StoryService.GenerateStoriesAsync。
+    /// 中心點經緯度、城市/行政區由 Controller 補齊後傳入 StoryService.PlanGameStoriesAsync。
     /// </summary>
     public class GameStoryPlan
     {
@@ -93,26 +93,23 @@ namespace backend.ViewModels
     #endregion
 
 
-    #region 後端 → AI service（/api/stories/tasks/batch 的 request，AI 規格 StoryTaskRequest）
+    #region 後端 → AI service（/api/stories/tasks 的 request，AI 規格 SingleStoryTaskRequest）
 
+    /// <summary>
+    /// 一份劇本的生成條件：一組景點、一種敘事語氣。AI 規格不接受其他欄位（stories、story_no 等多送會被退回 422），
+    /// city_name、district_name 不可為空字串，places 至少一個
+    /// </summary>
     public class AiGameStoryRequest
     {
         public string city_name { get; set; }
         public string district_name { get; set; }
+
+        /// <summary>遊玩人數（至少 1），不是劇本生成數量</summary>
         public int party_size { get; set; }
         public List<string> s_tag { get; set; }
 
         /// <summary>1 = 夜間劇本、2 = 白天劇本（AI 文件定義，沒有 0）</summary>
         public int is_night_mode { get; set; }
-
-        /// <summary>各份劇本的生成條件，每份各自一組景點與敘事語氣</summary>
-        public List<AiStoryCondition> stories { get; set; }
-    }
-
-    public class AiStoryCondition
-    {
-        /// <summary>劇本編號，從 1 開始，AI 回傳時原樣帶回</summary>
-        public int story_no { get; set; }
 
         /// <summary>敘事語氣（narrative_tone.nt_name）</summary>
         public string nt_name { get; set; }
@@ -156,19 +153,79 @@ namespace backend.ViewModels
     #endregion
 
 
-    #region AI service → 後端（/api/stories/tasks/batch 的 response，AI 規格 StoryTaskResponse）
+    #region AI service → 後端（/api/stories/tasks 排隊模式：POST 回 202 與 task_id，GET /api/jobs/{task_id} 查進度與結果）
 
-    public class AiGameStoryResponse
+    /// <summary>AI 排隊任務的狀態（POST /api/stories/tasks 與 GET /api/jobs/{task_id} 都回這個格式）</summary>
+    public class AiGameStoryJob
     {
-        public List<AiGeneratedStory> stories { get; set; }
+        /// <summary>查不到任務（AI 回 404：已過期或 AI 服務重啟過）時，後端自己填的狀態</summary>
+        public const string NotFound = "not_found";
+
+        public string task_id { get; set; }
+
+        /// <summary>queued、running、done、error</summary>
+        public string status { get; set; }
+
+        /// <summary>目前進行到哪個階段，例如「正在生成一套劇本與節點任務」</summary>
+        public string stage { get; set; }
+
+        /// <summary>status = done 時才有值</summary>
+        public AiGameStoryResult result { get; set; }
+
+        /// <summary>status = error 時的原因</summary>
+        public string error { get; set; }
     }
 
-    public class AiGeneratedStory
+    /// <summary>一份生成好的劇本（AI 規格 SingleStoryTaskResponse）</summary>
+    public class AiGameStoryResult
     {
-        /// <summary>對應 request 的 stories[].story_no</summary>
-        public int story_no { get; set; }
         public GameStoryInfo story { get; set; }
+
+        /// <summary>AI 為這份劇本挑的 NPC</summary>
+        public AiGameStoryNpc npc { get; set; }
         public List<GameStoryNode> nodes { get; set; }
+    }
+
+    public class AiGameStoryNpc
+    {
+        /// <summary>NPC 名稱，對應 npc 表的 npc_name</summary>
+        public string name { get; set; }
+        public string role { get; set; }
+        public string intro { get; set; }
+    }
+
+    #endregion
+
+
+    #region 後端回傳給前端：生成工作的進度
+
+    /// <summary>劇本生成工作的進度；送出（POST GenerateGameStory）與輪詢（GET GenerateGameStory/{job_id}）回傳同一種格式</summary>
+    public class GameStoryJobResult
+    {
+        public const string Processing = "processing";
+        public const string Done = "done";
+        public const string Failed = "failed";
+
+        /// <summary>工作代號，輪詢 GET /api/Story/GenerateGameStory/{job_id} 時帶入</summary>
+        public string job_id { get; set; }
+
+        /// <summary>processing（生成中，繼續輪詢）、done（完成，stories 有值）、failed（失敗，看 error）</summary>
+        public string status { get; set; }
+
+        /// <summary>目前進度，例如「排隊中」「劇本生成中（已完成 1/3 份）」「存檔中」，可以顯示在等待畫面</summary>
+        public string stage { get; set; }
+
+        /// <summary>這次要生成幾份劇本</summary>
+        public int total_count { get; set; }
+
+        /// <summary>AI 已經生成好幾份</summary>
+        public int finished_count { get; set; }
+
+        /// <summary>status = failed 時的原因</summary>
+        public string error { get; set; }
+
+        /// <summary>生成好的劇本，status = done 才有值。某一份 AI 生成失敗時那份不會出現，所以可能少於 total_count 份</summary>
+        public List<GameStoryResult> stories { get; set; }
     }
 
     #endregion
@@ -235,7 +292,7 @@ namespace backend.ViewModels
 
         /// <summary>
         /// 劇本的 NPC，每一站都由這個 NPC 說開場白與成功台詞。
-        /// AI 從 NPC 名單（npc 表）挑一位，回傳 story.npc.npc_name 即可；沒挑或名字不在名單上時用預設的薯光。
+        /// AI 從 NPC 名單（npc 表）挑一位，回傳在 npc.name；沒挑或名字不在名單上時用預設的薯光。
         /// 其他欄位由後端從 npc 表帶出
         /// </summary>
         public GameStoryNpc npc { get; set; }
@@ -247,7 +304,7 @@ namespace backend.ViewModels
         /// <summary>NPC 代號（npc.npc_id）</summary>
         public int? npc_id { get; set; }
 
-        /// <summary>NPC 名稱，例如「墨先生」；AI 只要回傳這個欄位</summary>
+        /// <summary>NPC 名稱，例如「墨先生」（AI 回傳的 npc.name）；台詞轉語音時傳給 POST /api/Npc/Speak 的 npc_name</summary>
         public string npc_name { get; set; }
 
         /// <summary>NPC 身分／角色設定</summary>
@@ -258,9 +315,6 @@ namespace backend.ViewModels
 
         /// <summary>NPC 圖片（完整網址）</summary>
         public string npc_avatar_url { get; set; }
-
-        /// <summary>NPC 語音的聲線，把台詞轉成語音時傳給 POST /api/Npc/Speak 的 voice</summary>
-        public string npc_voice { get; set; }
     }
 
     /// <summary>劇本節點（景點）</summary>

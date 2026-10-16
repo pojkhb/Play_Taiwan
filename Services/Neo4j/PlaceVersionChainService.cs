@@ -285,6 +285,67 @@ namespace backend.Services.Neo4j
         /// <summary>比對地名用：去掉空白、統一成 Neo4j 的「台」</summary>
         private static string Clean(string s) => new string(s.Where(ch => !char.IsWhiteSpace(ch)).ToArray()).Replace('臺', '台');
 
+        /// <summary>
+        /// 商家自建景點的分類（註冊的 category，也是 place_type.place_category）→ Neo4j 主分類名稱與預設細分類。
+        /// 分類同時當作身分節點的類型標籤（:Attraction、:Restaurant…），跟政府資料一樣。
+        /// 預設細分類用政府資料本來就有的「其他」「一般活動」；旅宿沒有通用的細分類，不掛。
+        /// </summary>
+        public static readonly IReadOnlyDictionary<string, (string mainCategory, string defaultSubCategory)> MerchantPlaceCategories =
+            new Dictionary<string, (string, string)>
+            {
+                ["Attraction"] = ("景點", "其他"),
+                ["Restaurant"] = ("餐廳", "其他"),
+                ["Hotel"] = ("住宿", null),
+                ["Event"] = ("活動", "一般活動")
+            };
+
+        /// <summary>
+        /// 商家自建景點可選的分類與細分類（Neo4j 的 MainCategory → Category）。
+        /// 細分類依掛的景點數排序（常用的在前），「其他」排最後。
+        /// </summary>
+        public async Task<List<MerchantPlaceCategoryItem>> GetMerchantPlaceCategoriesAsync()
+        {
+            var rows = await _gateway.ExecuteCypherAsync(@"
+                MATCH (m:MainCategory)-[:HAS_SUBCATEGORY]->(c:Category)
+                WHERE m.name IN $mainCategories
+                WITH m, c ORDER BY c.name = '其他', COUNT { (c)<-[:HAS_CATEGORY]-() } DESC, c.name
+                RETURN m.name AS main_category, collect(c.name) AS sub_categories",
+                new { mainCategories = MerchantPlaceCategories.Values.Select(v => v.mainCategory).ToList() });
+
+            Dictionary<string, List<string>> subCategories = rows.ToDictionary(
+                row => Neo4jValueConverter.AsString(row.GetValueOrDefault("main_category")),
+                row => Neo4jValueConverter.AsStringList(row.GetValueOrDefault("sub_categories")));
+
+            return MerchantPlaceCategories.Select(kv => new MerchantPlaceCategoryItem
+            {
+                category = kv.Key,
+                name = kv.Value.mainCategory,
+                default_sub_category = kv.Value.defaultSubCategory,
+                sub_categories = subCategories.GetValueOrDefault(kv.Value.mainCategory) ?? new List<string>()
+            }).ToList();
+        }
+
+        // 身分節點上的名稱、介紹（變數 name、description），屬性名稱跟同類型的政府資料一樣（活動是 EventName / Description，其他是 name / description），
+        // 接在已綁定 a 的查詢後面；值是 null 時拿掉該屬性
+        private const string SetPlaceTextCypher = @"
+                SET a += CASE WHEN a:Event THEN {EventName: name, Description: description} ELSE {name: name, description: description} END";
+
+        // 套用分類（變數 category、subCategory）：換成 category 的類型標籤（null 時不加），名稱、介紹改用該類型的屬性名稱，
+        // 細分類換成 subCategory（旅宿另外掛同名的旅宿等級；Neo4j 沒有這個細分類時不掛），接在已綁定 a 的查詢後面。
+        // 四個類型標籤跟 MerchantPlaceCategories 一致
+        private const string ApplyCategoryCypher = @"
+                WITH a, category, subCategory, coalesce(a.name, a.EventName) AS name, coalesce(a.description, a.Description) AS description
+                REMOVE a:Attraction:Restaurant:Hotel:Event, a.name, a.EventName, a.description, a.Description
+                SET a:$(CASE WHEN category IS NULL THEN [] ELSE [category] END)" + SetPlaceTextCypher + @"
+                WITH a, subCategory
+                OPTIONAL MATCH (a)-[old:HAS_CATEGORY|HAS_CLASS]->()
+                DELETE old
+                WITH DISTINCT a, subCategory
+                OPTIONAL MATCH (c:Category {name: subCategory})
+                OPTIONAL MATCH (hc:HotelClass {name: subCategory}) WHERE a:Hotel
+                FOREACH (_ IN CASE WHEN c IS NULL THEN [] ELSE [1] END | CREATE (a)-[:HAS_CATEGORY]->(c))
+                FOREACH (_ IN CASE WHEN hc IS NULL THEN [] ELSE [1] END | CREATE (a)-[:HAS_CLASS]->(hc))";
+
         // 把自建景點掛到指定的鄉鎮市區與所屬縣市（先拆掉舊的行政區關聯），接在已綁定 a 的查詢後面
         private const string LinkTownCypher = @"
                 WITH a
@@ -300,13 +361,18 @@ namespace backend.Services.Neo4j
         /// 商家註冊時選「都沒有，我要建立新的」景點：建立一顆全新身分節點（:Place:MerchantPlace，帶座標、完整地址，
         /// 並掛上鄉鎮市區與縣市，和政府資料的景點一樣可以依行政區查詢）
         /// 加一顆 source='merchant' 的 :Current 版本節點，回傳新產生的 uid。
+        /// 身分節點跟政府資料的景點一樣：加上分類的類型標籤（category，已經過 MerchantPlaceCategories 檢查），
+        /// 帶名稱、介紹與介紹的語意向量（description_embedding，embedding 為 null 時不寫），
+        /// 掛細分類（HAS_CATEGORY，旅宿另外掛同名的旅宿等級 HAS_CLASS；Neo4j 沒有這個細分類時不掛），
+        /// 分類瀏覽、語意搜尋、附近景點／美食查詢才找得到。
         /// 營業時間（已經過 OperatingHoursRules 整理）跟政府資料一樣，一個時段建一顆 (:OperatingHours) 掛在身分節點。
         /// </summary>
-        public async Task<string> CreateMerchantPlaceAsync(MerchantPlaceFields fields, List<PlaceOperatingHourItem> operatingHours,
-            MerchantPlaceLocation location, string submittedBy)
+        public async Task<string> CreateMerchantPlaceAsync(MerchantPlaceFields fields, string category, string subCategory, List<double> embedding,
+            List<PlaceOperatingHourItem> operatingHours, MerchantPlaceLocation location, string submittedBy)
         {
             string query = @"
-                CREATE (a:Place:MerchantPlace {uid: randomUUID(), lat: $lat, lon: $lon, address: $fullAddress})
+                CREATE (a:Place:MerchantPlace {uid: randomUUID(), lat: $lat, lon: $lon, address: $fullAddress,
+                    name: $name, description: $description, description_embedding: $embedding})
                 CREATE (v:Place:Version:Current {
                     version_id: randomUUID(),
                     version_no: 1,
@@ -323,12 +389,16 @@ namespace backend.Services.Neo4j
                 })
                 CREATE (a)-[:HAS_VERSION]->(v)
                 FOREACH (h IN $operatingHours |
-                    CREATE (a)-[:HAS_OPERATING_HOURS]->(:OperatingHours {dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime}))" + LinkTownCypher + @"
+                    CREATE (a)-[:HAS_OPERATING_HOURS]->(:OperatingHours {dayOfWeek: h.dayOfWeek, openTime: h.openTime, closeTime: h.closeTime}))
+                WITH a, $category AS category, $subCategory AS subCategory" + ApplyCategoryCypher + LinkTownCypher + @"
                 RETURN a.uid AS uid
             ";
 
             var rows = await _gateway.ExecuteCypherAsync(query, new
             {
+                category,
+                subCategory,
+                embedding,
                 lat = location.lat,
                 lon = location.lng,
                 fullAddress = location.full_address,
@@ -344,6 +414,83 @@ namespace backend.Services.Neo4j
             });
 
             return Neo4jValueConverter.AsString(rows.FirstOrDefault()?.GetValueOrDefault("uid"));
+        }
+
+        /// <summary>自建景點的身分節點上是否已經有語意向量（description_embedding）</summary>
+        public async Task<bool> HasDescriptionEmbeddingAsync(string uid)
+        {
+            var rows = await _gateway.ExecuteCypherAsync(@"
+                MATCH (a:MerchantPlace {uid: $uid})
+                RETURN a.description_embedding IS NOT NULL AS has_embedding", new { uid });
+
+            return rows.FirstOrDefault()?.GetValueOrDefault("has_embedding") is true;
+        }
+
+        /// <summary>
+        /// 商家改了店名或介紹：更新自建景點身分節點上的名稱、介紹與語意向量。
+        /// embedding 為 null（embedding 服務沒開）時拿掉舊的向量，不留跟新介紹對不上的向量。
+        /// 只動 :MerchantPlace，政府開放資料的景點不會被修改。
+        /// </summary>
+        public async Task UpdateMerchantPlaceTextAsync(string uid, string name, string description, List<double> embedding)
+        {
+            string query = @"
+                MATCH (a:MerchantPlace {uid: $uid})
+                WITH a, $name AS name, $description AS description" + SetPlaceTextCypher + @"
+                SET a.description_embedding = $embedding";
+
+            await _gateway.ExecuteCypherAsync(query, new { uid, name, description, embedding });
+        }
+
+        /// <summary>
+        /// 商家改了分類或細分類：換掉自建景點的類型標籤與細分類（category、subCategory 已經檢查過）。
+        /// 景點已經停用（軟刪除）時只記下新的分類，重新啟用時才套用。
+        /// 只動 :MerchantPlace，政府開放資料的景點不會被修改。
+        /// </summary>
+        public async Task UpdateMerchantPlaceCategoryAsync(string uid, string category, string subCategory)
+        {
+            string query = @"
+                MATCH (a:MerchantPlace {uid: $uid})
+                FOREACH (_ IN CASE WHEN a.deactivated_at IS NULL THEN [] ELSE [1] END |
+                    SET a.inactive_category = $category, a.inactive_sub_category = $subCategory)
+                WITH a, $category AS category, $subCategory AS subCategory
+                WHERE a.deactivated_at IS NULL" + ApplyCategoryCypher;
+
+            await _gateway.ExecuteCypherAsync(query, new { uid, category, subCategory });
+        }
+
+        /// <summary>
+        /// 商家帳號停用（軟刪除）：自建景點拿掉類型標籤與細分類、標成「永久歇業」，
+        /// 附近美食、劇本排景點、分類瀏覽與語意搜尋（都會加類型條件）就查不到；
+        /// 原本的分類記在 inactive_category / inactive_sub_category，身分節點、版本與營業時間都保留，舊劇本照樣查得到。
+        /// 已經停用過的不再處理（不會蓋掉記下來的分類）。只動 :MerchantPlace，政府開放資料的景點不會被修改。
+        /// </summary>
+        public async Task DeactivateMerchantPlaceAsync(string uid)
+        {
+            await _gateway.ExecuteCypherAsync(@"
+                MATCH (a:MerchantPlace {uid: $uid}) WHERE a.deactivated_at IS NULL
+                OPTIONAL MATCH (a)-[:HAS_CATEGORY]->(c:Category)
+                WITH a, head(collect(c.name)) AS subCategory
+                OPTIONAL MATCH (a)-[old:HAS_CATEGORY|HAS_CLASS]->()
+                DELETE old
+                WITH DISTINCT a, subCategory
+                SET a.inactive_category = head([l IN labels(a) WHERE l IN ['Attraction', 'Restaurant', 'Hotel', 'Event']]),
+                    a.inactive_sub_category = subCategory,
+                    a.business_status = '永久歇業',
+                    a.deactivated_at = datetime()
+                REMOVE a:Attraction:Restaurant:Hotel:Event", new { uid });
+        }
+
+        /// <summary>
+        /// 商家帳號重新啟用：把停用時記下的分類、細分類套回自建景點，拿掉「永久歇業」。沒停用過的不處理。
+        /// </summary>
+        public async Task ReactivateMerchantPlaceAsync(string uid)
+        {
+            string query = @"
+                MATCH (a:MerchantPlace {uid: $uid}) WHERE a.deactivated_at IS NOT NULL
+                WITH a, a.inactive_category AS category, a.inactive_sub_category AS subCategory
+                REMOVE a.inactive_category, a.inactive_sub_category, a.business_status, a.deactivated_at" + ApplyCategoryCypher;
+
+            await _gateway.ExecuteCypherAsync(query, new { uid });
         }
 
         /// <summary>

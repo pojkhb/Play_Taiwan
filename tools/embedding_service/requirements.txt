@@ -1,0 +1,2 @@
+# torch 請先依 README 裝 CPU 版（不用 GPU 也夠快，一段描述不到 1 秒）
+sentence-transformers>=3.0

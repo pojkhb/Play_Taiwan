@@ -159,10 +159,9 @@ namespace backend.Models
     public class NodePlayNpc
     {
         public int? npc_id { get; set; }               // npc.npc_id；NPC 名單還沒匯入時為 null
-        public string npc_name { get; set; }           // 例如「墨先生」
+        public string npc_name { get; set; }           // 例如「墨先生」；台詞轉語音時傳給 POST api/Npc/Speak 的 npc_name
         public string npc_role { get; set; }           // 身分／角色設定
         public string npc_avatar_url { get; set; }     // NPC 圖片（完整網址）
-        public string npc_voice { get; set; }          // 語音聲線，台詞轉語音時傳給 POST api/Npc/Speak 的 voice
     }
 
     public class NodePlayNode

@@ -17,7 +17,7 @@ namespace backend.Services
     /// <summary>
     /// 商家 VLOG：
     /// 1. Preview：店家名稱、營業時間、地址、敘事語氣、推廣資訊 → AI 旁白草稿、推薦配文、TAG；照片存進 merchant_media_asset。
-    /// 2. CreateFinal：商家確認旁白後，把專案照片打包成 zip，附上背景音樂送去合成影片。
+    /// 2. CreateFinal：商家確認旁白後，把專案照片打包成 zip（每張照片的地點都標店名）送去合成影片，背景音樂由 AI 自動挑選。
     /// 3. Status：輪詢合成進度，完成時寫回影片網址。
     /// </summary>
     public class MerchantVlogService
@@ -148,10 +148,16 @@ namespace backend.Services
             foreach (IFormFile image in images)
             {
                 string ext = Path.GetExtension(image.FileName);
-                bool isImage = VlogAiGateway.ImageExtensions.Contains(ext)
-                               || (image.ContentType ?? "").StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+                string type = image.ContentType ?? "";
+                // AI 影片合成只吃 jpg/png/webp，HEIC 放進去整支影片會被退回
+                if (ext.Equals(".heic", StringComparison.OrdinalIgnoreCase) || ext.Equals(".heif", StringComparison.OrdinalIgnoreCase)
+                    || type.StartsWith("image/hei", StringComparison.OrdinalIgnoreCase))
+                    throw new Exception($"「{image.FileName}」是 HEIC 照片，影片合成只支援 jpg/png/webp，請先轉檔");
+
+                bool isImage = VlogAiGateway.ComposableExtensions.Contains(ext)
+                               || type.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
                 if (!isImage)
-                    throw new Exception($"「{image.FileName}」不是照片，僅接受 jpg/png/webp/heic");
+                    throw new Exception($"「{image.FileName}」不是照片，僅接受 jpg/png/webp");
                 if (image.Length > MaxImageBytes)
                     throw new Exception($"「{image.FileName}」超過 {MaxImageBytes / 1024 / 1024}MB");
             }
@@ -205,11 +211,20 @@ namespace backend.Services
             if (media.mm_status == 2 && !string.IsNullOrWhiteSpace(media.mm_task_id))
                 throw new Exception("影片已在合成中，請用 Status 查詢進度");
 
-            List<string> urls = await _dao.GetAssetUrlsAsync(media.mm_id);
-            if (urls.Count == 0)
+            List<string> assets = await _dao.GetAssetUrlsAsync(media.mm_id);
+            if (assets.Count == 0)
                 throw new Exception("這個專案還沒有照片，請先在 Preview 上傳");
 
-            byte[] bgm = _ai.LoadBgm();   // 找不到背景音樂就先擋下，不把專案標成合成失敗
+            // 以前上傳的 HEIC 照片 AI 不能合成，略過
+            List<string> urls = assets.Where(VlogAiGateway.CanCompose).ToList();
+            if (urls.Count == 0)
+                throw new Exception("這個專案的照片都是 HEIC，影片合成只支援 jpg/png/webp，請在 Preview 重新上傳");
+
+            // AI 規定每張照片都要有地點名稱（顯示在影片左上角），商家影片一律用店名
+            string storeName = FirstNonEmpty((await _dao.GetStoreAsync(auId))?.store_name, media.mm_title?.Split('｜')[0]) ?? "店家";
+            List<(VlogSpotMeta meta, string url)> photos = urls
+                .Select((url, i) => (new VlogSpotMeta { file_name = $"{i + 1:D2}{VlogAiGateway.ImageExtension(url)}", spot_name = storeName }, url))
+                .ToList();
 
             string caption = req.caption ?? media.mm_text;
             string hashtags = req.hashtags != null ? string.Join(",", VlogAiGateway.ToHashtags(req.hashtags)) : media.mm_hashtage;
@@ -217,8 +232,7 @@ namespace backend.Services
             VlogCreateFinalApiResponse task;
             try
             {
-                byte[] zip = await _ai.BuildZipAsync(urls.Select((url, i) => ($"{i + 1:D2}{VlogAiGateway.ImageExtension(url)}", url)));
-                task = await _ai.CreateFinalAsync(req.final_script.Trim(), zip, bgm, null);
+                task = await _ai.CreateFinalAsync(req.final_script.Trim(), photos);
             }
             catch (Exception e)
             {

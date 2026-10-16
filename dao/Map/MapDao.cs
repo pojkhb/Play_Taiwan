@@ -426,7 +426,7 @@ namespace backend.dao
 
         #region 取得 NPC 互動
         /// <summary>
-        /// NPC 畫面：NPC 名稱、身分、圖片、聲線來自 npc 表（劇本用了哪一位 NPC），台詞是這一站的開場白，
+        /// NPC 畫面：NPC 名稱、身分、圖片來自 npc 表（劇本用了哪一位 NPC），台詞是這一站的開場白，
         /// 景點介紹與照片來自景點資料。劇本沒有指定 NPC 時用預設的薯光。
         /// 圖片回傳站內路徑，由 Controller 組成完整網址。
         /// </summary>
@@ -443,7 +443,6 @@ namespace backend.dao
                     n.npc_name         AS npc_name,
                     n.npc_role         AS npc_role,
                     n.npc_avatar       AS npc_avatar,
-                    n.npc_voice        AS npc_voice,
                     sn.sn_title        AS location_name,
                     sn.sn_opening_text AS opening_text,
                     p.p_summary        AS summary
@@ -480,7 +479,6 @@ namespace backend.dao
                     npc_name = (row.npc_name as string) ?? DefaultNpcName,
                     npc_role = row.npc_role as string,
                     npc_avatar_url = row.npc_avatar as string,
-                    npc_voice = row.npc_voice as string,
                     npc_dialogue = dialogue,
                     emotion = "normal",
                     skip_button_text = "稍後再說",

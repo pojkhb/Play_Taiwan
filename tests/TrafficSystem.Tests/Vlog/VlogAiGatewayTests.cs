@@ -26,6 +26,17 @@ public class VlogAiGatewayTests
     }
 
     [Theory]
+    [InlineData("https://cdn.example.com/a.jpg", true)]
+    [InlineData("/uploads/a.WEBP", true)]
+    [InlineData("https://cdn.example.com/photo", true)]          // 沒有副檔名當作 jpg
+    [InlineData("https://cdn.example.com/a.heic?sig=123", false)] // AI 的 image_zip 不收 HEIC
+    [InlineData("https://cdn.example.com/clip.mp4", false)]
+    public void 只有AI吃得下的照片格式能放進影片合成(string url, bool expected)
+    {
+        Assert.Equal(expected, VlogAiGateway.CanCompose(url));
+    }
+
+    [Theory]
     [InlineData("https://cdn.example.com/a.JPG", ".jpg")]
     [InlineData("a.webp", ".webp")]
     [InlineData("https://cdn.example.com/a.png?w=100", ".png")]
@@ -119,6 +130,44 @@ public class VlogAiGatewayTests
         var response = JsonSerializer.Deserialize<VlogJobApiResponse>($"{{\"status\":\"failed\",\"error\":{errorJson}}}");
 
         Assert.Equal(expected, VlogAiGateway.FailureMessage(response));
+    }
+
+    [Fact]
+    public void 下拉選單的每個選項送出時都會通過檢查()
+    {
+        foreach (VlogOptionItem mood in VlogAiGateway.BgmMoodOptions)
+            Assert.Equal(mood.value, VlogAiGateway.ParseOptions(null, mood.value, null).bgm_mood);
+        foreach (VlogOptionItem orientation in VlogAiGateway.VideoOrientationOptions)
+            Assert.Equal(orientation.value, VlogAiGateway.ParseOptions(null, null, orientation.value).video_orientation);
+    }
+
+    [Fact]
+    public void 沒帶合成選項時都不送_AI用預設值()
+    {
+        VlogCreateOptions options = VlogAiGateway.ParseOptions(" ", null, "");
+
+        Assert.Null(options.user_memory_text);
+        Assert.Null(options.bgm_mood);
+        Assert.Null(options.video_orientation);
+    }
+
+    [Fact]
+    public void 感想字數跟AI一樣算Unicode字元_emoji算一個字()
+    {
+        string emoji3000 = string.Concat(Enumerable.Repeat("😀", 3000));   // C# Length 是 6000
+
+        Assert.Equal(emoji3000, VlogAiGateway.ParseOptions(emoji3000, null, null).user_memory_text);
+        Assert.Throws<Exception>(() => VlogAiGateway.ParseOptions(emoji3000 + "😀", null, null));
+    }
+
+    [Fact]
+    public void AI退回請求時列出對不上的照片()
+    {
+        string body = "{\"detail\":{\"message\":\"圖片與地點資料無法完整配對\",\"metadata_file_not_found\":[\"01_01.heic\"],\"images_without_metadata\":[]}}";
+
+        Assert.Equal("圖片與地點資料無法完整配對（metadata_file_not_found: [\"01_01.heic\"]；images_without_metadata: []）",
+            VlogAiGateway.AiErrorMessage(body));
+        Assert.Equal("旁白不可為空白", VlogAiGateway.AiErrorMessage("{\"detail\":\"旁白不可為空白\"}"));
     }
 
     [Fact]

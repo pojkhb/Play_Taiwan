@@ -2,7 +2,7 @@
 // 商家 VLOG 與遊客 VLOG 共用：把照片打包成 zip、送出影片合成、查詢合成進度。
 // 外部 AI 服務端點：POST /api/visitor/vlog/create_final（排隊模式，先回 task_id）、GET /api/jobs/{task_id}（查詢進度）；
 // AI 重啟後 jobs 查不到任務時，才用 GET /api/check_status/{task_id} 確認影片檔是否已經做好。
-// create_final 的 bgm_file 是必填，預設用 wwwroot/bgm/default_bgm.mp3（可用 VlogSettings:BgmPath 換）。
+// create_final 的 spot_meta_json 是必填，每張照片剛好一筆；背景音樂由 AI 依旁白自動挑選，不用附檔。
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,12 +12,13 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Unicode;
 using System.Threading.Tasks;
 using backend.utils;
 using backend.ViewModels;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace backend.Services
@@ -32,43 +33,63 @@ namespace backend.Services
         private const string CheckStatusPath = "/api/check_status/";
         private const long MaxRemoteImageBytes = 30 * 1024 * 1024;
 
-        /// <summary>可以放進 image_zip 的照片副檔名</summary>
+        /// <summary>照片副檔名（使用者上傳、歷程照片都認得）</summary>
         public static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".jpg", ".jpeg", ".png", ".webp", ".heic"
         };
 
-        private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
-        private readonly IWebHostEnvironment _environment;
-        private readonly ILogger<VlogAiGateway> _logger;
-
-        public VlogAiGateway(IHttpClientFactory httpClientFactory, IConfiguration configuration, IWebHostEnvironment environment,
-                             ILogger<VlogAiGateway> logger)
+        /// <summary>
+        /// AI 影片合成的 image_zip 只收這些格式。其他格式（例如 HEIC）AI 會直接略過，
+        /// 跟 spot_meta_json 對不上，整個請求就會被退回，所以不能放進 zip
+        /// </summary>
+        public static readonly HashSet<string> ComposableExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
-            _environment = environment;
-            _logger = logger;
-        }
+            ".jpg", ".jpeg", ".png", ".webp"
+        };
 
         /// <summary>
-        /// 影片合成用的背景音樂（AI 服務的 bgm_file 是必填）。
-        /// 預設 wwwroot/bgm/default_bgm.mp3；VlogSettings:BgmPath 可以換成其他檔案（相對路徑以專案根目錄為準）。
-        /// 找不到就丟出錯誤，呼叫端要在送出合成前先呼叫，避免把專案標成合成失敗。
+        /// AI 服務 create_final 的 bgm_mood 選項（名稱照 AI 文件；AI 的預設是 auto）。
+        /// 下拉選單 API、送出前的檢查、Swagger 的可選值都用這份，AI 增減選項時只要改這裡
         /// </summary>
-        public byte[] LoadBgm()
+        public static readonly IReadOnlyList<VlogOptionItem> BgmMoodOptions = new List<VlogOptionItem>
         {
-            string configured = _configuration["VlogSettings:BgmPath"];
-            string path = string.IsNullOrWhiteSpace(configured)
-                ? Path.Combine(_environment.WebRootPath, "bgm", "default_bgm.mp3")
-                : Path.IsPathRooted(configured) ? configured : Path.Combine(_environment.ContentRootPath, configured);
+            new() { value = "auto", label = "自動選曲", description = "AI 分析旁白和旅遊感想，自動挑選配樂", is_default = true },
+            new() { value = "cheerful", label = "輕快" },
+            new() { value = "relaxed", label = "悠閒" },
+            new() { value = "warm", label = "溫馨" },
+            new() { value = "nostalgic", label = "回憶" },
+            new() { value = "adventurous", label = "探索" },
+            new() { value = "neutral", label = "中性" },
+            new() { value = "none", label = "不配樂", description = "只有旁白，沒有背景音樂" },
+        };
 
-            if (!File.Exists(path))
-                throw new Exception($"找不到影片背景音樂檔：{path}（請放一個 mp3，或設定 VlogSettings:BgmPath）");
-            return File.ReadAllBytes(path);
+        /// <summary>AI 服務 create_final 的 video_orientation 選項（AI 的預設是 landscape）</summary>
+        public static readonly IReadOnlyList<VlogOptionItem> VideoOrientationOptions = new List<VlogOptionItem>
+        {
+            new() { value = "landscape", label = "橫式", description = "1920×1080", is_default = true },
+            new() { value = "portrait", label = "直式", description = "1080×1920" },
+        };
+
+        /// <summary>create_final 的 user_memory_text 字數上限</summary>
+        public const int MaxUserMemoryTextLength = 3000;
+
+        private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+        /// <summary>spot_meta_json：中文不跳脫，沒有值的選填欄位不送</summary>
+        private static readonly JsonSerializerOptions MetaJsonOptions = new()
+        {
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<VlogAiGateway> _logger;
+
+        public VlogAiGateway(IHttpClientFactory httpClientFactory, ILogger<VlogAiGateway> logger)
+        {
+            _httpClientFactory = httpClientFactory;
+            _logger = logger;
         }
 
         public HttpClient CreateClient(TimeSpan timeout)
@@ -97,27 +118,33 @@ namespace backend.Services
 
         #region 送出影片合成 / 查詢進度
 
-        /// <summary>送出正式影片合成任務，回傳外部 task_id。bgm 用 <see cref="LoadBgm"/> 取得</summary>
-        public async Task<VlogCreateFinalApiResponse> CreateFinalAsync(string finalScript, byte[] imageZip, byte[] bgm, string spotMetaJson)
+        /// <summary>
+        /// 送出正式影片合成任務，回傳外部 task_id。
+        /// 照片依 photos 的順序打包成 image_zip（檔名用 meta.file_name），spot_meta_json 也照同樣順序一張一筆，保證兩邊對得上；
+        /// 照片要先用 <see cref="CanCompose"/> 篩過。options 用 <see cref="ParseOptions"/> 整理，沒有值的欄位不送（AI 用預設值）
+        /// </summary>
+        public async Task<VlogCreateFinalApiResponse> CreateFinalAsync(string finalScript, IReadOnlyList<(VlogSpotMeta meta, string url)> photos,
+                                                                       VlogCreateOptions options = null)
         {
-            if (bgm == null || bgm.Length == 0)
-                throw new ArgumentException("缺少背景音樂（AI 服務的 bgm_file 是必填）", nameof(bgm));
+            if (photos == null || photos.Count == 0)
+                throw new ArgumentException("沒有可以合成影片的照片", nameof(photos));
+
+            byte[] imageZip = await BuildZipAsync(photos.Select(p => (p.meta.file_name, p.url)));
+            string spotMetaJson = JsonSerializer.Serialize(photos.Select(p => p.meta), MetaJsonOptions);
 
             using var form = new MultipartFormDataContent
             {
-                { new StringContent(finalScript), "final_script" }
+                { new StringContent(finalScript), "final_script" },
+                { new StringContent(spotMetaJson), "spot_meta_json" }
             };
 
             var zipContent = new ByteArrayContent(imageZip);
             zipContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/zip");
             form.Add(zipContent, "image_zip", "images.zip");
 
-            var bgmContent = new ByteArrayContent(bgm);
-            bgmContent.Headers.ContentType = MediaTypeHeaderValue.Parse("audio/mpeg");
-            form.Add(bgmContent, "bgm_file", "bgm.mp3");
-
-            if (!string.IsNullOrWhiteSpace(spotMetaJson))
-                form.Add(new StringContent(spotMetaJson), "spot_meta_json");
+            if (options?.user_memory_text != null) form.Add(new StringContent(options.user_memory_text), "user_memory_text");
+            if (options?.bgm_mood != null) form.Add(new StringContent(options.bgm_mood), "bgm_mood");
+            if (options?.video_orientation != null) form.Add(new StringContent(options.video_orientation), "video_orientation");
 
             using HttpClient client = CreateClient(TimeSpan.FromMinutes(3));
             using HttpResponseMessage response = await client.PostAsync(AiServiceConfig.Url(CreateFinalPath), form);
@@ -127,6 +154,27 @@ namespace backend.Services
                 throw new Exception($"AI 服務沒有回傳任務 ID（status={result?.status}，{result?.message}）");
 
             return result;
+        }
+
+        /// <summary>
+        /// 檢查並整理前端帶來的合成選項：去頭尾空白、bgm_mood / video_orientation 轉小寫；空的維持 null（不送，AI 用預設值）。
+        /// 不合規定直接丟出錯誤，要在送出合成前呼叫，才不會把 VLOG 標成合成失敗
+        /// </summary>
+        public static VlogCreateOptions ParseOptions(string userMemoryText, string bgmMood, string videoOrientation)
+        {
+            string memory = string.IsNullOrWhiteSpace(userMemoryText) ? null : userMemoryText.Trim();
+            string mood = string.IsNullOrWhiteSpace(bgmMood) ? null : bgmMood.Trim().ToLowerInvariant();
+            string orientation = string.IsNullOrWhiteSpace(videoOrientation) ? null : videoOrientation.Trim().ToLowerInvariant();
+
+            // AI 用 Python 的 len 算字數（Unicode 字元數），emoji 也算一個字
+            if (memory != null && memory.EnumerateRunes().Count() > MaxUserMemoryTextLength)
+                throw new Exception($"旅遊感想 (user_memory_text) 最多 {MaxUserMemoryTextLength} 字");
+            if (mood != null && BgmMoodOptions.All(o => o.value != mood))
+                throw new Exception($"配樂風格 (bgm_mood) 只能是 {string.Join("、", BgmMoodOptions.Select(o => o.value))}");
+            if (orientation != null && VideoOrientationOptions.All(o => o.value != orientation))
+                throw new Exception($"影片方向 (video_orientation) 只能是 {string.Join("、", VideoOrientationOptions.Select(o => o.value))}");
+
+            return new VlogCreateOptions { user_memory_text = memory, bgm_mood = mood, video_orientation = orientation };
         }
 
         /// <summary>
@@ -258,7 +306,7 @@ namespace backend.Services
         /// 依序把照片放進 zip。本機 /uploads/ 底下的檔案直接讀硬碟，其他 http(s) 網址才下載。
         /// </summary>
         /// <param name="entries">zip 內檔名與照片網址</param>
-        public async Task<byte[]> BuildZipAsync(IEnumerable<(string entryName, string url)> entries)
+        private async Task<byte[]> BuildZipAsync(IEnumerable<(string entryName, string url)> entries)
         {
             using HttpClient client = CreateClient(TimeSpan.FromMinutes(2));
             client.DefaultRequestHeaders.UserAgent.ParseAdd("PlayTaiwan/1.0 (vlog)");   // Wikimedia 等圖庫會擋沒有 User-Agent 的下載
@@ -317,17 +365,28 @@ namespace backend.Services
         /// <summary>網址的照片副檔名；沒有或不認得時一律當 .jpg</summary>
         public static string ImageExtension(string url)
         {
-            string path = Uri.TryCreate(url, UriKind.Absolute, out Uri uri) ? uri.AbsolutePath : (url ?? "").Split('?', '#')[0];
-            string ext = Path.GetExtension(path);
+            string ext = UrlExtension(url);
             return ImageExtensions.Contains(ext) ? ext.ToLowerInvariant() : ".jpg";
         }
 
-        /// <summary>網址看起來是照片（影片、錄音不能放進 image_zip）</summary>
+        /// <summary>網址看起來是照片（不是影片、錄音）</summary>
         public static bool LooksLikeImage(string url)
         {
-            string path = Uri.TryCreate(url, UriKind.Absolute, out Uri uri) ? uri.AbsolutePath : (url ?? "").Split('?', '#')[0];
-            string ext = Path.GetExtension(path);
+            string ext = UrlExtension(url);
             return string.IsNullOrEmpty(ext) || ImageExtensions.Contains(ext);
+        }
+
+        /// <summary>照片可以放進影片合成：jpg/png/webp，或沒有副檔名（當作 jpg）；HEIC、影片、錄音都不行</summary>
+        public static bool CanCompose(string url)
+        {
+            string ext = UrlExtension(url);
+            return string.IsNullOrEmpty(ext) || ComposableExtensions.Contains(ext);
+        }
+
+        private static string UrlExtension(string url)
+        {
+            string path = Uri.TryCreate(url, UriKind.Absolute, out Uri uri) ? uri.AbsolutePath : (url ?? "").Split('?', '#')[0];
+            return Path.GetExtension(path);
         }
 
         #endregion
@@ -356,8 +415,8 @@ namespace backend.Services
         };
 
         /// <summary>
-        /// AI 服務的錯誤回應取出人看得懂的訊息：{"message": ...}，或 FastAPI 驗證錯誤 {"detail": [{"loc": [...], "msg": ...}]}；
-        /// 都不是就回傳原始內容（截斷）
+        /// AI 服務的錯誤回應取出人看得懂的訊息：{"message": ...}、FastAPI 驗證錯誤 {"detail": [{"loc": [...], "msg": ...}]}，
+        /// 或 {"detail": {"message": ..., 其他說明欄位}}（例如照片和地點資料對不上時列出的檔名）；都不是就回傳原始內容（截斷）
         /// </summary>
         public static string AiErrorMessage(string body)
         {
@@ -372,6 +431,13 @@ namespace backend.Services
                     if (root.TryGetProperty("detail", out JsonElement d))
                     {
                         if (d.ValueKind == JsonValueKind.String) return d.GetString();
+                        if (d.ValueKind == JsonValueKind.Object && d.TryGetProperty("message", out JsonElement dm) && dm.ValueKind == JsonValueKind.String)
+                        {
+                            string extra = string.Join("；", d.EnumerateObject()
+                                .Where(p => p.Name != "message")
+                                .Select(p => $"{p.Name}: {p.Value.GetRawText()}"));
+                            return Truncate(extra.Length == 0 ? dm.GetString() : $"{dm.GetString()}（{extra}）");
+                        }
                         if (d.ValueKind == JsonValueKind.Array)
                             return string.Join("；", d.EnumerateArray().Select(e =>
                             {

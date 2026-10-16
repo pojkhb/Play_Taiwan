@@ -257,7 +257,7 @@ namespace backend.Controllers
         /// 對應「地圖」頁面節點彈窗中「回顧劇情」的畫面。
         /// **內容是固定的，不是隨機的**：npc_dialogue 是這一站的開場白（story_node.sn_opening_text，跟
         /// GET /api/Task/Node/{node_id} 的 node.opening_text 是同一段），同一站每次呼叫都一樣；
-        /// NPC 是這份劇本的 NPC（名稱、身分、圖片、聲線），要唸出來時把 npc_dialogue 和 npc_voice 帶給 POST /api/Npc/Speak。
+        /// NPC 是這份劇本的 NPC（名稱、身分、圖片），要唸出來時把 npc_dialogue 和 npc_name 帶給 POST /api/Npc/Speak 的 text 和 npc_name。
         /// 這一站任務全部通過後的完成劇情在 GET /api/Task/Node/{node_id} 的 node.success_text。
         ///
         /// 還在迷霧中的站回 403。已解鎖但還沒抵達的站（目前這一關）：scene_image_url 是迷霧圖、

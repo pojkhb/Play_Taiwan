@@ -67,6 +67,25 @@ namespace backend.Controllers
             });
         }
 
+        /// <summary>自建景點可選的分類與細分類（註冊表單的下拉選單用）。</summary>
+        /// <remarks>
+        /// 不用登入（註冊畫面使用）。回傳註冊請求 category 可選的四種分類（Attraction / Restaurant / Hotel / Event），
+        /// 以及各自可選的 sub_category（Neo4j 政府資料使用的細分類，常用的排前面、「其他」排最後）；
+        /// default_sub_category 是沒帶 sub_category 時掛的細分類，null 代表不掛。
+        /// </remarks>
+        [HttpGet]
+        [Route("register/categories")]
+        [ProducesResponseType(typeof(ResultViewModel<List<MerchantPlaceCategoryItem>>), 200)]
+        public async Task<IActionResult> Categories()
+        {
+            return Ok(new ResultViewModel<List<MerchantPlaceCategoryItem>>
+            {
+                isSuccess = true,
+                message = "查詢成功",
+                Result = await _placeService.GetMerchantPlaceCategoriesAsync()
+            });
+        }
+
         /// <summary>搜尋既有景點。</summary>
         /// <remarks>用店名/地址做模糊比對，回傳候選清單供商家在註冊畫面挑選；查無結果代表可能要建立新景點。</remarks>
         [HttpGet]

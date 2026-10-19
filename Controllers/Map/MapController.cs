@@ -128,6 +128,8 @@ namespace backend.Controllers
         /// 對應「地圖」頁面點擊節點後的抵達解鎖流程，成功後解鎖該節點詳情。
         /// 只有劇本擁有者或協作隊員可以抵達（403）；只能抵達已解鎖的站（還在迷霧中回 403），且要在景點 200 公尺內（400）。
         /// 抵達後才能做這一站的任務；任務全部通過才會解鎖下一站。進度是協作隊伍全隊共用的。
+        /// 抵達就散開這一站的迷霧：回傳的 image_url 是景點的真實照片，播開場劇情時直接換上，不用等任務做完
+        /// （之後 GET /api/Map/{story_id} 這一站的 image_url 也是真實照片）。
         ///
         /// Request 範例：
         ///
@@ -150,6 +152,8 @@ namespace backend.Controllers
             {
                 NodeDetailResponse result =
                     await _service.ArriveNode(node_id, lat, lng, User);
+                result.npc_avatar_url = PublicUrl.Of(Request, result.npc_avatar_url);
+                result.image_url = PublicUrl.Of(Request, result.image_url);
 
                 return Ok(new ResultViewModel<NodeDetailResponse>
                 {
@@ -204,6 +208,7 @@ namespace backend.Controllers
         /// 對應「地圖」頁面節點彈窗（如臺南孔廟）的詳情內容。
         /// 還在迷霧中的站回 403。已解鎖但還沒抵達的站（目前這一關）只給站名與 NPC：
         /// intro_story 是「到了現場，這裡的故事才會揭曉。」、opening_hours 是 null，抵達後才給景點介紹與營業時間。
+        /// image_url：抵達過是景點照片，還沒抵達是迷霧圖。
         ///
         /// Request 範例：
         ///
@@ -214,13 +219,14 @@ namespace backend.Controllers
         // API：取得節點詳情（GetNode）－回傳指定節點的詳細內容
         [HttpGet("Node/{node_id:int}")]
         [ProducesResponseType(typeof(ResultViewModel<NodeDetailResponse>), 200)]
-        public IActionResult GetNode(int node_id)
+        public async Task<IActionResult> GetNode(int node_id)
         {
             try
             {
                 NodeDetailResponse result =
-                    _service.GetNodeDetail(node_id, User);
+                    await _service.GetNodeDetail(node_id, User);
                 result.npc_avatar_url = PublicUrl.Of(Request, result.npc_avatar_url);
+                result.image_url = PublicUrl.Of(Request, result.image_url);
 
                 return Ok(new ResultViewModel<NodeDetailResponse>
                 {

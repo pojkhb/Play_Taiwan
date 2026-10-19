@@ -9,6 +9,13 @@ namespace backend.ViewModels
         public int coupon_id { get; set; }
     }
 
+    /// <summary>綁定成功後回傳綁好的 QR Code 與優惠券，前端可以直接拿 qr_uid 顯示 QR Code。</summary>
+    public class QrCodeBindResponse
+    {
+        public string qr_uid { get; set; }
+        public int coupon_id { get; set; }
+    }
+
     /// <summary>使用者掃描 QR Code 的回應：商家資訊來自 Neo4j，優惠券資訊來自 MySQL。</summary>
     public class QrCodeScanResponse
     {

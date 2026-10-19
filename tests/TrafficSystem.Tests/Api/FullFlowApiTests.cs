@@ -251,17 +251,19 @@ public class FullFlowApiTests
         HomeOverviewResponse home = await OkAsync<HomeOverviewResponse>(await client.GetAsync("/api/Home/Overview"));
         Assert.Equal((1, 1), (home.ho_completed_story, home.ho_badge_count));
 
-        // ── 15. 過往紀錄：封面是第 1 站拍的照片；詳情有這趟拍的兩張照片（錄音不算），沒拍照片的第 3、4 站補上景點照片；
+        // ── 15. 過往紀錄：封面與詳情的照片都是每一站的景點照片（不用這趟拍的照片），附景點的真實名稱；
         //        回顧有每一站與作答統計 ──
         HistoryStoryItem history = Assert.Single(await OkAsync<List<HistoryStoryItem>>(await client.GetAsync("/api/History")));
-        Assert.Equal((storyId, photo1), (history.story_id, history.cover_image_url));
+        Assert.Equal(storyId, history.story_id);
 
         HistoryStoryItem past = await OkAsync<HistoryStoryItem>(await client.GetAsync($"/api/History/{storyId}"));
-        Assert.Equal(new[] { photo1, photo2 }, past.photos.Where(p => !p.is_place_photo).Select(p => p.image_url));
+        Assert.Equal(new[] { "宮原眼科", "第二市場", "臺中州廳", "臺中文學館" }, past.photos.Select(p => p.real_place_name));
         Assert.Equal(new[] { "宮原眼科", "第二市場", "臺中州廳", "臺中文學館" }, past.photos.Select(p => p.place_name));
-        Assert.Equal(new[] { false, false, true, true }, past.photos.Select(p => p.is_place_photo));
-        Assert.All(past.photos.Skip(2), p => Assert.Contains("wikimedia.org", p.image_url));
-        Assert.Equal(photo1, past.cover_image_url);
+        Assert.All(past.photos, p => Assert.True(p.is_place_photo));
+        Assert.All(past.photos, p => Assert.Contains("wikimedia.org", p.image_url));
+        Assert.DoesNotContain(past.photos, p => p.image_url == photo1 || p.image_url == photo2);
+        Assert.Equal(past.photos[0].image_url, past.cover_image_url);
+        Assert.Equal(past.cover_image_url, history.cover_image_url);
         Assert.Equal(new[] { "宮原眼科", "第二市場", "臺中州廳", "臺中文學館" }, past.spots);
 
         StoryRecapResponse recap = await OkAsync<StoryRecapResponse>(await client.GetAsync($"/api/History/{storyId}/Recap"));

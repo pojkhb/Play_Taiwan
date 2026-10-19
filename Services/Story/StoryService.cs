@@ -398,12 +398,15 @@ namespace backend.Services
             {
                 // spot_uuid 是 AI 依站點順序填入的 Neo4j uid：用它查正確的名稱與座標，
                 // 順便把 LLM 寫壞的罕用字（例如「簃居青衖」變成「�居青衖」）換回來
-                Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places =
-                    await _placeLookup.GetPlacesAsync((job.data.nodes ?? new List<ScriptBlueprintNode>()).Select(n => n.spot_uuid));
+                List<string> spotUuids = (job.data.nodes ?? new List<ScriptBlueprintNode>()).Select(n => n.spot_uuid).ToList();
+                Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places = await _placeLookup.GetPlacesAsync(spotUuids);
                 BlueprintTextRepair.Repair(job.data, places.ToDictionary(p => p.Key, p => p.Value.name));
 
+                // place 表要的地址、分類、介紹、照片、營業時間等，新增或補齊 place 時一起寫進去
+                Dictionary<string, Neo4j.PlaceLookupService.PlaceRecord> placeRecords = await _placeLookup.GetPlaceRecordsAsync(spotUuids);
+
                 result.story_id = await _dao.SaveFullAiGeneratedStory(auId, result.detected_city, result.detected_town,
-                    job.parsed_intent?.traveler_count ?? 0, job.data, places,
+                    job.parsed_intent?.traveler_count ?? 0, job.data, places, placeRecords,
                     jobId, JsonSerializer.Serialize(result, TextJobJsonOptions));
             }
             catch
@@ -414,6 +417,28 @@ namespace backend.Services
 
             await _badgeService.RefreshStoryCategoriesAsync(result.story_id.Value);
             _fogQueue.Enqueue(result.story_id.Value, force: true);   // 在背景把每一站的照片做成迷霧圖
+            return result;
+        }
+
+
+        /// <summary>
+        /// 遊你說算生成完成的劇本每一站補上圖片，跟 GenerateGameStory 同一個規則：剛生成的劇本每一站都還沒抵達，一律是迷霧圖
+        /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，存檔時已在背景做，之後再查就會換上）。迷霧圖是站內路徑，由 Controller 組成完整網址
+        /// </summary>
+        public async Task<GenerateByTextResult> WithStationImagesAsync(GenerateByTextResult result)
+        {
+            List<ScriptBlueprintNode> nodes = result?.data?.nodes;
+            if (result?.status != GenerateByTextResult.Done || result.story_id == null || nodes == null || nodes.Count == 0) return result;
+
+            // 景點 ID 以存進 story_node 的為準（AI 沒給 spot_uuid 時，是存檔時用景點名稱向 Neo4j 查到的）
+            Dictionary<int, string> placeIds = _mapDao.GetStoryNodes(result.story_id.Value)
+                .GroupBy(n => n.node_order)
+                .ToDictionary(g => g.Key, g => g.First().place_id);
+            StationImages images = await GetStationImagesAsync(placeIds.Values);
+
+            foreach (ScriptBlueprintNode node in nodes)
+                node.image_url = images.Of(placeIds.GetValueOrDefault(node.node_order), arrived: false);
+
             return result;
         }
 

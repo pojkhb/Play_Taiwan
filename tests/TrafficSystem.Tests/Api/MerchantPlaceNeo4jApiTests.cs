@@ -122,7 +122,7 @@ public class MerchantPlaceNeo4jApiTests
 
     private static object RegisterBody(string email, string category = null, string subCategory = null, string storeDec = null) => new
     {
-        auth_name = "新商家", auth_email = email, auth_pswd = "pw123456", store_name = "阿嬤芒果冰", store_dec = storeDec,
+        auth_name = "新商家" + email.Split('@')[0], auth_email = email, auth_pswd = "pw123456", store_name = "阿嬤芒果冰", store_dec = storeDec,
         store_city = "臺中市", store_town = "西區", store_address = "三民路一段198號", lat = 24.14, lng = 120.67,
         category, sub_category = subCategory
     };
@@ -212,6 +212,35 @@ public class MerchantPlaceNeo4jApiTests
         Assert.Null(gateway.Created);
         Assert.Equal(before, EmbedRequestCount());
         Assert.Equal(0, await _api.QueryAsync<int>("SELECT COUNT(1) FROM auth WHERE auth_email = @email;", new { email }));
+    }
+
+    [Fact]
+    public async Task 帳號名稱或Email重複回409_不會建立景點()
+    {
+        string email = NewEmail();
+        var first = await (await ClientWith(new PlaceGateway()).PostAsJsonAsync("/api/Merchant/Register", RegisterBody(email))).ReadResultAsync();
+        Assert.True(first.isSuccess, first.message);
+        string name = await _api.QueryAsync<string>("SELECT auth_name FROM auth WHERE auth_email = @email;", new { email });
+
+        // 同一個名稱（大小寫不同也算）、不同 Email
+        var sameName = new PlaceGateway();
+        string otherEmail = NewEmail();
+        var body = new
+        {
+            auth_name = name.ToUpperInvariant(), auth_email = otherEmail, auth_pswd = "pw123456", store_name = "阿嬤芒果冰",
+            store_city = "臺中市", store_town = "西區", store_address = "三民路一段198號", lat = 24.14, lng = 120.67
+        };
+        HttpResponseMessage nameTaken = await ClientWith(sameName).PostAsJsonAsync("/api/Merchant/Register", body);
+        Assert.Equal(HttpStatusCode.Conflict, nameTaken.StatusCode);
+        Assert.Contains("名稱", (await nameTaken.ReadResultAsync()).message);
+        Assert.Null(sameName.Created);
+        Assert.Equal(0, await _api.QueryAsync<int>("SELECT COUNT(1) FROM auth WHERE auth_email = @otherEmail;", new { otherEmail }));
+
+        // 同一個 Email
+        var sameEmail = new PlaceGateway();
+        HttpResponseMessage emailTaken = await ClientWith(sameEmail).PostAsJsonAsync("/api/Merchant/Register", RegisterBody(email.ToUpperInvariant()));
+        Assert.Equal(HttpStatusCode.Conflict, emailTaken.StatusCode);
+        Assert.Null(sameEmail.Created);
     }
 
     [Fact]

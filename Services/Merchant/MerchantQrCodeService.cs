@@ -25,14 +25,16 @@ namespace backend.Services
         /// 商家掃描 QR Code 後綁定優惠券：優惠券必須屬於此商家（sId 來自 JWT），
         /// 同一個 QR Code 重複綁定、或優惠券已經綁過別的 QR Code 都回傳 409（一張優惠券只能綁一個 qr_uid），
         /// 檢查與寫入在 DAO 的同一個 Transaction 內，同時送來的綁定也擋得住。
+        /// 成功時回傳綁好的 qr_uid 與 coupon_id。
         /// </summary>
-        public void Bind(int sId, string qrUid, int couponId)
+        public QrCodeBindResponse Bind(int sId, string qrUid, int couponId)
         {
             if (string.IsNullOrWhiteSpace(qrUid))
             {
                 throw new BadRequestException("請提供 qr_uid");
             }
             _dao.Bind(sId, qrUid, couponId);
+            return new QrCodeBindResponse { qr_uid = qrUid, coupon_id = couponId };
         }
 
         /// <summary>

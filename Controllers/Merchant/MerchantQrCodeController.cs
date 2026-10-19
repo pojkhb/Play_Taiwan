@@ -23,13 +23,15 @@ namespace backend.Controllers
         /// <remarks>
         /// 商家掃描到 QR Code 的 qr_uid 後呼叫；優惠券必須是自己店家的，
         /// 同一個 QR Code 重複綁定、或優惠券已經綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）都會回傳 409。
+        /// 成功時 Result 回傳綁好的 qr_uid 與 coupon_id。
         /// </remarks>
         [HttpPost]
         [Route("bind")]
+        [ProducesResponseType(typeof(ResultViewModel<QrCodeBindResponse>), 200)]
         public IActionResult Bind([FromBody] QrCodeBindRequest req)
         {
-            _service.Bind(User.GetSId(), req.qr_uid, req.coupon_id);
-            return Ok(new ResultViewModel<object> { isSuccess = true, message = "QR Code 綁定成功", Result = null });
+            QrCodeBindResponse result = _service.Bind(User.GetSId(), req.qr_uid, req.coupon_id);
+            return Ok(new ResultViewModel<QrCodeBindResponse> { isSuccess = true, message = "QR Code 綁定成功", Result = result });
         }
     }
 }

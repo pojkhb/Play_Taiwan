@@ -21,12 +21,14 @@ namespace backend.Services
         private const int AdminAuthType = 3;
 
         private readonly AdminDao _dao;
+        private readonly AuthDao _authDao;
         private readonly PlaceVersionChainService _placeService;
         private readonly AppSettings _appSettings;
 
-        public AdminService(AdminDao dao, PlaceVersionChainService placeService, IOptions<AppSettings> appSettings)
+        public AdminService(AdminDao dao, AuthDao authDao, PlaceVersionChainService placeService, IOptions<AppSettings> appSettings)
         {
             _dao = dao;
+            _authDao = authDao;
             _placeService = placeService;
             _appSettings = appSettings.Value;
         }
@@ -58,14 +60,16 @@ namespace backend.Services
             return _dao.GetUser(auId) ?? throw new NotFoundException($"找不到 au_id={auId} 的用戶");
         }
 
+        /// <summary>帳號欄位跟註冊同一套規則（AccountRules）：名稱、Email 不能跟其他帳號重複（409）</summary>
         public int CreateUser(AdminUserCreateRequest req)
         {
-            req.auth_name = Required(req.auth_name, "使用者名稱");
-            req.auth_email = Required(req.auth_email, "Email");
-            Required(req.auth_pswd, "密碼");
+            req.auth_name = AccountRules.Name(req.auth_name);
+            req.auth_email = AccountRules.Email(req.auth_email);
+            AccountRules.Password(req.auth_pswd);
             ValidateAuthType(req.auth_type);
 
-            if (_dao.EmailTaken(req.auth_email)) throw new ConflictException("此 Email 已被註冊");
+            if (_authDao.EmailTaken(req.auth_email)) throw new ConflictException("此 Email 已被註冊");
+            if (_authDao.NameTaken(req.auth_name)) throw new ConflictException("此使用者名稱已被使用");
 
             return _dao.CreateUser(req, HashPassword(req.auth_pswd));
         }
@@ -73,17 +77,20 @@ namespace backend.Services
         /// <summary>
         /// operatorAuId 是目前登入的管理員，不能停用自己或拿掉自己的管理員身分。
         /// 商家帳號停用、啟用時，自建景點在 Neo4j 跟著軟刪除、還原（見 SyncMerchantPlaceAsync）。
+        /// 使用者名稱有改才檢查重複，過去留下的重名帳號照樣可以改其他欄位。
         /// </summary>
         public async Task UpdateUserAsync(int operatorAuId, int auId, AdminUserUpdateRequest req)
         {
-            req.auth_name = Required(req.auth_name, "使用者名稱");
-            req.auth_email = Required(req.auth_email, "Email");
+            req.auth_name = AccountRules.Name(req.auth_name);
+            req.auth_email = AccountRules.Email(req.auth_email);
             ValidateAuthType(req.auth_type);
 
-            if (!_dao.UserExists(auId)) throw new NotFoundException($"找不到 au_id={auId} 的用戶");
+            AdminUserResponse current = _dao.GetUser(auId) ?? throw new NotFoundException($"找不到 au_id={auId} 的用戶");
             if (auId == operatorAuId && (!req.is_active || req.auth_type != AdminAuthType))
                 throw new BadRequestException("不能停用自己的帳號或拿掉自己的管理員身分");
-            if (_dao.EmailTaken(req.auth_email, auId)) throw new ConflictException("此 Email 已被其他帳號使用");
+            if (_authDao.EmailTaken(req.auth_email, auId)) throw new ConflictException("此 Email 已被其他帳號使用");
+            if (!string.Equals(current.auth_name, req.auth_name, StringComparison.OrdinalIgnoreCase) && _authDao.NameTaken(req.auth_name, auId))
+                throw new ConflictException("此使用者名稱已被其他帳號使用");
 
             _dao.UpdateUser(auId, req);
             await SyncMerchantPlaceAsync(auId);
@@ -91,7 +98,7 @@ namespace backend.Services
 
         public void ResetUserPassword(int auId, string newPassword)
         {
-            Required(newPassword, "新密碼");
+            AccountRules.Password(newPassword);
             if (!_dao.UserExists(auId)) throw new NotFoundException($"找不到 au_id={auId} 的用戶");
 
             _dao.UpdateUserPassword(auId, HashPassword(newPassword));

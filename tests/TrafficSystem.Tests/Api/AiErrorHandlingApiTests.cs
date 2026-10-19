@@ -2,6 +2,8 @@
 // - 本地 Neo4j 連不上 → 附近景點改用 MySQL 的景點；Neo4j 正常但查無資料 → 空清單
 // - /api/agent/orchestrate 找不到地點：只有 {"message"} → spin 回傳失敗與原因
 // - /api/agent/orchestrate 的 npc_dialogue 等文字欄位被 LLM 拆成陣列 → 合併成一段文字，不能整個失敗
+// - /api/agent/orchestrate 的 preparation_tips 每一項被 LLM 回成物件 → 轉成文字，不能整個失敗
+// - /api/agent/orchestrate 回 500（LLM 回錯型態，AI 自己處理不了）→ 重送一次；還是失敗才回傳失敗與原因
 using System.Net.Http.Json;
 using System.Text.Json;
 using Allure.Net.Commons.Attributes;
@@ -144,5 +146,63 @@ public class AiErrorHandlingApiTests
         Assert.Equal("失落的鐘聲", blueprint.GetProperty("theme_title").GetString());
         Assert.Equal("歡迎來到這裡！\n找找看鐘樓下的記號。", blueprint.GetProperty("npc_dialogue").GetString());
         Assert.Equal("找到鐘樓\n拍下記號", blueprint.GetProperty("task_mission").GetString());
+    }
+
+    [Fact]
+    public async Task Spin_AI把行前提醒回傳成物件時轉成文字()
+    {
+        _api.FakeAi.AgentOrchestrateResponse = new
+        {
+            phase_3_graph_rag = new { },
+            phase_4_action_and_tools = new
+            {
+                script_blueprint = new
+                {
+                    theme_title = "失落的鐘聲",
+                    preparation_tips = new object[] { "帶水", new { tip = "帶雨傘" }, new { item = "防蚊液", reason = "公園蚊子多" }, " " }
+                }
+            }
+        };
+        var body = new { input_text = "想找個安靜的地方走走", city_name = "臺北市", town_name = "中正區" };
+
+        var result = await (await _api.ClientFor(_api.NewUserId()).PostAsJsonAsync("/api/Story/spin", body)).ReadResultAsync();
+
+        Assert.True(result.isSuccess, result.message);
+        var tips = result.Result.GetProperty("agent_result").GetProperty("phase_4_action_and_tools")
+            .GetProperty("script_blueprint").GetProperty("preparation_tips");
+        Assert.Equal(new[] { "帶水", "帶雨傘", "防蚊液：公園蚊子多" }, tips.EnumerateArray().Select(t => t.GetString()));
+    }
+
+    [Fact]
+    public async Task Spin_AI第一次回500時重送一次()
+    {
+        _api.FakeAi.AgentOrchestrateFailures = 1;
+        _api.FakeAi.AgentOrchestrateResponse = new
+        {
+            phase_3_graph_rag = new { },
+            phase_4_action_and_tools = new { },
+            phase_5_next_step = "往前走 200 公尺就到了"
+        };
+        var body = new { input_text = "想找個安靜的地方走走", city_name = "臺北市", town_name = "中正區" };
+
+        var result = await (await _api.ClientFor(_api.NewUserId()).PostAsJsonAsync("/api/Story/spin", body)).ReadResultAsync();
+
+        Assert.True(result.isSuccess, result.message);
+        Assert.Equal("往前走 200 公尺就到了", result.Result.GetProperty("agent_result").GetProperty("phase_5_next_step").GetString());
+        Assert.Equal(2, _api.FakeAi.Requests.Count(r => r.Path == "/api/agent/orchestrate"));
+    }
+
+    [Fact]
+    public async Task Spin_AI一直回500時只重送一次並回傳失敗與原因()
+    {
+        _api.FakeAi.AgentOrchestrateFailures = 5;
+        var body = new { input_text = "想找個安靜的地方走走", city_name = "臺北市", town_name = "中正區" };
+
+        var result = await (await _api.ClientFor(_api.NewUserId()).PostAsJsonAsync("/api/Story/spin", body)).ReadResultAsync();
+
+        Assert.False(result.isSuccess);
+        Assert.Contains(FakeAiService.AgentOrchestrateError, result.message);
+        Assert.DoesNotContain("{", result.message);   // 只帶 AI 的 message，不是整段 JSON
+        Assert.Equal(2, _api.FakeAi.Requests.Count(r => r.Path == "/api/agent/orchestrate"));
     }
 }

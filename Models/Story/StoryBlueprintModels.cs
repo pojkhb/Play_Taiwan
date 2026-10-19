@@ -275,7 +275,8 @@ public class ScriptBlueprintSimple
     [JsonConverter(typeof(LooseStringJsonConverter))]
     public string task_mission { get; set; }
 
-    /// <summary>出發前準備建議</summary>
+    /// <summary>出發前準備建議（AI 偶爾每一項回成物件，會轉成一段文字）</summary>
+    [JsonConverter(typeof(LooseStringListJsonConverter))]
     public List<string> preparation_tips { get; set; }
 }
 public class GenerateScriptBlueprintByTextResponse

@@ -35,14 +35,33 @@ namespace backend.Controllers
             "audio/mpeg", "audio/mp4", "audio/wav", "audio/aac", "audio/x-wav"
         };
 
+        // 商家註冊時還沒有帳號，要先上傳店家照片才拿得到 image_url，所以沒登入也能上傳；
+        // 沒登入只收照片、上限 20MB，影片、錄音（任務作答用）仍要登入。
+        private const long AnonymousMaxUploadBytes = 20 * 1024 * 1024; // 20MB
+
+        private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".webp", ".heic"
+        };
+
+        private static readonly Dictionary<string, string> ImageExtensionByContentType = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["image/jpeg"] = ".jpg",
+            ["image/png"] = ".png",
+            ["image/webp"] = ".webp",
+            ["image/heic"] = ".heic"
+        };
+
         /// <summary>
         /// 上傳檔案（照片、影片、錄音），回傳檔案網址。
         /// </summary>
         /// <remarks>
         /// 使用 multipart/form-data，欄位名稱為 file，上限 200MB。
         /// 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。
+        /// 不用登入也能上傳照片（商家註冊畫面上傳店家照片用），但沒登入只收照片、上限 20MB；影片、錄音要登入。
         /// </remarks>
         /// <response code="200">Result = 上傳後的檔案網址</response>
+        [AllowAnonymous]
         [HttpPost]
         [RequestSizeLimit(MaxUploadBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MaxUploadBytes)]
@@ -68,6 +87,19 @@ namespace backend.Controllers
                     isSuccess = false,
                     message = "不支援的檔案類型，僅接受照片（jpg/png/webp/heic）、影片（mp4/mov/webm）或音訊（mp3/m4a/wav/aac）"
                 });
+            }
+
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                // 存檔的副檔名一定要是照片的，避免有人把 .html 標成 image/jpeg 傳上來、由後端網域對外提供
+                string imageExt = AnonymousImageExtension(fileExt, file.ContentType);
+                if (imageExt == null)
+                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "沒登入只能上傳照片（jpg/png/webp/heic），影片、錄音請先登入" });
+
+                if (file.Length > AnonymousMaxUploadBytes)
+                    return BadRequest(new ResultViewModel<string> { isSuccess = false, message = $"沒登入上傳照片上限為 {AnonymousMaxUploadBytes / 1024 / 1024}MB" });
+
+                fileExt = imageExt;
             }
 
             try
@@ -100,6 +132,18 @@ namespace backend.Controllers
             {
                 return StatusCode(500, new ResultViewModel<string> { isSuccess = false, message = ex.Message });
             }
+        }
+
+        /// <summary>沒登入上傳時要存的照片副檔名：原檔名是照片就沿用，不然看 Content-Type；都不是照片回 null。</summary>
+        private static string AnonymousImageExtension(string fileExt, string contentType)
+        {
+            if (!string.IsNullOrEmpty(fileExt) && ImageExtensions.Contains(fileExt))
+                return fileExt;
+
+            if (!string.IsNullOrEmpty(contentType) && ImageExtensionByContentType.TryGetValue(contentType, out string ext))
+                return ext;
+
+            return null;
         }
     }
 }

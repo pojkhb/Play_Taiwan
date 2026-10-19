@@ -180,6 +180,9 @@ namespace backend.Models
         /// <summary>景點名稱</summary>
         public string location_name { get; set; }
 
+        /// <summary>景點圖（完整網址）：抵達過是景點照片（景點沒有照片時為 null），還沒抵達是迷霧圖</summary>
+        public string image_url { get; set; }
+
         /// <summary>此節點出現的 NPC 名稱</summary>
         public string npc_name { get; set; }
 
@@ -225,19 +228,17 @@ namespace backend.Models
         public List<string> spots { get; set; }
 
         /// <summary>
-        /// 封面照片（完整網址）：玩家這趟拍的第一張照片（依站的順序）；沒拍過照片時是第一張景點照片，
-        /// 景點也都沒有照片時為 null
+        /// 封面照片（完整網址）：依站的順序第一張景點照片，景點都沒有照片時為 null
         /// </summary>
         public string cover_image_url { get; set; }
 
         /// <summary>
-        /// 這趟的照片，依站的順序、拍攝時間排列（只有詳情回傳，列表為 null）：玩家拍的照片，
-        /// 玩家沒拍照片的站補上那一站的景點照片（is_place_photo = true）
+        /// 這趟每一站的景點照片，依站的順序排列（只有詳情回傳，列表為 null）；景點沒有照片的站不列出
         /// </summary>
         public List<HistoryPhoto> photos { get; set; }
     }
 
-    /// <summary>過往劇本的一張照片：玩家拍的，或那一站的景點照片</summary>
+    /// <summary>過往劇本的一張照片：那一站的景點照片</summary>
     public class HistoryPhoto
     {
         /// <summary>哪一站的照片（story_node.sn_id）</summary>
@@ -246,13 +247,16 @@ namespace backend.Models
         /// <summary>第幾站，從 1 開始</summary>
         public int node_order { get; set; }
 
-        /// <summary>那一站的景點名稱，可當照片說明</summary>
+        /// <summary>那一站的名稱，對不到景點時是那一站的章節標題</summary>
         public string place_name { get; set; }
 
-        /// <summary>照片網址（完整網址）</summary>
+        /// <summary>景點的真實名稱（例如「臺中州廳」），對不到景點時為 null</summary>
+        public string real_place_name { get; set; }
+
+        /// <summary>景點照片網址（完整網址），用景點 ID 向 Neo4j 拿</summary>
         public string image_url { get; set; }
 
-        /// <summary>false＝玩家拍的照片；true＝景點照片（玩家在這一站沒拍照片，用景點 ID 向 Neo4j 拿的）</summary>
+        /// <summary>是不是景點照片；照片一律是景點照片，固定為 true（不再回傳玩家上傳的照片）</summary>
         public bool is_place_photo { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
@@ -46,6 +47,9 @@ namespace backend.Controllers
 
 
         #region 文字轉劇本 (spin) — 改用 /api/agent/orchestrate
+        /// <summary>AI Agent 回 500 時最多送幾次（含第一次）</summary>
+        private const int SpinMaxAttempts = 2;
+
         public class SpinScriptRequest
         {
             /// <summary>使用者語音/文字輸入內容</summary>
@@ -131,18 +135,23 @@ namespace backend.Controllers
                 client.Timeout = TimeSpan.FromMinutes(3);
 
 
-                var jsonContent = new StringContent(JsonSerializer.Serialize(payloadToAgent), System.Text.Encoding.UTF8, "application/json");
-                var response = await client.PostAsync($"{AiServiceConfig.BaseUrl}/api/agent/orchestrate", jsonContent);
-
-
-                if (!response.IsSuccessStatusCode)
+                // AI 直接拿 LLM 的輸出組字串，LLM 偶爾回錯型態（例如 preparation_tips 回成物件陣列）就會整個回 500，
+                // 這種錯是隨機的，重送通常就好；只重送一次，避免超過 Cloudflare 的 100 秒上限
+                string payloadJson = JsonSerializer.Serialize(payloadToAgent);
+                string responseString;
+                for (int attempt = 1; ; attempt++)
                 {
-                    string errContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"外部 AI Agent 服務回應錯誤 (Status: {response.StatusCode}): {errContent}");
+                    var jsonContent = new StringContent(payloadJson, System.Text.Encoding.UTF8, "application/json");
+                    var response = await client.PostAsync($"{AiServiceConfig.BaseUrl}/api/agent/orchestrate", jsonContent);
+                    responseString = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode)
+                        break;
+
+                    if (response.StatusCode != HttpStatusCode.InternalServerError || attempt >= SpinMaxAttempts)
+                        throw new Exception($"外部 AI Agent 服務回應錯誤 (Status: {(int)response.StatusCode}): {VlogAiGateway.AiErrorMessage(responseString)}");
+
+                    _logger.LogWarning("AI Agent (spin) 第 {Attempt} 次回應 500，重送：{Body}", attempt, responseString);
                 }
-
-
-                string responseString = await response.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var agentResult = JsonSerializer.Deserialize<AgentOrchestrateResponse>(responseString, options);
 
@@ -550,8 +559,8 @@ namespace backend.Controllers
                 if (string.IsNullOrWhiteSpace(req?.user_prompt))
                     return BadRequest(new ResultViewModel<string> { isSuccess = false, message = "請提供描述文字 (user_prompt)" });
 
-                GenerateByTextResult result = await _service.SubmitTextBlueprintJobAsync(auId, req.user_prompt.Trim());
-                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = result });
+                GenerateByTextResult result = await _service.WithStationImagesAsync(await _service.SubmitTextBlueprintJobAsync(auId, req.user_prompt.Trim()));
+                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = WithPublicUrls(result) });
             }
             catch (Exception e)
             {
@@ -571,6 +580,10 @@ namespace backend.Controllers
         /// - `status = done`：`story_id`、`detected_city`、`detected_town`、`parsed_intent`、`data` 有值；之後再查都回傳同一份劇本，不會重複存檔。
         /// - `status = failed`：`error` 是失敗原因（AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成），可以請使用者重新送出。
         ///
+        /// data.nodes[].image_url 是每一站的圖片，跟 GenerateGameStory 一樣：剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖
+        /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，後端會在背景做，之後再查或用劇本詳情 Detail 就拿得到每一站自己的迷霧圖）。
+        /// 景點照片用景點 ID 向 Neo4j 拿，真實照片抵達後才會回傳（地圖、劇本詳情）。
+        ///
         ///     GET /api/Story/GenerateByText/a1b2c3d4
         /// </remarks>
         [Authorize]
@@ -581,8 +594,8 @@ namespace backend.Controllers
         {
             try
             {
-                GenerateByTextResult result = await _service.GetTextBlueprintJobAsync(User.GetAuId(), job_id);
-                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = result });
+                GenerateByTextResult result = await _service.WithStationImagesAsync(await _service.GetTextBlueprintJobAsync(User.GetAuId(), job_id));
+                return Ok(new ResultViewModel<GenerateByTextResult> { isSuccess = true, message = TextJobMessage(result), Result = WithPublicUrls(result) });
             }
             catch (NotFoundException e)
             {
@@ -602,6 +615,14 @@ namespace backend.Controllers
             GenerateByTextResult.Failed => result.error,
             _ => "劇本生成中，請用 job_id 查詢進度"
         };
+
+
+        /// <summary>每一站的迷霧圖從站內路徑組成完整網址</summary>
+        private GenerateByTextResult WithPublicUrls(GenerateByTextResult result)
+        {
+            result.data?.nodes?.ForEach(n => n.image_url = PublicUrl.Of(Request, n.image_url));
+            return result;
+        }
         #endregion
 
 

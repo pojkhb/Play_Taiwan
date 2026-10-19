@@ -63,11 +63,8 @@ namespace backend.Models
         public string Password { get; set; }
         public DateTime? Birthday { get; set; }
         public string Gender { get; set; }
-        /// <summary>前端送來的期望身分；1=遊客、2=商家。管理員(3)不開放自行註冊。</summary>
+        /// <summary>只能是 1（遊客）或不帶；商家請用 POST /api/Merchant/Register，帶 2 回 400；管理員不開放自行註冊</summary>
         public int AccountType { get; set; }
-
-        /// <summary>經過驗證/校正後，實際要寫入 auth_type 的值。</summary>
-        public int ResolvedAccountType => AccountType == 2 ? 2 : 1;
     }
 
     /// <summary>更新個人資料請求（目前只開放改名稱）。</summary>

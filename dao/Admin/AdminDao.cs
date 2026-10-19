@@ -80,14 +80,6 @@ namespace backend.dao
         }
 
         /// <summary>Email 是否已被其他帳號使用（exceptAuId 為修改中的帳號本身）</summary>
-        public bool EmailTaken(string email, int? exceptAuId = null)
-        {
-            using var connection = Open();
-            return connection.ExecuteScalar<int>(
-                "SELECT COUNT(1) FROM auth WHERE auth_email = @email AND (@exceptAuId IS NULL OR au_id <> @exceptAuId);",
-                new { email, exceptAuId }) > 0;
-        }
-
         public int CreateUser(AdminUserCreateRequest req, string passwordHash)
         {
             const string sql = @"

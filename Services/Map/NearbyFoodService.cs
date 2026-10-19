@@ -259,18 +259,18 @@ namespace backend.Services
         private static int? Minutes(string h, string m) =>
             int.TryParse(h, out int hh) && int.TryParse(m, out int mm) && hh is >= 0 and <= 24 && mm is >= 0 and < 60 ? hh * 60 + mm : null;
 
-        private static int? ParseTime(string text)
+        internal static int? ParseTime(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             Match m = Regex.Match(text.Trim(), @"^(\d{1,2})[:：]?(\d{2})");
             return m.Success ? Minutes(m.Groups[1].Value, m.Groups[2].Value) : null;
         }
 
-        private static string Clock(int minutes) => $"{minutes / 60:00}:{minutes % 60:00}";
+        internal static string Clock(int minutes) => $"{minutes / 60:00}:{minutes % 60:00}";
 
         private static readonly string[] ChineseDays = { "日", "一", "二", "三", "四", "五", "六" };
 
-        private static DayOfWeek? ParseDay(string text)
+        internal static DayOfWeek? ParseDay(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             string t = text.Trim();

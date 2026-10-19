@@ -143,14 +143,29 @@ public class PlacePhotoApiTests
 
         NpcInteractionResponse npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
         Assert.Contains("/images/fog/", npc.scene_image_url);
+        Assert.Contains("/images/fog/", (await (await client.GetAsync($"/api/Map/Node/{first}")).ReadResultAsync<NodeDetailResponse>()).Result.image_url);
 
-        // 抵達第 1 站後：第 1 站才是 Neo4j 的照片，還沒到的站仍然是迷霧圖
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync($"/api/Map/Node/{first}/Arrive?lat=25.03&lng=121.5", null)).StatusCode);
+        // 抵達第 1 站（任務還沒做完）：迷霧就散開，抵達回應、播開場劇情的遊玩畫面、地圖、節點詳情、NPC 互動都是 Neo4j 的照片；
+        // 還沒到的站仍然是迷霧圖
+        await _api.ExecuteAsync("INSERT INTO task (story_id, node_id, task_type, task_describe) VALUES (@storyId, @first, 6, '這裡以前叫什麼？');",
+            new { storyId, first });
+        HttpResponseMessage arrive = await client.PostAsync($"/api/Map/Node/{first}/Arrive?lat=25.03&lng=121.5", null);
+        Assert.Equal(HttpStatusCode.OK, arrive.StatusCode);
+        Assert.Equal(neo4j[0], (await arrive.ReadResultAsync<NodeDetailResponse>()).Result.image_url);
+
+        NodePlayResponse play = (await (await client.GetAsync($"/api/Task/Node/{first}")).ReadResultAsync<NodePlayResponse>()).Result;
+        Assert.False(play.progress.all_passed);
+        Assert.Equal(neo4j[0], play.node.image_url);
+        Assert.Equal(neo4j[0], (await (await client.GetAsync($"/api/Map/Node/{first}")).ReadResultAsync<NodeDetailResponse>()).Result.image_url);
 
         map = (await (await client.GetAsync($"/api/Map/{storyId}")).ReadResultAsync<MapResponse>()).Result;
         Assert.Equal(neo4j[0], map.nodes[0].image_url);
+        Assert.All(map.nodes.Skip(1), n => Assert.Contains("/images/fog/", n.image_url));
         npc = (await (await client.GetAsync($"/api/Map/Node/{first}/Interact")).ReadResultAsync<NpcInteractionResponse>()).Result;
         Assert.Equal(neo4j[0], npc.scene_image_url);
+
+        // 任務做完：第 2 站解鎖後才能抵達
+        await _api.ExecuteAsync("UPDATE task SET pass = 1 WHERE node_id = @first;", new { first });
 
         StoryDetailResponse detail = await DetailAsync();
         Assert.Equal(neo4j[0], detail.nodes[0].image_url);

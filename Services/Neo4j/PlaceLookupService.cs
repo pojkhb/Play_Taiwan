@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dapper;
 using backend.utils;
@@ -394,6 +395,199 @@ namespace backend.Services.Neo4j
         {
             if (string.IsNullOrWhiteSpace(placeId)) return null;
             return (await GetPlacesAsync(new[] { placeId })).GetValueOrDefault(placeId);
+        }
+
+        /// <summary>MySQL place 表一列的景點資料，欄位對應 place 的同名欄位（名稱、座標另外由 GetPlacesAsync 提供）</summary>
+        public class PlaceRecord
+        {
+            public string uid { get; set; }
+            public string p_category { get; set; }
+            public string p_type { get; set; }
+            public string p_summary { get; set; }
+            public string p_introduction { get; set; }
+            public string p_address { get; set; }
+            public string p_open_time { get; set; }
+            public string p_tel { get; set; }
+            public string p_website_url { get; set; }
+            public string p_image { get; set; }
+            public string p_business { get; set; }
+        }
+
+        // Neo4j 標籤 → place.p_category；美食一律「飲食」（周邊好去、用餐時間推播靠這個分類找美食）
+        private static readonly Dictionary<string, string> CategoryOfLabel = new()
+        {
+            ["Attraction"] = "Attraction", ["Restaurant"] = "飲食", ["Hotel"] = "Hotel", ["Event"] = "Event"
+        };
+
+        private const int PlaceVarcharLength = 255;   // place 的 varchar 欄位長度，超過會讓整份劇本存檔失敗，先截掉
+
+        /// <summary>
+        /// 劇本存檔時寫進 MySQL place 表的景點資料（key = uid）：分類、類型、介紹、地址（補上縣市區）、營業時間、電話、網站、照片、營業狀態。
+        /// 照片跟 GetPlaceImagesAsync 取同一張；營業時間轉成 p_open_time 的文字格式（見 ToOpenTimeText）。
+        /// Neo4j 連不上時回空的，劇本照樣存，place 只有名稱和座標；查不到的景點不會出現在結果裡。
+        /// </summary>
+        public async Task<Dictionary<string, PlaceRecord>> GetPlaceRecordsAsync(IEnumerable<string> placeIds)
+        {
+            List<string> uids = (placeIds ?? Enumerable.Empty<string>())
+                .Where(id => !string.IsNullOrWhiteSpace(id) && !id.StartsWith(MySqlPlacePrefix))
+                .Distinct()
+                .ToList();
+
+            var result = new Dictionary<string, PlaceRecord>();
+            if (uids.Count == 0) return result;
+
+            try
+            {
+                var rows = await _gateway.ExecuteCypherAsync(@"
+                    MATCH (p:Place) WHERE p.uid IN $uids
+                    OPTIONAL MATCH (p)-[:HAS_VERSION]->(v:Current)
+                    OPTIONAL MATCH (p)-[:HAS_CATEGORY]->(c:Category)
+                    OPTIONAL MATCH (p)-[:LOCATED_IN_CITY]->(city:City)
+                    OPTIONAL MATCH (p)-[:LOCATED_IN_TOWN]->(town:Town)
+                    WITH p, v, collect(DISTINCT c.name) AS categories,
+                         head(collect(DISTINCT city.name)) AS city, head(collect(DISTINCT town.name)) AS town
+                    OPTIONAL MATCH (p)-[:HAS_IMAGE]->(img:Image) WHERE img.url IS NOT NULL AND img.url <> ''
+                    WITH p, v, categories, city, town, img ORDER BY img.url
+                    WITH p, v, categories, city, town, collect(img.url)[0] AS image
+                    OPTIONAL MATCH (p)-[:HAS_OPERATING_HOURS]->(oh:OperatingHours)
+                    WITH p, v, categories, city, town, image,
+                         collect(DISTINCT CASE WHEN oh IS NULL THEN null
+                                ELSE {day_of_week: toString(oh.dayOfWeek), open_time: toString(oh.openTime), close_time: toString(oh.closeTime)} END) AS opening_hours
+                    RETURN p.uid AS uid,
+                           [l IN labels(p) WHERE l <> 'Place'][0] AS label,
+                           categories, city, town, opening_hours,
+                           coalesce(v.address, p.address, p.Address) AS address,
+                           coalesce(v.description, p.description, p.Description) AS description,
+                           coalesce(v.phone, p.phone) AS phone,
+                           coalesce(v.website, p.website, p.WebsiteURL) AS website,
+                           coalesce(image, v.image_url) AS image,
+                           toString(p.business_status) AS business_status", new { uids });
+
+                foreach (var row in rows ?? new List<Dictionary<string, object>>())
+                {
+                    string uid = Neo4jValueConverter.AsString(row.GetValueOrDefault("uid"));
+                    if (string.IsNullOrWhiteSpace(uid)) continue;
+
+                    string description = Neo4jValueConverter.AsString(row.GetValueOrDefault("description"))?.Trim();
+                    List<NearbyFoodService.OperatingHour> hours = Neo4jValueConverter.AsList(row.GetValueOrDefault("opening_hours"))
+                        .Select(Neo4jValueConverter.AsDictionary)
+                        .Where(map => map != null)
+                        .Select(map => new NearbyFoodService.OperatingHour
+                        {
+                            day_of_week = Neo4jValueConverter.AsString(map.GetValueOrDefault("day_of_week")),
+                            open_time = Neo4jValueConverter.AsString(map.GetValueOrDefault("open_time")),
+                            close_time = Neo4jValueConverter.AsString(map.GetValueOrDefault("close_time"))
+                        })
+                        .ToList();
+
+                    result[uid] = new PlaceRecord
+                    {
+                        uid = uid,
+                        p_category = CategoryOfLabel.GetValueOrDefault(Neo4jValueConverter.AsString(row.GetValueOrDefault("label")) ?? ""),
+                        p_type = Cap(string.Join("、", Neo4jValueConverter.AsStringList(row.GetValueOrDefault("categories"))
+                            .Where(c => !string.IsNullOrWhiteSpace(c)))),
+                        p_summary = ToSummary(description),
+                        p_introduction = string.IsNullOrEmpty(description) ? null : description,
+                        p_address = Cap(ToFullAddress(Neo4jValueConverter.AsString(row.GetValueOrDefault("address")),
+                            Neo4jValueConverter.AsString(row.GetValueOrDefault("city")),
+                            Neo4jValueConverter.AsString(row.GetValueOrDefault("town")))),
+                        p_open_time = Cap(ToOpenTimeText(hours)),
+                        p_tel = Cap(Neo4jValueConverter.AsString(row.GetValueOrDefault("phone"))),
+                        p_website_url = Blank(Neo4jValueConverter.AsString(row.GetValueOrDefault("website"))),
+                        p_image = Blank(Neo4jValueConverter.AsString(row.GetValueOrDefault("image"))),
+                        p_business = Cap(Neo4jValueConverter.AsString(row.GetValueOrDefault("business_status")))
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "向 Neo4j 查景點資料失敗，place 表這次只存名稱和座標。");
+            }
+
+            return result;
+        }
+
+        private static string Blank(string text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+        private static string Cap(string text)
+        {
+            text = Blank(text);
+            return text != null && text.Length > PlaceVarcharLength ? text[..PlaceVarcharLength] : text;
+        }
+
+        /// <summary>介紹的第一句當簡短介紹（p_summary）；100 字以內的介紹整段直接用</summary>
+        internal static string ToSummary(string description)
+        {
+            string text = Regex.Replace(description ?? "", @"\s+", " ").Trim();
+            if (text.Length == 0) return null;
+            if (text.Length <= 100) return text;
+
+            Match sentence = Regex.Match(text, @"^(.{10,100}?[。！？!?])");
+            return sentence.Success ? sentence.Groups[1].Value : text[..100] + "…";
+        }
+
+        /// <summary>Neo4j 的地址多半沒有縣市區（「安平路125號」），補成「臺南市安平區安平路125號」；已經寫了縣市的不重複加</summary>
+        internal static string ToFullAddress(string address, string city, string town)
+        {
+            address = Blank(address);
+            if (address == null) return null;
+
+            city = (city ?? "").Replace("台", "臺");
+            town ??= "";
+            string normalized = address.Replace("台", "臺");
+
+            if (city.Length >= 2 && normalized.StartsWith(city[..2])) return address;
+            if (town.Length > 0 && normalized.StartsWith(town)) return city + address;
+            return city + town + address;
+        }
+
+        private static readonly DayOfWeek[] WeekFromMonday =
+        {
+            DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
+        };
+        private static readonly string[] WeekNames = { "週一", "週二", "週三", "週四", "週五", "週六", "週日" };
+
+        /// <summary>
+        /// Neo4j 的每日營業時段 → place.p_open_time 文字（跟種子資料同格式，解析時只看裡面的 HH:MM-HH:MM）：
+        /// 每天一樣時「09:00-17:00」、有公休日加「（週一休）」；每天不同時連續相同的星期合併，
+        /// 例如「週二至週五 10:00-18:00；週六 10:00-21:00；週日 10:00-18:00（週一休）」。
+        /// 沒有資料或有任何一筆看不懂時回 null（不填）。
+        /// </summary>
+        internal static string ToOpenTimeText(IEnumerable<NearbyFoodService.OperatingHour> hours)
+        {
+            var rangesByDay = new Dictionary<int, SortedSet<string>>();   // 0 = 週一
+            foreach (NearbyFoodService.OperatingHour h in hours ?? Enumerable.Empty<NearbyFoodService.OperatingHour>())
+            {
+                DayOfWeek? day = NearbyFoodService.ParseDay(h.day_of_week);
+                int? from = NearbyFoodService.ParseTime(h.open_time), to = NearbyFoodService.ParseTime(h.close_time);
+                if (day == null || from == null || to == null) return null;
+
+                int index = Array.IndexOf(WeekFromMonday, day.Value);
+                if (!rangesByDay.TryGetValue(index, out SortedSet<string> set))
+                    rangesByDay[index] = set = new SortedSet<string>(StringComparer.Ordinal);
+                set.Add($"{NearbyFoodService.Clock(from.Value)}-{NearbyFoodService.Clock(to.Value)}");
+            }
+            if (rangesByDay.Count == 0) return null;
+
+            string[] ranges = Enumerable.Range(0, 7)
+                .Select(i => rangesByDay.TryGetValue(i, out SortedSet<string> set) ? string.Join("、", set) : null)
+                .ToArray();
+            List<string> closedDays = Enumerable.Range(0, 7).Where(i => ranges[i] == null).Select(i => WeekNames[i]).ToList();
+            string closedText = closedDays.Count > 0 ? $"（{string.Join("、", closedDays)}休）" : "";
+
+            List<string> distinct = ranges.Where(r => r != null).Distinct().ToList();
+            if (distinct.Count == 1) return distinct[0] + closedText;
+
+            var parts = new List<string>();
+            for (int start = 0; start < 7;)
+            {
+                int end = start;
+                while (end + 1 < 7 && ranges[end + 1] == ranges[start]) end++;
+                if (ranges[start] != null)
+                    parts.Add($"{(start == end ? WeekNames[start] : $"{WeekNames[start]}至{WeekNames[end]}")} {ranges[start]}");
+                start = end + 1;
+            }
+            return string.Join("；", parts) + closedText;
         }
 
         /// <summary>

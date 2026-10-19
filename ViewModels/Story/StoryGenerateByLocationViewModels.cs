@@ -66,6 +66,12 @@ namespace backend.ViewModels
 
         /// <summary>NPC 對話</summary>
         public ScriptBlueprintDialogues dialogues { get; set; }
+
+        /// <summary>
+        /// 這一站的圖片（完整網址），劇本生成完成時才有值。剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖：
+        /// 這張照片的迷霧版，還沒做好或景點沒有照片時是通用迷霧圖。真實照片抵達後才會回傳（地圖、劇本詳情）
+        /// </summary>
+        public string image_url { get; set; }
     }
 
     /// <summary>節點的 NPC 對話</summary>

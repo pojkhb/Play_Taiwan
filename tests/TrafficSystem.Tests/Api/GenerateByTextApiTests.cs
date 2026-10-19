@@ -165,6 +165,8 @@ public class GenerateByTextApiTests
         {
             new() { ["uid"] = "uid-hotel-1", ["name"] = "簃居青衖", ["lat"] = 22.9931, ["lon"] = 120.1985, ["description"] = "老屋民宿" }
         };
+        foreach (var (key, value) in HotelDetails("神農街1號"))
+            _api.FakeNeo4j.Rows[0][key] = value;
         try
         {
             _api.FakeAi.TextJobPolls.Enqueue(Completed(
@@ -185,10 +187,61 @@ public class GenerateByTextApiTests
             Assert.Equal("入住簃居青衖，聽從古老的故事...", await NodeColumn(2, "sn_opening_text"));
             Assert.Equal("從紅樓出發，最後住進簃居青衖。", await _api.QueryAsync<string>("SELECT story_synopsis FROM story WHERE s_id = @storyId;", new { storyId }));
             Assert.Equal(22.9931, await _api.QueryAsync<double>("SELECT p_latitude FROM place WHERE p_name = '簃居青衖';"), 4);
+
+            // place 表不再只有名稱和座標：Neo4j 查得到的分類、介紹、地址、營業時間一起寫進去
+            var place = await _api.QueryAsync<(string region_id, string p_category, string p_type, string p_introduction, string p_address, string p_open_time)>(
+                "SELECT region_id, p_category, p_type, p_introduction, p_address, p_open_time FROM place WHERE p_name = '簃居青衖';");
+            Assert.Equal(("uid-hotel-1", "Hotel", "民宿", "老屋民宿", "神農街1號", "15:00-22:00"), place);
         }
         finally
         {
             _api.FakeNeo4j.Reset();   // 其他測試預設 Neo4j 連不上
         }
     }
+
+    [Fact]
+    public async Task 同一個景點已經在place表_不重複新增只補空欄位()
+    {
+        string uid = $"uid-hotel-{Guid.NewGuid():N}";
+        string oldName = $"舊名民宿{Guid.NewGuid():N}"[..12], newName = $"新名民宿{Guid.NewGuid():N}"[..12];
+        await _api.ExecuteAsync("INSERT INTO place (region_id, p_name, p_latitude, p_longitude, p_summary) VALUES (@uid, @oldName, 22.99, 120.2, '原本的介紹');",
+            new { uid, oldName });
+
+        var row = new Dictionary<string, object> { ["uid"] = uid, ["name"] = newName, ["lat"] = 23.5, ["lon"] = 121.0, ["description"] = "老屋民宿" };
+        foreach (var (key, value) in HotelDetails("神農街2號"))
+            row[key] = value;
+        _api.FakeNeo4j.Rows = new List<Dictionary<string, object>> { row };
+        try
+        {
+            _api.FakeAi.TextJobPolls.Enqueue(Completed(
+                new Node(1, "uid-attr-1", $"文字測試景點{Guid.NewGuid():N}", "穹頂下的信", "開場"),
+                new Node(2, uid, newName, "旅途之間", "開場"),
+                synopsis: "最後住進老屋。"));
+
+            ApiResult<GenerateByTextResult> result = await GenerateAsync(_api.ClientFor(_api.NewUserId()), "台南住一晚");
+
+            Assert.Equal("done", result.Result.status);
+            Assert.Equal(0, await _api.QueryAsync<int>("SELECT COUNT(*) FROM place WHERE p_name = @newName;", new { newName }));
+
+            var place = await _api.QueryAsync<(string p_summary, string p_category, string p_address, double p_latitude)>(
+                "SELECT p_summary, p_category, p_address, p_latitude FROM place WHERE p_name = @oldName;", new { oldName });
+            Assert.Equal(("原本的介紹", "Hotel", "神農街2號"), (place.p_summary, place.p_category, place.p_address));   // 原本有值的不覆蓋
+            Assert.Equal(22.99, place.p_latitude, 4);
+        }
+        finally
+        {
+            _api.FakeNeo4j.Reset();
+        }
+    }
+
+    /// <summary>Neo4j 旅宿的 place 表欄位資料（每天 15:00-22:00）；不放縣市區，免得影響其他用到行政區的查詢</summary>
+    private static Dictionary<string, object> HotelDetails(string address) => new()
+    {
+        ["label"] = "Hotel",
+        ["categories"] = new List<object> { "民宿" },
+        ["address"] = address,
+        ["opening_hours"] = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }
+            .Select(day => (object)new Dictionary<string, object> { ["day_of_week"] = day, ["open_time"] = "15:00", ["close_time"] = "22:00" })
+            .ToList()
+    };
 }

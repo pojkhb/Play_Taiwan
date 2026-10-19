@@ -42,7 +42,7 @@ namespace backend.Controllers
         /// 節點上帶名稱、介紹與介紹的語意向量（description_embedding，由 tools/embedding_service 計算，服務沒開時註冊照常成功、先不寫向量）。
         /// lat、lng、category、sub_category、phone、website、operating_hours 只在建立新景點時使用，帶了 place_uid 會忽略。
         /// image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，
-        /// 遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。
+        /// 遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。照片可以先用 POST api/Upload 上傳拿到網址（不用登入）。
         ///
         /// operating_hours（營業時間，選填）跟 Neo4j 政府資料同格式，一個時段一筆，公休日不填、中午休息就同一天填兩筆；
         /// 跨夜營業結束時間填隔天的時間，營業到半夜 12 點填 00:00，全天營業填 00:00～23:59。格式不對或同一天時段重疊回 400：

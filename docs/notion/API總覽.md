@@ -35,7 +35,7 @@
 |---|---|---|---|
 | 目前總覽 | `GET /api/Home/Overview` | ✅ 實測可用 |  |
 | 徽章收藏 | `GET /api/Badge/Status` | ✅ 實測可用 |  |
-| 過往旅途 | `GET /api/History` | ✅ 實測可用 | cover_image_url：卡片照片，玩家這趟拍的第一張；沒拍照片時用景點照片（Neo4j），景點也沒照片才是 null |
+| 過往旅途 | `GET /api/History` | ✅ 實測可用 | cover_image_url：卡片照片，依站的順序第一張景點照片（Neo4j），不是玩家上傳的照片；景點都沒照片時是 null |
 | 探員資訊 | `GET /api/Auth/Profile` | ✅ 實測可用 |  |
 | 進行中的劇本 | `GET /api/Story/CurrentPlaying` | ✅ 實測可用 |  |
 
@@ -85,14 +85,14 @@
 |---|---|---|---|
 | 地圖、收集進度、迷霧提示 | `GET /api/Map/{story_id}` | ✅ 實測可用 | 迷霧由後端處理，前端照欄位顯示：未解鎖的站 location_name 是地點代號、image_url 是這一站照片的霧化版（若隱若現，還沒做好時先給通用迷霧圖）、lat/lng 是迷霧中心，以它為中心畫半徑 fog_radius_m 公尺的迷霧；解鎖後才是真正的站名、照片與座標 |
 | 目前位置 | `POST /api/Map/Location` | ✅ 實測可用 | 不用登入 |
-| 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 | 要照順序：還在迷霧中的站回傳 403；抵達後下一站的迷霧散開 |
-| 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_avatar_url 是這一站的 NPC |
+| 抵達節點 | `POST /api/Map/Node/{node_id}/Arrive` | ✅ 實測可用 | 要照順序：還在迷霧中的站回傳 403。抵達就散開這一站的迷霧：回傳的 image_url 是景點真實照片，播開場劇情時直接換上（下一站要等這一站任務全部通過才解鎖） |
+| 節點詳情 | `GET /api/Map/Node/{node_id}` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_avatar_url 是這一站的 NPC；image_url 抵達過是景點照片，還沒抵達是迷霧圖 |
 | 開始導航 | `POST /api/Map/Navigate` | ✅ 實測可用 | 還在迷霧中的站回傳 403（避免洩漏精確位置） |
 | NPC 互動 | `GET /api/Map/Node/{node_id}/Interact` | ✅ 實測可用 | 還在迷霧中的站回傳 403。npc_name、npc_role、npc_avatar_url 來自 NPC 名單（薯光、珍奶奶、阿達力、墨先生、霓霓、阿吉伯），台詞是這一站的開場白。內容是固定的（不是隨機）：同一站每次呼叫都一樣，跟 Task/Node 的 node.opening_text 是同一段；「回顧劇情」的背景圖用 scene_image_url |
 | NPC 台詞語音 | `POST /api/Npc/Speak` | ✅ 實測可用 | text 帶台詞（NPC 互動的 npc_dialogue、節點遊玩畫面的 opening_text／success_text 等），npc_name 帶畫面上的 NPC 名字；回應跟劇情前傳語音一樣，processing 時用 `GET /api/Npc/Speak/{job_id}` 查進度 |
 | NPC 下拉選單 | `GET /api/Npc/Options` | ✅ 實測可用 | 可以唸台詞的 NPC 名單（value 帶進 npc_name），預設選項是薯光。前傳、回顧旁白預設由劇本的 NPC 唸，用劇本詳情的 npc.name、回顧的 narration.npc_name 選好預設值 |
 | 交通規劃 | `POST /api/Route/Plan` | ✅ 實測可用 | 帶 story_id 依劇本節點規劃；不帶時用 points 規劃自選地點（原本的 Story/TravelRoute、Story/{story_id}/Transit 已合併進來）。legs[].options 是這一段所有的走法，可以全部畫在地圖上讓使用者點選切換：is_chosen 的那條是主路線，其餘畫成灰色；用 option_id 記住使用者選了哪一條。每種交通方式一條，現在要走的那一段（帶劇本是 is_current 的那一段，自選地點是第一段）步行／腳踏車／機車／汽車還會多給最多 2 條同一種交通方式的替代走法（is_alternative = true）|
-| 節點遊玩畫面（劇情、NPC、題目） | `GET /api/Task/Node/{node_id}` | ✅ 實測可用 | 取代舊的 Task/List。要先 Arrive 抵達這一站（否則 409）；npc 是說開場白、出題的 NPC（名稱、身分、圖片、聲線）；每題的 answer_mode 決定作答時帶哪個欄位 |
+| 節點遊玩畫面（劇情、NPC、題目） | `GET /api/Task/Node/{node_id}` | ✅ 實測可用 | 取代舊的 Task/List。要先 Arrive 抵達這一站（否則 409）；npc 是說開場白、出題的 NPC（名稱、身分、圖片、聲線）；每題的 answer_mode 決定作答時帶哪個欄位；node.image_url 是景點真實照片（抵達就散開迷霧），跟開場劇情一起顯示 |
 | 周邊好去處 | `GET /api/Map/{story_id}/Nearby` | ✅ 實測可用 |  |
 | 地圖上的 NPC：自己跳出來提醒（天氣、用餐） | `GET /api/Map/Reminders` | ✅ 實測可用 | **NPC 要不要跳出來由後端判斷**。地圖開著時每 5 分鐘（check_after_seconds）帶目前 GPS 問一次，reminders 裡有「還沒跳過的 key」才讓 NPC 跳出對話，空陣列就不用動。天氣只在打雷下雨、正在下雨、等一下可能下雨、太熱、偏涼時提醒；用餐只在早餐 07:00–09:00、午餐 11:30–13:30、晚餐 17:30–19:30 而且附近有店時提醒，places 是推薦的店家（最多 5 間）。message 直接放進對話泡泡。前端把跳過的 key 存在手機裡，同一個 key 不要跳第二次（同一種天氣 3 小時內、同一餐一天內 key 都一樣）。帶 story_id 時推薦的店家會排除劇本自己的站 |
 | 地圖上的 NPC：附近美食（使用者自己點開） | `GET /api/Map/NearbyFood` | ✅ 實測可用 | 帶目前 GPS。meal 是現在哪一餐、message 是可以直接放進 NPC 泡泡的一句話、places 是附近的店家。不管是不是用餐時間都會回；NPC 自己跳出來的用餐提醒請用 Reminders |
@@ -105,7 +105,7 @@
 |---|---|---|---|
 | 任務答題 | `POST /api/Task/Answer` | ⬜ 未實測 | GPS 要在任務地點 200 公尺內；要帶哪個作答欄位看 GET /api/Task/Node/{node_id} 每題的 answer_mode |
 | 取得提示 | `GET /api/Task/{task_id}/Hint` | ✅ 實測可用 | 答錯次數達門檻才會給提示（門檻依題目難易度與玩家表現）；npc_name、npc_avatar_url 是給提示的 NPC |
-| 拍照上傳 | `POST /api/Upload` | ✅ 實測可用 |  |
+| 拍照上傳 | `POST /api/Upload` | ✅ 實測可用 | 不用登入也能上傳照片（商家註冊畫面上傳店家照片用，上限 20MB）；影片、錄音要登入 |
 | 生成明信片 | `POST /api/PostcardCatalog/GenerateAi` | ✅ 實測可用 | multipart/form-data：user_image（照片）、spot_name、story_id、node_id。任務完成後由前端呼叫 |
 | 完成劇本 | `POST /api/Story/EndStory` | ✅ 實測可用 | 把劇本標成完成（首頁總覽、過往旅途、抽徽章都以這個為準） |
 | 抽徽章 | `POST /api/Badge/Draw` | ✅ 實測可用 | 要先呼叫 EndStory 把劇本標成完成才能抽；一個劇本只能抽一次，重抽回傳同一枚（is_new=false） |
@@ -121,7 +121,7 @@
 | 功能 | API | 狀態 | 備註 |
 |---|---|---|---|
 | 通關紀錄 | `GET /api/History` | ✅ 實測可用 | 同上方說明 |
-| 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 | photos：上方左右滑動的照片，玩家拍的照片（is_place_photo = false），沒拍照片的站補上那一站的景點照片（is_place_photo = true，Neo4j）；cover_image_url 跟列表同一張 |
+| 旅程故事 | `GET /api/History/{story_id}` | ✅ 實測可用 | photos：上方左右滑動的照片，每一站一張景點照片（Neo4j，is_place_photo 固定 true），不回傳玩家上傳的照片；real_place_name 是景點的真實名稱；cover_image_url 跟列表同一張 |
 | 劇本回顧（劇情、照片、收穫、旁白） | `GET /api/History/{story_id}/Recap` | ✅ 實測可用 | 只能看自己玩完的劇本（沒玩完回 400）。narration.text 直接顯示；narration.npc_name 是唸旁白的 NPC（劇本的 NPC）；narration.audio_url 為 null 時，按播放再呼叫 Recap/Narration |
 | 回顧旁白語音 | `POST /api/History/{story_id}/Recap/Narration` | ✅ 實測可用 | 按播放時呼叫，由劇本的 NPC 唸。done 直接播放 audio_url（wav，做過的旁白直接回傳）；processing 時每 2 秒用 `GET /api/Npc/Speak/{job_id}` 查進度。body 可省略，npc_name 可改由其他 NPC 唸 |
 | 旅程明信片 | `GET /api/PostcardCatalog/by-story/{storyId}` | ✅ 實測可用 |  |
@@ -160,7 +160,7 @@
 | `POST /api/Auth/Logout` | 帳號登出 | 需要 | ✅ 實測可用 |  |
 | `GET /api/Auth/Profile` | 取得目前登入帳號的資訊 | 需要 | ✅ 實測可用 |  |
 | `POST /api/Auth/Profile` | 更新目前登入帳號的名稱 | 需要 | ✅ 實測可用 | JSON：auth_name（string） |
-| `POST /api/Auth/Register` | 帳號註冊 | 不用 | ✅ 實測可用 | JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）、ResolvedAccoun |
+| `POST /api/Auth/Register` | 帳號註冊（只限遊客） | 不用 | ✅ 實測可用 | JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer） |
 | `POST /api/Auth/ResetPassword` | 依重設連結 Token 完成密碼重設 | 不用 | ✅ 實測可用 | JSON：Token（string）、NewPassword（string） |
 | `GET /api/Auth/VerifyEmail` | 信箱驗證與啟用帳號 | 不用 | ✅ 實測可用 | token（查詢，string） |
 
@@ -259,7 +259,7 @@
 
 | API | 名稱 | 登入 | 狀態 | 參數 |
 |---|---|---|---|---|
-| `POST /api/Upload` | 上傳檔案（照片、影片、錄音），回傳檔案網址 | 需要 | ✅ 實測可用 | 表單：file（檔案） |
+| `POST /api/Upload` | 上傳檔案（照片、影片、錄音），回傳檔案網址 | 照片不用；影片、錄音需要 | ✅ 實測可用 | 表單：file（檔案） |
 
 ### 明信片（8）
 
@@ -397,6 +397,8 @@ Request：
 
 參數：JSON：auth_name（string）、auth_pswd（string）
 
+auth_name 可以填帳號名稱或信箱。登入失敗（帳號或密碼錯誤、帳號停用、信箱還沒驗證、商家還沒有店家資料）一律回 HTTP 400，message 是可以直接顯示給使用者的原因；只有伺服器出錯才是 500。帳號停用、信箱還沒驗證這類狀態，要密碼正確才會告知。
+
 Request：
 
 ```json
@@ -415,7 +417,7 @@ Request：
   "auth_name": "string",
   "auth_type": 0,
   "account_type_name": "string",
-  "s_id": 0
+  "store_id": 0
 }
 ```
 
@@ -446,6 +448,8 @@ Request：
 
 參數：JSON：auth_name（string）
 
+名稱規則跟註冊相同：去掉前後空白後不能是空的、最多 50 字，不能跟其他帳號的名稱或信箱重複（不分大小寫）。不合規則回 400，名稱被用掉回 409，message 是原因。
+
 Request：
 
 ```json
@@ -462,19 +466,30 @@ Request：
 
 #### `POST /api/Auth/Register`　帳號註冊
 
-參數：JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）、ResolvedAccountType（integer）
+參數：JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）
+
+只註冊遊客帳號，驗證信箱後才能登入。商家請用 `POST /api/Merchant/Register`（AccountType 帶 2 回 400），管理員不開放自行註冊。
+
+欄位規則（不合規則回 400，message 是原因，可以直接顯示）：
+
+- Username：必填，去掉前後空白後最多 50 字；不能跟其他帳號的名稱或信箱重複（不分大小寫），重複回 409
+- Email：必填，xxx@xxx.xxx 格式；已經註冊並驗證過回 409
+- Password：6～100 字，前後不能有空白
+- Birthday（選填）：不能是未來的日期；Gender（選填）：最多 20 字
+- AccountType：不帶或 1
+
+同一個 Email 已經註冊但還沒驗證（沒收到信、連結過期）時，可以用同一個 Email 再註冊一次：換成這次填的資料並重寄驗證信，舊的驗證連結失效。
 
 Request：
 
 ```json
 {
-  "Username": "string",
-  "Email": "string",
-  "Password": "string",
-  "Birthday": "2026-10-07T12:00:00",
-  "Gender": "string",
-  "AccountType": 0,
-  "ResolvedAccountType": 0
+  "Username": "NoobTW",
+  "Email": "test@example.com",
+  "Password": "password123",
+  "Birthday": "2005-01-24",
+  "Gender": "Male",
+  "AccountType": 1
 }
 ```
 
@@ -1406,6 +1421,7 @@ Request：
 {
   "node_id": 0,
   "location_name": "string",
+  "image_url": "string",
   "npc_name": "string",
   "npc_avatar_url": "string",
   "intro_story": "string",
@@ -1427,6 +1443,7 @@ Request：
 {
   "node_id": 0,
   "location_name": "string",
+  "image_url": "string",
   "npc_name": "string",
   "npc_avatar_url": "string",
   "intro_story": "string",
@@ -2179,7 +2196,8 @@ Request：
     "title": "string",
     "location_codename": "string",
     "opening_text": "string",
-    "success_text": "string"
+    "success_text": "string",
+    "image_url": "string"
   },
   "npc": {
     "npc_id": 0,
@@ -2263,6 +2281,8 @@ Request：
 ### 上傳
 
 #### `POST /api/Upload`　上傳檔案（照片、影片、錄音），回傳檔案網址
+
+不用登入也能上傳照片（商家註冊畫面上傳店家照片用）；沒登入只收照片（jpg/png/webp/heic）、上限 20MB，影片、錄音要登入。
 
 參數：表單：file（檔案）
 
@@ -2515,8 +2535,9 @@ Request：
       "node_id": 0,
       "node_order": 0,
       "place_name": "string",
+      "real_place_name": "string",
       "image_url": "string",
-      "is_place_photo": false
+      "is_place_photo": true
     }
   ]
 }
@@ -2904,7 +2925,7 @@ Request：
 
 參數：JSON：auth_name（string）、auth_email（string）、auth_pswd（string）、store_name（string）、store_dec（string）、store_address（string）、store_city（string）、store_town（string）、place_uid（string）、new_place（MerchantNewPlace）、image_url（string）
 
-image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。
+image_url（店家照片網址，選填，http／https 完整網址）建立新景點、選既有景點都可以帶，遊客掃 QR Code 領券、我的優惠券的 image_url 會優先用這張；格式不對回 400。照片可以先用 POST /api/Upload 上傳拿到網址（不用登入）。
 
 Request：
 
@@ -3288,7 +3309,16 @@ Request：
 }
 ```
 
-回傳：null（Result 沒有內容，看 isSuccess 與 message 即可）
+成功時 Result 回傳綁好的 qr_uid 與 coupon_id。
+
+回傳：
+
+```json
+{
+  "qr_uid": "string",
+  "coupon_id": 0
+}
+```
 
 #### `GET /api/merchant/questions`　查詢登入商家的題庫列表
 

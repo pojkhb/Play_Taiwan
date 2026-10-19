@@ -286,6 +286,7 @@ namespace backend.dao
             public string location_codename { get; set; }
             public string sn_opening_text { get; set; }
             public string sn_success_text { get; set; }
+            public string place_id { get; set; }        // 景點 ID，用來向 Neo4j 拿景點照片
 
             // 這一站的 NPC（節點沒指定時用劇本的，劇本也沒有時用預設 NPC）
             public int? npc_id { get; set; }
@@ -299,6 +300,7 @@ namespace backend.dao
             using var conn = new MySqlConnection(mydb);
             return conn.QueryFirstOrDefault<NodePlayRow>($@"
                 SELECT sn.sn_id, sn.s_id, sn.sn_order, sn.sn_title, sn.location_codename, sn.sn_opening_text, sn.sn_success_text,
+                       sn.place_id,
                        n.npc_id, n.npc_name, n.npc_role, n.npc_avatar
                 FROM story_node sn
                 {MapDao.NpcJoin}

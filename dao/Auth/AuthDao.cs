@@ -1,6 +1,8 @@
 // 檔案路徑：System\dao\Auth\AuthDao.cs
 // 對應新資料表 `auth`，取代舊的 ep_account 相關查詢
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Dapper;
 using backend.utils;
@@ -23,7 +25,12 @@ namespace backend.dao
         }
 
         #region 依名稱或信箱查詢帳號 (登入時使用)
-        public AuthAccount GetAuthAccount(string authName)
+        /// <summary>
+        /// 登入時名稱或信箱符合的所有帳號，由 Service 挑密碼對得上的那一個。
+        /// 帳號名稱過去沒有擋重複（也可能跟別人的信箱一樣），所以不能只取一筆：
+        /// 信箱完全符合的排最前面，其次已驗證、啟用中、較新的帳號。
+        /// </summary>
+        public List<AuthAccount> GetLoginCandidates(string account)
         {
             string sql = @"
                 SELECT
@@ -35,14 +42,42 @@ namespace backend.dao
                     is_active,
                     is_email_verified
                 FROM auth
-                WHERE auth_name = @authName OR auth_email = @authName
-                LIMIT 1;
+                WHERE auth_name = @account OR auth_email = @account
+                ORDER BY (auth_email = @account) DESC, is_email_verified DESC, is_active DESC, au_id DESC;
             ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))
             {
                 conn.Open();
-                return conn.QueryFirstOrDefault<AuthAccount>(sql, new { authName });
+                return conn.Query<AuthAccount>(sql, new { account }).ToList();
+            }
+        }
+
+        /// <summary>
+        /// 帳號名稱已經被其他帳號用掉（不分大小寫）。也不能跟別人的信箱一樣，登入時才不會混淆。
+        /// exceptAuId：修改自己的名稱、重新註冊未驗證的帳號時，排除自己。
+        /// </summary>
+        public bool NameTaken(string name, int? exceptAuId = null)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<int>(@"
+                    SELECT COUNT(1) FROM auth
+                    WHERE (auth_name = @name OR auth_email = @name) AND (@exceptAuId IS NULL OR au_id <> @exceptAuId);",
+                    new { name, exceptAuId }) > 0;
+            }
+        }
+
+        /// <summary>Email 已經被其他帳號用掉（auth_email 有唯一索引，不分大小寫）</summary>
+        public bool EmailTaken(string email, int? exceptAuId = null)
+        {
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return conn.ExecuteScalar<int>(
+                    "SELECT COUNT(1) FROM auth WHERE auth_email = @email AND (@exceptAuId IS NULL OR au_id <> @exceptAuId);",
+                    new { email, exceptAuId }) > 0;
             }
         }
 
@@ -58,7 +93,11 @@ namespace backend.dao
         #endregion
 
         #region 註冊 (新增帳號)
-        public async Task<bool> RegisterAsync(RegisterRequest req, string emailToken)
+        /// <summary>
+        /// 新增遊客帳號（auth_type = 1，信箱驗證前不能登入）。欄位已由 Service 檢查、整理過，密碼是雜湊後的值。
+        /// 同時送出兩次註冊、Email 撞到唯一索引時回 409。
+        /// </summary>
+        public async Task RegisterAsync(RegisterRequest req, string passwordHash, string emailToken)
         {
             // 驗證期限由資料庫用 NOW() 計算，驗證時也是跟 NOW() 比，時區才會一致
             string sql = @"
@@ -66,7 +105,7 @@ namespace backend.dao
                 (auth_name, auth_type, auth_email, auth_pswd, au_email_token, au_email_expires,
                  is_email_verified, au_birthday, au_gender)
                 VALUES
-                (@auth_name, @auth_type, @auth_email, @auth_pswd, @emailToken, NOW() + INTERVAL 24 HOUR,
+                (@auth_name, 1, @auth_email, @auth_pswd, @emailToken, NOW() + INTERVAL 24 HOUR,
                  0, @birthday, @gender);
             ";
 
@@ -75,22 +114,50 @@ namespace backend.dao
                 using (var conn = new MySqlConnection(_appSettings.mydb))
                 {
                     conn.Open();
-                    int rows = await conn.ExecuteAsync(sql, new
+                    await conn.ExecuteAsync(sql, new
                     {
                         auth_name = req.Username,
-                        auth_type = req.ResolvedAccountType,
                         auth_email = req.Email,
-                        auth_pswd = req.Password,
+                        auth_pswd = passwordHash,
                         emailToken,
                         birthday = req.Birthday,
                         gender = req.Gender
                     });
-                    return rows > 0;
                 }
             }
-            catch (Exception ex)
+            catch (MySqlException ex) when (ex.Number == 1062)
             {
-                throw new Exception($"MySQL寫入發生例外: {ex.Message}");
+                throw new ConflictException("此 Email 已被註冊過");
+            }
+        }
+
+        /// <summary>
+        /// 還沒驗證信箱的帳號用同一個 Email 重新註冊：換成這次填的名稱、密碼、生日、性別，發新的驗證碼（舊的連結失效）。
+        /// 驗證信沒收到或連結過期時，使用者照驗證失敗頁的提示重新註冊就能拿到新的驗證信。
+        /// 只改還沒驗證的帳號，驗證過的不會被覆蓋。
+        /// </summary>
+        public async Task<bool> RestartPendingRegistrationAsync(int auId, RegisterRequest req, string passwordHash, string emailToken)
+        {
+            string sql = @"
+                UPDATE auth
+                SET auth_name = @auth_name, auth_pswd = @auth_pswd,
+                    au_email_token = @emailToken, au_email_expires = NOW() + INTERVAL 24 HOUR,
+                    au_birthday = @birthday, au_gender = @gender
+                WHERE au_id = @auId AND is_email_verified = 0;
+            ";
+
+            using (var conn = new MySqlConnection(_appSettings.mydb))
+            {
+                conn.Open();
+                return await conn.ExecuteAsync(sql, new
+                {
+                    auId,
+                    auth_name = req.Username,
+                    auth_pswd = passwordHash,
+                    emailToken,
+                    birthday = req.Birthday,
+                    gender = req.Gender
+                }) > 0;
             }
         }
         #endregion
@@ -168,7 +235,7 @@ namespace backend.dao
         public AuthAccount GetAccountByEmail(string email)
         {
             string sql = @"
-                SELECT au_id, auth_name, auth_email
+                SELECT au_id, auth_name, auth_type, auth_email, is_active, is_email_verified
                 FROM auth
                 WHERE auth_email = @email
                 LIMIT 1;

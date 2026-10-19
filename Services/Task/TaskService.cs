@@ -25,8 +25,9 @@ namespace backend.Services
         /// <summary>
         /// 節點遊玩畫面（前端串接用）：一次回傳這一站的劇情、自己的座位、進度與每一題的作答方式、狀態。
         /// 只有劇本擁有者或協作隊員可以查看，且這一站要已被隊伍抵達過（不用再帶 GPS，作答時才檢查位置）。
+        /// 抵達就散開迷霧：景點照片直接給真實照片，播開場劇情時就看得到，不用等任務做完。
         /// </summary>
-        public NodePlayResponse GetNodePlay(int auId, int snId)
+        public async Task<NodePlayResponse> GetNodePlay(int auId, int snId)
         {
             TaskDao.PlayerNodeState state = task_dao.GetPlayerNodeState(auId, snId)
                 ?? throw new NotFoundException($"找不到節點 {snId}");
@@ -43,6 +44,10 @@ namespace backend.Services
 
             NodeProgress progress = task_dao.GetNodeProgress(snId);
 
+            // 景點照片直接用景點 ID 向 Neo4j 拿（跟地圖同一個來源）
+            string photo = node.place_id == null ? null
+                : (await place_lookup.GetPlaceImagesAsync(new[] { node.place_id })).GetValueOrDefault(node.place_id);
+
             return new NodePlayResponse
             {
                 node = new NodePlayNode
@@ -53,7 +58,8 @@ namespace backend.Services
                     title = node.sn_title,
                     location_codename = node.location_codename,
                     opening_text = node.sn_opening_text,
-                    success_text = progress.all_passed ? node.sn_success_text : null
+                    success_text = progress.all_passed ? node.sn_success_text : null,
+                    image_url = photo
                 },
                 npc = new NodePlayNpc
                 {

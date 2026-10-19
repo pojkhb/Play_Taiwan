@@ -213,6 +213,8 @@ public class MerchantManageApiTests
 
         var first = await (await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = couponId })).ReadResultAsync();
         Assert.True(first.isSuccess, first.message);
+        Assert.Equal(qrUid, first.Result.GetProperty("qr_uid").GetString());
+        Assert.Equal(couponId, first.Result.GetProperty("coupon_id").GetInt32());
 
         HttpResponseMessage second = await merchant.PostAsJsonAsync("/api/merchant/qrcode/bind", new { qr_uid = qrUid, coupon_id = couponId });
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);

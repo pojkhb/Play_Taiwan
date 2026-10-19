@@ -168,8 +168,8 @@ namespace backend.ViewModels
 
     public class MerchantDraftPreview
     {
-        public string tw_script { get; set; }
-        public string en_video_prompt { get; set; }
+        /// <summary>AI 旁白草稿（AI 2026-10 起改用 suggested_script，原本叫 tw_script）</summary>
+        public string suggested_script { get; set; }
         public List<string> seo_keywords { get; set; }
         public List<string> target_audience { get; set; }
         public string promo_copy { get; set; }

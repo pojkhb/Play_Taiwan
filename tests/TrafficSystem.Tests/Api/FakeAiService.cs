@@ -105,17 +105,18 @@ public class FakeAiService : HttpMessageHandler
         Images[backend.utils.AiServiceConfig.Url($"/api/download/tts_{taskId}.wav")] = audio;
     }
 
+    /// <summary>商家 VLOG 草稿（/api/merchant/vlog/preview）要回的內容，旁白在 suggested_script</summary>
     public object MerchantPreviewResponse { get; } = new
     {
         status = "success",
+        user_type = "merchant",
         draft_preview = new
         {
-            tw_script = "夏天就是要來一碗阿嬤的芒果冰！",
-            en_video_prompt = "mango shaved ice",
+            suggested_script = "夏天就是要來一碗阿嬤的芒果冰！",
             promo_copy = "限定芒果冰買一送一，快揪朋友來！",
-            seo_keywords = new[] { "台中美食", "#芒果冰", " 芒果 冰 " },
-            target_audience = new[] { "學生", "觀光客" }
-        }
+            seo_keywords = new[] { "台中美食", "#芒果冰", " 芒果 冰 " }
+        },
+        requires_review = true
     };
 
     /// <summary>遊客 VLOG 旁白草稿（/api/visitor/vlog/preview）要回的內容</summary>
@@ -136,6 +137,14 @@ public class FakeAiService : HttpMessageHandler
 
     /// <summary>/api/agent/orchestrate（spin）要回的內容</summary>
     public object AgentOrchestrateResponse { get; set; } = AgentNoPlace;
+
+    /// <summary>
+    /// /api/agent/orchestrate 前幾次要回 500（之後照 AgentOrchestrateResponse 回）：
+    /// 模擬 LLM 回錯型態時 AI 整個失敗，內容跟正式 AI 一樣是 {"status": "error", "message": ...}
+    /// </summary>
+    public int AgentOrchestrateFailures { get; set; }
+
+    public const string AgentOrchestrateError = "sequence item 0: expected str instance, dict found";
 
     /// <summary>生成明信片（/api/postcard/create_ai）要回的內容；null 代表連不上（回 404）</summary>
     public object PostcardResponse { get; set; }
@@ -208,6 +217,7 @@ public class FakeAiService : HttpMessageHandler
         JobResponse = QueuedJob;
         CheckStatusResponse = new { status = "processing", task_id = TaskId };
         AgentOrchestrateResponse = AgentNoPlace;
+        AgentOrchestrateFailures = 0;
         PostcardResponse = null;
         WeatherResponse = null;
         CwaObservationResponse = null;
@@ -286,6 +296,15 @@ public class FakeAiService : HttpMessageHandler
 
         if (path == "/api/npc/speak")
             return NpcSpeak(fields);
+
+        if (path == "/api/agent/orchestrate" && AgentOrchestrateFailures > 0)
+        {
+            AgentOrchestrateFailures--;
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(new { status = "error", message = AgentOrchestrateError }), Encoding.UTF8, "application/json")
+            };
+        }
 
         if (path == "/api/visitor/vlog/create_final" && CreateFinalError(fields, files) is { } detail)
             return new HttpResponseMessage(HttpStatusCode.BadRequest)

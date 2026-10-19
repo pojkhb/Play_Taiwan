@@ -173,6 +173,7 @@ namespace backend.Models
         public string location_codename { get; set; }
         public string opening_text { get; set; }       // 抵達時的開場劇情
         public string success_text { get; set; }       // 完成劇情，這一站任務全部通過後才有值
+        public string image_url { get; set; }          // 景點照片：抵達後才看得到這個畫面，所以已經散開迷霧，是真實照片（景點沒有照片時為 null）
     }
 
     public class NodePlayTask

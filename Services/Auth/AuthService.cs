@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -41,7 +43,7 @@ namespace backend.Services
 
         #region 登入
         /// <summary>
-        /// 登入（遊客／商家／管理員共用同一個入口）。
+        /// 登入（遊客／商家／管理員共用同一個入口）。登入失敗一律丟 BadRequestException（回 400，訊息直接給使用者看）。
         /// 商家帳號必須已建立店家資料，Token 會一併帶 s_id Claim 與 Role=Merchant，可直接呼叫商家 API。
         /// </summary>
         public LoginResponse Login(LoginRequest req)
@@ -52,49 +54,46 @@ namespace backend.Services
             if (account.auth_type == MerchantAuthType)
             {
                 sId = _dao.GetStoreIdByAuId(account.au_id)
-                    ?? throw new UnauthorizedAccessException("找不到此帳號的商家資料，請先完成商家註冊");
+                    ?? throw new BadRequestException("找不到此帳號的商家資料，請先完成商家註冊");
             }
 
             return IssueLogin(account, sId);
         }
 
+        private const int TouristAuthType = 1;
         private const int MerchantAuthType = 2;
 
-        /// <summary>檢查帳號狀態與密碼，通過後回傳帳號資料。</summary>
+        /// <summary>
+        /// 檢查密碼與帳號狀態，通過後回傳帳號資料。
+        /// 名稱或信箱符合的帳號可能不只一個（過去沒擋重複的帳號名稱），用密碼對得上的那一個；
+        /// 密碼對了才告訴對方帳號停用或還沒驗證，不讓沒有密碼的人查出帳號狀態。
+        /// </summary>
         private AuthAccount ValidateCredentials(LoginRequest req)
         {
-            if (string.IsNullOrWhiteSpace(req.auth_name) || string.IsNullOrWhiteSpace(req.auth_pswd))
+            string account = req?.auth_name?.Trim();
+            if (string.IsNullOrEmpty(account) || string.IsNullOrEmpty(req.auth_pswd))
             {
-                throw new Exception("請輸入帳號名稱(或信箱)與密碼");
+                throw new BadRequestException("請輸入帳號名稱(或信箱)與密碼");
             }
 
-            AuthAccount account = _dao.GetAuthAccount(req.auth_name);
+            string passwordHash = HashPassword(req.auth_pswd);
+            AuthAccount matched = _dao.GetLoginCandidates(account).FirstOrDefault(a => a.auth_pswd == passwordHash)
+                ?? throw new BadRequestException("帳號或密碼錯誤");
 
-            if (account == null)
+            if (!matched.is_active)
             {
-                throw new Exception("帳號或密碼錯誤");
+                throw new BadRequestException("此帳號已停用");
             }
 
-            if (!account.is_active)
+            if (!matched.is_email_verified)
             {
-                throw new Exception("此帳號已停用");
+                throw new BadRequestException("請先到信箱點驗證信裡的連結，驗證後才能登入；沒收到信的話，用同一個 Email 再註冊一次就會重寄");
             }
 
-            if (!account.is_email_verified)
-            {
-                throw new Exception("請先至信箱收取驗證信，驗證後才能登入");
-            }
-
-            sha256Hash hashTool = new sha256Hash();
-            string inputPasswordHash = hashTool.getSha256(req.auth_pswd, _appSettings.hash_key);
-
-            if (inputPasswordHash != account.auth_pswd)
-            {
-                throw new Exception("帳號或密碼錯誤");
-            }
-
-            return account;
+            return matched;
         }
+
+        private string HashPassword(string password) => new sha256Hash().getSha256(password, _appSettings.hash_key);
 
         /// <summary>更新最後登入時間並簽發 Token。</summary>
         private LoginResponse IssueLogin(AuthAccount account, int? sId)
@@ -114,44 +113,71 @@ namespace backend.Services
         #endregion
 
         #region 註冊
+        /// <summary>
+        /// 遊客註冊，寄出驗證信。欄位不合規則回 400（BadRequestException），名稱或 Email 被用掉回 409（ConflictException）。
+        /// 商家請用 POST /api/Merchant/Register（這裡建的商家帳號沒有店家資料，永遠登不進去），管理員不開放自行註冊。
+        /// 同一個 Email 已經註冊但還沒驗證信箱時，視為重新註冊：換成這次的資料並重寄驗證信（舊的驗證連結失效）。
+        /// </summary>
         public async Task RegisterAsync(RegisterRequest req)
         {
-            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
-            {
-                throw new Exception("資料不完整，請提供 Email 與密碼");
-            }
+            if (req == null) throw new BadRequestException("請填寫註冊資料");
 
-            sha256Hash hashTool = new sha256Hash();
-            string passwordHash = hashTool.getSha256(req.Password, _appSettings.hash_key);
-            req.Password = passwordHash;
+            if (req.AccountType == MerchantAuthType)
+                throw new BadRequestException("商家帳號請改用商家註冊（POST /api/Merchant/Register），才會一併建立店家資料");
+            if (req.AccountType != 0 && req.AccountType != TouristAuthType)
+                throw new BadRequestException("只開放註冊遊客帳號（AccountType = 1）");
 
+            req.Username = AccountRules.Name(req.Username);
+            req.Email = AccountRules.Email(req.Email);
+            AccountRules.Password(req.Password);
+            req.Birthday = AccountRules.Birthday(req.Birthday);
+            req.Gender = AccountRules.Gender(req.Gender);
+
+            AuthAccount existing = _dao.GetAccountByEmail(req.Email);
+            if (existing != null && (existing.is_email_verified || existing.auth_type != TouristAuthType))
+                throw new ConflictException("此 Email 已被註冊過，請直接登入；忘記密碼可以用「忘記密碼」重設");
+
+            if (_dao.NameTaken(req.Username, existing?.au_id))
+                throw new ConflictException("此帳號名稱已被使用，請換一個");
+
+            string passwordHash = HashPassword(req.Password);
             string emailToken = Guid.NewGuid().ToString("N");
 
-            bool isSuccess = await _dao.RegisterAsync(req, emailToken);
-            if (!isSuccess)
-            {
-                throw new Exception("註冊失敗，該 Email 可能已被註冊過。");
-            }
+            if (existing == null)
+                await _dao.RegisterAsync(req, passwordHash, emailToken);
+            else if (!await _dao.RestartPendingRegistrationAsync(existing.au_id, req, passwordHash, emailToken))
+                throw new ConflictException("此 Email 已被註冊過，請直接登入；忘記密碼可以用「忘記密碼」重設");   // 剛好在這時候完成驗證
 
             // 用使用者連進來的網址（本機或對外 domain）組連結
             string verifyUrl = PublicUrl.Of(_ipContext.Request, $"/api/Auth/VerifyEmail?token={emailToken}");
             string subject = "歡迎加入 Play Taiwan！你的探險即將開始";
             string htmlContent = $@"
                 <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
-                    <h2>你好，{req.Username}！帳號註冊成功！</h2>
+                    <h2>你好，{WebUtility.HtmlEncode(req.Username)}！帳號註冊成功！</h2>
                     <p>感謝你註冊 Play Taiwan，你的專屬解謎旅程已經為你準備好。</p>
                     <p>為了確保帳號安全，請點擊下方按鈕驗證您的信箱（連結 24 小時內有效）：</p>
                     <p><a href='{verifyUrl}' style='display:inline-block; padding:10px 20px; background-color:#28a745; color:white; text-decoration:none; border-radius:5px;'>點我驗證並啟用帳號</a></p>
+                    <p style='font-size: 13px; color: #888; word-break: break-all;'>按鈕沒有反應的話，請複製下面的網址到瀏覽器開啟：<br/><a href='{verifyUrl}' style='color: #28a745;'>{verifyUrl}</a></p>
                     <br/>
                     <p>祝 探索愉快，</p>
                     <p><strong>Play Taiwan 營運團隊</strong></p>
                 </div>";
+            string textContent =
+$@"你好，{req.Username}！帳號註冊成功！
+
+感謝你註冊 Play Taiwan，你的專屬解謎旅程已經為你準備好。
+為了確保帳號安全，請開啟下面的網址驗證您的信箱（連結 24 小時內有效）：
+
+{verifyUrl}
+
+祝 探索愉快，
+Play Taiwan 營運團隊";
 
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await _emailService.SendEmailAsync(req.Email, req.Username, subject, htmlContent);
+                    await _emailService.SendEmailAsync(req.Email, req.Username, subject, htmlContent, textContent);
                 }
                 catch (Exception ex)
                 {
@@ -198,12 +224,21 @@ namespace backend.Services
                     <h2>密碼重設請求</h2>
                     <p>你收到這封信是因為你申請了重置密碼，連結 30 分鐘內有效。</p>
                     <p><a href='{resetUrl}' style='display:inline-block; padding:10px 20px; background-color:#d9534f; color:white; text-decoration:none; border-radius:5px;'>點我重設密碼</a></p>
+                    <p style='font-size: 13px; color: #888; word-break: break-all;'>按鈕沒有反應的話，請複製下面的網址到瀏覽器開啟：<br/><a href='{resetUrl}' style='color: #d9534f;'>{resetUrl}</a></p>
                     <p>若非本人操作，請忽略此信件，你的密碼不會被更動。</p>
                 </div>";
+            string textContent =
+$@"密碼重設請求
+
+你收到這封信是因為你申請了重置密碼，請開啟下面的網址重設密碼（30 分鐘內有效）：
+
+{resetUrl}
+
+若非本人操作，請忽略此信件，你的密碼不會被更動。";
 
             _ = Task.Run(async () =>
             {
-                try { await _emailService.SendEmailAsync(email, account.auth_name, subject, htmlContent); }
+                try { await _emailService.SendEmailAsync(email, account.auth_name, subject, htmlContent, textContent); }
                 catch (Exception ex) { _logger.LogError($"密碼重設信寄送失敗: {ex.Message}"); }
             });
         }
@@ -223,16 +258,15 @@ namespace backend.Services
                 throw new Exception("請提供 Token 與新密碼");
             }
 
+            AccountRules.Password(req.NewPassword);
+
             AuthAccount account = _dao.GetAccountByResetToken(req.Token);
             if (account == null)
             {
                 throw new Exception("重設連結無效或已過期，請重新申請忘記密碼");
             }
 
-            sha256Hash hashTool = new sha256Hash();
-            string newHash = hashTool.getSha256(req.NewPassword, _appSettings.hash_key);
-
-            _dao.ResetPasswordByToken(req.Token, newHash);
+            _dao.ResetPasswordByToken(req.Token, HashPassword(req.NewPassword));
         }
         #endregion
 
@@ -242,17 +276,15 @@ namespace backend.Services
             if (string.IsNullOrWhiteSpace(oldPassword) || string.IsNullOrWhiteSpace(newPassword))
                 throw new Exception("密碼不能為空");
 
+            AccountRules.Password(newPassword);
+
             int auId = GetCurrentAuId();
             AuthAccount account = _dao.GetAccountById(auId);
             if (account == null) throw new Exception("找不到當前登入的帳號資料，請重新登入");
 
-            sha256Hash hashTool = new sha256Hash();
-            string oldHash = hashTool.getSha256(oldPassword, _appSettings.hash_key);
+            if (HashPassword(oldPassword) != account.auth_pswd) throw new Exception("舊密碼輸入錯誤");
 
-            if (oldHash != account.auth_pswd) throw new Exception("舊密碼輸入錯誤");
-
-            string newHash = hashTool.getSha256(newPassword, _appSettings.hash_key);
-            _dao.UpdatePassword(auId, newHash);
+            _dao.UpdatePassword(auId, HashPassword(newPassword));
         }
         #endregion
 
@@ -340,10 +372,15 @@ namespace backend.Services
         #endregion
 
         #region 編輯帳號名稱
+        /// <summary>改帳號名稱：規則跟註冊一樣，不能跟其他帳號的名稱或信箱重複（回 409）</summary>
         public void UpdateProfile(AuthAccountUpdateRequest req)
         {
             int auId = GetCurrentAuId();
-            _dao.UpdateProfile(auId, req);
+            string name = AccountRules.Name(req?.auth_name);
+
+            if (_dao.NameTaken(name, auId)) throw new ConflictException("此帳號名稱已被使用，請換一個");
+
+            _dao.UpdateProfile(auId, new AuthAccountUpdateRequest { auth_name = name });
         }
         #endregion
     }

@@ -23,9 +23,11 @@ namespace backend.Services
         private readonly EmbeddingService _embedding;
         private readonly AppSettings _appSettings;
         private readonly ILogger<MerchantService> _logger;
+        private readonly AuthDao _authDao;
 
         public MerchantService(
             MerchantDao dao,
+            AuthDao authDao,
             PlaceVersionChainService placeService,
             PlaceLookupService placeLookup,
             StoreLocationService storeLocation,
@@ -34,6 +36,7 @@ namespace backend.Services
             ILogger<MerchantService> logger)
         {
             _dao = dao;
+            _authDao = authDao;
             _placeService = placeService;
             _placeLookup = placeLookup;
             _storeLocation = storeLocation;
@@ -45,10 +48,14 @@ namespace backend.Services
         #region 商家註冊
         public async Task<MerchantRegisterResponse> RegisterAsync(MerchantRegisterRequest req)
         {
-            if (string.IsNullOrWhiteSpace(req.auth_email) || string.IsNullOrWhiteSpace(req.auth_pswd))
-            {
-                throw new BadRequestException("請提供 Email 與密碼");
-            }
+            if (req == null) throw new BadRequestException("請填寫註冊資料");
+
+            // 帳號欄位跟遊客註冊同一套規則（AccountRules）；名稱、Email 重複在建立 Neo4j 景點之前就擋下來（409）
+            req.auth_name = AccountRules.Name(req.auth_name);
+            req.auth_email = AccountRules.Email(req.auth_email);
+            AccountRules.Password(req.auth_pswd);
+            if (_authDao.EmailTaken(req.auth_email)) throw new ConflictException("此 Email 已被註冊過");
+            if (_authDao.NameTaken(req.auth_name)) throw new ConflictException("此帳號名稱已被使用，請換一個");
 
             // 註冊時還沒有照片可以清，空字串跟沒帶一樣
             string imageUrl = NormalizeImageUrl(req.image_url);

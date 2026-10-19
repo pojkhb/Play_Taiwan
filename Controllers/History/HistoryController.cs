@@ -38,8 +38,8 @@ namespace backend.Controllers
         /// <remarks>
         /// 對應「過往」頁面的收藏館列表，顯示已完成的劇本卷。
         ///
-        /// - cover_image_url：卡片左邊的照片，是玩家這趟拍的第一張照片（依站的順序）；
-        ///   這趟沒拍照片時用景點照片（依站的順序第一個有照片的景點，用景點 ID 向 Neo4j 拿），景點也都沒有照片才是 null
+        /// - cover_image_url：卡片左邊的照片，是景點照片（依站的順序第一個有照片的景點，用景點 ID 向 Neo4j 拿），
+        ///   不是玩家上傳的照片；景點都沒有照片時是 null
         /// - spots、photos：列表不回傳（null），要看請呼叫詳情
         ///
         /// **Request 範例**：
@@ -60,7 +60,7 @@ namespace backend.Controllers
         ///       "region": "臺北市中正區",
         ///       "vlog_id": 12,
         ///       "spots": null,
-        ///       "cover_image_url": "https://example.com/uploads/3f2a9c1e.jpg",
+        ///       "cover_image_url": "https://example.com/places/ntm.jpg",
         ///       "photos": null
         ///     }
         ///   ]
@@ -100,10 +100,11 @@ namespace backend.Controllers
         /// <remarks>
         /// 對應「過往－卷」頁面，顯示完成日期、故事大綱以及探索總覽(Spots)。
         ///
-        /// - photos：上方左右滑動的照片，依站的順序、拍攝時間排列：玩家這趟拍的所有照片（is_place_photo = false），
-        ///   玩家沒拍照片的站補上那一站的景點照片（is_place_photo = true，用景點 ID 向 Neo4j 拿）；
-        ///   place_name 是那一站的景點名稱，可當照片說明。沒拍照片、景點也都沒有照片時為空陣列
-        /// - cover_image_url：玩家拍的第一張照片，沒拍過照片時是第一張景點照片，跟列表卡片用同一張
+        /// - photos：上方左右滑動的照片，每一站一張景點照片（用景點 ID 向 Neo4j 拿），依站的順序排列；
+        ///   不回傳玩家上傳的照片，is_place_photo 固定為 true。景點沒有照片的站不列出，都沒有照片時為空陣列
+        ///   - real_place_name：景點的真實名稱（例如「臺中州廳」），對不到景點時為 null
+        ///   - place_name：那一站的名稱，對不到景點時是那一站的章節標題
+        /// - cover_image_url：第一張景點照片，跟列表卡片用同一張
         ///
         /// **Request 範例**：
         ///
@@ -126,11 +127,11 @@ namespace backend.Controllers
         ///       "國立中正紀念堂",
         ///       "艋舺龍山寺"
         ///     ],
-        ///     "cover_image_url": "https://example.com/uploads/3f2a9c1e.jpg",
+        ///     "cover_image_url": "https://example.com/places/ntm.jpg",
         ///     "photos": [
-        ///       { "node_id": 901, "node_order": 1, "place_name": "國立臺灣博物館", "image_url": "https://example.com/uploads/3f2a9c1e.jpg", "is_place_photo": false },
-        ///       { "node_id": 902, "node_order": 2, "place_name": "國立中正紀念堂", "image_url": "https://example.com/places/cks.jpg", "is_place_photo": true },
-        ///       { "node_id": 903, "node_order": 3, "place_name": "艋舺龍山寺", "image_url": "https://example.com/uploads/8b41d07a.jpg", "is_place_photo": false }
+        ///       { "node_id": 901, "node_order": 1, "place_name": "國立臺灣博物館", "real_place_name": "國立臺灣博物館", "image_url": "https://example.com/places/ntm.jpg", "is_place_photo": true },
+        ///       { "node_id": 902, "node_order": 2, "place_name": "國立中正紀念堂", "real_place_name": "國立中正紀念堂", "image_url": "https://example.com/places/cks.jpg", "is_place_photo": true },
+        ///       { "node_id": 903, "node_order": 3, "place_name": "艋舺龍山寺", "real_place_name": "艋舺龍山寺", "image_url": "https://example.com/places/lungshan.jpg", "is_place_photo": true }
         ///     ]
         ///   }
         /// }
@@ -162,7 +163,7 @@ namespace backend.Controllers
             }
         }
 
-        /// <summary>照片存的是上傳時的網址；萬一是相對路徑，補成目前連進來的完整網址</summary>
+        /// <summary>景點照片網址萬一是相對路徑，補成目前連進來的完整網址</summary>
         private void ToPublicUrls(HistoryStoryItem item)
         {
             item.cover_image_url = PublicUrl.Of(Request, item.cover_image_url);

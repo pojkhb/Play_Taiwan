@@ -67,33 +67,29 @@ namespace backend.Controllers
         /// }
         /// ```
         /// 商家帳號登入時 auth_type = 2、account_type_name = "Merchant"，store_id 為店家代號（例如 2）。
+        ///
+        /// 登入失敗（帳號或密碼錯誤、帳號停用、信箱還沒驗證、商家還沒有店家資料）一律回 HTTP 400，
+        /// message 是可以直接顯示給使用者的原因；只有伺服器出錯才是 500。
+        /// 帳號名稱過去可能有重複，登入時用密碼對得上的那個帳號。
         /// </remarks>
         /// <param name="req">登入資料，包含帳號名稱與密碼。</param>
         /// <returns>登入結果，成功時回傳帳號資訊、身分類型與 JWT Token。</returns>
+        /// <response code="200">登入成功</response>
+        /// <response code="400">登入失敗，message 是原因</response>
         [AllowAnonymous]
         [HttpPost]
         [Route("Login")]
         [ProducesResponseType(typeof(ResultViewModel<LoginResponse>), 200)]
+        [ProducesResponseType(typeof(ResultViewModel<object>), 400)]
         public IActionResult Login([FromBody] LoginRequest req)
         {
-            try
+            // 登入失敗丟 BadRequestException，由 ExceptionHandlingMiddleware 回 400
+            return Ok(new ResultViewModel<LoginResponse>
             {
-                return Ok(new ResultViewModel<LoginResponse>
-                {
-                    isSuccess = true,
-                    message = "登入成功",
-                    Result = _service.Login(req),
-                });
-            }
-            catch (Exception e)
-            {
-                return NotFound(new ResultViewModel<LoginResponse>
-                {
-                    isSuccess = false,
-                    message = e.Message.ToString(),
-                    Result = null,
-                });
-            }
+                isSuccess = true,
+                message = "登入成功",
+                Result = _service.Login(req),
+            });
         }
 
         #endregion
@@ -199,7 +195,8 @@ namespace backend.Controllers
         /// 更新目前登入帳號的名稱。
         /// </summary>
         /// <remarks>
-        /// 對應「設定－帳號」頁面的名稱編輯功能。
+        /// 對應「設定－帳號」頁面的名稱編輯功能。名稱規則跟註冊相同：去掉前後空白後不能是空的、最多 50 字，
+        /// 不能跟其他帳號的名稱或信箱重複（不分大小寫）。
         ///
         /// **Request 範例**：
         /// ```json
@@ -209,32 +206,25 @@ namespace backend.Controllers
         /// <param name="req">欲更新的帳號名稱。</param>
         /// <returns>帳號名稱更新結果。</returns>
         /// <response code="200">更新成功；Result 為 null</response>
+        /// <response code="400">名稱不合規則，message 是原因</response>
+        /// <response code="409">名稱已被其他帳號使用</response>
         [Authorize]
         [HttpPost]
         [Route("Profile")]
         [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
+        [ProducesResponseType(typeof(ResultViewModel<object>), 400)]
+        [ProducesResponseType(typeof(ResultViewModel<object>), 409)]
         public IActionResult UpdateProfile([FromBody] AuthAccountUpdateRequest req)
         {
-            try
-            {
-                _service.UpdateProfile(req);
+            // 名稱不合規則 400、重複 409，由 ExceptionHandlingMiddleware 轉成統一格式
+            _service.UpdateProfile(req);
 
-                return Ok(new ResultViewModel<string>
-                {
-                    isSuccess = true,
-                    message = "更新成功",
-                    Result = null
-                });
-            }
-            catch (Exception e)
+            return Ok(new ResultViewModel<string>
             {
-                return NotFound(new ResultViewModel<string>
-                {
-                    isSuccess = false,
-                    message = e.Message.ToString(),
-                    Result = null
-                });
-            }
+                isSuccess = true,
+                message = "更新成功",
+                Result = null
+            });
         }
 
         #endregion
@@ -245,8 +235,18 @@ namespace backend.Controllers
         /// 帳號註冊。
         /// </summary>
         /// <remarks>
-        /// 註冊新的遊客或商家帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱。
-        /// 管理員身分不開放自行註冊。
+        /// 註冊遊客帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱，驗證後才能登入。
+        /// 商家請用 POST /api/Merchant/Register（AccountType 帶 2 回 400）；管理員不開放自行註冊。
+        ///
+        /// 欄位規則（不合規則回 400，message 是原因）：
+        /// - Username：必填，去掉前後空白後最多 50 字，不能跟其他帳號的名稱或信箱重複（不分大小寫，重複回 409）
+        /// - Email：必填，xxx@xxx.xxx 格式，已註冊並驗證過回 409
+        /// - Password：6～100 字，前後不能有空白
+        /// - Birthday（選填）：不能是未來的日期；Gender（選填）：最多 20 字
+        /// - AccountType：不帶或 1
+        ///
+        /// 同一個 Email 已經註冊但還沒驗證信箱（例如沒收到信、連結過期）時，可以用同一個 Email 再註冊一次：
+        /// 換成這次填的資料並重寄驗證信，舊的驗證連結失效。
         ///
         /// **Request 範例**：
         /// ```json
@@ -261,32 +261,25 @@ namespace backend.Controllers
         /// ```
         /// </remarks>
         /// <response code="200">註冊成功，驗證信會寄到信箱；Result 為 null</response>
+        /// <response code="400">欄位不合規則，或 AccountType 不是遊客</response>
+        /// <response code="409">帳號名稱已被使用，或 Email 已註冊過</response>
         [AllowAnonymous]
         [HttpPost]
         [Route("Register")]
         [ProducesResponseType(typeof(ResultViewModel<string>), 200)]
+        [ProducesResponseType(typeof(ResultViewModel<object>), 400)]
+        [ProducesResponseType(typeof(ResultViewModel<object>), 409)]
         public async Task<IActionResult> Register([FromBody] RegisterRequest req)
         {
-            try
-            {
-                await _service.RegisterAsync(req);
+            // 欄位不合規則 400、重複 409，由 ExceptionHandlingMiddleware 轉成統一格式
+            await _service.RegisterAsync(req);
 
-                return Ok(new ResultViewModel<string>
-                {
-                    isSuccess = true,
-                    message = "註冊成功！驗證信已發送至您的信箱，請先完成驗證再登入。",
-                    Result = null
-                });
-            }
-            catch (Exception e)
+            return Ok(new ResultViewModel<string>
             {
-                return BadRequest(new ResultViewModel<string>
-                {
-                    isSuccess = false,
-                    message = e.Message.ToString(),
-                    Result = null
-                });
-            }
+                isSuccess = true,
+                message = "註冊成功！驗證信已發送至您的信箱，請先完成驗證再登入。",
+                Result = null
+            });
         }
 
         #endregion

@@ -583,14 +583,17 @@ namespace backend.dao
         /// 1. AI 回傳的 NPC 名稱對應到 NPC 名單（npc 表），劇本與每一站都掛上這位 NPC；名單上沒有這個名字時用預設的薯光。
         /// 2. place 的主鍵是 int 自增，沒辦法再用 Neo4j uid 當主鍵。
         ///    節點仍然把 Neo4j uid 寫進 story_node.place_id（任務生成靠這個關聯），
-        ///    另外把景點名稱與座標補進 place 表，避免地理資訊整個遺失。
+        ///    另外把景點寫進 place 表（region_id 存 Neo4j uid）：名稱、座標，以及 Neo4j 查得到的地址、分類、介紹、照片、營業時間等。
+        ///    已經有這個景點（同 uid，或同名且還沒記 uid）時不重複新增，只補上空著的欄位。
         /// 3. 遊你說算的工作（story_text_job）在同一個交易裡標成完成，劇本存了就一定記得存成哪一份，重複輪詢不會再存。
         /// </summary>
         /// <param name="partySize">AI 從那句話解析出的旅遊人數（parsed_intent.traveler_count）；2 人以上才能協作配對，解析不出來（0）存 NULL</param>
         /// <param name="places">spot_uuid → PlaceLookupService 查到的景點（名稱、座標）</param>
+        /// <param name="placeRecords">spot_uuid → PlaceLookupService.GetPlaceRecordsAsync 查到的 place 表欄位；Neo4j 連不上時是空的</param>
         public async Task<int> SaveFullAiGeneratedStory(
             int auId, string cityName, string districtName, int partySize, ScriptBlueprintData data,
             IReadOnlyDictionary<string, backend.Services.Neo4j.PlaceLookupService.PlaceInfo> places,
+            IReadOnlyDictionary<string, backend.Services.Neo4j.PlaceLookupService.PlaceRecord> placeRecords,
             string textJobId, string textJobResultJson)
         {
             if (data == null) throw new Exception("AI 回傳的劇本資料為空！");
@@ -620,11 +623,39 @@ namespace backend.dao
                 );
             ";
 
-            // place 沒有 UNIQUE 欄位可做 upsert，先用名稱查，查不到才新增。
-            string findPlaceSql = "SELECT p_id FROM place WHERE p_name = @name LIMIT 1;";
+            // place 沒有 UNIQUE 欄位可做 upsert：先用 Neo4j uid 找（同一個景點 AI 換了寫法也認得），再用名稱找，都查不到才新增。
+            string findPlaceSql = @"
+                SELECT p_id, region_id FROM place
+                WHERE (@regionId IS NOT NULL AND region_id = @regionId) OR p_name = @name
+                ORDER BY COALESCE(region_id = @regionId, 0) DESC, p_id
+                LIMIT 1;
+            ";
             string insertPlaceSql = @"
-                INSERT INTO place (region_id, p_name, p_latitude, p_longitude)
-                VALUES (@regionId, @name, @lat, @lng);
+                INSERT INTO place (
+                    region_id, p_name, p_category, p_type, p_summary, p_introduction, p_address,
+                    p_latitude, p_longitude, p_open_time, p_tel, p_website_url, p_image, p_business
+                ) VALUES (
+                    @regionId, @name, @p_category, @p_type, @p_summary, @p_introduction, @p_address,
+                    @lat, @lng, @p_open_time, @p_tel, @p_website_url, @p_image, @p_business
+                );
+            ";
+            // 已經有的景點只補空欄位，原本有值的不覆蓋
+            string fillPlaceSql = @"
+                UPDATE place SET
+                    region_id      = COALESCE(region_id, @regionId),
+                    p_category     = COALESCE(NULLIF(p_category, ''), @p_category),
+                    p_type         = COALESCE(NULLIF(p_type, ''), @p_type),
+                    p_summary      = COALESCE(NULLIF(p_summary, ''), @p_summary),
+                    p_introduction = COALESCE(NULLIF(p_introduction, ''), @p_introduction),
+                    p_address      = COALESCE(NULLIF(p_address, ''), @p_address),
+                    p_latitude     = COALESCE(p_latitude, @lat),
+                    p_longitude    = COALESCE(p_longitude, @lng),
+                    p_open_time    = COALESCE(NULLIF(p_open_time, ''), @p_open_time),
+                    p_tel          = COALESCE(NULLIF(p_tel, ''), @p_tel),
+                    p_website_url  = COALESCE(NULLIF(p_website_url, ''), @p_website_url),
+                    p_image        = COALESCE(NULLIF(p_image, ''), @p_image),
+                    p_business     = COALESCE(NULLIF(p_business, ''), @p_business)
+                WHERE p_id = @placeId;
             ";
 
             using (var conn = new MySqlConnection(_appSettings.mydb))
@@ -680,19 +711,33 @@ namespace backend.dao
 
                             if (!string.IsNullOrWhiteSpace(node.place_name))
                             {
-                                int? existingPlaceId = await conn.ExecuteScalarAsync<int?>(
-                                    findPlaceSql, new { name = node.place_name }, transaction);
+                                var existing = await conn.QueryFirstOrDefaultAsync<(int p_id, string region_id)>(
+                                    findPlaceSql, new { regionId = neo4jUid, name = node.place_name }, transaction);
 
-                                if (existingPlaceId == null)
+                                var record = neo4jUid != null ? placeRecords?.GetValueOrDefault(neo4jUid) : null;
+                                var placeParams = new
                                 {
-                                    await conn.ExecuteAsync(insertPlaceSql, new
-                                    {
-                                        regionId = neo4jUid,
-                                        name = node.place_name,
-                                        lat,
-                                        lng
-                                    }, transaction);
-                                }
+                                    placeId = existing.p_id,
+                                    regionId = neo4jUid,
+                                    name = node.place_name,
+                                    lat,
+                                    lng,
+                                    p_category = record?.p_category,
+                                    p_type = record?.p_type,
+                                    p_summary = record?.p_summary,
+                                    p_introduction = record?.p_introduction,
+                                    p_address = record?.p_address,
+                                    p_open_time = record?.p_open_time,
+                                    p_tel = record?.p_tel,
+                                    p_website_url = record?.p_website_url,
+                                    p_image = record?.p_image,
+                                    p_business = record?.p_business
+                                };
+
+                                if (existing.p_id == 0)
+                                    await conn.ExecuteAsync(insertPlaceSql, placeParams, transaction);
+                                else if (existing.region_id == null || existing.region_id == neo4jUid)
+                                    await conn.ExecuteAsync(fillPlaceSql, placeParams, transaction);   // 同名但記的是別的 uid（不同景點）時不動
                             }
 
                             await conn.ExecuteAsync(insertNodeSql, new

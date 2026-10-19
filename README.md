@@ -195,7 +195,7 @@ dotnet run
 | `Neo4jSettings:*` | 本機 Neo4j 連線（Uri、User、Password、Database），所有 Neo4j 查詢都直連這裡 | 景點查詢、劇本生成、商家模組需要 |
 | `AiService:BaseUrl` | AI 服務網址 | 劇本生成、Vlog、明信片、語音需要 |
 | `Valhalla:BaseUrl` | Valhalla 網址，預設 `http://localhost:8002` | 交通功能需要 |
-| `SmtpSettings:*` | 寄信用的 SMTP 設定 | 註冊驗證信、忘記密碼需要 |
+| `SmtpSettings:*` | 寄信用的 SMTP 設定（Server、Port、Username、Password、SenderName、SenderEmail，選填 ReplyTo）。目前透過 Resend 用 `noreply@angelalala.com` 寄出，網域要在 DNS 設好 SPF、DKIM，不然容易被當成垃圾信件；ReplyTo 是使用者按回覆時收信的信箱 | 註冊驗證信、忘記密碼需要 |
 | `AppSettings:tdx_client_id`、`tdx_client_secret` | TDX 交通資料金鑰 | 同步公車、捷運時需要 |
 | `BusSync:*`、`MetroSync:*` | 啟動時是否在背景同步公車、捷運資料（`Enabled`） | |
 | `IbonPrinterSettings:ApiUrl` | ibon 列印微服務，預設 `http://127.0.0.1:9000/upload` | 明信片列印需要 |

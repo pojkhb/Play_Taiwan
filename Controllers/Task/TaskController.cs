@@ -92,6 +92,7 @@ namespace backend.Controllers
         ///
         /// 協作解謎型的 clue_text 是自己座位的線索；hint_available 為 true 時可呼叫 GET api/Task/{task_id}/Hint 取提示；
         /// success_text 在這一站任務全部通過後才有值。
+        /// node.image_url 是景點的真實照片：抵達就散開迷霧，播開場劇情（opening_text）時就可以顯示，不用等任務做完。
         ///
         /// npc 是這一站說開場白、出題與完成劇情的 NPC（名稱、身分、圖片）；
         /// 要把台詞唸出來時，把 npc.npc_name 當成 POST api/Npc/Speak 的 npc_name。
@@ -102,9 +103,9 @@ namespace backend.Controllers
         [HttpGet]
         [Route("Node/{node_id:int}")]
         [ProducesResponseType(typeof(ResultViewModel<NodePlayResponse>), 200)]
-        public IActionResult GetNodePlay(int node_id)
+        public async Task<IActionResult> GetNodePlay(int node_id)
         {
-            NodePlayResponse result = _service.GetNodePlay(User.GetAuId(), node_id);
+            NodePlayResponse result = await _service.GetNodePlay(User.GetAuId(), node_id);
             if (result.npc != null)
                 result.npc.npc_avatar_url = PublicUrl.Of(Request, result.npc.npc_avatar_url);
 

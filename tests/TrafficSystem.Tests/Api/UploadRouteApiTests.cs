@@ -49,10 +49,43 @@ public class UploadRouteApiTests
     }
 
     [Fact]
-    public async Task 沒登入不能上傳()
+    public async Task 沒登入也能上傳照片給商家註冊用()
     {
-        using var form = File("photo.jpg", "image/jpeg", new byte[] { 0xFF, 0xD8 });
+        using var form = File("store.png", "image/png", new byte[] { 0x89, 0x50, 0x4E, 0x47 });
 
-        Assert.Equal(HttpStatusCode.Unauthorized, (await _api.ClientFor(null).PostAsync("/api/Upload", form)).StatusCode);
+        var result = await (await _api.ClientFor(null).PostAsync("/api/Upload", form)).ReadResultAsync<string>();
+
+        Assert.True(result.isSuccess, result.message);
+        string path = new Uri(new Uri("http://localhost"), result.Result).AbsolutePath;
+        Assert.EndsWith(".png", path);
+
+        string physical = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(System.IO.File.Exists(physical));
+        System.IO.File.Delete(physical);
+    }
+
+    [Fact]
+    public async Task 沒登入不能上傳影片()
+    {
+        using var form = File("clip.mp4", "video/mp4", new byte[] { 0, 0, 0, 0x18 });
+
+        var response = await _api.ClientFor(null).PostAsync("/api/Upload", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False((await response.ReadResultAsync<string>()).isSuccess);
+    }
+
+    [Fact]
+    public async Task 沒登入上傳標成照片的網頁會存成照片副檔名()
+    {
+        using var form = File("evil.html", "image/jpeg", "<script>alert(1)</script>"u8.ToArray());
+
+        var result = await (await _api.ClientFor(null).PostAsync("/api/Upload", form)).ReadResultAsync<string>();
+
+        Assert.True(result.isSuccess, result.message);
+        string path = new Uri(new Uri("http://localhost"), result.Result).AbsolutePath;
+        Assert.EndsWith(".jpg", path);
+
+        System.IO.File.Delete(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
     }
 }

@@ -6,7 +6,7 @@
 忘記密碼,POST,/api/Auth/ForgotPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Email（string）,string,"{
   ""Email"": ""string""
 }","""string""",忘記密碼。 產生重設密碼連結並寄送至信箱，連結 30 分鐘內有效。 使用者需點擊信中連結，再呼叫 ResetPassword 端點完成密碼重設。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址；重設連結 30 分鐘內有效（9/30 修正：原本一產生就過期）
-帳號登入,POST,/api/Auth/Login,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：auth_name（string）、auth_pswd（string）,token、au_id、auth_name、auth_type、account_type_name、s_id,"{
+帳號登入,POST,/api/Auth/Login,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：auth_name（string）、auth_pswd（string）,token、au_id、auth_name、auth_type、account_type_name、store_id,"{
   ""auth_name"": ""string"",
   ""auth_pswd"": ""string""
 }","{
@@ -15,8 +15,8 @@
   ""auth_name"": ""string"",
   ""auth_type"": 0,
   ""account_type_name"": ""string"",
-  ""s_id"": 0
-}",帳號登入。 使用帳號名稱(或信箱)與密碼進行登入，成功後同時回傳 auth_type， 供前端判斷登入後要導向探員頁面(1=Tourist)、商家後台(2=Merchant)或管理後台(3=Admin)。,
+  ""store_id"": 0
+}",帳號登入。 使用帳號名稱(或信箱)與密碼進行登入，成功後同時回傳 auth_type， 供前端判斷登入後要導向探員頁面(1=Tourist)、商家後台(2=Merchant)或管理後台(3=Admin)。 登入失敗（帳號或密碼錯誤、帳號停用、信箱還沒驗證、商家還沒有店家資料）一律回 HTTP 400，message 可以直接顯示；帳號停用、信箱還沒驗證要密碼正確才會告知。,失敗回 400（以前是 404）；auth_name 可以填名稱或信箱
 帳號登出,POST,/api/Auth/Logout,帳號,登入註冊,✅ 實測可用,需要,要接,,string,,"""string""",帳號登出。 清除目前登入狀態；未來若有 Refresh Token 或登入工作階段資料表， 可在此 API 一併撤銷 Token。,
 取得目前登入帳號的資訊,GET,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,,token、au_id、auth_name、auth_type、account_type_name、s_id,,"{
   ""token"": ""string"",
@@ -28,16 +28,15 @@
 }","取得目前登入帳號的資訊。 對應「設定－帳號」頁面，同時可用來判斷要導向哪一種介面： account_type_name = ""Tourist"" / ""Merchant"" / ""Admin""。 需在 Header 帶登入取得的 JWT Token：Authorization: Bearer {token}。",
 更新目前登入帳號的名稱,POST,/api/Auth/Profile,帳號,一、首頁,✅ 實測可用,需要,要接,JSON：auth_name（string）,string,"{
   ""auth_name"": ""string""
-}","""string""",更新目前登入帳號的名稱。 對應「設定－帳號」頁面的名稱編輯功能。,
-帳號註冊,POST,/api/Auth/Register,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）、ResolvedAccountType（integer）,string,"{
-  ""Username"": ""string"",
-  ""Email"": ""string"",
-  ""Password"": ""string"",
-  ""Birthday"": ""2026-10-07T12:00:00"",
-  ""Gender"": ""string"",
-  ""AccountType"": 0,
-  ""ResolvedAccountType"": 0
-}","""string""",帳號註冊。 註冊新的遊客或商家帳號（支援填入生日、性別），並於背景發送驗證信至指定信箱。 管理員身分不開放自行註冊。,信裡的連結目前寫死 http://localhost:5501，上線前要改成正式網址
+}","""string""",更新目前登入帳號的名稱。 對應「設定－帳號」頁面的名稱編輯功能。 名稱規則跟註冊相同（必填、最多 50 字、不能跟其他帳號的名稱或信箱重複），不合規則回 400，重複回 409。,
+帳號註冊（只限遊客）,POST,/api/Auth/Register,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Username（string）、Email（string）、Password（string）、Birthday（string）、Gender（string）、AccountType（integer）,string,"{
+  ""Username"": ""NoobTW"",
+  ""Email"": ""test@example.com"",
+  ""Password"": ""password123"",
+  ""Birthday"": ""2005-01-24"",
+  ""Gender"": ""Male"",
+  ""AccountType"": 1
+}","""string""",帳號註冊。 只註冊遊客帳號，驗證信箱後才能登入；商家請用 POST /api/Merchant/Register（AccountType 帶 2 回 400），管理員不開放自行註冊。 Username 必填、最多 50 字、不能跟其他帳號的名稱或信箱重複（不分大小寫）；Email 要是正確格式；Password 6～100 字、前後不能有空白；Birthday 不能是未來的日期。不合規則回 400，名稱或 Email 重複回 409，message 可以直接顯示。 同一個 Email 還沒驗證時可以再註冊一次：換成這次的資料並重寄驗證信，舊的驗證連結失效。,驗證信的連結用使用者連進來的網址組成（本機或 backend.angelalala.com）
 依重設連結 Token 完成密碼重設,POST,/api/Auth/ResetPassword,帳號,登入註冊,✅ 實測可用,不用,要接,JSON：Token（string）、NewPassword（string）,string,"{
   ""Token"": ""string"",
   ""NewPassword"": ""string""
@@ -1107,7 +1106,7 @@ NPC 下拉選單：可以唸台詞的 NPC 名單,GET,/api/Npc/Options,NPC 語音
   ""hint_text"": ""string"",
   ""is_available"": false
 }",取得指定任務的提示內容。 後端依登入者（JWT）在此任務的實際答錯次數（user_task_record）決定是否給提示： 答錯次數達到門檻後回傳 task.task_hint，還沒達到時 is_available 為 false。 門檻＝題目難易度（協作解謎 0 次、文化問答／商家知識問答／圖像地理猜謎 1 次、景點猜猜樂 2 次） 加上登入者最近的答題表現（常卡關 -1、很順利 +1），最少 0 次、選擇題最多 2 次； 沒有對錯的題型（跨關集結、創意攝影、地方美食、e人訪談）一開始就能看。 GET /api/Task/1/Hint,答錯次數達門檻才會給提示（門檻依題目難易度與玩家表現）；npc_name、npc_avatar_url 是給提示的 NPC
-上傳檔案（照片、影片、錄音），回傳檔案網址,POST,/api/Upload,上傳,七、任務完成,✅ 實測可用,需要,要接,表單：file（檔案）,string,,"""string""",上傳檔案（照片、影片、錄音），回傳檔案網址。 使用 multipart/form-data，欄位名稱為 file，上限 200MB。 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。,
+上傳檔案（照片、影片、錄音），回傳檔案網址,POST,/api/Upload,上傳,七、任務完成,✅ 實測可用,照片不用；影片、錄音需要,要接,表單：file（檔案）,string,,"""string""",上傳檔案（照片、影片、錄音），回傳檔案網址。 使用 multipart/form-data，欄位名稱為 file，上限 200MB。 支援照片（jpg/png/webp/heic）、影片（mp4/mov/webm）、音訊（mp3/m4a/wav/aac）。 不用登入也能上傳照片（商家註冊畫面上傳店家照片用），但沒登入只收照片、上限 20MB；影片、錄音要登入。,
 取得所有明信片主檔清單,GET,/api/PostcardCatalog,明信片,"七、任務完成, 九、過往旅途",✅ 實測可用,需要,要接,,清單，每筆：PostcardId、StoryId、NodeId、PostcardName、Summary、ImageUrl、IsNightEdition、CreatedAt、UpdatedAt,,"[
   {
     ""PostcardId"": 0,
@@ -1680,10 +1679,13 @@ NPC 下拉選單：可以唸台詞的 NPC 名單,GET,/api/Npc/Options,NPC 語音
 上下架優惠券,PATCH,/api/merchant/coupons/{couponId}/status,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,couponId（路徑，integer）；JSON：status（string）,,"{
   ""status"": ""string""
 }",null（Result 沒有內容，看 isSuccess 與 message 即可）,上下架優惠券。,
-綁定 QR Code 與優惠券,POST,/api/merchant/qrcode/bind,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,JSON：qr_uid（string）、coupon_id（integer）,,"{
+綁定 QR Code 與優惠券,POST,/api/merchant/qrcode/bind,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,JSON：qr_uid（string）、coupon_id（integer）,qr_uid、coupon_id,"{
   ""qr_uid"": ""string"",
   ""coupon_id"": 0
-}",null（Result 沒有內容，看 isSuccess 與 message 即可）,綁定 QR Code 與優惠券。 商家掃描到 QR Code 的 qr_uid 後呼叫；優惠券必須是自己店家的， 同一個 QR Code 重複綁定、或優惠券已經綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）都會回傳 409。,優惠券要是自己店家的；同一個 QR Code 重複綁定、或優惠券已綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）回 409
+}","{
+  ""qr_uid"": ""string"",
+  ""coupon_id"": 0
+}",綁定 QR Code 與優惠券。 商家掃描到 QR Code 的 qr_uid 後呼叫；優惠券必須是自己店家的， 同一個 QR Code 重複綁定、或優惠券已經綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）都會回傳 409。 成功時 Result 回傳綁好的 qr_uid 與 coupon_id。,優惠券要是自己店家的；同一個 QR Code 重複綁定、或優惠券已綁過別的 QR Code（一張優惠券只能綁一個 qr_uid）回 409
 查詢登入商家的題庫列表,GET,/api/merchant/questions,商家後台與優惠券,商家端,✅ 實測可用,需要,要接,,,,"[
   {
     ""question_id"": 0,

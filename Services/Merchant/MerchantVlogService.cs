@@ -100,7 +100,7 @@ namespace backend.Services
                 open_time = openTime,
                 address = address,
                 tone_name = tone?.nt_name,
-                script = draft.tw_script,
+                script = draft.suggested_script,
                 caption = draft.promo_copy,
                 hashtags = hashtags,
                 target_audience = draft.target_audience ?? new List<string>(),

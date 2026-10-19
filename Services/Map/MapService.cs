@@ -242,7 +242,11 @@ namespace backend.Services
 
             _dao.UnlockNode(auId, nodeId);
 
-            return LoadNodeDetail(nodeId);
+            // 抵達了，迷霧散開：直接回這一站的景點照片，播開場劇情時就能換上真實照片
+            NodeDetailResponse result = LoadNodeDetail(nodeId);
+            result.image_url = await SceneImageAsync(node.place_id, arrived: true);
+
+            return result;
         }
 
         #endregion
@@ -300,12 +304,13 @@ namespace backend.Services
 
         /// <summary>
         /// 節點詳情；還在迷霧中的站不能查看。已解鎖但還沒抵達的站（目前這一關）只給站名與 NPC，
-        /// 景點介紹與營業時間等到了現場才給（那些內容一看就知道是哪裡）
+        /// 景點介紹與營業時間等到了現場才給（那些內容一看就知道是哪裡），景點圖也是迷霧圖
         /// </summary>
-        public NodeDetailResponse GetNodeDetail(int nodeId, ClaimsPrincipal user)
+        public async Task<NodeDetailResponse> GetNodeDetail(int nodeId, ClaimsPrincipal user)
         {
             bool arrived = EnsureUnlocked(user.GetAuId(), nodeId);
             NodeDetailResponse result = LoadNodeDetail(nodeId);
+            result.image_url = await SceneImageAsync(_dao.GetNodeLocation(nodeId)?.place_id, arrived);
 
             if (!arrived)
             {
@@ -353,14 +358,7 @@ namespace backend.Services
                 throw new KeyNotFoundException("此節點尚未設定 NPC 互動內容。");
             }
 
-            // 背景圖：景點照片直接用景點 ID 向 Neo4j 拿；還沒抵達時換成這張照片的迷霧版（還沒做好就用通用迷霧圖）
-            string placeId = _dao.GetNodeLocation(nodeId)?.place_id;
-            string photo = placeId == null ? null : (await _placeLookup.GetPlaceImagesAsync(new[] { placeId })).GetValueOrDefault(placeId);
-
-            result.scene_image_url = arrived
-                ? photo
-                : (photo == null ? null : _dao.GetFogImages(new[] { photo }).GetValueOrDefault(photo))
-                  ?? _dao.GetDefaultFogImage() ?? DefaultFogImage;
+            result.scene_image_url = await SceneImageAsync(_dao.GetNodeLocation(nodeId)?.place_id, arrived);
 
             result.node_id = nodeId;
             result.emotion ??= "normal";
@@ -427,6 +425,19 @@ namespace backend.Services
             }
 
             return TeamProgress.IsReached(progress.node_order, progress.arrived_order);
+        }
+
+        /// <summary>
+        /// 一站的景點圖（節點詳情、NPC 互動背景用）：抵達過是景點照片（用景點 ID 向 Neo4j 拿，沒有照片時為 null）；
+        /// 還沒抵達是這張照片的迷霧版，還沒做好或景點沒有照片時用通用迷霧圖。迷霧圖是站內路徑，由 Controller 組成完整網址
+        /// </summary>
+        private async Task<string> SceneImageAsync(string placeId, bool arrived)
+        {
+            string photo = placeId == null ? null : (await _placeLookup.GetPlaceImagesAsync(new[] { placeId })).GetValueOrDefault(placeId);
+            if (arrived) return photo;
+
+            return (photo == null ? null : _dao.GetFogImages(new[] { photo }).GetValueOrDefault(photo))
+                ?? _dao.GetDefaultFogImage() ?? DefaultFogImage;
         }
 
         /// <summary>

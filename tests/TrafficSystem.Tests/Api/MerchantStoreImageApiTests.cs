@@ -228,10 +228,10 @@ public class MerchantStoreImageApiTests
     private static object RegisterBody(string email, string placeUid = null, string imageUrl = null, bool newPlace = false) => newPlace
         ? new
         {
-            auth_name = "新商家", auth_email = email, auth_pswd = "pw123456", store_name = "新開的小吃店",
+            auth_name = "新商家" + email.Split('@')[0], auth_email = email, auth_pswd = "pw123456", store_name = "新開的小吃店",
             store_city = "臺中市", store_town = "西區", store_address = "三民路一段198號", lat = 24.14, lng = 120.67, image_url = imageUrl
         }
-        : new { auth_name = "新商家", auth_email = email, auth_pswd = "pw123456", store_name = "綁定的小吃店", place_uid = placeUid, image_url = imageUrl };
+        : new { auth_name = "新商家" + email.Split('@')[0], auth_email = email, auth_pswd = "pw123456", store_name = "綁定的小吃店", place_uid = placeUid, image_url = imageUrl };
 
     [Fact]
     public async Task 註冊選既有景點時帶照片網址_補一顆版本節點()

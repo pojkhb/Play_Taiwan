@@ -1,5 +1,6 @@
-// 過往紀錄的照片：GET /api/History 卡片封面、GET /api/History/{story_id} 上方左右滑動的照片，是玩家在劇本裡拍的照片；
-// 玩家沒拍照片的站補上那一站的景點照片（這裡 Neo4j 連不上，景點照片來自 MySQL place.p_image；Neo4j 的部分見 PlacePhotoApiTests）
+// 過往紀錄的照片：GET /api/History 卡片封面、GET /api/History/{story_id} 上方左右滑動的照片，是每一站的景點照片，
+// 不回傳玩家上傳的照片；每張照片附景點的真實名稱（real_place_name）。
+// 這裡 Neo4j 預設連不上，景點照片來自 MySQL place.p_image（Neo4j 的部分見 PlacePhotoApiTests）
 using backend.Models;
 using backend.utils;
 using Allure.Net.Commons.Attributes;
@@ -24,7 +25,7 @@ public class HistoryPhotosApiTests
     {
         string[] places = Enumerable.Range(1, 3).Select(i => $"過往景點{i}_{Guid.NewGuid():N}"[..14]).ToArray();
         int storyId = await _api.CreateStoryAsync(user, "臺北市", night: false, places);
-        int[] nodes = (await QueryIntsAsync("SELECT sn_id FROM story_node WHERE s_id = @storyId ORDER BY sn_order;", new { storyId })).ToArray();
+        int[] nodes = (await QueryAsync<int>("SELECT sn_id FROM story_node WHERE s_id = @storyId ORDER BY sn_order;", new { storyId })).ToArray();
 
         await _api.ExecuteAsync(@"
             INSERT INTO story_session (au_id, s_id, ss_current, ss_status, started_at, completed_at)
@@ -33,30 +34,23 @@ public class HistoryPhotosApiTests
         return (storyId, nodes, places);
     }
 
-    private async Task<List<int>> QueryIntsAsync(string sql, object param)
+    private async Task<List<T>> QueryAsync<T>(string sql, object param)
     {
         using var conn = new MySql.Data.MySqlClient.MySqlConnection(_api.ConnectionString);
-        return (await Dapper.SqlMapper.QueryAsync<int>(conn, sql, param)).ToList();
+        return (await Dapper.SqlMapper.QueryAsync<T>(conn, sql, param)).ToList();
     }
 
-    private async Task<int> InsertTaskAsync(int storyId, int nodeId, int type)
+    /// <summary>玩家在這一站上傳了一張照片（作答紀錄的 answer_media_url）</summary>
+    private async Task UploadPhotoAsync(int user, int storyId, int nodeId, string url)
     {
-        await _api.ExecuteAsync("INSERT INTO task (story_id, node_id, task_type, task_describe) VALUES (@storyId, @nodeId, @type, '和景點合照');",
-            new { storyId, nodeId, type });
-        return await _api.QueryAsync<int>("SELECT MAX(task_id) FROM task WHERE story_id = @storyId;", new { storyId });
-    }
+        await _api.ExecuteAsync("INSERT INTO task (story_id, node_id, task_type, task_describe) VALUES (@storyId, @nodeId, 3, '和景點合照');",
+            new { storyId, nodeId });
+        int taskId = await _api.QueryAsync<int>("SELECT MAX(task_id) FROM task WHERE story_id = @storyId;", new { storyId });
 
-    /// <summary>一筆作答紀錄：第一個素材存 answer_media_url，其餘存 record_media（跟正式作答一樣）</summary>
-    private async Task InsertRecordAsync(int user, int taskId, int minutesAgo, params string[] media)
-    {
-        int recordId = _api.NewUserId();   // record_id 不是自動編號，借用遞增的號碼
         await _api.ExecuteAsync(@"
             INSERT INTO user_task_record (record_id, au_id, task_id, answer_media_url, answered_at)
-            VALUES (@recordId, @user, @taskId, @first, NOW() - INTERVAL @minutesAgo MINUTE);",
-            new { recordId, user, taskId, first = media.FirstOrDefault(), minutesAgo });
-        foreach (string url in media.Skip(1))
-            await _api.ExecuteAsync("INSERT INTO record_media (media_id, record_id, media_url) VALUES (@id, @recordId, @url);",
-                new { id = _api.NewUserId(), recordId, url });
+            VALUES (@recordId, @user, @taskId, @url, NOW());",
+            new { recordId = _api.NewUserId(), user, taskId, url });   // record_id 不是自動編號，借用遞增的號碼
     }
 
     private async Task<List<HistoryStoryItem>> ListAsync(int user) =>
@@ -66,104 +60,85 @@ public class HistoryPhotosApiTests
         (await (await _api.ClientFor(user).GetAsync($"/api/History/{storyId}")).ReadResultAsync<HistoryStoryItem>()).Result;
 
     [Fact]
-    public async Task 過往紀錄卡片用玩家拍的第一張照片當封面_沒拍照片景點也沒照片時是null()
+    public async Task 過往紀錄卡片封面用景點照片_玩家上傳的照片不算_景點都沒照片時是null()
     {
         int user = _api.NewUserId();
-        var (withPhotos, nodes, _) = await CreateFinishedStoryAsync(user, DateTime.Now.AddDays(-1));
-        var (noPhotos, _, _) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        var (withPlacePhoto, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now.AddDays(-1));
+        var (noPhotos, otherNodes, _) = await CreateFinishedStoryAsync(user, DateTime.Now);
 
-        // 第 3 站比第 1 站早拍，封面還是取第 1 站的照片（依站的順序）
-        await InsertRecordAsync(user, await InsertTaskAsync(withPhotos, nodes[2], 3), 90, "https://img.test/third.jpg");
-        await InsertRecordAsync(user, await InsertTaskAsync(withPhotos, nodes[0], 3), 30, "https://img.test/first.jpg");
+        // 第 1 站玩家有上傳照片，但景點沒有照片；第 2 站的景點有照片
+        await UploadPhotoAsync(user, withPlacePhoto, nodes[0], "https://img.test/mine.jpg");
+        string second = await _api.GivePlacePhotoAsync(places[1]);
+        // 景點都沒照片的劇本，玩家上傳的照片也不拿來當封面
+        await UploadPhotoAsync(user, noPhotos, otherNodes[0], "https://img.test/mine-too.jpg");
 
         List<HistoryStoryItem> list = await ListAsync(user);
 
-        Assert.Equal(new[] { noPhotos, withPhotos }, list.Select(s => s.story_id));   // 最近玩完的在前面
-        Assert.Equal("https://img.test/first.jpg", list[1].cover_image_url);
+        Assert.Equal(new[] { noPhotos, withPlacePhoto }, list.Select(s => s.story_id));   // 最近玩完的在前面
+        Assert.Equal(second, list[1].cover_image_url);
         Assert.Null(list[0].cover_image_url);
         Assert.All(list, s => Assert.Null(s.photos));
     }
 
     [Fact]
-    public async Task 過往劇本詳情回傳這趟拍的所有照片_依站的順序並附景點名稱()
+    public async Task 過往劇本詳情回傳每一站的景點照片_不回傳玩家上傳的照片_附景點真實名稱()
     {
         int user = _api.NewUserId();
-        int other = _api.NewUserId();
         var (storyId, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        string first = await _api.GivePlacePhotoAsync(places[0]);
+        string second = await _api.GivePlacePhotoAsync(places[1]);
+        // 第 3 站的景點照片是相對路徑，補成完整網址
+        await _api.ExecuteAsync("UPDATE place SET p_image = '/images/places/third.webp' WHERE p_name = @name;", new { name = places[2] });
 
-        int photo1 = await InsertTaskAsync(storyId, nodes[0], 3);
-        int photo3 = await InsertTaskAsync(storyId, nodes[2], 3);
-        int quiz2 = await InsertTaskAsync(storyId, nodes[1], 6);
+        await UploadPhotoAsync(user, storyId, nodes[0], "https://img.test/dome.jpg");
+        await UploadPhotoAsync(user, storyId, nodes[2], "https://img.test/lantern.jpg");
 
-        // 第 1 站：一次上傳照片、第二張照片、影片；重拍一次同一個網址
-        await InsertRecordAsync(user, photo1, 60, "https://img.test/dome.jpg", "https://img.test/dome-2.png", "https://img.test/clip.mp4");
-        await InsertRecordAsync(user, photo1, 50, "https://img.test/dome.jpg");
-        await InsertRecordAsync(user, quiz2, 40);
-        // 第 3 站：相對路徑補成完整網址
-        await InsertRecordAsync(user, photo3, 20, "/uploads/lantern.webp");
-        // 別人在同一個劇本拍的照片不算
-        await InsertRecordAsync(other, photo1, 10, "https://img.test/someone-else.jpg");
+        HttpResponseMessage response = await _api.ClientFor(user).GetAsync($"/api/History/{storyId}");
+        string json = await response.Content.ReadAsStringAsync();
+        HistoryStoryItem detail = (await response.ReadResultAsync<HistoryStoryItem>()).Result;
 
-        HistoryStoryItem detail = await DetailAsync(user, storyId);
-
-        Assert.Equal(new[] { "https://img.test/dome.jpg", "https://img.test/dome-2.png", "http://localhost/uploads/lantern.webp" },
-            detail.photos.Select(p => p.image_url));
-        Assert.Equal(new[] { 1, 1, 3 }, detail.photos.Select(p => p.node_order));
-        Assert.Equal(new[] { nodes[0], nodes[0], nodes[2] }, detail.photos.Select(p => p.node_id));
-        Assert.Equal(new[] { places[0], places[0], places[2] }, detail.photos.Select(p => p.place_name));
-        Assert.Equal("https://img.test/dome.jpg", detail.cover_image_url);
+        Assert.Equal(new[] { first, second, "http://localhost/images/places/third.webp" }, detail.photos.Select(p => p.image_url));
+        Assert.Equal(new[] { 1, 2, 3 }, detail.photos.Select(p => p.node_order));
+        Assert.Equal(nodes, detail.photos.Select(p => p.node_id));
+        Assert.Equal(places, detail.photos.Select(p => p.real_place_name));
+        Assert.Equal(places, detail.photos.Select(p => p.place_name));
+        Assert.All(detail.photos, p => Assert.True(p.is_place_photo));
+        Assert.Equal(first, detail.cover_image_url);
         Assert.Equal(places, detail.spots);
+        Assert.DoesNotContain("img.test/dome.jpg", json);
+        Assert.DoesNotContain("img.test/lantern.jpg", json);
     }
 
     [Fact]
-    public async Task 過往劇本詳情_沒拍照片景點也沒照片時photos是空陣列()
+    public async Task 景點對不到MySQL的place表_real_place_name還是景點的真實名稱_place_name是章節標題()
+    {
+        // AI 生成的劇本，景點多半不在 MySQL place 表：照片從 Neo4j 拿，名稱只剩 place_type 對得到
+        int user = _api.NewUserId();
+        var (storyId, _, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        List<string> uids = await QueryAsync<string>("SELECT place_id FROM story_node WHERE s_id = @storyId ORDER BY sn_order;", new { storyId });
+        await _api.ExecuteAsync("DELETE FROM place WHERE p_name IN @places;", new { places });
+        _api.FakeNeo4j.Rows = uids
+            .Select(uid => new Dictionary<string, object> { ["uid"] = uid, ["image_url"] = $"https://neo4j.test/{uid}.jpg" })
+            .ToList();
+
+        HistoryStoryItem detail = await DetailAsync(user, storyId);
+
+        Assert.Equal(uids.Select(uid => $"https://neo4j.test/{uid}.jpg"), detail.photos.Select(p => p.image_url));
+        Assert.Equal(places, detail.photos.Select(p => p.real_place_name));
+        Assert.Equal(new[] { "第1站", "第2站", "第3站" }, detail.photos.Select(p => p.place_name));
+    }
+
+    [Fact]
+    public async Task 過往劇本詳情_景點都沒照片時photos是空陣列_玩家上傳的照片也不算()
     {
         int user = _api.NewUserId();
-        var (storyId, _, _) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        var (storyId, nodes, _) = await CreateFinishedStoryAsync(user, DateTime.Now);
+        await UploadPhotoAsync(user, storyId, nodes[0], "https://img.test/mine.jpg");
 
         HistoryStoryItem detail = await DetailAsync(user, storyId);
 
         Assert.Empty(detail.photos);
         Assert.Null(detail.cover_image_url);
-    }
-
-    [Fact]
-    public async Task 沒拍照片的過往劇本_封面與照片用每一站的景點照片()
-    {
-        int user = _api.NewUserId();
-        var (storyId, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
-        // 第 1 站的景點沒有照片；第 2、3 站有
-        string second = await _api.GivePlacePhotoAsync(places[1]);
-        string third = await _api.GivePlacePhotoAsync(places[2]);
-
-        HistoryStoryItem card = Assert.Single(await ListAsync(user));
-        HistoryStoryItem detail = await DetailAsync(user, storyId);
-
-        Assert.Equal(second, card.cover_image_url);   // 依站的順序，第一個有照片的景點
-        Assert.Equal(new[] { second, third }, detail.photos.Select(p => p.image_url));
-        Assert.Equal(new[] { 2, 3 }, detail.photos.Select(p => p.node_order));
-        Assert.Equal(new[] { nodes[1], nodes[2] }, detail.photos.Select(p => p.node_id));
-        Assert.Equal(new[] { places[1], places[2] }, detail.photos.Select(p => p.place_name));
-        Assert.All(detail.photos, p => Assert.True(p.is_place_photo));
-        Assert.Equal(second, detail.cover_image_url);
-    }
-
-    [Fact]
-    public async Task 玩家沒拍照片的站補上景點照片_封面還是玩家拍的第一張()
-    {
-        int user = _api.NewUserId();
-        var (storyId, nodes, places) = await CreateFinishedStoryAsync(user, DateTime.Now);
-        string firstPlace = await _api.GivePlacePhotoAsync(places[0]);
-        await _api.GivePlacePhotoAsync(places[1]);   // 第 2 站玩家有拍，不用景點照片
-        await InsertRecordAsync(user, await InsertTaskAsync(storyId, nodes[1], 3), 30, "https://img.test/mine.jpg");
-
-        HistoryStoryItem card = Assert.Single(await ListAsync(user));
-        HistoryStoryItem detail = await DetailAsync(user, storyId);
-
-        Assert.Equal(new[] { firstPlace, "https://img.test/mine.jpg" }, detail.photos.Select(p => p.image_url));
-        Assert.Equal(new[] { true, false }, detail.photos.Select(p => p.is_place_photo));
-        Assert.Equal("https://img.test/mine.jpg", detail.cover_image_url);
-        Assert.Equal("https://img.test/mine.jpg", card.cover_image_url);
     }
 
     [Fact]

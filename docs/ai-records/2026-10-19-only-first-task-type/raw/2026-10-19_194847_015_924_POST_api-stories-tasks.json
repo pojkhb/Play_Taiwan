@@ -1,0 +1,202 @@
+﻿{
+  "time": "2026-10-19 19:48:47.015",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西區",
+      "party_size": 2,
+      "s_tag": [
+        "好山好水",
+        "美食"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "24471ad6-f23f-4e52-bfa9-75896b15aaa1",
+          "p_name": "柳川水岸景觀步道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e53f27c2-6baf-43fe-b73e-f881b6ec449b",
+          "p_name": "全安堂太陽餅博物館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "b5f87590-292b-4508-9b32-54facf38b1c2",
+          "p_name": "瑞成書局",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+          "p_name": "柳原教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "b717e40d-cede-4abe-85a3-9ea0332a99b6",
+          "p_name": "中友百貨",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "df34471b-d15f-4dd7-ada3-792e9333d1f4",
+          "p_name": "元保宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "fcb8914f-fcf5-4c3f-b7bd-a7de968f7ca5",
+          "p_name": "阿薩斯雕像",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e22291db-6a3a-47a7-9014-b334fe3c9824",
+          "p_name": "美術園道商圈",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "05aed94768514594a4e56746d08e09a5",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792410527.0158591,
+      "updated_at": 1792410527.0158591,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/05aed94768514594a4e56746d08e09a5",
+      "queue_position": 1
+    }
+  }
+}

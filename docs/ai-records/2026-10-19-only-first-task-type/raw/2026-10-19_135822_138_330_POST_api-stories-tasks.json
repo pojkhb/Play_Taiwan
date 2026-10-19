@@ -1,0 +1,202 @@
+﻿{
+  "time": "2026-10-19 13:58:22.138",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺南市",
+      "district_name": "安平區",
+      "party_size": 8,
+      "s_tag": [
+        "好友結伴",
+        "探險運動"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "bf79d27b-43fc-4650-beef-ce501b42fe54",
+          "p_name": "五條港文化園區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "8d0e8b46-3afe-4902-b40b-d4c892cf51be",
+          "p_name": "祀典大天后宮(明寧靖王府邸)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "1df7c258-e007-44ab-846d-7a84efa906bb",
+          "p_name": "蝸牛巷",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "2bbaedce-0995-4fcb-b41f-6dbd3138e102",
+          "p_name": "臺南國家美術館（原臺南市美術館2館）",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "8eb23e0d-0da1-46b0-bb23-a8319ba1aa2c",
+          "p_name": "臺灣府城大南門",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "7b8818b2-0fae-482d-99f6-09f33fdc6933",
+          "p_name": "開基永華宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "e8c15bc5-1a8d-42d4-a2f3-16d32c59a9e2",
+          "p_name": "泮宮石坊",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "87609370-080e-4f52-9586-bb7f593db19d",
+          "p_name": "太平境馬雅各紀念教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 3,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6ac4d66c6ffb46ab8da0a71542a1ad97",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792389502.1392956,
+      "updated_at": 1792389502.1392956,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/6ac4d66c6ffb46ab8da0a71542a1ad97",
+      "queue_position": 2
+    }
+  }
+}

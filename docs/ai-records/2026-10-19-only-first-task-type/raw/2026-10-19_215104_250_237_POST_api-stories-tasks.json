@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 21:51:04.250",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西屯區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "10a90ebb-4007-4440-9d17-b48ee97081e2",
+          "p_name": "老虎城購物中心",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "af339777-51f6-4ea3-9fe4-c68a2feb331b",
+          "p_name": "誠品生活480",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ad625462-9e98-4a02-81d9-432b165e1eb8",
+          "p_name": "臺中國家歌劇院",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "9b5adf50-1eb3-44e3-9ffc-874a6073a660",
+          "p_name": "Top City臺中大遠百",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "3991cae1-ecda-4c17-8688-088b72bd2758",
+          "p_name": "秋紅谷景觀生態公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "4127a640-5dd9-4b24-ad79-8578c3391230",
+          "p_name": "逢甲商圈文創禮品館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "fadd22f7-7e1d-4608-9089-ea0f38d632ed",
+          "p_name": "臺中市立圖書館溪西分館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "c3aaa3be-961b-4ad0-8e06-56957e1e67d2",
+          "p_name": "張家祖廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "7017fd1442164d19a0e2d3d35b49085b",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792417864.25172,
+      "updated_at": 1792417864.25172,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/7017fd1442164d19a0e2d3d35b49085b",
+      "queue_position": 2
+    }
+  }
+}

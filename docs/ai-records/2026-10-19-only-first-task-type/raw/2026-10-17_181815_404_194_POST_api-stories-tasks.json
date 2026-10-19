@@ -1,0 +1,201 @@
+﻿{
+  "time": "2026-10-17 18:18:15.404",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺東縣",
+      "district_name": "文化里",
+      "party_size": 2,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "52f9f25c-1cc3-4bed-a235-9475e21073b1",
+          "p_name": "國立臺東生活美學館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "1c71d845-c0d7-4142-b2e1-1c936041125a",
+          "p_name": "悠瑞客禮品工坊",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "04508aed-74d5-422c-b05a-203815ea2612",
+          "p_name": "臺東舊鐵道路廊",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5b5d42d5-6aac-4a86-9df3-ae9e2fe4571b",
+          "p_name": "臺東舊站特區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "3377a107-f133-4d16-9e6e-103d9c22c32a",
+          "p_name": "臺東環市自行車道(山海鐵馬道)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "fd1b41ad-9ba5-44cd-93c7-d35ab1d54882",
+          "p_name": "鯉魚山公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5a4512ba-30e7-4c2d-9c53-a3e6f95b7ab9",
+          "p_name": "台東書書果實 BOOK-BOOK FRUIT TAITUNG",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "61924fa9-4eb2-47b8-aea3-39015e83568a",
+          "p_name": "海洋生態意象廣場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "7a8fd46208764062af8d2f9ed1acd882",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792232295.3999283,
+      "updated_at": 1792232295.3999283,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/7a8fd46208764062af8d2f9ed1acd882",
+      "queue_position": 1
+    }
+  }
+}

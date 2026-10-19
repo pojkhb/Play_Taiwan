@@ -1,0 +1,202 @@
+﻿{
+  "time": "2026-10-17 22:41:54.601",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西區",
+      "party_size": 2,
+      "s_tag": [
+        "好山好水",
+        "美食"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "e251aa99-11fb-476c-bcf5-a345959d7869",
+          "p_name": "第二市場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "099e7ea9-f07e-4a97-a61f-f3a4d44aecc4",
+          "p_name": "臺中公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "ea5da72e-307c-4ab7-a8dc-8f6ff7599e47",
+          "p_name": "第四信用合作社",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "4e1b29ec-7d01-47dc-af42-852c7aa3068c",
+          "p_name": "綠空鐵道1908",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "2cf48b47-9acd-44ec-84da-b98440eef483",
+          "p_name": "國家漫畫博物館(臺中刑務所演武場)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "fb82ee03-0592-4d6d-8455-a85bfed56639",
+          "p_name": "美術園道商店街管理委員會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "e22291db-6a3a-47a7-9014-b334fe3c9824",
+          "p_name": "美術園道商圈",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "7166e510-8aa4-407f-ab81-4f03661af065",
+          "p_name": "PARK2草悟廣場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "a6b0c173101141c2b0bbce7d856e3227",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792248114.6006033,
+      "updated_at": 1792248114.6006033,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/a6b0c173101141c2b0bbce7d856e3227",
+      "queue_position": 1
+    }
+  }
+}

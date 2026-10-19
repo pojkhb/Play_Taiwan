@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:20:36.101",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/9efba7e133b7458f8e3cd0cd8c9bf9e0",
+  "request": null,
+  "duration_ms": 0,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "9efba7e133b7458f8e3cd0cd8c9bf9e0",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792415931.2786486,
+      "updated_at": 1792416030.0273373,
+      "result": {
+        "story": {
+          "story_title": "阿達力的北區探險",
+          "story_prologue": "在慈善寺的草堂上發現了一張老照片，顯示著一個年輕的阿達力，手握著一本地圖，目標著北區的昌平路皮鞋街。",
+          "story_synopsis": "追尋阿達力過去，尋找家書的路。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力（機靈靈通的在地走透透達人，熟悉大街小巷與美食情報），在北區走路的四十年中，曾經走過無數個美麗的街道，熟悉每個角落，能夠為玩家指引出北區最好的食物和景點，帶領玩家探索北區的秘密。"
+        },
+        "nodes": [
+          {
+            "place_id": "d4812649-4d19-49af-8a30-8922da50f66d",
+            "sn_order": 1,
+            "sn_title": "步入慈善寺的雅趣",
+            "location_codename": "福德祠",
+            "sn_opening_text": "你們現在站在慈善寺的前門，四周都充滿著古木的香氣和神秘的氣息。阿達力等待著你們，為了找到家書而帶你們來這裡。",
+            "sn_success_text": "你們完成了這個任務！阿達力對你的感謝，然後又指引你們去下一站",
+            "dialogues": {
+              "opening": "你們來到慈善寺了！這裡是北屯地區的郊遊勝地之一，尤其是平田裡福德祠，環境幽靜，很適合散步。阿達力在這裡等待著你們，為了找到家書而帶你們來這裡",
+              "success": "你們找到家書了！阿達力非常感謝你們的幫助，然後又指引你們去下一站"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在慈善寺的平田裡福德祠找到家書",
+                "task_hint": "你們需要觀察周邊，尋找家書",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "394e09e3-6736-4d3c-936c-6448be9c407e",
+            "sn_order": 2,
+            "sn_title": "尋找北屯的風景",
+            "location_codename": "北屯路",
+            "sn_opening_text": "你現在正位於昌平路皮鞋街，北屯路的兩旁充滿著皮鞋店和美食店。阿達力在這裡等候著你，為你指引出北屯最美麗的景點。",
+            "sn_success_text": "你找到北屯最美麗的風景了！這裡的美食和景點是你在這裡最愛的！",
+            "dialogues": {
+              "opening": "你好！我是阿達力，機靈的在地走透透達人。我知道這裡的每個角落，每個美食店，我可以為你指引出北屯最好的食物和景點!",
+              "success": "你找到北屯最美麗的風景了！這裡的美食和景點是你在這裡最愛的！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你在昌平路皮鞋街，北屯路的兩旁充滿著皮鞋店和美食店。阿達力在這裡等候著你，為你指引出北屯最美麗的景點。",
+                "task_hint": "你可以在這裡拍攝北屯路的美麗景象，或者找到你最愛的美食店，拍攝美食店的外面和內部的照片。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ad71960d-7324-440c-80d8-e892ee47f3ea",
+            "sn_order": 3,
+            "sn_title": "走進林懋陽故居的夜晚",
+            "location_codename": "月下林懋",
+            "sn_opening_text": "你們現在站在一德洋樓的前面，夜晚的臺中市景色如畫。阿達力邀請你們進入這座古蹟，尋找家書的路。",
+            "sn_success_text": "你們成功拍攝了林懋陽故居的夜晚照，感謝阿達力的指導。這是你們在北區探險中的第3站",
+            "dialogues": {
+              "opening": "好晚了，你們來到林懋陽故居了，我是阿達力。這座建築的夜晚景色非常美麗，我可以帶你們進入這裡，尋找家書的路。",
+              "success": "你們的照相都非常好，希望能夠發出來。這是你們在北區探險中的第3站，希望你們能夠在下一站找到家書的路"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "創意攝影：拍攝林懋陽故居的夜晚照，尋找家書的路",
+                "task_hint": "你們可以在這裡拍攝多種角度，找到最美麗的照相。阿達力可以提供指導，幫助你們找到最好的拍攝位置",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5e8d013c-9195-468a-9fa2-677fe9169547",
+            "sn_order": 4,
+            "sn_title": "神秘的孔子之旅",
+            "location_codename": "神聖之地",
+            "sn_opening_text": "你們現在站在臺中市孔廟的正面，阿達力在等著你們，讓你們一步一步地探索北區的秘密",
+            "sn_success_text": "你們完成了這個創意攝影任務，獲得了神聖之地的神秘照相!",
+            "dialogues": {
+              "opening": "你們現在到了臺中市孔廟，孔子之旅就要開始了！我會幫助你們找到北區的秘密",
+              "success": "你們完成了這個創意攝影任務，獲得了神聖之地的神秘照相！我很自豪，你們的創意是無限的"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在臺中市孔廟的神聖之地中，找到一個具有神秘意義的角落，拍攝一個創意的照相",
+                "task_hint": "在孔廟的角落中，找到一些具有神秘意義的符號或影象，拍攝一個與這些符號相吻合的照相",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fb9cfa45-a22d-46ff-8575-f7fa253caa1a",
+            "sn_order": 5,
+            "sn_title": "忠烈祠的秘密",
+            "location_codename": "地磚巷",
+            "sn_opening_text": "你們來到忠烈祠了，阿達力在這裡等著你們!",
+            "sn_success_text": "你們成功拍攝了忠烈祠的美麗景象!",
+            "dialogues": {
+              "opening": "你們來到忠烈祠了，現在可以開始尋找家書的路了！這座祠堂是忠烈祠的中心，裡面有很多與忠烈祠相關的物品和文物。",
+              "success": "你們找到家書了！這是你們尋找的路徑，從這裡可以找到更多的線索和資訊！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在忠烈祠中找到家書的路徑!",
+                "task_hint": "你們可以在忠烈祠的建築群中尋找線索和資訊，包括牌樓、山門、前殿、六角亭等等!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "0075ccaf-7e9d-44ab-9f75-099cd49352cd",
+            "sn_order": 6,
+            "sn_title": "美味的追蹤",
+            "location_codename": "火雞路",
+            "sn_opening_text": "你們來到娜麼美味火雞肉飯，想與阿達力一起找到家書的路",
+            "sn_success_text": "你們成功拍攝了美味的火雞肉飯，感謝阿達力的幫助",
+            "dialogues": {
+              "opening": "你們來到娜麼美味火雞肉飯了！這裡的火雞肉飯，加入主廚的愛與美味!",
+              "success": "你們拍攝了美味的火雞肉飯，現在可以繼續追蹤阿達力的路線"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請用你的攝影技巧拍攝娜麼美味火雞肉飯，為阿達力的家書尋找路徑",
+                "task_hint": "注意到娜麼美味火雞肉飯的特殊選單，是否可以找到關鍵線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+            "sn_order": 7,
+            "sn_title": "柳原教會的秘密",
+            "location_codename": "神聖之地",
+            "sn_opening_text": "你們來到柳原教會，阿達力在這裡等待著你們。這裡是北區的文化地標之一，阿達力會帶你們探索這裡的秘密。",
+            "sn_success_text": "你們完成了這個任務！阿達力感謝你們的幫助，現在你們可以在這裡拍攝一些特別的照片。",
+            "dialogues": {
+              "opening": "你們來到柳原教會了！這裡是北區的文化地標之一，為什麼你們來這裡？",
+              "success": "你們完成了這個任務！我感謝你們的幫助，現在你們可以在這裡拍攝一些特別的照片。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請拍攝柳原教會的內部，特別是教堂的壁畫和神聖的空間。阿達力會帶你們到某個秘密的地方，需要你們的創意攝影能力!",
+                "task_hint": "你們需要在教堂內部找到一些特別的角度，拍攝出一些神聖的光線和影影。阿達力會給你們一些幫助和指導，讓你們能夠完成這個任務!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "83ef255b-9adb-4aaa-834e-9b22193882ba",
+            "sn_order": 8,
+            "sn_title": "中山堂的晚光",
+            "location_codename": "陽光之巖",
+            "sn_opening_text": "你們到了中山堂的夜晚，走在中正公園的陽光之巖上",
+            "sn_success_text": "你們完成了創意攝影任務，獲得了中山堂的晚光!",
+            "dialogues": {
+              "opening": "你們來到中正公園了，陽光之巖的夜晚真美麗!",
+              "success": "你們的創意攝影作品真好看，中山堂的晚光將永遠在我的心中"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在中山堂的陽光之巖上拍攝創意攝影作品，利用夜晚的光線和中正公園的美麗景象，展現您的攝影技巧!",
+                "task_hint": "注意中正公園的景象，利用夜晚的光線來照亮主題，拍攝出最美麗的圖片!",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/9efba7e133b7458f8e3cd0cd8c9bf9e0",
+      "queue_position": null
+    }
+  }
+}

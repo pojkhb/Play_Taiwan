@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-19 22:09:12.230",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "新北市",
+      "district_name": "板橋區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊",
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "419e3069-fefd-4943-89c8-95837c706a8d",
+          "p_name": "新北市市民廣場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "f7181518-e0fa-4149-b7c8-f2b79f9bebc1",
+          "p_name": "電幻1號所",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "25554769-e243-4934-8468-aa8d778a67fe",
+          "p_name": "板橋黃石市場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ee00f730-0fc6-4299-a2de-59c525ec18ef",
+          "p_name": "林本源園邸",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "d5ad1fdc-c53f-40f1-8c5d-e3ab24c3a7e9",
+          "p_name": "板橋慈惠宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "661d51f5-c5d8-4c0c-9682-3e7a7599ecd4",
+          "p_name": "板橋放送所",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "f88bde3d-26cf-4625-8ef1-a364fc4ba64f",
+          "p_name": "海山神社遺跡",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "2bf6ab4f-c67d-4fd2-9590-a5f9b0e9e936",
+          "p_name": "員山公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "9894ee0b20ba4fc5be6fbf74f78af826",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792418952.2311263,
+      "updated_at": 1792418952.2311263,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/9894ee0b20ba4fc5be6fbf74f78af826",
+      "queue_position": 1
+    }
+  }
+}

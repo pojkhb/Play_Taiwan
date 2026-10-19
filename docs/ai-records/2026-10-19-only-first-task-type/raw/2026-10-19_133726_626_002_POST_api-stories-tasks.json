@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-19 13:37:26.626",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "北區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動",
+        "尋訪味蕾"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "d752e19d-709d-471e-96a4-48779d0a6e46",
+          "p_name": "中正公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "14ec2419-b9e9-4182-b719-5ac012ce823e",
+          "p_name": "1035 collab",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "a5f5ec00-e4a4-451e-84a3-50433b511913",
+          "p_name": "郵政博物館臺中館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "1e1d7cf4-d347-4bdf-b9b1-7bc98848cd71",
+          "p_name": "國立臺灣體育運動大學體育場館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "394e09e3-6736-4d3c-936c-6448be9c407e",
+          "p_name": "昌平路皮鞋街",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "870c07cb-a0c8-4886-be96-3543d33d6b78",
+          "p_name": "八二三紀念公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "536ee4ca-007f-40e9-a09b-8d4d772d0bbd",
+          "p_name": "積善樓",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "bdb0e42a-9fa8-44c0-8681-cc41f789e92a",
+          "p_name": "臺中市立圖書館興安分館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6e198aea0b7f4bf689a2d9dcd8c94c85",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792388246.627236,
+      "updated_at": 1792388246.627236,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/6e198aea0b7f4bf689a2d9dcd8c94c85",
+      "queue_position": 1
+    }
+  }
+}

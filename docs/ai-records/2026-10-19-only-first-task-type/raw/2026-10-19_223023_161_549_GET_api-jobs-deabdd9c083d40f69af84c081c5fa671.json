@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 22:30:23.161",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/deabdd9c083d40f69af84c081c5fa671",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "deabdd9c083d40f69af84c081c5fa671",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792419994.6866722,
+      "updated_at": 1792420085.1090672,
+      "result": {
+        "story": {
+          "story_title": "安平夜晚的光影旅程",
+          "story_prologue": "霓霓的藝術筆觸在安平夜晚的光影中，描繪了一個充滿懷疑的故事。",
+          "story_synopsis": "尋找家書的路上，霓霓與玩家一起穿越安平的歷史街區，追尋一封寄不出去的家書。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "霓霓",
+          "role": "對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索",
+          "intro": "霓霓（第三人稱）是一位對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索。她的目標是與玩家一起解開安平夜晚的秘密，找到一封寄不出去的家書。"
+        },
+        "nodes": [
+          {
+            "place_id": "9e8008eb-16ee-4c0d-970e-ce88525435ce",
+            "sn_order": 1,
+            "sn_title": "河樂廣場的光影",
+            "location_codename": "夜光之都",
+            "sn_opening_text": "你們來到河樂廣場，原中國城的遺蹤。霓霓等你們，來一起探索這個夜晚的光影。",
+            "sn_success_text": "完成了！你們在河樂廣場捕捉到了美麗的光影，霓霓很高興!",
+            "dialogues": {
+              "opening": "我是霓霓，對美感與光影極度敏銳的街頭藝術家。我知道這裡有許多美麗的光影，等你們來一起發現!",
+              "success": "你們的創意攝影很棒！你們在河樂廣場捕捉到了許多美麗的光影，我很高興能夠與你們一起分享這個經歷!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在河樂廣場的夜晚中，尋找美麗的光影，拍攝你們的創意攝影!",
+                "task_hint": "在河樂廣場的夜晚中，注意到許多美麗的光影。拍攝你們的創意攝影，霓霓會給你們一些提示!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fbc19c97-6b74-4bc9-9620-d913ae14e582",
+            "sn_order": 2,
+            "sn_title": "淺草新天地的光影之夜",
+            "location_codename": "夜花巷",
+            "sn_opening_text": "你們來到淺草新天地，霓霓在等著你們，，街頭藝術的世界將對你們開啟新的視野",
+            "sn_success_text": "你們完成了創意攝影任務，霓霓感覺到你的創意之力",
+            "dialogues": {
+              "opening": "你們來到淺草新天地，夜花巷的光影與美感將為你們帶來新奇的感受",
+              "success": "你們完成了創意攝影任務，霓霓覺得你的拍攝技巧非常出色"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在淺草新天地的夜花巷中，找到和拍攝最美麗的光影",
+                "task_hint": "觀察夜花巷的街燈、路燈和花燈，找到最美麗的光影",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "0024a175-b964-406e-a17d-2be96b18a750",
+            "sn_order": 3,
+            "sn_title": "留聲的時光隧道",
+            "location_codename": "時光隧道",
+            "sn_opening_text": "你們來到文鼎留聲博物館，霓霓今天要帶你們進入一個「留聲的時光隧道」，來探索這個博物館的秘密吧!",
+            "sn_success_text": "你們成功完成了創意攝影任務，留下了許多美麗的留聲影象!",
+            "dialogues": {
+              "opening": "你們來到文鼎留聲博物館了！我是霓霓，對美感與光影極度敏銳的街頭藝術家。今天，我們要一起解開安平夜晚的秘密，找到一封寄不出去的家書。",
+              "success": "你們完成了任務，找到了一封寄不出去的家書！這是安平夜晚的秘密，現在你們知道了它的故事。霓霓感謝你們的協助!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找家書的路上，霓霓與你們一起穿越安平的歷史街區，追尋一封寄不出去的家書。這是一個創意攝影型任務，要求你們在博物館中找到適合的留聲影象",
+                "task_hint": "你們可以在博物館中觀看留聲小劇場，聽到不同時代的聲音演出。也可以在博物館內的各個展區中尋找留聲機和音樂盒，來拍攝留聲影象",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "f0d7e924-b4d1-49a1-8a56-65c90cba159a",
+            "sn_order": 4,
+            "sn_title": "夜間的光影",
+            "location_codename": "夜市之光",
+            "sn_opening_text": "我們現在停在了土地銀行臺南分行前面，霓霓說：",
+            "sn_success_text": "你成功拍攝了光影的美景!",
+            "dialogues": {
+              "opening": "你看，這裡是中正路的亮點之一，土地銀行的希臘神殿式建築，夜晚的光影非常特別",
+              "success": "你拍攝了光影的美景，我覺得你對夜間的美感感覺非常好"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡拍攝光影的美景，霓霓會給你一個創意攝影的",
+                "task_hint": "霓霓會說：你可以在這裡拍攝一些與土地銀行的關聯的光影，例如：地面上的光影，建築物的影子，夜晚的燈光",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9ab929ec-44d9-48ed-b72c-5744a85280e5",
+            "sn_order": 5,
+            "sn_title": "林百貨的光影秘密",
+            "location_codename": "夜空之城",
+            "sn_opening_text": "你們來到臺南林百貨，霓霓在等著你們。這裡是林百貨的夜晚景象，你們要做的第一步是解開這個秘密",
+            "sn_success_text": "你們成功解開了林百貨的光影秘密，霓霓很高興!",
+            "dialogues": {
+              "opening": "你們來到臺南林百貨了，夜晚的光影真美麗。林百貨是臺南的文化臺南，讓我們一起來探索這裡的秘密",
+              "success": "你們解開了林百貨的光影秘密，我很高興。現在你們有了更多的線索來追尋家書"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要拍攝林百貨的夜晚景象，將其變成一幅美麗的光影畫面",
+                "task_hint": "注意觀察林百貨的燈光和建築物，將其拍攝成一幅美麗的光影畫面",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "78621d22-0b4a-4618-803c-d475070f62ef",
+            "sn_order": 6,
+            "sn_title": "夜間燈",
+            "location_codename": "水花巷",
+            "sn_opening_text": "你們來到開基臨水夫人媽廟了，現在是夜晚，廟前圍繞著一圈燈，霓霓眼裡亮亮的，讓你們覺得這裡真的是一處神奇的地方。",
+            "sn_success_text": "你們完成了創意攝影任務，現在霓霓就等著你們的照片了！來看她們的作品吧！",
+            "dialogues": {
+              "opening": "你們來到這裡了，讓我帶你們在這裡的光影世界中找到家書的路徑！我叫霓霓，對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索！",
+              "success": "你們找到家書了！這封信是你們家人寄不出去的，霓霓在這裡幫你們找到它！你們的創意攝影作品也很好看，我們還能一起在這裡拍攝更多的照片！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在開基臨水夫人媽廟的燈前拍攝創意攝影作品",
+                "task_hint": "在這裡拍攝可以用燈作為背景，霓霓也可以幫你們找到一些美感的光影效果",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "b78545e0-a0e1-497d-927c-a985e6730e7d",
+            "sn_order": 7,
+            "sn_title": "藍曬圖之夜",
+            "location_codename": "夜光牆",
+            "sn_opening_text": "你們來到藍曬圖文創園區，夜晚的光彩在牆面上四射，老樹打著黃色燈光，成為了臺南夜間的亮點。",
+            "sn_success_text": "你們成功拍攝了光影美麗的藍曬圖，霓霓對你們的攝影技巧很印象深刻!",
+            "dialogues": {
+              "opening": "你們來到藍曬圖文創園區了嗎？這裡的光影真的是美麗，尤其是在夜晚!",
+              "success": "哇，你們拍攝的光影真的是很好！我可以看到你們的創意在每一張圖片中!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在藍曬圖文創園區拍攝一張包含霓霓身影的光影美麗的藍曬圖!",
+                "task_hint": "你們可以在老樹下拍攝，或者是尋找一些特殊的角度，讓霓霓的身影成為了圖片的主角!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "cb634615-c823-400b-888e-6ad82b04bdf4",
+            "sn_order": 8,
+            "sn_title": "光影之夜的客家風情",
+            "location_codename": "燈籠之巔",
+            "sn_opening_text": "你們來到臺南市客家文化會館，霓霓在等著你們!",
+            "sn_success_text": "你們成功完成了光影攝影任務!",
+            "dialogues": {
+              "opening": "夜晚的光影，真的是最美的時光！你們來到這裡，正好要拍攝一張光影照!",
+              "success": "哇，太棒了！你們的光影攝影真的很出色！這封家書，我要寄給我的朋友了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，霓霓要你們幫忙拍攝一張光影照，讓她能夠寄出一封家書!",
+                "task_hint": "注意到景點中的燈籠和紙傘，能夠用它們來創造出一些美麗的光影效果!",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/deabdd9c083d40f69af84c081c5fa671",
+      "queue_position": null
+    }
+  }
+}

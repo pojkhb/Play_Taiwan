@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-19 22:09:12.235",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "新北市",
+      "district_name": "板橋區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊",
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "bfb14a07-418b-4b95-b78c-0929a768afcf",
+          "p_name": "新北市政府景觀瞭望台",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "e2a51413-9a9a-40cd-9626-35ce65651ac9",
+          "p_name": "新板特區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "584749be-cdf2-48a6-b18d-934e98e5c26f",
+          "p_name": "板橋火車站旅遊服務中心",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "34f53918-717b-4a88-bf25-ae6e381bee71",
+          "p_name": "山宛然客家布袋戲團",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "20966ca7-ba15-4c0d-89fb-bd660e869e4d",
+          "p_name": "新北市藝文中心",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9b5eab40-474b-4dff-b654-988bfd6c4792",
+          "p_name": "板橋435藝文特區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "52a22d61-747f-4a6f-85c8-502da9f79081",
+          "p_name": "迪毅堂",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ed914b07-3c6a-47f4-8f0f-9b2add3e6190",
+          "p_name": "玉美人孕婦裝觀光工廠",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "5b1202e71cc14020beb2cdd60021d7c0",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792418952.2359033,
+      "updated_at": 1792418952.2359033,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/5b1202e71cc14020beb2cdd60021d7c0",
+      "queue_position": 2
+    }
+  }
+}

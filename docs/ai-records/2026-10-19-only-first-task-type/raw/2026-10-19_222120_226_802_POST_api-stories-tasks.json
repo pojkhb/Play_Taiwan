@@ -1,0 +1,201 @@
+﻿{
+  "time": "2026-10-19 22:21:20.226",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "北區",
+      "party_size": 5,
+      "s_tag": [
+        "家庭出遊"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "df34471b-d15f-4dd7-ada3-792e9333d1f4",
+          "p_name": "元保宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "7f1c165c-1c37-4403-9076-0fd47c4f8649",
+          "p_name": "臺灣民俗文物館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ad71960d-7324-440c-80d8-e892ee47f3ea",
+          "p_name": "一德洋樓ˍ台中市歷史建築林懋陽故居",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "bc3672fc-db94-489d-a6b4-e91376a65e18",
+          "p_name": "臺中市眷村文物館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "43ce0782-6cc0-401d-b43d-5ec5fde4ca86",
+          "p_name": "臺中市長公館ˍ不老夢想125號",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5d95086b-b5ea-4456-b9c2-f759a05eaf21",
+          "p_name": "一中商圈",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "5e3a5df5-d836-4926-b805-0becdf660ec0",
+          "p_name": "臺中科技大學隨機貓貓",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+          "p_name": "柳原教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2022,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "c84718373ab3453184d5b13d2bfecf6a",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792419682.2477148,
+      "updated_at": 1792419682.2477148,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/c84718373ab3453184d5b13d2bfecf6a",
+      "queue_position": 1
+    }
+  }
+}

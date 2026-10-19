@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-17 18:30:57.000",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "澎湖縣",
+      "district_name": "中興里",
+      "party_size": 1,
+      "s_tag": [
+        "尋訪味蕾",
+        "文學建築"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "d2c392c9-3624-4629-a701-31852105eced",
+          "p_name": "澎湖醫院&關稅局馬公支關",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "6a6d6dbe-11ae-42a4-a634-67cea37d3e48",
+          "p_name": "馬公金龜頭礮臺",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "c278c050-c8cc-42d8-abe9-b3f7c0170cff",
+          "p_name": "澎湖天后宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "095b55d3-cbd2-439a-bec8-8d99e5149c0f",
+          "p_name": "某個角落",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "3b604255-d3eb-4d62-bd51-130c4941711a",
+          "p_name": "南海遊客中心",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "1c89f0cb-7482-4bc4-ae92-fc529b2a1c19",
+          "p_name": "媽宮黑糖糕觀光工廠",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "c9465c09-1746-40f9-b6ee-2d9018278b3a",
+          "p_name": "澎湖生活博物館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "82c50ce7-ab21-40de-9db7-38e4c3393d4a",
+          "p_name": "重光里˙凌霄寶塔",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2048,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "f88d24921201452d86872e5134dbf4bd",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792233059.0455976,
+      "updated_at": 1792233059.0455976,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/f88d24921201452d86872e5134dbf4bd",
+      "queue_position": 1
+    }
+  }
+}

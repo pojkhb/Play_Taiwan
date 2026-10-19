@@ -1,0 +1,202 @@
+﻿{
+  "time": "2026-10-19 13:58:20.088",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺南市",
+      "district_name": "安平區",
+      "party_size": 8,
+      "s_tag": [
+        "好友結伴",
+        "探險運動"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "9e8008eb-16ee-4c0d-970e-ce88525435ce",
+          "p_name": "河樂廣場(原中國城)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5b4fcbef-ce75-4652-9cc9-1b573a4efee3",
+          "p_name": "臺南彩虹地景(中西區-海安路-友愛街口與中正路口之中軸地帶)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "8949fea6-f571-4609-b3ba-a547e300c2fc",
+          "p_name": "看西街長老教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "c122a455-9ec5-4e5c-b862-c297b369e0d8",
+          "p_name": "水仙宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "4668840d-000f-4180-a1b1-09afb20bf5f2",
+          "p_name": "普濟殿",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "8df8475a-83e2-41fb-bddd-4089acf33570",
+          "p_name": "88藝療所",
+          "is_hotel": 1,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "0a8529c2-58eb-47ef-983e-2db7bd305170",
+          "p_name": "金華府",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "061b30a2-34c1-4425-919d-c58a4a21dd24",
+          "p_name": "神農街",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2037,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "02ef09dc81074b1da257311db94471c2",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792389502.1226754,
+      "updated_at": 1792389502.1226754,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/02ef09dc81074b1da257311db94471c2",
+      "queue_position": 1
+    }
+  }
+}

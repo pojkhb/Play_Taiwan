@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 14:00:52.469",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/02ef09dc81074b1da257311db94471c2",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "02ef09dc81074b1da257311db94471c2",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792389502.1226754,
+      "updated_at": 1792389567.900998,
+      "result": {
+        "story": {
+          "story_title": "张三闰的鹋机",
+          "story_prologue": "在安平區河樂廣場的中國城，珍奶奶記得有誰在這裡尋找過一份遺忘的家書...",
+          "story_synopsis": "尋找家書的路上，珍奶奶要請你幫助她找到這份老家的關鍵",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "珍奶奶",
+          "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+          "intro": "珍奶奶：她掌管安平區的記憶與失落古老配方的守密人，四十年來對這裡的變遷留下了深刻的印象，熱心為旅客提供導航，希望能夠讓旅客在她帶領下找到自己所尋找的路徑"
+        },
+        "nodes": [
+          {
+            "place_id": "9e8008eb-16ee-4c0d-970e-ce88525435ce",
+            "sn_order": 1,
+            "sn_title": "尋路的開始",
+            "location_codename": "緑心",
+            "sn_opening_text": "我們現在站在河樂廣場，台南的老城門前",
+            "sn_success_text": "旅程已經開始，珍奶奶將帶領你找到家書",
+            "dialogues": {
+              "opening": "你好，來自四十年前，掌管安平區的記憶與失落古老配方的守密人，珍奶奶",
+              "success": "旅程已經開始，珍奶奶將帶領你找到家書"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在河樂廣場拍攝你和珍奶奶一起站在原中國城門前",
+                "task_hint": "珍奶奶會給你一個古老的門匾，幫助你找到正確的位置",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5b4fcbef-ce75-4652-9cc9-1b573a4efee3",
+            "sn_order": 2,
+            "sn_title": "尋找家書的路上：彩虹地景",
+            "location_codename": "虹橋",
+            "sn_opening_text": "我們現在出現在中西區的彩虹地景，中軸地帶的友愛街口與中正路口之間。這裡是台南市政府支持多元性別家庭的重要象徵，同時也是一個熱闊的遊戲區域。",
+            "sn_success_text": "你們成功拍攝了彩虹地景的美麗景象!",
+            "dialogues": {
+              "opening": "你來到了彩虹地景，我們可以一起找到你珍愛的家書的路徑了。",
+              "success": "我真的感激你幫助我找到這份老家的關鍵，我知道這樣你們就能夠找到你珍愛的家書了。這裡的記憶和失落古老配方都是我所掌管的，希望你們能夠在這裡找到你們的路徑。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在彩虹地景中拍攝一張包含彩虹地景的美麗景象。",
+                "task_hint": "你們可以在這裡觀察到多元性別家庭的多樣性和台南市政府支持的婚姻平權。試著拍攝彩虹地景的不同角度，找到最美麗的景象！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8949fea6-f571-4609-b3ba-a547e300c2fc",
+            "sn_order": 3,
+            "sn_title": "尋找家書的路上",
+            "location_codename": "古都之巒",
+            "sn_opening_text": "我們現在停在了看西街長老教會，聽說這裡有許多神秘的故事",
+            "sn_success_text": "你終於找到了一份老家的關鍵，珍奶奶非常開心",
+            "dialogues": {
+              "opening": "你看我這個老人，四十年來一直守護這裡的記憶，為了旅客提供導航",
+              "success": "你終於找到了一份老家的關鍵，珍奶奶非常開心"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請你找到在看西街長老教會的老舊木板上刻著的字樣",
+                "task_hint": "這裡有許多神秘的故事，老年教師可能知道一些相關的資訊",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "c122a455-9ec5-4e5c-b862-c297b369e0d8",
+            "sn_order": 4,
+            "sn_title": "水仙宮的秘密",
+            "location_codename": "海洋之巖",
+            "sn_opening_text": "我們到了水仙宮，珍奶奶正等待我們!",
+            "sn_success_text": "珍奶奶很高興能夠與我們分享這份老家的秘密",
+            "dialogues": {
+              "opening": "我們來到這裡，水仙宮的氛圍很豐富，非常適合拍攝!",
+              "success": "這裡的景色非常美麗，對於攝影來說是很好的選擇"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "珍奶奶希望我們在這裡拍攝一些與水仙宮相關的照片",
+                "task_hint": "珍奶奶提到，水仙宮的水仙尊王的形象非常美麗，可能是拍攝的好地方",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4668840d-000f-4180-a1b1-09afb20bf5f2",
+            "sn_order": 5,
+            "sn_title": "尋找家書的路上：風水中心的秘密",
+            "location_codename": "風網",
+            "sn_opening_text": "我們現在位於普濟殿，風水中心的八卦網中。珍奶奶在這裡等待著我們，希望能夠幫助我們找到家書的路徑。",
+            "sn_success_text": "我們完成了尋找家書的任務！珍奶奶非常感謝我們的幫助。這個過程讓我們發現了台南府城的風水中心和普濟殿的重要性。",
+            "dialogues": {
+              "opening": "好，好，讓我們在這裡休息一會兒。這裡的風水中心是一個非常重要的位置，能夠幫助我們找到家書的路徑。",
+              "success": "謝謝你們的幫助！這個任務是非常重要的，讓我們能夠找到家書的路徑。我們的工作將更加順暢了。讓我們再次感謝你們的幫助!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在普濟殿，尋找家書的路徑。珍奶奶將提供我們一些線索，幫助我們找到家書的路徑。",
+                "task_hint": "觀察普濟殿的風水中心，了解它的意義。珍奶奶將提供我們一些線索，幫助我們找到家書的路徑。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8df8475a-83e2-41fb-bddd-4089acf33570",
+            "sn_order": 6,
+            "sn_title": "88藝療所之旅",
+            "location_codename": "新光之家",
+            "sn_opening_text": "我們現在就出發，讓我們來體驗一下88藝療所的文化和藝術!",
+            "sn_success_text": "我們完成了創意攝影任務，珍奶奶非常自豪!",
+            "dialogues": {
+              "opening": "你們來到88藝療所了，我是珍奶奶，我將幫助你們找到家書的路徑。",
+              "success": "我知道你們要找到家書的路徑，我將給你一個小的關鍵，幫助你們找到它!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在88藝療所，你們需要完成創意攝影任務，拍攝這裡的文化和藝術，珍奶奶會給你一個小的指導。",
+                "task_hint": "你們可以在這裡拍攝任何你喜歡的文化和藝術，例如燈會、藝術展場、兒童合唱團等，珍奶奶會給你一個小的指導，幫助你們完成任務。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "0a8529c2-58eb-47ef-983e-2db7bd305170",
+            "sn_order": 7,
+            "sn_title": "珍奶奶的古老秘密",
+            "location_codename": "神農之巖",
+            "sn_opening_text": "我們現在到了金華府，四十年來珍奶奶一直在這裡為旅客提供導航，希望能夠讓旅客在她帶領下找到自己所尋找的路徑",
+            "sn_success_text": "珍奶奶感激您的幫助，現在我們可以進一步尋找家書的路徑",
+            "dialogues": {
+              "opening": "你們現在到了金華府，珍奶奶將為你們帶領下找到家書的路徑",
+              "success": "我感激您的幫助，現在我們可以進一步尋找家書的路徑"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請與珍奶奶討論金華府的歷史，了解這裡的古老配方",
+                "task_hint": "請觀察金華府的建築，尋找與家書相關的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "061b30a2-34c1-4425-919d-c58a4a21dd24",
+            "sn_order": 8,
+            "sn_title": "神農街的秘密",
+            "location_codename": "港口之光",
+            "sn_opening_text": "我們到了神農街，神農街是台南五條港區域的重要河港入口，從清朝時代起就是這裡的重要商業中心",
+            "sn_success_text": "你找到家書了！珍奶奶非常高興，感謝你幫助她找到這份老家的關鍵",
+            "dialogues": {
+              "opening": "好好的，你們到了神農街了，這是一個非常重要的河港入口，當時的商賈都從這裡進出台南",
+              "success": "你找到家書了！我非常高興，感謝你幫助我找到這份老家的關鍵"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找家書的路上，你們現在到了神農街，珍奶奶在這裡等待著你們",
+                "task_hint": "在神農街，你可以看到許多老舊的建築物和商店，珍奶奶會給你一些線索，幫助你找到家書",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/02ef09dc81074b1da257311db94471c2",
+      "queue_position": null
+    }
+  }
+}

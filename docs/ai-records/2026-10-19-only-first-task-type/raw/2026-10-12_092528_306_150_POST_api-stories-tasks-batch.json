@@ -1,0 +1,1120 @@
+﻿{
+  "time": "2026-10-12 09:25:28.306",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks/batch",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "澎湖縣",
+      "district_name": "中興里",
+      "party_size": 2,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "stories": [
+        {
+          "story_no": 1,
+          "nt_name": "幽默詼諧",
+          "places": [
+            {
+              "place_id": "b013169b-a0f9-4d39-ab1a-ecf6940ace34",
+              "p_name": "馬公港 漁人碼頭",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "4d7cd115-4efd-4dd2-b784-72bfcd4a8625",
+              "p_name": "山水沙灘",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "706c2593-8571-4f4d-a32f-f00a21ec87e6",
+              "p_name": "蔡廷蘭進士第",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "a6bbdeb4-3d9c-4611-bd54-5a351048c575",
+              "p_name": "澎湖機場旅遊服務中心",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "3d7f7ba6-9b11-4d97-85dc-94d2174e0f07",
+              "p_name": "龍門南崁閉鎖陣地",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "8510f03d-d824-4baf-bd2e-e3f6a3f61fc6",
+              "p_name": "青螺溼地",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "1e0e7ecc-9c43-402d-b959-e46a8497a56b",
+              "p_name": "安宅里˙嶼仔尖塔",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "1748e0aa-b7ad-4a42-acb1-080d675a5a7d",
+              "p_name": "澎湖跨海大橋",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "nt_name": "溫情走心",
+          "places": [
+            {
+              "place_id": "d217ec96-44f6-4147-9c54-5d374baedd1c",
+              "p_name": "觀音亭親水遊憩區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "e3337bb5-e848-40a2-8693-3324bd668048",
+              "p_name": "澎湖輪碼頭",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "885ec3c2-453b-4719-82fe-867ffa5af86d",
+              "p_name": "陽光阿有浮潛",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "7ca8aaa0-952f-4029-aef8-08a9168b5ef3",
+              "p_name": "菜園自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "db39f4fb-f32b-4279-a653-b8e1a4647d43",
+              "p_name": "澎湖龜壁港社",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "b574690d-386a-4d8e-92ce-ad4a0b94425c",
+              "p_name": "北海遊客中心",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "c30af6f5-0a4f-453f-bf39-5747cfa4b385",
+              "p_name": "通梁古榕",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "d7a3e93d-bdb7-43df-9ac1-e87491a2462f",
+              "p_name": "網垵沙灘(夢幻沙灘)",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "nt_name": "質感專業",
+          "places": [
+            {
+              "place_id": "b8689a45-976b-4240-a270-4903c4cad843",
+              "p_name": "澎湖海洋地質公園中心",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "6426ff0c-bce8-43d8-bd5e-9f1238023f8a",
+              "p_name": "東衛石雕公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "2fc6614d-0610-4522-846a-b9ecf3fce2a6",
+              "p_name": "離島出走 isle.travel studio",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "4443baf0-6579-4548-8f07-78a283549d33",
+              "p_name": "南寮古厝群",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "0ead50c7-15b3-4506-b587-8b2cd2957f7b",
+              "p_name": "沙港村˙花後塔",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "4aed947b-1e9f-46c0-86a0-95d444c05e7e",
+              "p_name": "中屯風力園區自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "b1ca6d7e-4b3b-4489-b2a3-492db06f07f2",
+              "p_name": "竹灣",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "5566cfa4-5a89-4f7f-9b88-46496747fb45",
+              "p_name": "小門村˙中營石塔",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 67834,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "stories": [
+        {
+          "story_no": 1,
+          "story": {
+            "story_title": "海灘的秘密",
+            "story_prologue": "在山水沙灘的陽光下，無人知道一本書的故事。",
+            "story_synopsis": "尋找書本的主人，找到海灘的真相。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿吉伯",
+            "role": "外冷內熱的傳統工藝老師傅，重視手作與傳承",
+            "intro": "阿吉伯，外冷內熱的傳統工藝老師傅，重視手作與傳承，年輕時曾經在這個海灘上學習海灘工藝，現在則在馬公港漁人碼頭工作，希望能夠將傳統工藝傳給下一代。"
+          },
+          "nodes": [
+            {
+              "place_id": "b013169b-a0f9-4d39-ab1a-ecf6940ace34",
+              "sn_order": 1,
+              "sn_title": "漁人碼頭的夜晚",
+              "location_codename": "碼頭燈塔",
+              "sn_opening_text": "你站在漁人碼頭的夜晚，燈塔上方的燈光閃動著，海風吹過，海水的聲音在耳朵裡，人們的話語在夜晚的空氣中，像一抹模糊的影子，遠遠看起來像是海灘上的海滩燈",
+              "sn_success_text": "你拍下了照片，畫框裡的空白畫框被你填滿了，燈塔的燈光照在你的面前，海灘上的海滩燈也逐漸亮起，夜晚的海灘就這樣一片光明",
+              "dialogues": {
+                "opening": "你走進來了，阿吉伯！你是來找我嗎？我在這裡等著你，希望能夠將傳統工藝傳給你",
+                "success": "你拍得真好！這張照片就好好掛在壁上，讓人們看到海灘的真相，現在我們可以開始尋找書本的主人"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到一個你們覺得最適合當畫作的角落，兩人一起入鏡拍一張照片",
+                  "task_hint": "你可以在碼頭燈塔的周圍找到一些好拍的角度，或者是那些老舊的船舶，還是海灘上的燈塔，讓你的照片充滿了海灘的感覺",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "4d7cd115-4efd-4dd2-b784-72bfcd4a8625",
+              "sn_order": 2,
+              "sn_title": "海灘的秘密",
+              "location_codename": "海灘沙灘",
+              "sn_opening_text": "走進這個海灘，眼前是金灘金沙，天空下降的陽光，海浪在遠處咕咕咕，讓人感到放鬆，但你注意到一個老舊的書桌，書本的封面上有一個雜亂的字樣，好像是書本的主人在急忙逃跑時扔下來的。",
+              "sn_success_text": "你們的創意攝影照片被阿吉伯認可，得到了一本關於海灘工藝的古書，古書裡有許多圖示和說明，讓你們更深入了解海灘的秘密。",
+              "dialogues": {
+                "opening": "阿吉伯在看你們的創意攝影照片時，說：'這些照片不錯，能不能用這些角度拍出來的?'，然後他又說：'這裡的秘密不會在這裡',",
+                "success": "'好吧，你們完成了，古書裡有關海灘工藝的部分，現在我要帶你們去一個地方，能夠更好地了解海灘的真相。',"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要找到一個你們覺得最適合當畫作的角落，兩人一起入鏡拍一張照片，拍照後你們需要把照片送給阿吉伯，讓他評估你的創意攝影能力",
+                  "task_hint": "你們可以在這裡找到一些適合拍攝的角落，例如海灘上的雕塑、海灘沙灘上的海洋生物等，拍攝後你們需要把照片送給阿吉伯，讓他評估你的創意攝影能力",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "706c2593-8571-4f4d-a32f-f00a21ec87e6",
+              "sn_order": 3,
+              "sn_title": "海灘的書本",
+              "location_codename": "海灘書架",
+              "sn_opening_text": "你走進這個小海灘，眼前的是一排書架，書架上書籍的書名都與海灘有關。",
+              "sn_success_text": "你找到了一本書，書名叫做『海灘的秘密』，裡面有許多線索，跟著書中的路線，你就能找到下一站的線索。",
+              "dialogues": {
+                "opening": "你來到這個小海灘，我在這裡工作，現在正在準備下個節點。",
+                "success": "你找到書本了，裡面有許多線索，記得書中提到的海灘工藝，跟著書中的路線，你就能找到下一站的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你在海灘上找到了一本書，書名叫做『海灘的秘密』，裡面有許多線索。",
+                  "task_hint": "你可以在書架上找到書籍，找到書本後，你就可以開始下一個步驟。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "a6bbdeb4-3d9c-4611-bd54-5a351048c575",
+              "sn_order": 4,
+              "sn_title": "旅遊服務中心的夜晚",
+              "location_codename": "機場燈塔",
+              "sn_opening_text": "你們抵達的澎湖機場旅遊服務中心已經關閉了，燈塔上的燈光照亮了整個海灘，夜晚的海浪聲與燈塔的閃亮光芒交錯在一起，空氣中充滿著海盜的氣味。",
+              "sn_success_text": "你們在燈塔旁拍了照片，燈塔的燈光照亮了燈塔旁的書籍，書籍的書名是『海灘的秘密』，燈塔的閃亮光芒也照亮了你的方向。",
+              "dialogues": {
+                "opening": "你來了，還是來的嗎？我是阿吉伯，外冷內熱的傳統工藝老師傅，現在在這裡工作。",
+                "success": "你們找到書籍的主人了？那就是我，阿吉伯。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在燈塔旁拍了一張照片，燈塔的燈光照亮了書籍的書名。",
+                  "task_hint": "你們需要在燈塔旁找到書籍，然後拍一張照片，燈塔的燈光會照亮書籍的書名。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "3d7f7ba6-9b11-4d97-85dc-94d2174e0f07",
+              "sn_order": 5,
+              "sn_title": "夜晚的海灘",
+              "location_codename": "海灘燈",
+              "sn_opening_text": "你抵達的海灘夜晚，燈塔上燒著一支大火，燈塔周圍的海灘沙子上有許多小燈點亮，海浪在海灘上拍打著水花，空氣中有海洋的香味，夜晚的海灘看起來很靜謐，除了燈塔上的火焰和海浪拍打的聲音外，還有不遠處的海灘小店的燈光，讓夜晚的海灘變得更為迷人。",
+              "sn_success_text": "你們的攝影完成了，燈塔上的火焰和海灘燈點亮的效果都很美好，阿吉伯給你一本海灘的日記，說要繼續探索海灘的秘密。",
+              "dialogues": {
+                "opening": "你來到這裡，應該能夠找到一本書，裡面記載著海灘的秘密，來自哪裡呢？",
+                "success": "這本書裡記載著海灘的歷史，包括海灘的開發和海灘工藝，讓你們有更深入的了解，繼續探索吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在燈塔旁邊，找到一本書，書裡記載著海灘的秘密",
+                  "task_hint": "你們可以在燈塔旁邊的書架上找到這本書，找到書後可以開始阅读，了解海灘的秘密",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "8510f03d-d824-4baf-bd2e-e3f6a3f61fc6",
+              "sn_order": 6,
+              "sn_title": "海灘的秘密",
+              "location_codename": "海灘邊緣的老木桿",
+              "sn_opening_text": "走進這個地方，眼前一片沼水，周圍的水草綠蔓，遠處能聽到海浪的咔嗒聲。",
+              "sn_success_text": "你們找到了一本老舊的海灘日記，裡面提到了書本的主人。",
+              "dialogues": {
+                "opening": "你來到這裡，應該是要找我了。",
+                "success": "現在你知道了書本的主人是誰了？"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這片沼水中，找到一根老木桿，拍一張與木桿相關的照片。",
+                  "task_hint": "木桿上有許多海灘日記的標記，可能能找到線索",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "1e0e7ecc-9c43-402d-b959-e46a8497a56b",
+              "sn_order": 7,
+              "sn_title": "書房的秘密",
+              "location_codename": "書房",
+              "sn_opening_text": "你走進這間書房，眼前就是一間充滿書籍的小屋，書架上書籍的書名和作者一律用大字體書寫，空間中充滿著書香，書房裡的燈光溫暖，像一間家中的溫暖小屋。",
+              "sn_success_text": "你在書房裡找到了一本書，書本的封面上有個小畫框，裡面畫了一隻海鷗，畫框的下面有個小字，說著：『阿吉伯的作品』。",
+              "dialogues": {
+                "opening": "你來到我家了？這裡是我的書房，裡面有我所有的作品。",
+                "success": "你找到我作品的書本了？這是一本非常珍贵的書，裡面有我所有的海灘工藝知識。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你在書房裡找到了一本書，書本的封面上有個小畫框，裡面畫了一隻海鷗，畫框的下面有個小字，說著：『阿吉伯的作品』。",
+                  "task_hint": "你可以在書房裡找到書本，然後在書本的封面上找到畫框和小字",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "1748e0aa-b7ad-4a42-acb1-080d675a5a7d",
+              "sn_order": 8,
+              "sn_title": "橋上夜晚的幻想",
+              "location_codename": "夜晚橋上",
+              "sn_opening_text": "你走進這個夜晚，橋上空暢暢的橋面下降到海面，橋上燈光閃躲，空氣中充滿著海洋的濕氣味，橋下海水淚般的流動聲音在夜晚的空氣中回聲延長。",
+              "sn_success_text": "你們的照相機拍下了橋上最美麗的夜景，橋上燈光閃躲的光線如同一場幻想的舞蹈，橋下海水淚般的流動聲音在夜晚的空氣中回聲延長。",
+              "dialogues": {
+                "opening": "你來到這裡，阿吉伯就在這裡，橋上燈光閃躲，空氣中充滿著海洋的濕氣味。",
+                "success": "你們的照相機拍下了橋上最美麗的夜景，阿吉伯看著你們的照片，心中一片滿足。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要走在夜晚的橋上，找到橋上最美麗的夜景，拍攝它。",
+                  "task_hint": "你可以在橋上走到橋下，找到橋下海水淚般的流動聲音，拍攝這種美麗的夜景。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "story": {
+            "story_title": "海邊的懷念",
+            "story_prologue": "陽光洩落在澎湖的海面，阿達力在此等待著你的到來。",
+            "story_synopsis": "尋找失落的照片，為家人重溫懷念。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿達力",
+            "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+            "intro": "阿達力，四十年來在這個小鎮的書攤老闆，對這座小鎮的每個角落都熟稔，對每個人的故事都有所所知。"
+          },
+          "nodes": [
+            {
+              "place_id": "d217ec96-44f6-4147-9c54-5d374baedd1c",
+              "sn_order": 1,
+              "sn_title": "海濠之星",
+              "location_codename": "海濠燈塔",
+              "sn_opening_text": "晚上來到這裡，海濠燈塔的燈光映在水面上，像一道金屬的光線，下面有個小小的觀音亭，裡面坐著一位老人，面露懷念。",
+              "sn_success_text": "你們拍下的照片裡的老人面容，似乎與你們的母親相似。",
+              "dialogues": {
+                "opening": "你來到這裡，想找尋什麼？",
+                "success": "你們的照片拍得真好！這裡的海濠燈塔，應該是你們的母親最愛的景點之一。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你能夠拍攝這裡的海濠燈塔，與觀音亭的合照。",
+                  "task_hint": "你可以靠近觀音亭，與老人一起拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "e3337bb5-e848-40a2-8693-3324bd668048",
+              "sn_order": 2,
+              "sn_title": "海濱的懷念",
+              "location_codename": "木桨舶",
+              "sn_opening_text": "你走進這個夜晚的澎湖輪碼頭，陽光下降，海濵的燈光慢慢出現。水面上有幾艘木桨舶，慢慢地在碼頭上停靠著。夜空中飄浮著一點點星光，海濵的聲音慢慢地消失了。",
+              "sn_success_text": "你們拍下了完美的照片，畫的腳印指向了一艘老舶的擺動著的擺擺燈。",
+              "dialogues": {
+                "opening": "你來到澎湖輪碼頭，夜晚的海濵景色很美，但有個問題，老闆的照片跑掉了，需要你們幫忙補上。",
+                "success": "你們的照片拍得很好！老闆很高興，說要跟你們一起前往下一個地方尋找下一張照片。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在碼頭上找到一艘老舶，擺動著的燈光，拿出相機拍一張照片，然後把燈光的方向記下。",
+                  "task_hint": "你們可以在碼頭上找到老闆的相機，幫助他找到下一個尋找照片的方向。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "885ec3c2-453b-4719-82fe-867ffa5af86d",
+              "sn_order": 3,
+              "sn_title": "失落的回憶",
+              "location_codename": "海滩燈塔",
+              "sn_opening_text": "走進這裡的空氣中充滿了海洋的氣味，燈塔的燈光如同海滩燈的反射，夜晚的海滩看起來像是一個巨大的黑色棋板。",
+              "sn_success_text": "你們的照片被掛在燈塔上，燈光照亮了海滩，人們的身影消失在了夜晚的黑暗中。",
+              "dialogues": {
+                "opening": "走進這裡的空氣中充滿了海洋的氣味，燈塔的燈光如同海滩燈的反射，夜晚的海滩看起來像是一個巨大的黑色棋板。",
+                "success": "你們的照片被掛在燈塔上，燈光照亮了海滩，人們的身影消失在了夜晚的黑暗中。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "請拍一張你們在海滩燈塔前面，身後有海滩燈的照片。",
+                  "task_hint": "你們可以選擇一個你們覺得最適合的燈塔角度，拍攝時可以與海滩燈同步拍攝。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "7ca8aaa0-952f-4029-aef8-08a9168b5ef3",
+              "sn_order": 4,
+              "sn_title": "夜晚的路燈",
+              "location_codename": "路燈下",
+              "sn_opening_text": "你走進這條菜園自行車道，路燈的光芒下，空氣中充滿了夜晚的懷念。",
+              "sn_success_text": "你們的照相機拍下了美麗的夜晚景象，路燈下的路面上留下了你的足跡。",
+              "dialogues": {
+                "opening": "你走進這裡了？菜園自行車道，路燈下，夜晚的氣味。",
+                "success": "那麼美麗的夜景，拍下的照片一定能讓你們的家人感受到你的懷念。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在路燈下拍攝一張照片，留下你的足跡。",
+                  "task_hint": "慢慢走到路燈下，拍攝你的足跡，讓你的足跡留下在這裡。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "db39f4fb-f32b-4279-a653-b8e1a4647d43",
+              "sn_order": 5,
+              "sn_title": "失落的回憶",
+              "location_codename": "書攤",
+              "sn_opening_text": "夜晚的燈光下，書攤的燈泡一一點亮，書籍和雜誌堆積在這裡，像一座小城。",
+              "sn_success_text": "你們的照片填滿了空畫框，現在你們可以看到書攤的主人的面容，書攤老闆對你們說：我認識你們的父母，還有許多故事...",
+              "dialogues": {
+                "opening": "你來了，為什麼要來這裡？這裡是我的書攤，書籍和故事的家園。",
+                "success": "你們的照片填滿了空畫框，現在我可以再把它掛在牆上。這裡是我的家，書籍和故事的家園。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書攤中尋找一本與父母有關的書籍，將其取出並拍攝一張照片。",
+                  "task_hint": "在書攤中可以看到許多與父母有關的書籍，請你們找出這本書籍。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "b574690d-386a-4d8e-92ce-ad4a0b94425c",
+              "sn_order": 6,
+              "sn_title": "海邊的回憶",
+              "location_codename": "海濱廣場燈塔",
+              "sn_opening_text": "走進這個海濱廣場，燈塔的燈光映著水面，海浪的聲音在耳邊響起。夜晚的海邊，空氣中充滿著海盜的氣味。",
+              "sn_success_text": "畫框裡的照片填滿了燈塔的燈光，畫的腳印指向一間書攤店。",
+              "dialogues": {
+                "opening": "你來到海濱廣場，想找個地方補上空白畫框？我在這裡經常來，知道這個燈塔的秘密。",
+                "success": "你拍的照片真好！燈塔的燈光照亮了你的心情，現在我們來看書攤店的選擇吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在海濱廣場找到一個適合當為照片背景的燈塔，抬頭觀察燈塔的燈光。",
+                  "task_hint": "燈塔的燈光有許多不同的顏色和模式，選擇一個你覺得最適合的燈光模式，抬頭觀察燈塔的燈光，拍一張照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "c30af6f5-0a4f-453f-bf39-5747cfa4b385",
+              "sn_order": 7,
+              "sn_title": "記憶的框架",
+              "location_codename": "老書房",
+              "sn_opening_text": "你走進來的書房裡，濃濃的書香和老舊的木質書架，似乎時間的流逝都在這裡凝固。",
+              "sn_success_text": "你把照片填滿了框架，老書房的氣味也慢慢消失了，空間裡一點點光亮了。",
+              "dialogues": {
+                "opening": "你來這裡是為了什麼？有個空框框子，裡面還缺了個畫。",
+                "success": "你拍了好照片！框子里的空白畫框，像一張空白的紙，等著你填滿。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這個老舊的書房裡，找到一個適合當作背景的角落，拍一張你和家人一起的照片。",
+                  "task_hint": "在書房裡找到一本老舊的書，或者一張老照片，當作背景拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d7a3e93d-bdb7-43df-9ac1-e87491a2462f",
+              "sn_order": 8,
+              "sn_title": "海濠的懷念",
+              "location_codename": "海濠燈塔",
+              "sn_opening_text": "你走進這個網垵沙灘，走過一排燈塔，燈塔的燈光閃動著，像是一個慢慢的舞蹈。夜晚的海濠沙灘，空氣中充滿著海洋的氣味，海濠燈塔的燈光映射在水面上，像是一個巨大的星球。",
+              "sn_success_text": "你在海濠燈塔拍到了你的照片，照片上顯示著一張老年人的面容，老人眼中充滿著感謝和溫情。",
+              "dialogues": {
+                "opening": "你來到海濠沙灘了，最近這裡的網垵活動很火，阿達力也在這裡，等著你。",
+                "success": "你拍出了不錯的照片，老人在那裡等著你，期待著你的回應。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你在網垵沙灘找到了一個小型燈塔，燈塔的燈光閃動著，像是一個慢慢的舞蹈。",
+                  "task_hint": "你可以在燈塔前拍照，等待燈光的閃動，拍出一個充滿著感覺的照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "story": {
+            "story_title": "墨先生的古地圖之旅",
+            "story_prologue": "一封未寄出的信件，藏在老石頭雕刻工廠的工廠機器之間，等待著被發現。",
+            "story_synopsis": "與墨先生一起，尋找這封信件的背後故事，追蹤古地圖的足跡，尋找回家的路。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "墨先生",
+            "role": "博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案",
+            "intro": "墨先生，博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案，欲與玩家一起尋找這封信件的起源，從澎湖的古地圖中開始。"
+          },
+          "nodes": [
+            {
+              "place_id": "b8689a45-976b-4240-a270-4903c4cad843",
+              "sn_order": 1,
+              "sn_title": "古地圖的起點",
+              "location_codename": "古地圖大廳",
+              "sn_opening_text": "走進這個大廳，你眼前是充滿古書和地圖的空間，空中掛著一塊古老的燈笛，燈笛的燈光在慢慢下降，導致空間充滿著一種濃厚的氣味，像是老書香。",
+              "sn_success_text": "你們的照相表現出了古地圖的美感，古地圖的燈光也慢慢升起，導致空間充滿著一種充滿期待的氣氛。",
+              "dialogues": {
+                "opening": "你好，我是墨先生，今天我們要一起尋找這封信件的起源，從這裡開始就能找到古地圖的足跡。",
+                "success": "你們的照相很好！這也意味著我們的旅程就能開始了，古地圖的燈光也慢慢升起，導致空間充滿著一種充滿期待的氣氛。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這個古地圖大廳中，找到一個古老的燈笛，照一張與古地圖相關的照片。",
+                  "task_hint": "你們可以在空間中找到一系列古老的燈笛，燈笛的燈光在慢慢下降，導致空間充滿著一種濃厚的氣味，像是老書香。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "6426ff0c-bce8-43d8-bd5e-9f1238023f8a",
+              "sn_order": 2,
+              "sn_title": "古時文學之光",
+              "location_codename": "石雕公園之巖",
+              "sn_opening_text": "你們走進了這個古石雕公園，天黑了，夜晚的燈光在石頭上點亮了你們的路。這裡是澎湖的文學之光，著名的文學人物、詩人、作家都在這裡留下了足跡。",
+              "sn_success_text": "你們的攝影完成後，墨先生指了指石雕公園的角落，說：這裡的雕塑中，有一個石像，形容著一句古詩。雕塑下方的石板上刻著一段字：『夜深人靜，山光星芒』，這可能是古地圖上的一個標誌。",
+              "dialogues": {
+                "opening": "你來到這裡，已經是晚上了。古石雕公園裡的燈光在你們的路上點亮了，你們要一起找尋這封信件的起源了。",
+                "success": "你們的攝影完成了，我們可以繼續前進了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要找到一個古石雕像，拍照給墨先生，然後他可以對你們說出下一站的線索。",
+                  "task_hint": "在石雕公園裡，你們可以看到許多古老的雕塑和石像。請找一個有趣的雕像，拍照給墨先生，然後他就能給你們指出下一步的方向。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "2fc6614d-0610-4522-846a-b9ecf3fce2a6",
+              "sn_order": 3,
+              "sn_title": "夜晚的風景",
+              "location_codename": "風景之巔",
+              "sn_opening_text": "走進這個小咖啡店，看到一排書桌，書桌上掛著古地圖，咖啡店內的氣味充滿了書香和咖啡香。",
+              "sn_success_text": "你們拍下了照片，古地圖上出現了一個符號，咖啡店的老板給了你一份古老的手抄本，說明符號指向的方向。",
+              "dialogues": {
+                "opening": "墨先生在你抵達咖啡店時，正在研究古地圖，說：你來得正好，我要研究這個地圖的符號了。",
+                "success": "墨先生在你完成任務後，給你一份古老的手抄本，說：這是你們找到下一站的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在咖啡店中，找到一個書桌，找到古地圖，拍照，找到古老的手抄本",
+                  "task_hint": "古地圖上有符號，老板可能會給你手抄本",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "4443baf0-6579-4548-8f07-78a283549d33",
+              "sn_order": 4,
+              "sn_title": "古厝之夜",
+              "location_codename": "古厝門",
+              "sn_opening_text": "走進這座南寮古厝群，夜晚的燈光和人聲交錯，空氣中充滿了古老的氣味，古厝門前的石頭上刻著「南寮古厝群」兩個大字，燈光照亮了這座小村庄的夜晚景色。",
+              "sn_success_text": "你們拍了好一張照，古厝門的燈光照亮了你們的臉，古厝門前的石頭上刻著「南寮古厝群」兩個大字，古厝門口的門架上還掛著一條古老的布袋，布袋裡的內容讓人感覺到古老的氣味。",
+              "dialogues": {
+                "opening": "你們來到南寮古厝群了，還有沒有找到這封信件的起源呢？",
+                "success": "你們的照片好看！古厝門的燈光照亮了你們的臉，古厝門前的石頭上刻著「南寮古厝群」兩個大字，古厝門口的門架上還掛著一條古老的布袋，布袋裡的內容讓人感覺到古老的氣味。這條布袋可能是古厝群的關鍵線索，讓我們跟進去看看。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在古厝門前找到一個適合當作拍照的角落，拍一張照片，讓墨先生看到。",
+                  "task_hint": "古厝門前有石頭和燈光，找到一個適合拍照的角落，拍一張照片，讓墨先生看到。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "0ead50c7-15b3-4506-b587-8b2cd2957f7b",
+              "sn_order": 5,
+              "sn_title": "夜晚的影子",
+              "location_codename": "花後塔",
+              "sn_opening_text": "你們抵達花後塔的時候，夜晚的燈光和月光照射在塔的石頭上，像是在呼喚你們進來。",
+              "sn_success_text": "你們的攝影完成後，墨先生拿出一本古地圖，指向下一站的方向。",
+              "dialogues": {
+                "opening": "你來了！花後塔是這個地方的重要地標，古地圖上有許多線索，等你們找到這裡的圖片，就能進一步追蹤古地圖的足跡了。",
+                "success": "你的攝影很好！這裡的圖片在古地圖上有一個符號，意味著下一站的方向是往西北方。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在花後塔的角落中，找到一個適合拍攝的角度，拍一張與古地圖相關的照片。",
+                  "task_hint": "你可以在花後塔的石頭上拍攝，或者是找到一個有趣的景點，與古地圖的符號相關聯。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "4aed947b-1e9f-46c0-86a0-95d444c05e7e",
+              "sn_order": 6,
+              "sn_title": "古地圖的足跡",
+              "location_codename": "風景點燈塔",
+              "sn_opening_text": "夜晚的中屯風力園區，燈塔的光芒如同一盞小燈，照亮了整個自行車道。",
+              "sn_success_text": "你們的攝影完成了，畫面上出現了古地圖的影像，墨先生看起來很高興。",
+              "dialogues": {
+                "opening": "你們來到這裡了，風景點燈塔，古地圖的足跡。",
+                "success": "這裡的燈塔是古地圖的標誌，現在我們就從這裡出發。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍照，試圖在燈塔下找到古地圖的影像。",
+                  "task_hint": "注意燈塔的基礎，可能會有古地圖的影像出現。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "b1ca6d7e-4b3b-4489-b2a3-492db06f07f2",
+              "sn_order": 7,
+              "sn_title": "古老的印象",
+              "location_codename": "海浪",
+              "sn_opening_text": "你們來到竹灣，夜晚的海浪聲浪拍打著海岸，空氣中充滿著海盜的氣息。",
+              "sn_success_text": "你們拍下了有趣的照片，腳印留在海浪上，老巷的方向在前方等待著你們。",
+              "dialogues": {
+                "opening": "這裡是古老的海盜海域，據說有很多古老的海盜船只沉積在這裡。",
+                "success": "你的照片被海浪吞没了，但腳印留在海浪上，老巖的方向可以看清楚。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到一張老舊的海盜地圖，拍一張有趣的照片。",
+                  "task_hint": "你可以在海浪旁的沙子上找到古老的海盜地圖，然後在海盜地圖上標記一個有趣的位置，拍一張照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "5566cfa4-5a89-4f7f-9b88-46496747fb45",
+              "sn_order": 8,
+              "sn_title": "古地圖之旅的最後一站",
+              "location_codename": "夜晚的中營石塔",
+              "sn_opening_text": "你們走進這間中營石塔，夜晚的燈光在石頭上閃動，空氣中充滿著古老的氣息。",
+              "sn_success_text": "你們完成了最後一項任務，找到古地圖的最後一片跡象，墨先生看起來很自豪。",
+              "dialogues": {
+                "opening": "你們抵達了中營石塔，古地圖的最後一片跡象就在這裡。",
+                "success": "這是古地圖的最後一片跡象，你們的努力終於付出了果實。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在夜晚的中營石塔中，找到古地圖的最後一片跡象，拍攝一張照片。",
+                  "task_hint": "注意石頭上留下的印跡，拍攝時要用正確的角度，才能捕捉到全部的印跡。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

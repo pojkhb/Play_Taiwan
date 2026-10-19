@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 21:51:04.244",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西屯區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "c3aaa3be-961b-4ad0-8e06-56957e1e67d2",
+          "p_name": "張家祖廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "fadd22f7-7e1d-4608-9089-ea0f38d632ed",
+          "p_name": "臺中市立圖書館溪西分館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5bf771f9-b251-4d77-9f58-01cf392448cd",
+          "p_name": "逢甲觀光夜市",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "3991cae1-ecda-4c17-8688-088b72bd2758",
+          "p_name": "秋紅谷景觀生態公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "a3ab9776-2388-4ba0-890e-4a3b0734cafa",
+          "p_name": "臺中市政府ˍ新市政大樓",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9ff1a691-d264-4824-8445-67d1c76255b7",
+          "p_name": "黎明新村",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9c0fae1a-ca06-410c-a9dd-0bf8b0b029b3",
+          "p_name": "臺中市立圖書館李科永紀念圖書分館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9b764d36-2566-4804-9e34-6539d83b967b",
+          "p_name": "台中文心玉市-天目城",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "df5b37002ebf488c8472a4709b578c3b",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792417864.2457016,
+      "updated_at": 1792417864.2457016,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/df5b37002ebf488c8472a4709b578c3b",
+      "queue_position": 1
+    }
+  }
+}

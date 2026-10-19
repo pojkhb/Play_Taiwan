@@ -1,0 +1,1024 @@
+﻿{
+  "time": "2026-10-08 18:54:18.165",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks/batch",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西屯區",
+      "party_size": 1,
+      "s_tag": [
+        "解謎深入"
+      ],
+      "is_night_mode": 1,
+      "stories": [
+        {
+          "story_no": 1,
+          "nt_name": "質感專業",
+          "places": [
+            {
+              "place_id": "a3ab9776-2388-4ba0-890e-4a3b0734cafa",
+              "p_name": "臺中市政府ˍ新市政大樓",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "9b5adf50-1eb3-44e3-9ffc-874a6073a660",
+              "p_name": "Top City臺中大遠百",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "9c9684e7-2dde-4c98-b11e-2960ba1dcc17",
+              "p_name": "新光三越百貨_台中中港店",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "10a90ebb-4007-4440-9d17-b48ee97081e2",
+              "p_name": "老虎城購物中心",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "526e007c-9d0c-46e9-b346-87ed05deb50c",
+              "p_name": "秋紅谷景觀生態公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "bb24508f-4b07-4126-953b-6c65fbd15422",
+              "p_name": "臺中市立圖書館西屯分館",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "2fed84d6-aaa7-44e1-8faa-135475d3b694",
+              "p_name": "國立自然科學博物館",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "013be153-69f0-4be4-af2d-50a1e24c202e",
+              "p_name": "勤美術館",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "nt_name": "溫情走心",
+          "places": [
+            {
+              "place_id": "02d6bcff-0eb3-489e-9981-e5e52db8e846",
+              "p_name": "臺中國家歌劇院",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "af339777-51f6-4ea3-9fe4-c68a2feb331b",
+              "p_name": "誠品生活480",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "f430983f-25dc-40be-90c6-6d42e0e59067",
+              "p_name": "IKEA 宜家家居 台中店",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "62e4ab9c-1ea3-456c-8642-31e3d23589c1",
+              "p_name": "圓滿戶外劇場",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "988dec92-ddfd-4f7a-9899-d83861361582",
+              "p_name": "公益路美食",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "e22c178c-d258-4006-bbd8-152d1cf1fc8d",
+              "p_name": "精明一街",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "656bfab8-696f-45a7-b41f-eba6cc6857cd",
+              "p_name": "幻覺博物館",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "17f66dab-37eb-4f31-9b70-8ffcf25dbd77",
+              "p_name": "國立自然科學博物館之植物園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "nt_name": "幽默詼諧",
+          "places": [
+            {
+              "place_id": "455908fd-375a-4b25-9014-09eea5175cd5",
+              "p_name": "廣三SOGO百貨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "b75d660d-9f94-4322-ab8a-770ffe0ad6d4",
+              "p_name": "金典綠園道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "4f9e41a3-e146-403c-b670-7af33a28c5ef",
+              "p_name": "勤美誠品綠園道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "0ce9cb15-79c0-4712-8e69-6cc0f10c70c2",
+              "p_name": "佛光山惠中寺",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "9ff1a691-d264-4824-8445-67d1c76255b7",
+              "p_name": "黎明新村",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "4127a640-5dd9-4b24-ad79-8578c3391230",
+              "p_name": "逢甲商圈文創禮品館",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "77d5b0ef-5940-45af-b790-29c3224f5713",
+              "p_name": "張廖家廟",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "95f539ec-21cf-4364-bf8d-8454d5b4e5fe",
+              "p_name": "中央公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 92301,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "stories": [
+        {
+          "story_no": 1,
+          "story": {
+            "story_title": "西屯區的迷宮",
+            "story_prologue": "在西屯區的主街上，陽光下降，老市政大樓的燈光開始閃爍。",
+            "story_synopsis": "尋找一封寄不出去的信，追蹤著一系列的線索，找回家書的路。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "薯光",
+            "role": "充滿朝氣的新生代引導者，善於解開謎題、點燃線索",
+            "intro": "薯光：是一位年輕的新生代引導者，熱心解開西屯區的謎題，為這個區域的迷你遊戲帶來新生意義。"
+          },
+          "nodes": [
+            {
+              "place_id": "a3ab9776-2388-4ba0-890e-4a3b0734cafa",
+              "sn_order": 1,
+              "sn_title": "夜間新市政大樓的光環",
+              "location_codename": "新市政大樓",
+              "sn_opening_text": "走進新市政大樓的夜間景象，燈光的反射在玻璃窗上，空間充滿了朝氣，人們在夜間聚會，討論未來的計畫。",
+              "sn_success_text": "你們拍下了照片，畫框裡的空白框子被填滿了，你的臉影出現在新市政大樓的玻璃窗上。",
+              "dialogues": {
+                "opening": "你好！我是薯光，今天我會幫助你尋找一封寄不出去的信，該信與你的家書有關。",
+                "success": "你們的照片拍得很好！現在，畫框裡的空白框子被填滿了，你的臉影出現在新市政大樓的玻璃窗上。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "拍一張你和薯光一起站在新市政大樓玻璃窗前的照片。",
+                  "task_hint": "你可以站在玻璃窗前，和薯光一起對著相機，拍出一張有朝氣的照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "9b5adf50-1eb3-44e3-9ffc-874a6073a660",
+              "sn_order": 2,
+              "sn_title": "書房之夜",
+              "location_codename": "書房燈台",
+              "sn_opening_text": "夜晚的台中大遠百，書房燈台下的書籍和書籍架，充滿了溫暖的氛圍。",
+              "sn_success_text": "你們在書房燈台拍下了照片，書房燈台的燈光照在書籍上，留下了美麗的光影。",
+              "dialogues": {
+                "opening": "你來到台中大遠百了，現在我們要找到一封寄不出去的信。",
+                "success": "這封信的線索就出在這裡，現在我們要追蹤下一步的路徑。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "點一張書籍，拍照，拍出書籍的書名和作者。",
+                  "task_hint": "你可以選擇你喜歡的書籍，拍照後就可以繼續下一步了。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "9c9684e7-2dde-4c98-b11e-2960ba1dcc17",
+              "sn_order": 3,
+              "sn_title": "夜晚的書店",
+              "location_codename": "書香",
+              "sn_opening_text": "走進這間書店，能看到書籍和書桌的光線，空氣中充滿了書香的氣味，書架上書籍的書名和作者的名字都是繁體中文。",
+              "sn_success_text": "你們的照片掛在書架上，書籍的書名和作者的名字也都被打印在圖片裡，畫的腳印指向一間小的書店。",
+              "dialogues": {
+                "opening": "你來到這裡了，現在是夜晚，書店的燈光讓你感到很安靜。",
+                "success": "這張照片的照片很好！書籍的書名和作者的名字也都打印在圖片裡了，現在我們要跟著腳印去那間小的書店。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這間書店裡找到一本書籍，書籍的封面有你們覺得最適合的圖案，兩人一起入鏡拍一張照片。",
+                  "task_hint": "你可以在書架上找到書籍，或者在書桌上找到書籍的封面。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "10a90ebb-4007-4440-9d17-b48ee97081e2",
+              "sn_order": 4,
+              "sn_title": "書店之夜",
+              "location_codename": "書店",
+              "sn_opening_text": "你們走進這間書店，黑暗的燈光下，書架上堆積著一堆書籍，書店主的話聲低沉，像一本古書的語音，聲音中帶著一點懷舊感，書店主的話聲在你耳朵裡回聲，像一本書在翻開。",
+              "sn_success_text": "你們在書店中找到了一本老舊的日記，書本的最後一頁有個小字，指向老虎城購物中心的方向。",
+              "dialogues": {
+                "opening": "你來了，現在我們要一起尋找一封沒有寄出的信，先來這裡看看吧。",
+                "success": "你們找到了一本老舊的日記，裡面有線索，接下來我們要去老虎城購物中心，跟著這個線索，找到下一個的答案。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在書店中找到一本老舊的日記，最後一頁有個小字，指向老虎城購物中心的方向。",
+                  "task_hint": "你們可以在書店中翻開書本，找到書本的最後一頁。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "526e007c-9d0c-46e9-b346-87ed05deb50c",
+              "sn_order": 5,
+              "sn_title": "書房的秘密",
+              "location_codename": "書房窗口",
+              "sn_opening_text": "你走進這個秋紅谷景觀生態公園，身後的草地上映著落日的光芒，走向一間小小的書房，書房窗口掛著一張老舊的門板，書架上堆積著書籍和雜草，窗口上寫著：書房休息室，請自行補上。",
+              "sn_success_text": "你在書房裡找到了一本老舊的日記，書房窗口的書架上留下的書本標籤指向了下一步的線索。",
+              "dialogues": {
+                "opening": "你來到秋紅谷景觀生態公園了，現在要找一本書，書房裡有什麼樣的氣味？",
+                "success": "你在書房裡找到了一本老舊的日記，書房窗口的書架上留下的書本標籤指向了下一步的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你可以在書房裡找到一本老舊的日記，然後在書房窗口的書架上留下自己的名字和日期，拍一張照片。",
+                  "task_hint": "你可以在書房裡找到一本老舊的日記，然後在書房窗口的書架上留下自己的名字和日期，拍一張照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "bb24508f-4b07-4126-953b-6c65fbd15422",
+              "sn_order": 6,
+              "sn_title": "書香四溢的夜晚",
+              "location_codename": "書籍橫列",
+              "sn_opening_text": "夜晚的台中市西屯區，人們在書籍橫列下漫步，陽光下落，書籍的光線交錯，空間充滿著書香。",
+              "sn_success_text": "你們在書籍橫列下找到了一本老舊的日記，裡面有關西屯區的幾個線索，記下這些線索吧。",
+              "dialogues": {
+                "opening": "你抵達台中市立圖書館西屯分館了，你可以在這裡找到一些線索了。",
+                "success": "你在書籍橫列下找到了一些線索，讓我們一併查看。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書籍橫列下找到幾本老舊的日記，查找其中的關鍵信息，記下這些信息。",
+                  "task_hint": "你可以在書籍橫列下找到一些老舊的日記，內容可能與西屯區的歷史有關。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "2fed84d6-aaa7-44e1-8faa-135475d3b694",
+              "sn_order": 7,
+              "sn_title": "文學之地",
+              "location_codename": "書房",
+              "sn_opening_text": "走進博物館的時候，你看到一排書架，書籍的書名和作者都很有趣。",
+              "sn_success_text": "你們的照片被掛在書架上，書籍的書名和作者都跟著你們的照片一樣。",
+              "dialogues": {
+                "opening": "你來到國立自然科學博物館，裡面有很多有趣的書籍，你能找到什麼呢？",
+                "success": "照片被掛在書架上，跟著你的圖片有趣的書籍也跟著你們的照片一樣了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你在博物館裡找到一個書籍，書名跟著你的照片一樣，書籍的封面上有個空白的框架。",
+                  "task_hint": "你可以在書架上找到一本有趣的書籍，書名跟著你的照片一樣，書籍的封面上有個空白的框架，空白框架的周圍有很多書籍的書名，等著你填上空白的框架。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "013be153-69f0-4be4-af2d-50a1e24c202e",
+              "sn_order": 8,
+              "sn_title": "書院的影子",
+              "location_codename": "書院燈塔",
+              "sn_opening_text": "你走進來，書院燈塔的光芒照射著你，燈塔上方的木框中空，空缺著一張畫框。",
+              "sn_success_text": "你將那張照片貼在框子上，燈塔的燈光反映著你的面影，畫框的空間似乎也有一種奇妙的感覺。",
+              "dialogues": {
+                "opening": "你來到我們的書院，現在的時候我們正在等待著一封信，卻未能送出。",
+                "success": "你幫助我們完成了這個任務，現在我們的信的路就更加明確了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要將一張你覺得適合當為書院燈塔畫作的照片貼在燈塔上方的木框中。",
+                  "task_hint": "你可以在燈塔周圍找到一些有趣的視角，讓你的照片變得更加獨特。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "story": {
+            "story_title": "西屯的秘密書信",
+            "story_prologue": "在誠品生活480的書架之間，遺下了一本書，書中寫著一句懷疑的字句：'西屯的秘密在哪裡呢?'",
+            "story_synopsis": "追蹤書中的線索，找到西屯的秘密",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿達力",
+            "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+            "intro": "阿達力：西屯的老手，熟悉每個巷子和巢，熱心的地圖老師，想要透過書中的線索找到西屯的秘密，為自己和他人帶來新見面和新經歷"
+          },
+          "nodes": [
+            {
+              "place_id": "02d6bcff-0eb3-489e-9981-e5e52db8e846",
+              "sn_order": 1,
+              "sn_title": "夜晚的藝術之光",
+              "location_codename": "舞台燈",
+              "sn_opening_text": "夜晚的台中國家歌劇院看起來像一座巨大的黑色蛋仔，燈光洽洽，空間中還留下了劇院演出的美妙氣息。",
+              "sn_success_text": "你們的照片在空白畫框中拍照，結果是台中國家歌劇院的夜景，燈光和舞台燈的光芒，充滿了藝術之光的感覺。",
+              "dialogues": {
+                "opening": "你來到了台中國家歌劇院，阿達力在這裡等著你。",
+                "success": "你的照片拍好了，舞台燈的光芒在空白畫框中顯示，跟著燈光往老巷走去。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在台中國家歌劇院的舞台燈下拍一張照片，留下燈光的印象。",
+                  "task_hint": "你可以選擇你最喜歡的燈色，和燈光一起拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "af339777-51f6-4ea3-9fe4-c68a2feb331b",
+              "sn_order": 2,
+              "sn_title": "書信的起點",
+              "location_codename": "書籍架",
+              "sn_opening_text": "走進這間誠品生活480，眼前是書籍架的壁面，書籍的書名和作者的字體都在打造一個豐富的文學氛圍。",
+              "sn_success_text": "你們拿著書籍拍照，書籍架的書籍都有了新的主人。",
+              "dialogues": {
+                "opening": "你來到誠品生活480了，現在是晚上，店內的燈光柔和。",
+                "success": "現在你們知道了書信的第一步，下一步就是找到書信的下一個位置。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們來到誠品生活480，需要在書架上找到一本書籍，讓它成為你的攝影主題。",
+                  "task_hint": "你可以選擇你喜歡的書籍，或者在書架上漫游，找到一個有趣的主題。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "f430983f-25dc-40be-90c6-6d42e0e59067",
+              "sn_order": 3,
+              "sn_title": "書中之謎",
+              "location_codename": "書架",
+              "sn_opening_text": "你走進 IKEA 宜家家居 台中店，眼前是堆積著大量的家具和書籍，空間充滿了書香和木頭的氣味。",
+              "sn_success_text": "你找到了一本書，書中提到了西屯的秘密，你決定跟進這個線索。",
+              "dialogues": {
+                "opening": "你來這裡是為了找尋什麼？",
+                "success": "你找到書架了！現在是時間找到下一站的線索了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你可以在這裡找到書籍，選擇一本看起來有趣的書，開封看看內容。",
+                  "task_hint": "在書架上選擇一本書籍，注意書名和封面圖片，書籍內容可能會給你一些線索。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "62e4ab9c-1ea3-456c-8642-31e3d23589c1",
+              "sn_order": 4,
+              "sn_title": "書信的起點",
+              "location_codename": "書信亭",
+              "sn_opening_text": "夜晚的西屯，空氣中飄著書香和點點燈光，書信亭的燈光照亮了書信的起點。",
+              "sn_success_text": "你們在書信亭留下了你的留言，書信的起點就變得更加真實了。",
+              "dialogues": {
+                "opening": "你來到書信亭，找到書信的起點了嗎？",
+                "success": "好！你們的留言在書信的起點上，現在來看書信的下一站。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書信亭留下你的留言，書信的起點就變得更加真實了。",
+                  "task_hint": "你可以在書信亭的桌子上留下你的名字和留言，書信的起點就會變得更加真實了。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "988dec92-ddfd-4f7a-9899-d83861361582",
+              "sn_order": 5,
+              "sn_title": "夜晚的美食之旅",
+              "location_codename": "咖啡館的燈光",
+              "sn_opening_text": "你走進這家咖啡館，見到一大堆座位，燈光柔和，空氣中飄著甜甜的咖啡香氣。",
+              "sn_success_text": "你們拍下了美食的照片，燈光下的美食看起來很美味，咖啡館的燈光也讓人覺得很靜靜的，然後你們注意到一張名為「西屯秘密」的名片，掛在咖啡館的門前。",
+              "dialogues": {
+                "opening": "你來到咖啡館了，你的眼前有很多人在喝咖啡，好像是來這裡的常客。",
+                "success": "這些照片可以幫助我們找到下一步的線索，然後我們就可以去找下一個秘密了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要在這裡拍攝一張美食的照片，選擇你覺得最美味的食物，然後把它拍成一張好看的照片。",
+                  "task_hint": "你可以選擇咖啡館裡的任何一道菜，包括甜點和咖啡。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "e22c178c-d258-4006-bbd8-152d1cf1fc8d",
+              "sn_order": 6,
+              "sn_title": "文學之城的秘密",
+              "location_codename": "書屋巷",
+              "sn_opening_text": "你們抵達了這個書屋巷，書架上滿是古典文學的書籍，書房裡的氣味像一本古書，滿滿的書香，空氣中還有點點粉筆的味道，夜晚的燈光在書房裡點亮了幾個書架，書架上還掛著一些古老的燈燈，給人一種沉思的氛圍。",
+              "sn_success_text": "你們的照片在書房裡被掛在書架上，與其他古典文學書籍一起，留下了自己的足跡。",
+              "dialogues": {
+                "opening": "你們來到書屋巷了，來看看這裡的書籍吧，還有什麼可以幫助你們的?",
+                "success": "好！你們的照片在書房裡了，現在你們要繼續追蹤下一個線索，下一站是..."
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在書房裡找到一個你們覺得最適合當照片的角落，兩人一起入鏡拍一張照片。",
+                  "task_hint": "在書房裡，你們可以看到古老的燈燈和書架，還有很多古典文學的書籍，找到一個你們覺得最適合的角落，拍一張有趣的照片，然後再繼續追蹤下一個線索。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "656bfab8-696f-45a7-b41f-eba6cc6857cd",
+              "sn_order": 7,
+              "sn_title": "文學之夜的守望者",
+              "location_codename": "書院窗口",
+              "sn_opening_text": "夜幕降，幻覺博物館的燈光如星光點亮了書院窗口的角落，空中飄浮著一張古老的畫框，周圍的書籍和燈燈讓人感受到一股濃厚的知識感，窗口外的夜晚空氣中飄浮著一股甜甜的香氣，像是書院裡的秘密，等待被揭開。",
+              "sn_success_text": "你們的照片填滿了畫框，畫留下的腳印指向一條老巷。",
+              "dialogues": {
+                "opening": "畫框裡的畫跑掉了，得找人頂替一下才行。",
+                "success": "拍得真好！畫的腳印往老巷去了，跟上吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書院窗口找到一個適合當作畫框的角落，拍一張照片。",
+                  "task_hint": "注意窗口外的燈光和書籍，找到一個有趣的角落，拍一張有趣的照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "17f66dab-37eb-4f31-9b70-8ffcf25dbd77",
+              "sn_order": 8,
+              "sn_title": "書信之地",
+              "location_codename": "書院窗口",
+              "sn_opening_text": "夜晚的植物園裡，空空的花園中，書信的路徑不斷延伸著，像一條細小的光線。",
+              "sn_success_text": "你們拍下了書信的最後一封，畫的腳印指向了一個老巷。",
+              "dialogues": {
+                "opening": "你來到了植物園，什麼時候你們知道這裡有書信的線索？",
+                "success": "這是書信的最後一封，書信的路徑終於結束了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在這裡找到一個適合當作書信的角落，拍一張照片。",
+                  "task_hint": "花園裡的老樹和書架是很好的拍照對象。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "story": {
+            "story_title": "西屯的秘密藏於文具之中",
+            "story_prologue": "在西屯的繁華中，誰能找到一本真實的家書？",
+            "story_synopsis": "追蹤一串老舊的字跡，尋找回家的路",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "珍奶奶",
+            "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+            "intro": "珍奶奶，西屯的守護神，與失落的配方有著深深的關係，年齡不見了卻記憶不忘"
+          },
+          "nodes": [
+            {
+              "place_id": "455908fd-375a-4b25-9014-09eea5175cd5",
+              "sn_order": 1,
+              "sn_title": "書店的夜晚",
+              "location_codename": "書店",
+              "sn_opening_text": "走進書店，書架上一片混亂，書籍堆積高高，燈光柔和，空氣中充滿了書香。",
+              "sn_success_text": "你們拿出一本書，書中有一條字跡，字跡跑掉了，留下了一個空白。",
+              "dialogues": {
+                "opening": "你來這裡找我了？我有個事情要跟你說。",
+                "success": "你找到那個字跡了？那是我的老朋友，回家的路上很遠。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找出那個字跡，拍攝它，留下你的足跡。",
+                  "task_hint": "注意書架上書籍的排列，找到那個字跡的位置，仔細觀察，拍照，留下你的足跡。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "b75d660d-9f94-4322-ab8a-770ffe0ad6d4",
+              "sn_order": 2,
+              "sn_title": "文學之巔",
+              "location_codename": "書屋",
+              "sn_opening_text": "走進這間書屋，眼前是高高的書架，書籍堆積如山，空氣中充滿了書香。夜晚的燈光也使得這間小店變得更加迷人。",
+              "sn_success_text": "你們在書屋裡找到了一本老舊的字典，字跡老舊，紙薄，開啟書後，字跡逐漸出現，似乎有一個密碼在等著你們。",
+              "dialogues": {
+                "opening": "你來到這裡，想找回家的路，老人家知道，來得正好。",
+                "success": "這本字典是失落的古老配方的一部分，記憶中有很多，你們要好好記住這些字跡，下一步要繼續尋找。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在書屋裡找到一本老舊的字典，開啟書後，繼續尋找字跡",
+                  "task_hint": "在書屋裡尋找書籍，開啟書籍，注意書中的字跡",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "4f9e41a3-e146-403c-b670-7af33a28c5ef",
+              "sn_order": 3,
+              "sn_title": "書店的夜晚",
+              "location_codename": "書店角",
+              "sn_opening_text": "你走進這個書店，手裡的書籍與書架的書籍一起擺在你面前，書店的氣味與書籍的香味交錯在一起，書店裡的燈光下，書籍的字母與字面在你眼前跳動。",
+              "sn_success_text": "你選擇了一本書，書籍的書頁翻開，書中的字跡與你的手指同樣老舊，書籍的封面上留下了一個字跡，指向書店的書架另一端。",
+              "dialogues": {
+                "opening": "你來這裡是為什麼？",
+                "success": "這本書的字跡很特別，可能是你要找的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書店裡選擇一本書，選擇後把書的封面向前翻開，觀察書的字跡。",
+                  "task_hint": "你可以在書店裡找到一本書，書的封面上有個字跡，可能是你要找的線索。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "0ce9cb15-79c0-4712-8e69-6cc0f10c70c2",
+              "sn_order": 4,
+              "sn_title": "書院之夜的陰影",
+              "location_codename": "佛光山的書院",
+              "sn_opening_text": "你走進佛光山惠中寺的書院，空間充滿了古老的氣息，書架上散落著燈香和古卷，夜晚的月光透過窗洽落，給人一種深思熟慮的氛圍。",
+              "sn_success_text": "你們的照相機拍下了一張充滿了書籍和燈香的照片，人們在書院中開始議論你的技巧。",
+              "dialogues": {
+                "opening": "你來到佛光山惠中寺了，你要找的線索在這裡了。",
+                "success": "你們的照相機拍下了一張充滿了書籍和燈香的照片，人們在書院中開始議論你的技巧。珍奶奶：這張照片就像一本古老的書卷，裡面有許多線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們需要在這裡拍一張照，將書籍和燈香聚集在一起，拍出一個充滿了文學感和懸疑感的照片。",
+                  "task_hint": "你們可以在書架上選擇不同的書籍，燈香和古卷也是一個好選擇。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "9ff1a691-d264-4824-8445-67d1c76255b7",
+              "sn_order": 5,
+              "sn_title": "書店的背後秘密",
+              "location_codename": "書香之巖",
+              "sn_opening_text": "你走進這間書店，眼前堆滿了古老的書籍，書架上書名標題的燈光閃動著，空氣中充滿著書香的味道，書店主的老人坐在一旁，手中攜帶著一本書，似乎在翻看。",
+              "sn_success_text": "你們拍下了好看的照片，書店主的書本關閉了，書架上的燈光慢慢消退了，書店主看起來似乎有所思。",
+              "dialogues": {
+                "opening": "你走進來了，好久不見了，還是那個你。",
+                "success": "你們的照片讓我回想起了一些古老的書籍，跟著我去看，可能就會找到那個失落的配方。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在書店中選擇一個你覺得最適合的角落，拍一張照片，展示這間書店的氛圍。",
+                  "task_hint": "你可以選擇書架上書籍、書店主的書本、燈光或書香等為題材。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "4127a640-5dd9-4b24-ad79-8578c3391230",
+              "sn_order": 6,
+              "sn_title": "文學之城的遺書",
+              "location_codename": "書店架",
+              "sn_opening_text": "你走進這個文學之城的店鋪，眼前擠滿了書籍和文具，書架上的一些書籍有著奇怪的字母標籤，好像是某個秘密書籍的標誌。",
+              "sn_success_text": "你們選擇了適合的書籍，拍攝完成後，書店老闆把一本書給了你，裡面有著一張地圖和一段字跡。",
+              "dialogues": {
+                "opening": "你來到文學之城的書店，老闆在等你。",
+                "success": "這本書的字跡是你們追蹤的路線之一，下一步要去逢甲商圈文創禮品館。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在這裡選擇了一本書籍，然後拍攝一張照片，書籍的封面上有著一本字跡。",
+                  "task_hint": "你們可以在書架上找到一本有著這樣字跡的書籍，然後拍攝一張照片，書籍的封面上有著這樣的字跡。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "77d5b0ef-5940-45af-b790-29c3224f5713",
+              "sn_order": 7,
+              "sn_title": "古書之光",
+              "location_codename": "書架",
+              "sn_opening_text": "你走進這間書院，看到一排古老的書架，書架上書籍的書名和書籍的顏色，像一張古老的畫卷。",
+              "sn_success_text": "你在書架上找到了一本老舊的字跡，書面上有幾個字跡，好像是前人留下的情書。",
+              "dialogues": {
+                "opening": "你來到這裡，想找到回家的路嗎？",
+                "success": "這本字跡是前人留下的情書，記載著回家的路。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你在書架上找到一本老舊的字跡，書面上有幾個字跡，好像是前人留下的情書。",
+                  "task_hint": "你可以將手指放在字跡上，仔細看一下。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "95f539ec-21cf-4364-bf8d-8454d5b4e5fe",
+              "sn_order": 8,
+              "sn_title": "文學之光",
+              "location_codename": "書院窗口",
+              "sn_opening_text": "夜晚的中央公園，月光照在草地上，雕塑的身影像如鬼魅，空中飄著一點點的雪花，人們在草地上散步，談笑著。",
+              "sn_success_text": "你們找到書院窗口，書院窗口的門窗打開了，書院里充滿了溫暖的燈光。",
+              "dialogues": {
+                "opening": "你來到中央公園了，我一直在等著你們。",
+                "success": "你們找到書院窗口了，我們可以一起回家了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在中央公園的草地上，找到書院窗口，拍一張照片。",
+                  "task_hint": "你可以在草地上走動，找到書院窗口，拍一張照片，記得不要打擾人們的休息時間。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

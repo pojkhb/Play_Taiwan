@@ -1,0 +1,1120 @@
+﻿{
+  "time": "2026-10-11 20:59:08.456",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks/batch",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "太平區",
+      "party_size": 8,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "stories": [
+        {
+          "story_no": 1,
+          "nt_name": "溫情走心",
+          "places": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "p_name": "太平會幕堂",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "p_name": "太平買菸場",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "p_name": "頭汴坑溪自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "p_name": "臺中市136線自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "p_name": "太平光興隆大橋",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "p_name": "921震災紀念公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "p_name": "頭汴坑休閒農業區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "195dda52-8b3f-439a-ab34-a5863b213a91",
+              "p_name": "旱溪觀光夜市",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "nt_name": "質感專業",
+          "places": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "p_name": "太平會幕堂",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "p_name": "頭汴坑休閒農業區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "p_name": "921震災紀念公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "p_name": "太平光興隆大橋",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "p_name": "臺中市136線自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "p_name": "頭汴坑溪自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "p_name": "太平買菸場",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "ee9892f6-aa52-469a-a337-a30c084ef697",
+              "p_name": "馬卡龍公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "nt_name": "幽默詼諧",
+          "places": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "p_name": "太平會幕堂",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "p_name": "頭汴坑休閒農業區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "p_name": "921震災紀念公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "p_name": "太平光興隆大橋",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "p_name": "臺中市136線自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "p_name": "頭汴坑溪自行車道",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "p_name": "太平買菸場",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "ee9892f6-aa52-469a-a337-a30c084ef697",
+              "p_name": "馬卡龍公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 62031,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "stories": [
+        {
+          "story_no": 1,
+          "story": {
+            "story_title": "太平的夜空中",
+            "story_prologue": "霓霓步出太平會幕堂，夜色降臨，街頭藝術的光影開始出現。",
+            "story_synopsis": "尋找光影的導師，跟著霓霓的足跡，探索太平區的夜晚。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "霓霓",
+            "role": "對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索",
+            "intro": "霓霓是一位對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索，為了尋找失落的家書，跟著她一起走。"
+          },
+          "nodes": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "sn_order": 1,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院牆",
+              "sn_opening_text": "你走進這間太平會幕堂，夜晚的燈光照射在牆上，空間中充滿了書籍和書本的書香。",
+              "sn_success_text": "你完成了任務，畫框的空間被填滿了你的照片，牆上的燈光也變得更加迷人。",
+              "dialogues": {
+                "opening": "你來到了太平會幕堂，我就是這裡的霓霓，失落的家書是什麼東西，我能夠幫助你找到。",
+                "success": "你拍了完照，我的眼睛也開始發燒了，我知道你找到了一個很重要的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要在牆上找到一個適合當作畫框的角落，拍一張照片，讓霓霓能夠看到你的作品。",
+                  "task_hint": "你可以在牆上找到一些書籍和書本，或者是雕塑的角落，找到一個適合的角落來拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "sn_order": 2,
+              "sn_title": "晚花繡天",
+              "location_codename": "菸香閩",
+              "sn_opening_text": "走進這間店裡，見到一間充滿菸香的空間，老闆手持一根菸管，面容溫和，似乎在等待你。",
+              "sn_success_text": "你們拍了好一張照片，老闆的手持菸管指向一間隱藏在後面的小門。",
+              "dialogues": {
+                "opening": "你來了，我等你了。這裡是我的小店，菸香閩。",
+                "success": "你們的照相好得很，老闆的菸香感很好，讓我覺得好想跟你們走一趟。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在店裡選擇一張桌子，拍一張與店內環境相關的照片。",
+                  "task_hint": "注意店裡的燈光、燒香、桌子等細節，找到適合的角度拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "sn_order": 3,
+              "sn_title": "夜間燈柱的秘密",
+              "location_codename": "燈柱",
+              "sn_opening_text": "你走進頭汴坑溪自行車道，夜晚的燈柱如一排軍士，牆壁上掛著一幅老舊的廣告，說明：'請注意，自行車道上的燈柱有點異常。'",
+              "sn_success_text": "你們拍了好照片，燈柱的光線指向了一個小巷。",
+              "dialogues": {
+                "opening": "你來到頭汴坑溪自行車道了，現在要找到導師的線索了。",
+                "success": "燈柱的光線指向了一個小巷，跟著它吧，下一步就會有新的驚奇。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍照照看燈柱的燈光，試圖捕捉出燈柱的光線方向",
+                  "task_hint": "注意燈柱的燈光，試圖跟著它的方向，拍出一張有意義的照片",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "sn_order": 4,
+              "sn_title": "夜空中的幻想",
+              "location_codename": "路燈下空白的路面",
+              "sn_opening_text": "你走進這裡，夜空中的路燈照亮了你的面部，空白的路面下方的花卉路燈照亮了路面。",
+              "sn_success_text": "你拍下的照片顯示了一個路燈下的小小花朵，花朵的花瓣形狀與路燈的燈罩相似。",
+              "dialogues": {
+                "opening": "你走進這裡，夜空中的路燈照亮了你的面部，空白的路面下方的花卉路燈照亮了路面。",
+                "success": "這個花朵的花瓣形狀與路燈的燈罩相似，太美了！我們要找的花朵應該在這裡。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你可以拍照，將花朵放在路燈下，讓花朵的花瓣形狀與路燈的燈罩相似。",
+                  "task_hint": "花朵的花瓣形狀與路燈的燈罩相似，會更美麗",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "sn_order": 5,
+              "sn_title": "夜間之橋",
+              "location_codename": "橋上燈柱",
+              "sn_opening_text": "你站在太平光興隆大橋上，夜晚的燈光如同一片星空，橋下的河水潤潤地閃著金色。",
+              "sn_success_text": "你們拍下的照片在橋上燈柱的燈光下顯得特別優雅，霓霓的足跡指向一條老巷。",
+              "dialogues": {
+                "opening": "你來到太平光興隆大橋了，我們現在要找尋著霓霓的足跡。",
+                "success": "這張照片的光影感覺真好！老巷裡的光影也在等著我們。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要拍攝太平光興隆大橋上的燈柱，拍出一張與霓霓的足跡吻合的照片。",
+                  "task_hint": "注意橋下的燈光，尋找一個合適的角度拍攝。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "sn_order": 6,
+              "sn_title": "夜空下的足跡",
+              "location_codename": "夜間燈塔",
+              "sn_opening_text": "你抵達的公園裡，燈塔上掛著一塊大紅色燈，周圍的空氣充滿著晚間的霜味，人們的話語間斷，讓人感到孤單和寂寞。",
+              "sn_success_text": "你們的攝影技巧讓燈塔的燈光變得更明亮，照亮了公園裡的幾個燈塔，霓霓感覺到這裡是她的足跡的跡象。",
+              "dialogues": {
+                "opening": "你抵達的公園裡，燈塔上掛著一塊大紅色燈，霓霓覺得這裡是她尋找的線索。",
+                "success": "你們的攝影技巧讓燈塔的燈光變得更明亮，霓霓感覺到這裡是她的足跡的跡象。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍攝燈塔的燈光，或者是周圍的燈塔，或者是燈塔下方的燈光反射在水面上。",
+                  "task_hint": "用你的鏡頭捕捉燈塔的燈光，或者是燈塔下方的燈光反射在水面上，霓霓覺得這裡是她尋找的線索。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "sn_order": 7,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院門前",
+              "sn_opening_text": "你抵達頭汴坑休閒農業區，眼前的是一片農田，夜晚的星光照亮了這片田野，空中飄的霜氣使得你感到一股寒意。",
+              "sn_success_text": "你拍到了那一張照片，霜氣的光芒在圖片中留下了美麗的光影，霓霓看了看照片後，說道：你的光影感覺很好！",
+              "dialogues": {
+                "opening": "你來到這裡了，我們要尋找的第一個線索在這裡。",
+                "success": "你拍了那一張照片，霜氣的光芒在圖片中留下了美麗的光影，跟著我走，下一站的線索就在這裡的書院門前。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在農田中找到一片空白的書院門前，拍一張與夜晚環境相關的照片。",
+                  "task_hint": "注意到書院門前的雕塑和星光下夜晚的田野，拍攝時可以將自己和雕塑融入一張美麗的照片中。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "195dda52-8b3f-439a-ab34-a5863b213a91",
+              "sn_order": 8,
+              "sn_title": "夜空中的秘密",
+              "location_codename": "夜花架",
+              "sn_opening_text": "你抵達旱溪觀光夜市，周圍的燈光和夜花架的花朵映著星光，空氣中飄著甜甜的氣味。",
+              "sn_success_text": "你們拍下的照片表明了這裡的美感，霓霓感動了，說明她有了方向。",
+              "dialogues": {
+                "opening": "你抵達旱溪觀光夜市了嗎？這裡的夜花架真美，說不出來的感覺都在這裡。",
+                "success": "你們的照片和夜花架的花朵，真好看！這裡的美感，跟著我們走。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在夜花架旁邊的花朵中，找一個你們覺得最適合當照片的花朵，拍一張和霓霓一起的照片。",
+                  "task_hint": "你們可以在花朵中尋找一些美麗的花色和-，與霓霓一起拍照，讓夜花架的花朵成為背景。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "story": {
+            "story_title": "太平區的謎題之旅",
+            "story_prologue": "在太平區的早晨，陽光洩落在頭汴坑溪上，像是一個新的一天。",
+            "story_synopsis": "幫助薯光解開太平區的謎題，尋找家書的回家的路。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "薯光",
+            "role": "充滿朝氣的新生代引導者，善於解開謎題、點燃線索",
+            "intro": "薯光：一位充滿朝氣的新生代引導者，喜歡與朋友一起探索太平區，熱心解開區內的謎題，想與大家一起找到這個區域的秘密。"
+          },
+          "nodes": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "sn_order": 1,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院牆",
+              "sn_opening_text": "走進這個古老的書院，書架上堆積著老舊的書籍，空間中充滿著濃厚的書香和夜晚的氛圍，書院牆上掛著一張古老的畫框，旁邊的說明牌寫著：請自行補上。",
+              "sn_success_text": "你們的照片填滿了畫框，畫留下的腳印指向書院的深處，薯光說：『好！你們的創意攝影的照片已經幫助我們找到了一個線索！』",
+              "dialogues": {
+                "opening": "你好！我是薯光，歡迎你們來到太平區！你們今天來這裡是為了什麼？我們要一起尋找家書的回家的路，找到太平區的秘密。我們要從這裡開始!",
+                "success": "你們的照片拍得真好！畫的腳印指向書院的深處，讓我們一起進一步調查吧！"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找一個你們覺得最適合當畫作的角落，兩人一起入鏡拍一張照片，拍攝時間在晚上 10 點前",
+                  "task_hint": "你們可以在書架上選擇你們喜歡的書籍，或者在書院牆上找到一些有趣的物品",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "sn_order": 2,
+              "sn_title": "夜晚的農業幻境",
+              "location_codename": "田間星光",
+              "sn_opening_text": "走進這個田間，夜晚的星光閃耀，農地上散落著一排燈塔，低低的農家小屋圍繞著一片光環光環的草地。",
+              "sn_success_text": "你們的照相機裡拍下了美麗的農業風景，燈塔的光環在草地上留下了美麗的足跡。",
+              "dialogues": {
+                "opening": "你來到這裡，想找到什麼？",
+                "success": "這裡的光環很特別，跟著這條光環，會找到下一個的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在農地上找到一塊燈塔，拍照留下燈塔的光環，跟著燈塔的光環走到下一站。",
+                  "task_hint": "你可以在農地上找到燈塔，燈塔的燈光會照亮一條路線，跟著燈塔的光環，走到下一個的站點。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "sn_order": 3,
+              "sn_title": "悼念的光芒",
+              "location_codename": "燈塔",
+              "sn_opening_text": "你站在震災紀念公園的中心，周圍的燈塔和紀念碑照明了夜晚的空氣，空氣中飄散著一股淡淡的花香，人們的悼念聲在這裡慢慢消退。",
+              "sn_success_text": "你們的照相留下了燈塔的影子，燈塔的燈光指向了另一條路徑。",
+              "dialogues": {
+                "opening": "你來到了921震災紀念公園，記得這裡是為了悼念我們失去的人，現在我們要一起尋找家書的線索。",
+                "success": "你們的照相完成了，燈塔的燈光指向了我們的下一步，跟著燈光去吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到一個燈塔，拍照留下燈塔的影子，然後注意燈塔的燈光。",
+                  "task_hint": "燈塔的燈光會指向下一個路徑，請注意燈塔的燈光方向。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "sn_order": 4,
+              "sn_title": "橋下的書卷",
+              "location_codename": "橋下書卷",
+              "sn_opening_text": "你們來到太平光興隆大橋下，夜晚的燈光照亮了水面，橋下的燈柱像一排巨大的蜂巢，水流中有個小船在慢慢地流動。",
+              "sn_success_text": "你們把照片放上去，燈柱的燈光照亮了書卷，書卷的內容顯示了一個地圖。",
+              "dialogues": {
+                "opening": "你們來到太平光興隆大橋了！這裡是太平區的重要里程碑，橋下的燈柱像一排巨大的蜂巢。",
+                "success": "好！你們的照片拍得很好！燈柱的燈光照亮了書卷，書卷的內容顯示了一個地圖，應該是你的家書的路徑。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍照的目標是把燈柱的燈光照亮書卷，展現出書卷的內容。",
+                  "task_hint": "燈柱的燈光很強，需要你們配合拍照，才能把燈光照亮書卷。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "sn_order": 5,
+              "sn_title": "夜晚的高速公路",
+              "location_codename": "道",
+              "sn_opening_text": "你走在道上，夜晚的月光照亮了道的路面，空中飄浮著一根綠色燈柱，燈柱上掛著一張掛板，板上寫著：請繼續前行。",
+              "sn_success_text": "你們的照相留下了燈柱的印跡，燈柱的燈光指向了一條黑暗的路口。",
+              "dialogues": {
+                "opening": "你看，這裡是道，路上有很多車輛進出。",
+                "success": "你的照相留下了燈柱的印跡，燈柱的燈光指向了一條黑暗的路口。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍照留下燈柱的印跡，燈柱的燈光指向了一條黑暗的路口。",
+                  "task_hint": "注意燈柱的燈光，燈柱的燈光指向了一條黑暗的路口。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "sn_order": 6,
+              "sn_title": "夜晚的路燈",
+              "location_codename": "路燈巷",
+              "sn_opening_text": "你抵達頭汴坑溪自行車道的夜晚，路燈的光線下，空間充滿了懷疑感。路燈的篩子下，兩根大樹立得高高的，像兩個。路燈的光線穿透篩子，映射在路面上，形成了幾個點點光源。",
+              "sn_success_text": "你拍下了路燈的照片，路燈的光線照射在路面上，形成了一個小的光環。",
+              "dialogues": {
+                "opening": "你好！你是誰？",
+                "success": "你拍得好！這裡是路燈巷的第一站。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在路燈下拍一張你覺得最美的照片，拍到路燈的篩子和樹木的影子。",
+                  "task_hint": "你可以用手持照相機拍照，或者用智能手机的相機拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "sn_order": 7,
+              "sn_title": "書香與夜晚",
+              "location_codename": "書香巷",
+              "sn_opening_text": "你們走進這個小巷，空氣中充滿著書香，老舊的書店和書籍店的燈光如同一道金線，引導著你們的步伐。",
+              "sn_success_text": "你們的照片在書香巷的書店窗口被展示，書店老板對你們的感謝之情充滿了感動。",
+              "dialogues": {
+                "opening": "你來到太平區了，現在就要解開太平區的謎題了，第一站是書香巷的書店，你們要拍一張照片，讓書香巷的美好留下影子。",
+                "success": "太平區的秘密，現在就要揭露了，你們的照片被展示在書香巷的書店窗口，接下來就是太平買菸場的路口了，留意那些老人們的話語。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們要走進書香巳的書店，找到一個適合拍照的角落，拍一張照片，讓書香巳的美好留下影子。",
+                  "task_hint": "你們可以在書店的書架上找到一些適合拍照的東西，還可以詢問書店老板，尋找一些書籍的標題，讓照片更具意義。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ee9892f6-aa52-469a-a337-a30c084ef697",
+              "sn_order": 8,
+              "sn_title": "書院的夜晚",
+              "location_codename": "書院門前",
+              "sn_opening_text": "你抵達馬卡龍公園，夜晚的燈光照在書院門前，門口的燈光像一盞火，映著書院的門口。",
+              "sn_success_text": "你們拍了完照片，書院門口的燈光開始變暗，書院的門口關上了。",
+              "dialogues": {
+                "opening": "你們來到馬卡龍公園了，現在要找到書院門前那個很特別的地方了。",
+                "success": "現在你們已經找到書院門前的那個很特別的地方了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到書院門前的燈塔，拍照",
+                  "task_hint": "燈塔在門前，燈光很亮，很適合拍照",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "story": {
+            "story_title": "太平區的迷路故事",
+            "story_prologue": "你在太平區的迷路裡，找尋著阿達力的身影。",
+            "story_synopsis": "尋找阿達力，解開太平區的秘密，找到回家的路。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿達力",
+            "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+            "intro": "阿達力，太平區的老店家走路達人，四十年來熟悉這裡的路徑，為了找到家人，得跟你一起走。"
+          },
+          "nodes": [
+            {
+              "place_id": "d06ae2fd-95ef-43bc-aaf5-85c80716aaf1",
+              "sn_order": 1,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院門前",
+              "sn_opening_text": "走進太平會幕堂，書院門前一排老式木桌，光線從天花板射出，空中飄浮著一本古籍，書本蓋著一張白色布幔，旁邊的燈柱上掛著一張掛畫，掛畫上書寫著「太平區的迷路故事」，門前人們都在低頭看著它，好像在沉思著什麼事。",
+              "sn_success_text": "你們拍了好照片，掛畫的燈光照在你的臉上，太平區的夜晚氛圍就像你身處其中了。",
+              "dialogues": {
+                "opening": "你是誰？你想做什麼？",
+                "success": "好！你們的照片能夠解開這個畫框，現在我們要一起走，找尋阿達力。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你可以拍照或拍攝圖片，照看掛畫上的字和燈光。",
+                  "task_hint": "你可以從燈柱的燈光開始，慢慢地移動到掛畫上，拍攝好後，與阿達力一起離開書院門前。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "7bb35e38-e24d-410f-8f80-d5c046717a18",
+              "sn_order": 2,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院門前",
+              "sn_opening_text": "你走進這間書院，門前一排古老的書架映著月光，書籍的書頁和木頭框架在夜晚的光線下，像是在呼喚你進來。",
+              "sn_success_text": "你拍攝了好一張照片，書架的書籍都被你拉開，門前一排書架的書籍都在你拍照的位置，像是在等待你。",
+              "dialogues": {
+                "opening": "你來到書院門前，阿達力正在等著你。",
+                "success": "你拍攝了好一張照片，阿達力說：你知道這間書院的秘密了嗎？"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你要在書院門前拍攝一張照片，拍攝的對象是門前書架的書籍。",
+                  "task_hint": "門前書架的書籍都有標題，請選擇你覺得最有趣的書籍拍攝。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "273a2237-cae1-4c24-b0cc-bdc21d4bb0fb",
+              "sn_order": 3,
+              "sn_title": "夜晚的紀念",
+              "location_codename": "燈塔",
+              "sn_opening_text": "你們來到這裡，燈塔的燈光像一把手掌，照亮了這片空白的公園。",
+              "sn_success_text": "你們的照相留下了燈塔的影子，燈塔的燈光指向了一個小巷。",
+              "dialogues": {
+                "opening": "你來到這裡了，太平區的秘密在這裡等待你。",
+                "success": "你們的照相留下了燈塔的影子，燈塔的燈光指向了阿達力的方向。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在燈塔前拍一張照，留下燈塔的影子。",
+                  "task_hint": "燈塔的燈光像一把手掌，照亮了這片空白的公園。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "2e5e3221-01d3-464c-a59d-8ca5062f0021",
+              "sn_order": 4,
+              "sn_title": "橋下之夜",
+              "location_codename": "橋下燈塔",
+              "sn_opening_text": "你抵達太平光興隆大橋，夜晚的燈塔映著淡淡的水面，兩邊的橋桿上掛著一串串小燈，人們在橋下走過，低頭欣賞夜景。",
+              "sn_success_text": "你們的攝影照片在燈塔下拍出了一張美麗的夜景，燈塔的燈光映著水面，人們的身影消失在夜晚的黑暗中。",
+              "dialogues": {
+                "opening": "你來到太平光興隆大橋，橋下燈塔映著水面，燈光很迷人。",
+                "success": "拍得真好！燈塔的燈光映著水面，人們的身影都消失了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在橋下走過，拍攝橋下的燈塔和夜景。",
+                  "task_hint": "你可以選擇一個角度，拍攝燈塔和水面，或者拍攝人們的身影在夜晚的黑暗中。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "32904574-3a5b-46e0-a9c5-457a93bfd62e",
+              "sn_order": 5,
+              "sn_title": "夜幕下的自行車道",
+              "location_codename": "自行車道的夜光燈",
+              "sn_opening_text": "你站在136線自行車道上，夜幕降臨，車輛的紅光燈如同星光點亮了這片路面。",
+              "sn_success_text": "你們拍下的照片表明你們確實找到了一個很有趣的角落。",
+              "dialogues": {
+                "opening": "你看這裡，夜晚的自行車道，還有點有趣的角落。",
+                "success": "你們的照片讓我覺得有點有趣，跟著我去看看，可能會發現一些有趣的東西。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以抬頭觀察自行車道上的燈光，拍攝你們的身影在燈光下。",
+                  "task_hint": "注意到自行車道上有哪些燈光的顏色和模式，是否可以用燈光來發現某些東西。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "a08a31d3-65d7-4d13-a435-fd2577a6a94c",
+              "sn_order": 6,
+              "sn_title": "夜晚的路徑",
+              "location_codename": "路徑的交叉",
+              "sn_opening_text": "你們來到頭汴坑溪自行車道，夜晚的路面上燈光點點閃動，空氣中飄這裡是太平區的重要路徑，很多人都走過這裡。",
+              "sn_success_text": "你們的照相表現出來的感覺，令人印象深刻，路徑的交叉上有一個小燈柱，燈光點點閃動，像是在等待什麼。",
+              "dialogues": {
+                "opening": "你們來到頭汴坑溪自行車道了嗎？這裡是太平區的重要路徑，很多人都走過這裡。",
+                "success": "你們拍出了很好的照相！這裡的燈柱，燈光點點閃動，像是在等待什麼。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在這裡拍一張照，將燈柱作為焦點，燈光點點閃動的效果。",
+                  "task_hint": "燈柱是這裡的標誌，燈光的點點閃動，很有趣的效果。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d18948e6-34b4-4609-a33a-6ece2b251208",
+              "sn_order": 7,
+              "sn_title": "夜晚的燈光",
+              "location_codename": "燈柱",
+              "sn_opening_text": "你走進這裡，燈柱的光線照射在你的面前，空氣中飄著一股香菸的味道，周圍的街頭燈光微微閃動，夜晚的氣息濃厚。",
+              "sn_success_text": "你們的照片拍完後，燈柱下的燈光變得更加明亮，顯示了你們的影子，然後，燈光點亮了下一個燈柱，導致你們的注意力轉向另一處。",
+              "dialogues": {
+                "opening": "你來到太平區最熟悉的買菸場了，阿達力在這裡等你。",
+                "success": "現在你們的照片出現在這裡，燈柱的光線照射在你們的身上，然後，燈柱的燈光點亮了下一個燈柱，導致你們的注意力轉向另一處。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在這裡拍攝一張照片，將燈柱作為背景。",
+                  "task_hint": "注意燈柱的燈光，拍攝時要盡量將燈柱照亮。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ee9892f6-aa52-469a-a337-a30c084ef697",
+              "sn_order": 8,
+              "sn_title": "夜晚的詩句",
+              "location_codename": "夜晚的燈柱",
+              "sn_opening_text": "走進馬卡龍公園，夜晚的燈柱如一排金色的大箭頭，指向著前方的路徑。",
+              "sn_success_text": "你們在燈柱前拍了完美的照相，燈柱的光芒將你們帶向下一個地點。",
+              "dialogues": {
+                "opening": "走來走去這裡都不是你們的路。",
+                "success": "你們的照相出現在燈柱上，光芒將你們帶向下一個地點。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到馬卡龍公園的燈柱，拍照在燈柱前面。",
+                  "task_hint": "注意燈柱的燈光，找到一個適合拍照的角度。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,202 @@
+﻿{
+  "time": "2026-10-17 16:39:05.059",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西區",
+      "party_size": 2,
+      "s_tag": [
+        "好山好水",
+        "美食"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "311c40c2-ca97-4aa6-a3bf-3598b9193227",
+          "p_name": "萬春宮",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "22fc618a-38e6-475c-9c44-d68495ece4ac",
+          "p_name": "臺中作家典藏館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "7643cc2d-945b-45e5-b9da-1ba3282f5844",
+          "p_name": "第四市場",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "c3cfb095-73ff-4db4-b360-56633a6e14e9",
+          "p_name": "臺中火車站ˍ舊站",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "6a82d9ec-c4ac-4f0b-a0aa-0c5db399492d",
+          "p_name": "富興工廠1962",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "706691bf-27be-4f7a-b5a9-a0719c9cfa9a",
+          "p_name": "大屯郡役所",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "83cc10c4-c67e-4a7a-88dd-aacbbf6d20f4",
+          "p_name": "中華路夜市",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "b75d660d-9f94-4322-ab8a-770ffe0ad6d4",
+          "p_name": "金典綠園道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 5,
+              "type_name": "協作解謎型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "013c18ab6aed4a199bea605e034d3a0d",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792226345.0582185,
+      "updated_at": 1792226345.0582185,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/013c18ab6aed4a199bea605e034d3a0d",
+      "queue_position": 1
+    }
+  }
+}

@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 22:23:45.276",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/d9aabc7b22da4a92af124ccc4f6ac0f4",
+  "request": null,
+  "duration_ms": 0,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "d9aabc7b22da4a92af124ccc4f6ac0f4",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792419682.2529871,
+      "updated_at": 1792419786.3943276,
+      "result": {
+        "story": {
+          "story_title": "北區風景之旅的秘密",
+          "story_prologue": "在北區的老街上，曾有四位朋友聚集在一起，共享著美味的娜麼美味火雞肉飯。然而，現在其中一位朋友的家書消失了，沒有留下任何線索。",
+          "story_synopsis": "尋找家書的旅程，從寶覺寺開始，終於在中國醫藥大學立夫中醫藥博物館找到答案。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "薯光",
+          "role": "充滿朝氣的新生代引導者，善於解開謎題、點燃線索",
+          "intro": "薯光是一位充滿朝氣的新生代引導者，對於解開謎題和點燃線索有很高的興趣，希望能夠幫助四位朋友找到失去的家書。"
+        },
+        "nodes": [
+          {
+            "place_id": "bb93a77a-50bd-4580-b0b7-cd0e68fea34f",
+            "sn_order": 1,
+            "sn_title": "尋求寵物的愛",
+            "location_codename": "晨曦之巖",
+            "sn_opening_text": "我們來到這裡，為了尋找失去的家書，讓我們一起探索這裡的秘密吧!",
+            "sn_success_text": "我們終於找到答案了！這是一個非常重要的里程碑，讓我們繼續前進!",
+            "dialogues": {
+              "opening": "我是薯光，今天我將幫助四位朋友尋找失去的家書。首先，我們來到這裡的寶覺寺。這裡是一處清幽的參禪問學之地，廟貌為鼓樓式建築，主奉釋迦牟尼、藥師佛和阿彌陀佛三尊佛。",
+              "success": "我們在這裡找到了一些線索，讓我們能夠進一步追查失去的家書。現在，我們來到中國醫藥大學立夫中醫藥博物館，讓我們一起進一步尋找答案!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，請拍攝這裡的環境，尋找任何可能與失去的家書相關的線索或道具。",
+                "task_hint": "你們注意到這裡的雕像有什麼特殊之處？",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5e8d013c-9195-468a-9fa2-677fe9169547",
+            "sn_order": 2,
+            "sn_title": "孔子之道",
+            "location_codename": "孔廟之巉",
+            "sn_opening_text": "我們來到臺中市的孔廟了，你們的家書可能在這裡的哪裡呢？",
+            "sn_success_text": "你們的家書在這裡！讓我們來看一下這裡的神秘書籍",
+            "dialogues": {
+              "opening": "你們來到臺中市的孔廟了！我是薯光，我們要一起找到你的家書！",
+              "success": "你們的家書在這裡！是個很神秘的書籍，需要解開一些謎題才能知道它的秘密"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在孔廟的書架上找到一本與家書相關的書籍",
+                "task_hint": "你們需要觀察這裡的書籍，找到與家書相關的標誌或符號",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "0075ccaf-7e9d-44ab-9f75-099cd49352cd",
+            "sn_order": 3,
+            "sn_title": "火雞的美味之旅",
+            "location_codename": "火雞之巔",
+            "sn_opening_text": "你們來到娜麼美味火雞肉飯的店家，薯光正等著你們！",
+            "sn_success_text": "你們完成了創意攝影任務，找到了一些美味的火雞美食!",
+            "dialogues": {
+              "opening": "大家好！我是薯光，我們現在正位於娜麼美味火雞肉飯的店家！這裡的火雞肉飯非常好吃，我們可以在這裡找到一些線索!",
+              "success": "很好！你們完成了創意攝影任務，找到了一些美味的火雞美食！接下來，我們可以在這裡找到一些線索，幫助你們找到失去的家書!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在娜麼美味火雞肉飯店家中拍攝一些創意攝影，找出一些線索，幫助你們找到失去的家書!",
+                "task_hint": "請觀察店家的環境，找出一些線索！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "b717e40d-cede-4abe-85a3-9ea0332a99b6",
+            "sn_order": 4,
+            "sn_title": "中友百貨的秘密",
+            "location_codename": "新樂園",
+            "sn_opening_text": "你們現在來到了中友百貨，新樂園的繁華景象，讓你們的眼睛都擺不住閃動!",
+            "sn_success_text": "你們成功完成了創意攝影任務，獲得了中友百貨的秘密!",
+            "dialogues": {
+              "opening": "我是薯光，今天我將幫助你們解開中友百貨的秘密，讓你們找到失去的家書!",
+              "success": "很好，你們完成了任務，中友百貨的秘密已經被揭開了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們現在需要在中友百貨中尋找一些與家書相關的線索，例如書籍、圖書或其他與書籍相關的物品。請到中友百貨的某個部門去尋找這些線索，然後再回到我們等著你們!",
+                "task_hint": "你們可以在中友百貨的販賣部、公共電話、停車場、公廁、公車站等部門尋找線索，請注意每個部門的特點和線索的藏身處",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "02b5b9ca-1248-4af8-b260-21a7fd052ce3",
+            "sn_order": 5,
+            "sn_title": "下午茶的秘密",
+            "location_codename": "陽光小屋",
+            "sn_opening_text": "你們現在出現在小熊屋中友店，裡面的濃湯和下午茶非常受歡迎，現在是下午三點半，店家正是下午茶的時候!",
+            "sn_success_text": "你們成功完成了下午茶的攝影，得到的照片非常出色!",
+            "dialogues": {
+              "opening": "大家好，我是薯光！你們現在出現在小熊屋中友店，裡面的濃湯和下午茶非常受歡迎，現在是下午三點半，店家正是下午茶的時候!",
+              "success": "你們的攝影非常出色，下午茶的秘密已經被揭露了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請用你的攝影眼光捕捉下午茶的美味和濃湯的滋味!",
+                "task_hint": "下午茶的選單上有很多美味的選擇，請你們用心攝影和記錄!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "83ef255b-9adb-4aaa-834e-9b22193882ba",
+            "sn_order": 6,
+            "sn_title": "中山堂的秘密",
+            "location_codename": "陽光之巔",
+            "sn_opening_text": "你們來到中正公園的陽光之巔，中山堂的陽光正好照在這裡",
+            "sn_success_text": "你們完成了創意攝影任務，找到了中山堂的陽光之巔",
+            "dialogues": {
+              "opening": "你們來到陽光之巔了嗎？今天陽光特別好，希望能夠點燃你們的創意!",
+              "success": "太好了！你們的創意攝影拍攝得很棒！希望能夠將這個美好的時刻儲存在心中"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在中山堂的陽光之巔拍攝一張創意攝影照片，包含中山堂的建築特色",
+                "task_hint": "你們可以從中山堂的外觀開始，然後找到一個合適的角度拍攝，包含中山堂的陽光",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "d752e19d-709d-471e-96a4-48779d0a6e46",
+            "sn_order": 7,
+            "sn_title": "尋找家書的秘密：中正公園",
+            "location_codename": "陽光廣場",
+            "sn_opening_text": "你們來到中正公園，陽光灑下，四周都有豐富的植物。薯光等待著你們，為了找到家書，需要解開一些謎題。",
+            "sn_success_text": "你們成功在中正公園拍攝了創意攝影的照片，找到了一些線索！",
+            "dialogues": {
+              "opening": "你們來到中正公園，陽光灑下，四周都有豐富的植物。這裡是臺中市的生活之處，對於我們來說，還是個很好的地方來找到線索。",
+              "success": "你們成功在中正公園拍攝了創意攝影的照片，找到了一些線索！這是中正公園的特色之一，很多人都愛來這裡放鬆。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在中正公園，找到一些與家書相關的線索，拍攝創意攝影的照片，展現出您的創意!",
+                "task_hint": "在這裡，觀察周邊的植物和景色，找到與家書相關的線索，拍攝創意攝影的照片，展現出您的創意!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bb7d2ea3-8044-4cce-ad5a-d9e30faea85e",
+            "sn_order": 8,
+            "sn_title": "博物館的結尾",
+            "location_codename": "藥香館",
+            "sn_opening_text": "我們終於到達了中國醫藥大學立夫中醫藥博物館，期待著能夠找到失去的家書",
+            "sn_success_text": "我們成功找到家書，感謝薯光的幫助",
+            "dialogues": {
+              "opening": "歡迎來到立夫中醫藥博物館，讓我們一起尋找那本失去的家書",
+              "success": "你們找到家書了！我真心感謝你們的努力"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到失去的家書",
+                "task_hint": "在博物館中，請觀察古物典藏，尋找線索",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/d9aabc7b22da4a92af124ccc4f6ac0f4",
+      "queue_position": null
+    }
+  }
+}

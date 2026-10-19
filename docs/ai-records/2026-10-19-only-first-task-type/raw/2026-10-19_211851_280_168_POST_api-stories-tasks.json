@@ -1,0 +1,173 @@
+﻿{
+  "time": "2026-10-19 21:18:51.280",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "北區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "d4812649-4d19-49af-8a30-8922da50f66d",
+          "p_name": "慈善寺",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "394e09e3-6736-4d3c-936c-6448be9c407e",
+          "p_name": "昌平路皮鞋街",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ad71960d-7324-440c-80d8-e892ee47f3ea",
+          "p_name": "一德洋樓ˍ台中市歷史建築林懋陽故居",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "5e8d013c-9195-468a-9fa2-677fe9169547",
+          "p_name": "臺中市孔廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "fb9cfa45-a22d-46ff-8575-f7fa253caa1a",
+          "p_name": "臺中市忠烈祠",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "0075ccaf-7e9d-44ab-9f75-099cd49352cd",
+          "p_name": "娜麼美味火雞肉飯",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 4,
+              "type_name": "地方美食型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+          "p_name": "柳原教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "83ef255b-9adb-4aaa-834e-9b22193882ba",
+          "p_name": "臺中市中山堂",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 1,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "9efba7e133b7458f8e3cd0cd8c9bf9e0",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792415931.2786486,
+      "updated_at": 1792415931.2786486,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/9efba7e133b7458f8e3cd0cd8c9bf9e0",
+      "queue_position": 3
+    }
+  }
+}

@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:56:23.500",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/ca97232dfd2541c49dc3733c65e18e2b",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "ca97232dfd2541c49dc3733c65e18e2b",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792418078.0975437,
+      "updated_at": 1792418182.664047,
+      "result": {
+        "story": {
+          "story_title": "東區的秘密書箱",
+          "story_prologue": "在東區的老街上，誰能找到那一封寄不出去的家書？",
+          "story_synopsis": "與阿達力一起追尋那封家書，找到回家的路吧！",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力，東區的老友人，熟悉每個巷子、每個角落，熱心地為我們尋找那封家書的路徑。"
+        },
+        "nodes": [
+          {
+            "place_id": "c0231405-6cb5-4c33-9679-984d85287fb5",
+            "sn_order": 1,
+            "sn_title": "尋找的路徑",
+            "location_codename": "夜花巷",
+            "sn_opening_text": "你們來到中正公園，現在是晚上，公園內的燈火通明，空氣中充滿著人文藝術的氣息。阿達力在等候你們，你們可以先觀察公園內的情況，找到任何與尋找那封家書有關的線索。",
+            "sn_success_text": "你們找到了一份關於那封家書的線索，該線索指向了夜花巷，下一步你們要去那裡了!",
+            "dialogues": {
+              "opening": "晚上來到中正公園，你們現在是有個很好的時間了。這裡的燈火通明，空氣中充滿著人文藝術的氣息。公園內的小型展示館時常舉辦藝文活動，充滿朝氣與歡樂。",
+              "success": "你們找到了一份關於那封家書的線索，該線索指向了夜花巳，下一步你們要去那裡了！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們現在需要找到夜花巳的路徑，從中正公園出發，沿著民權路忠義街向西行走，直到你們看到一條小巷，你們就知道你們到了夜花巳了!",
+                "task_hint": "你們可以觀察公園內的情況，找到任何與尋找那封家書有關的線索，例如是哪個方向有燈火通明，哪裡有藝文活動，等等。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a98a5424-ec4d-4582-9025-fbab42ee4237",
+            "sn_order": 2,
+            "sn_title": "慈龍寺之水墨濕壁畫",
+            "location_codename": "天香院",
+            "sn_opening_text": "我們現在在慈龍寺，讓我們觀察這座寺廟的外觀",
+            "sn_success_text": "我們完成了創意攝影任務！",
+            "dialogues": {
+              "opening": "你們來到慈龍寺了，我是阿達力！這座寺廟的主祀是觀世音菩薩，熱心地為我們尋找那封家書的路徑",
+              "success": "你們成功完成了創意攝影任務！觀世音菩薩的濕壁畫真的是神奇的，讓我們一起欣賞這些水墨色彩的美術作品"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在慈龍寺中尋找林玉山國畫大師的濕壁畫",
+                "task_hint": "觀察這座寺廟的外觀，尋找濕壁畫的位置",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "be05ccea-f293-4242-8328-71ac8c5531c3",
+            "sn_order": 3,
+            "sn_title": "森林之歌的秘密",
+            "location_codename": "阿里山之歌",
+            "sn_opening_text": "你們來到森林之歌了，現在是晚上，景色非常美麗。阿達力等著你們!",
+            "sn_success_text": "你們完成了創意攝影任務！那封家書的路徑終於揭露!",
+            "dialogues": {
+              "opening": "你們來到森林之歌了！這裡是我的老朋友，王文志的作品。您想拍攝什麼樣的照片?",
+              "success": "很好！我知道您要拍攝什麼樣的照片。這裡的光線和景色非常適合拍攝！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在森林之歌中，拍攝一張包含景色和光線的照片。這張照片將是您完成任務的證據!",
+                "task_hint": "請觀察景色的變化和光線的流動。您可以在這裡找到非常美麗的光線效果!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ed20d249-c6a5-4ef9-8f16-2c8b8532c94a",
+            "sn_order": 4,
+            "sn_title": "植物園的秘密",
+            "location_codename": "緑色隧道",
+            "sn_opening_text": "我們現在在埤子頭植物園，阿達力在哪裡呢?",
+            "sn_success_text": "我們找到了一些植物園的秘密，讓我們可以更好地瞭解這裡的歷史!",
+            "dialogues": {
+              "opening": "我們現在正好在植物園的最靜態區域，阿達力可以在這裡幫助我們找到那封家書的路徑!",
+              "success": "阿達力，我們找到了一個可以讓我們進一步調查的秘密書箱！我們可以從裡面找到更多的線索!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在植物園中尋找阿達力所指的秘密書箱",
+                "task_hint": "觀察植物園的景點，尋找阿達力所指的書架或書籍",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "2056e677-6a8e-4510-87b5-b6aa3f5d70a2",
+            "sn_order": 5,
+            "sn_title": "檜意森活村的夜晚魅力",
+            "location_codename": "森之巔",
+            "sn_opening_text": "我們現在位於檜意森活村，夜晚的氛圍非常有趣，希望能夠在這裡找到那封家書!",
+            "sn_success_text": "我們在這裡找到了一些線索，接下來我們要去尋找下一個線索!",
+            "dialogues": {
+              "opening": "我們現在位於檜意森活村，夜晚的氣氛非常有趣！這裡有許多老舊的日式建築，非常值得我們來探索!",
+              "success": "我覺得這裡的夜晚氣氛非常特別，希望我們能夠在這裡找到那封家書!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在檜意森活村，找到一張有關家書的圖片，然後尋找下一個線索!",
+                "task_hint": "在這裡，我們可以看到許多老舊的日式建築，希望我們能夠在這裡找到一些線索!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "6f10e0a3-8f6f-4704-9bd0-fdbcd1d7d347",
+            "sn_order": 6,
+            "sn_title": "九華山地藏庵的神秘祈願",
+            "location_codename": "蓮花寶殿",
+            "sn_opening_text": "你們到了九華山地藏庵，已經走了很久了。阿達力在等著你們，希望你們能夠找到那封家書的路徑。",
+            "sn_success_text": "你們成功完成了創意攝影任務！阿達力對你們的感謝心情充滿！",
+            "dialogues": {
+              "opening": "你們到了九華山地藏庵，真的是很壯麗的景象。這裡的香火鼎盛，經常辦理慈善救濟，普渡眾生，撫慰民心。",
+              "success": "你們的創意攝影作品真的是很棒！你們一定能夠找到那封家書的路徑，回家吧！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在九華山地藏庵的蓮花寶殿找到一個神秘的祈願框，拍攝一個有意義的創意攝影",
+                "task_hint": "你們可以在蓮花寶殿的周圍觀察，尋找一個神秘的祈願框",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a4ab05f8-2e7e-4270-924b-e2ea87ca1f28",
+            "sn_order": 7,
+            "sn_title": "神秘的雕像",
+            "location_codename": "神經的巷子",
+            "sn_opening_text": "我們現在位於孔廟內，來自阿達力的導引下，讓我們進一步探索這座神秘的雕像",
+            "sn_success_text": "成功拍攝神秘雕像，阿達力對我們表示很高興",
+            "dialogues": {
+              "opening": "我們現在位於孔廟內，來自阿達力的導引下，讓我們進一步探索這座神秘的雕像",
+              "success": "成功拍攝神秘雕像，阿達力對我們表示很高興"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝神秘雕像",
+                "task_hint": "阿達力說明，這座雕像是古代的神祇祈求之地，拍攝後我們可以進一步瞭解這座雕像的意義",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "01c550e0-55a4-4e68-bb6e-4a5901efed8d",
+            "sn_order": 8,
+            "sn_title": "尋找最後的線索",
+            "location_codename": "新生田",
+            "sn_opening_text": "你們來到這裡，農業試驗分所的夜晚看起來真的是靜靜的，能夠感受到一股農業的氣息。",
+            "sn_success_text": "你們找到最後的線索了，現在是時候回家了!",
+            "dialogues": {
+              "opening": "你們來到這裡了，農業試驗分所的夜晚看起來真的是靜靜的，能夠感受到一股農業的氣息。",
+              "success": "你們找到最後的線索了！這封家書的路徑你們現在可以回家了！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要找到那封家書的路徑，阿達力會給你們一些線索",
+                "task_hint": "你們需要觀察農業試驗分所的環境，找到阿達力的線索",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/ca97232dfd2541c49dc3733c65e18e2b",
+      "queue_position": null
+    }
+  }
+}

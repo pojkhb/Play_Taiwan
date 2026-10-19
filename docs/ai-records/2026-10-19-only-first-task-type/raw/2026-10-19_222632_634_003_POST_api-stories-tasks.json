@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 22:26:32.634",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺南市",
+      "district_name": "安平區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "7cec7ae7-7804-4cb2-a21b-d671fcce8252",
+          "p_name": "接官亭",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "c9958030-ce61-4223-9762-0dea2646cf77",
+          "p_name": "海安路藝術街",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "061b30a2-34c1-4425-919d-c58a4a21dd24",
+          "p_name": "神農街",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "d8f76025-fed1-4f09-b2a1-e0285b93fa9a",
+          "p_name": "湯德章紀念公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e8c15bc5-1a8d-42d4-a2f3-16d32c59a9e2",
+          "p_name": "泮宮石坊",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "6dff096d-db21-4026-8483-56406a2ce6c3",
+          "p_name": "孔廟文化園區「臺南孔子廟」",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "06efd7aa-3d5d-4414-b5f2-68247021b85d",
+          "p_name": "臺灣祀典武廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e6df8ae1-efa4-4e31-a467-c38270b85695",
+          "p_name": "臺南市政府消防局防災教育館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2048,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "a6c60a63bea94ef4a7f69c7af3b6ef59",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792419994.6823988,
+      "updated_at": 1792419994.6823988,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/a6c60a63bea94ef4a7f69c7af3b6ef59",
+      "queue_position": 1
+    }
+  }
+}

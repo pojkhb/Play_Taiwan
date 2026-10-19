@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 21:54:38.109",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "嘉義市",
+      "district_name": "東區",
+      "party_size": 1,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "c0231405-6cb5-4c33-9679-984d85287fb5",
+          "p_name": "中正公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "a98a5424-ec4d-4582-9025-fbab42ee4237",
+          "p_name": "慈龍寺",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "be05ccea-f293-4242-8328-71ac8c5531c3",
+          "p_name": "森林之歌",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ed20d249-c6a5-4ef9-8f16-2c8b8532c94a",
+          "p_name": "埤子頭植物園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "2056e677-6a8e-4510-87b5-b6aa3f5d70a2",
+          "p_name": "檜意森活村",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "6f10e0a3-8f6f-4704-9bd0-fdbcd1d7d347",
+          "p_name": "九華山地藏庵",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "a4ab05f8-2e7e-4270-924b-e2ea87ca1f28",
+          "p_name": "孔廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "01c550e0-55a4-4e68-bb6e-4a5901efed8d",
+          "p_name": "農業試驗分所",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "ca97232dfd2541c49dc3733c65e18e2b",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792418078.0975437,
+      "updated_at": 1792418078.0975437,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/ca97232dfd2541c49dc3733c65e18e2b",
+      "queue_position": 2
+    }
+  }
+}

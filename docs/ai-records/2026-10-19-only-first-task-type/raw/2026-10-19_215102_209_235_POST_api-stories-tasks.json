@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 21:51:02.209",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "西屯區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "4127a640-5dd9-4b24-ad79-8578c3391230",
+          "p_name": "逢甲商圈文創禮品館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "de8cc1b6-fa65-4a6a-9ad3-f9811232917c",
+          "p_name": "臺中市立圖書館西屯分館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "9b5adf50-1eb3-44e3-9ffc-874a6073a660",
+          "p_name": "Top City臺中大遠百",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "d96fffbf-ef2f-46b8-940c-0db10f99e28f",
+          "p_name": "新光三越百貨_台中中港店",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ad625462-9e98-4a02-81d9-432b165e1eb8",
+          "p_name": "臺中國家歌劇院",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "10a90ebb-4007-4440-9d17-b48ee97081e2",
+          "p_name": "老虎城購物中心",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "af339777-51f6-4ea3-9fe4-c68a2feb331b",
+          "p_name": "誠品生活480",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "0ce9cb15-79c0-4712-8e69-6cc0f10c70c2",
+          "p_name": "佛光山惠中寺",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2031,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6447f944e21a4e0da18cd90f2eb37de7",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792417864.2392795,
+      "updated_at": 1792417864.2392795,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/6447f944e21a4e0da18cd90f2eb37de7",
+      "queue_position": 1
+    }
+  }
+}

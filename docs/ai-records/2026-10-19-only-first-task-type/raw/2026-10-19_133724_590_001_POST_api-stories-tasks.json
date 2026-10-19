@@ -1,0 +1,174 @@
+﻿{
+  "time": "2026-10-19 13:37:24.590",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺中市",
+      "district_name": "北區",
+      "party_size": 1,
+      "s_tag": [
+        "探險運動",
+        "尋訪味蕾"
+      ],
+      "is_night_mode": 2,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "af339777-51f6-4ea3-9fe4-c68a2feb331b",
+          "p_name": "誠品生活480",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "9ff1a691-d264-4824-8445-67d1c76255b7",
+          "p_name": "黎明新村",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "b75d660d-9f94-4322-ab8a-770ffe0ad6d4",
+          "p_name": "金典綠園道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+          "p_name": "柳原教會",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "5d95086b-b5ea-4456-b9c2-f759a05eaf21",
+          "p_name": "一中商圈",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "0075ccaf-7e9d-44ab-9f75-099cd49352cd",
+          "p_name": "娜麼美味火雞肉飯",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 4,
+              "type_name": "地方美食型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ad71960d-7324-440c-80d8-e892ee47f3ea",
+          "p_name": "一德洋樓ˍ台中市歷史建築林懋陽故居",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "1ecc8e00-1105-443d-ac3b-09e1aead4db4",
+          "p_name": "大坑8號登山步道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2023,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "58d017e144414077ae58c3a7ba867e44",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792388246.6136508,
+      "updated_at": 1792388246.6136508,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/58d017e144414077ae58c3a7ba867e44",
+      "queue_position": 1
+    }
+  }
+}

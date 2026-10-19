@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 22:23:45.273",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/c84718373ab3453184d5b13d2bfecf6a",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "c84718373ab3453184d5b13d2bfecf6a",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792419682.2477148,
+      "updated_at": 1792419724.1131456,
+      "result": {
+        "story": {
+          "story_title": "阿達力的北區風情旅程",
+          "story_prologue": "在阿達力四十年來的北區行走中，發現了一封寄不出去的家書。",
+          "story_synopsis": "幫阿達力找到回家的路，尋找家書的真相。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力，北區最通透的導遊，四十年來走遍這個小街小巷，熟悉每個角落的美食、景點和故事。"
+        },
+        "nodes": [
+          {
+            "place_id": "df34471b-d15f-4dd7-ada3-792e9333d1f4",
+            "sn_order": 1,
+            "sn_title": "守護神殿",
+            "location_codename": "神殿巷",
+            "sn_opening_text": "你們現在站在了元保宮神殿的前面。這裡是北區最著名的神殿之一，神明在這裡保佑著我們的福祿。阿達力今天會帶你們在這裡找到一些有趣的秘密，讓你們的創意攝影更具體感!",
+            "sn_success_text": "你們成功在神殿內找到了一些神秘的陽刻牌匾，現在你們可以開始拍攝創意攝影!",
+            "dialogues": {
+              "opening": "你們現在站在了元保宮神殿的前面。這裡是北區最著名的神殿之一，神明在這裡保佑著我們的福祿。我是阿達力，今天會帶你們在這裡找到一些有趣的秘密，讓你們的創意攝影更具體感!",
+              "success": "你們成功在神殿內找到了一些神秘的陽刻牌匾，現在你們可以開始拍攝創意攝影！這裡有許多神秘的陽刻牌匾，等著你們的拍攝！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在神殿內找到一些神秘的陽刻牌匾，拍攝創意攝影!",
+                "task_hint": "你們可以在神殿內觀察陽刻牌匾的樣式和設計，找到一些與神明相關的線索，拍攝出更具體感的創意攝影!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "7f1c165c-1c37-4403-9076-0fd47c4f8649",
+            "sn_order": 2,
+            "sn_title": "尋找家書的足跡",
+            "location_codename": "大街小巷",
+            "sn_opening_text": "你們現在站在臺灣民俗文物館的正面，周圍的空間充滿著傳統閩南式建築和民俗文物。阿達力在前面，正朝著你們走去。",
+            "sn_success_text": "你們完成了尋找家書的足跡任務！阿達力感覺到你的努力，給你一個小禮物!",
+            "dialogues": {
+              "opening": "你們現在在臺灣民俗文物館，很好！這裡有很多關於臺中市民俗的文物和故事，讓你們能夠更深入地瞭解這個地方的文化。",
+              "success": "你們找到家書的足跡了！這是一個很重要的步驟，讓你們一步一步地接近找到家書的真相。我給你們一個小禮物，希望它能夠幫助你們的旅程!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要用你的創意攝影技巧來拍攝臺灣民俗文物館的特色景點，特別是那些與家書的故事相關的文物。",
+                "task_hint": "你們可以在館內觀察各種民俗文物和展品，找到與家書相關的景點。阿達力會在你們的身旁指引和幫助你們!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ad71960d-7324-440c-80d8-e892ee47f3ea",
+            "sn_order": 3,
+            "sn_title": "懋陽故居的秘密",
+            "location_codename": "木造之家",
+            "sn_opening_text": "你們來到這裡，現在是晚上，木造之家看起來很靜靜的。阿達力正在等你們，來得及時間嗎？",
+            "sn_success_text": "你們成功完成了創意攝影任務！你們拍到了懋陽故居的美麗景象！",
+            "dialogues": {
+              "opening": "哇，晚上來這裡的你們，真是太好了！木造之家在這裡的秘密，誰都不知道？",
+              "success": "你們拍了很好的照！懋陽故居的木造特色，真的很美麗！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要拍攝懋陽故居的木造特色，試圖捕捉到這裡的秘密！",
+                "task_hint": "你們可以從這裡開始拍攝，懋陽故居的木造特色，真的很美麗！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bc3672fc-db94-489d-a6b4-e91376a65e18",
+            "sn_order": 4,
+            "sn_title": "眷村的秘密",
+            "location_codename": "風景之巔",
+            "sn_opening_text": "你們現在站在臺中市眷村文物館的前門，你們要在這裡找到阿達力的家書!",
+            "sn_success_text": "你們找到阿達力的家書，阿達力對你們的感謝!",
+            "dialogues": {
+              "opening": "你們現在站在臺中市眷村文物館的前門，我知道你們來找我家書了，我有個好訊息，家書就在這裡!",
+              "success": "你們找到家書了，我很感謝你們的幫助，我知道你們在這裡找到家書後，我會更好地保護我的家園!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡找到阿達力的家書，家書可能在文物館的某個地方，你們需要觀察文物館的環境，找到家書!",
+                "task_hint": "你們可以在文物館的展示區內觀察，尋找家書的線索!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "43ce0782-6cc0-401d-b43d-5ec5fde4ca86",
+            "sn_order": 5,
+            "sn_title": "夜間的古蹟",
+            "location_codename": "古典之夜",
+            "sn_opening_text": "你們來到臺中市長公館了，阿達力要教你們如何拍攝這裡的夜間景象",
+            "sn_success_text": "你們的攝影作品獲得了阿達力的讚許",
+            "dialogues": {
+              "opening": "你們來到臺中市長公館了，我們要在這裡拍攝夜間的古蹟",
+              "success": "你的攝影作品非常出色，展示了這裡的古蹟美麗"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在臺中市長公館的夜間拍攝古蹟的照片",
+                "task_hint": "你們需要觀察這裡的建築風格，找到適合拍攝的角度",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5d95086b-b5ea-4456-b9c2-f759a05eaf21",
+            "sn_order": 6,
+            "sn_title": "一中商圈的秘密",
+            "location_codename": "小店街",
+            "sn_opening_text": "我們來到了一中商圈，阿達力將教我們發現這裡的秘密！",
+            "sn_success_text": "你們成功拍攝了這裡的秘密！阿達力很自豪!",
+            "dialogues": {
+              "opening": "我們來到了一中商圈，現在是時候發現這裡的秘密了！",
+              "success": "你們成功拍攝了這裡的秘密！我覺得這些照片真的是非常好！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在一中商圈中，發現這裡的秘密!",
+                "task_hint": "在這裡的街巷中，尋找這裡的秘密！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5e3a5df5-d836-4926-b805-0becdf660ec0",
+            "sn_order": 7,
+            "sn_title": "貓貓的秘密",
+            "location_codename": "貓貓之巔",
+            "sn_opening_text": "你們來到臺中科技大學隨機貓貓了，你們的目標是尋找阿達力的家書?",
+            "sn_success_text": "你們找到了阿達力的家書!",
+            "dialogues": {
+              "opening": "你們來到臺中科技大學隨機貓貓了！你們的目標是尋找家書嗎？這裡的貓貓奶龍真的是很秘密!",
+              "success": "我找到家書了！它的真相是，我一直在這裡等待著你們!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在臺中科技大學隨機貓貓拍攝一張貓貓的照片，並且在照片中包含一個明顯的書本!",
+                "task_hint": "你們可以在貓貓奶龍的背景中拍攝照片，或者用書本的身體來模仿貓貓的姿勢!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8a9071d3-666c-4a36-9f3d-d9a65a503fae",
+            "sn_order": 8,
+            "sn_title": "柳原教會的 bí mật",
+            "location_codename": "古老之光",
+            "sn_opening_text": "你們來到柳原教會了，阿達力在這裡等著你們",
+            "sn_success_text": "你們找到了家書的真相，阿達力很高興",
+            "dialogues": {
+              "opening": "你們來到柳原教會了！這裡是北區最古老的教會之一，很多故事都在這裡發生",
+              "success": "你們找到了家書的真相，真是太好了！我也很高興，能夠看到你們的努力"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們要找到阿達力的家書，訊號是這個教會",
+                "task_hint": "你們需要觀察這個教會，找到與家書相關的線索",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/c84718373ab3453184d5b13d2bfecf6a",
+      "queue_position": null
+    }
+  }
+}

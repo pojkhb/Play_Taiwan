@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 14:00:52.479",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/6ac4d66c6ffb46ab8da0a71542a1ad97",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6ac4d66c6ffb46ab8da0a71542a1ad97",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792389502.1392956,
+      "updated_at": 1792389649.8502598,
+      "result": {
+        "story": {
+          "story_title": "五條港的迷路之旅",
+          "story_prologue": "在安平區的五條港，老街上有個秘密的家書被遺落，等待你的找到。",
+          "story_synopsis": "幫助家書找到回家的路，探索安平區的文化遺產，與好友一起闖關!",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "墨先生",
+          "role": "博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案",
+          "intro": "墨先生，安平區的文史工作者，與五條港的歷史密切相關，能夠解讀古地圖與歷史檔案，幫助你解開迷路的 bí密。"
+        },
+        "nodes": [
+          {
+            "place_id": "bf79d27b-43fc-4650-beef-ce501b42fe54",
+            "sn_order": 1,
+            "sn_title": "河港痕跡",
+            "location_codename": "河港遺蹤",
+            "sn_opening_text": "你和墨先生在五條港文化園區的河港遺蹤中相遇，你們發現這裡是台南中西區歷史最豐富的一處",
+            "sn_success_text": "你們成功拍攝了河港遺蹤的美麗照片，墨先生對你們的拍攝技巧表示滿意",
+            "dialogues": {
+              "opening": "你看到這裡了嗎？這是台南中西區的河港遺蹤，五條河港在這裡留下了豐富的歷史",
+              "success": "你們的攝影技巧非常好！這些照片一定能夠讓家人和朋友們發現這裡的美麗"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，你需要拍攝河港遺蹤的美麗照片",
+                "task_hint": "你們可以在這裡觀察到河港的痕跡，找到一些有趣的攝影角度",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8d0e8b46-3afe-4902-b40b-d4c892cf51be",
+            "sn_order": 2,
+            "sn_title": "尋找媽祖的路",
+            "location_codename": "神門",
+            "sn_opening_text": "我們來到大天后宮了，你們有沒有聽說這裡是全臺第一座官建媽祖廟？",
+            "sn_success_text": "你們成功找到媽祖的路了！接下來，讓我們進入廟宇探索!",
+            "dialogues": {
+              "opening": "歡迎你們來到大天后宮，我是墨先生，博學嚴謹的文史工作者。我將幫助你們解開迷路的 bí密。",
+              "success": "你們完成了第2站的任務！接下來，讓我們進一步探索大天后宮，尋找更多的 bí密!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到大天后宮的位置，與墨先生一起進入廟宇，尋找神門的 bí密",
+                "task_hint": "墨先生將給你一份古地圖，幫助你找到神門的 bí密",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "1df7c258-e007-44ab-846d-7a84efa906bb",
+            "sn_order": 3,
+            "sn_title": "蝸牛巷的秘密",
+            "location_codename": "巷弄之王",
+            "sn_opening_text": "我們現在來到了蝸牛巷，該是尋找家書的關鍵地點!",
+            "sn_success_text": "我們成功找到家書的路徑!",
+            "dialogues": {
+              "opening": "歡迎你們來到蝸牛巷！我是墨先生，能夠解讀古地圖與歷史檔案，幫助你解開迷路的 bí密。",
+              "success": "你們的創意攝影工作真的是非常棒！蝸牛巷的秘密已經被揭露!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找家書的路徑，拍攝蝸牛巷的美麗景象",
+                "task_hint": "你們可以在蝸牛巷裡找到葉石濤文學館，了解著名文學家的生平，找到家書的路徑不會那麼困難了",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "2bbaedce-0995-4fcb-b41f-6dbd3138e102",
+            "sn_order": 4,
+            "sn_title": "藝術之城之謎",
+            "location_codename": "南美館",
+            "sn_opening_text": "你們現在在台南國家美術館，墨先生等候著你們！",
+            "sn_success_text": "你們成功拍攝了南美館的迷路之旅！",
+            "dialogues": {
+              "opening": "大家好，我是墨先生！台南的文史工作者，能夠解讀古地圖與歷史檔案，幫助你們解開迷路的 bí mật！",
+              "success": "哇！你們確實是解開了迷路的 bí mật！南美館的五角形外型，正是五條港的文化遺產！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要拍攝南美館的迷路之旅！在這裡，你們會發現一組古地圖，能夠幫助你們解開迷路的 bí mật！",
+                "task_hint": "古地圖上有幾個箭頭，指向南美館的不同區域，你們需要在這裡找到合適的拍攝位置！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8eb23e0d-0da1-46b0-bb23-a8319ba1aa2c",
+            "sn_order": 5,
+            "sn_title": "大南門之謎",
+            "location_codename": "甕城",
+            "sn_opening_text": "我們來到大南門，現在是你們的目標。墨先生正在等著我們，幫助他解開大南門的 bí密。",
+            "sn_success_text": "你們成功解開了大南門的 bí密！墨先生非常感謝你們的幫助",
+            "dialogues": {
+              "opening": "我是墨先生，博學嚴謹的文史工作者，與五條港的歷史密切相關。我能夠解讀古地圖與歷史檔案，幫助你們解開迷路的 bí密。",
+              "success": "你們成功解開了大南門的 bí密！這是一個非常重要的步驟，接下來就能夠找到家書的路了"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要用創意攝影的方式，拍攝大南門的獨特風景。請注意，墨先生攜帶著一個古老的地圖，幫助你們解開 bí密。",
+                "task_hint": "你們可以拍攝大南門的城門、碑林亭、周圍的公園等景物。請注意，墨先生的古老地圖中有著 bí密的符號",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "7b8818b2-0fae-482d-99f6-09f33fdc6933",
+            "sn_order": 6,
+            "sn_title": "文創之旅：永華宮的秘密",
+            "location_codename": "神棄巷",
+            "sn_opening_text": "你們來到安平區的府前路一帶，正要進入文創氣息興盛的府中街逛逛...",
+            "sn_success_text": "你們在永華宮拍攝了許多精美的壁畫，讓你們的創意攝影得到了滿意!",
+            "dialogues": {
+              "opening": "我知道你們來的是為了解開迷路的 bí mật，永華宮的古地圖中有一個重要的線索!",
+              "success": "我希望你們能夠在永華宮找到那個 bí mật，讓你們能夠在這裡找到家書的路!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在永華宮找到一本關於安平區歷史的古文書，書中提到家書的路線!",
+                "task_hint": "你們可以在永華宮的古文物室中找到那本古文書，需要解讀古地圖才能找到它!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "e8c15bc5-1a8d-42d4-a2f3-16d32c59a9e2",
+            "sn_order": 7,
+            "sn_title": "石坊之秘",
+            "location_codename": "西口",
+            "sn_opening_text": "你們現在到了泮宮石坊，墨先生正等待著你們!",
+            "sn_success_text": "你們完成了創意攝影任務！墨先生很高興能夠與你們一起探索安平區的文化遺產!",
+            "dialogues": {
+              "opening": "好友們，我們現在來到了泮宮石坊，孔廟的最外面出入口。乾隆年間，知府蔣元樞重修孔廟時，將此出入口重新整建，聘請石匠雕建精美牌坊，再運至台南組建。在全台孔廟中，僅台南孔廟有這項設施。日治時期為開闢南門路，將石坊與孔廟隔開，原有功能遂逐漸被人們淡忘，許多人甚至不知道這是孔廟的附屬建築。",
+              "success": "我很高興能夠與你們一起探索安平區的文化遺產！石坊的牌坊雕刻非常精美，雖然現在已經不再是孔廟的重要部分，但它仍然保留著歷史的魅力。希望你們能夠捕捉出石坊的美學魅力，成為你的創意攝影作品!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在泮宮石坊中，尋找並拍攝石坊牌坊的美學魅力!",
+                "task_hint": "你們可以觀察石坊的雕刻、建築物、周圍環境等多個方面，找到最能代表石坊魅力的拍攝點！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "87609370-080e-4f52-9586-bb7f593db19d",
+            "sn_order": 8,
+            "sn_title": "太平境的教會秘密",
+            "location_codename": "神聖之地",
+            "sn_opening_text": "你們來到太平境馬雅各紀念教會了，墨先生一直在等著你們！",
+            "sn_success_text": "你們完成了最後一項任務！",
+            "dialogues": {
+              "opening": "好友，我們終於來到太平境馬雅各紀念教會了！這裡是安平區的文化遺產之一，馬雅各醫師在這裡建立了教會，為我們帶來了無數的歷史意義！",
+              "success": "你們完成了創意攝影任務！在這裡拍攝了許多美麗的景象，展現了安平區的文化遺產！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在太平境馬雅各紀念教會中拍攝一系列的創意攝影，展現安平區的文化遺產！",
+                "task_hint": "你們可以在教會內拍攝許多美麗的景象，例如教會的外面、內部的雕刻、教會的歴史檔案等！",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/6ac4d66c6ffb46ab8da0a71542a1ad97",
+      "queue_position": null
+    }
+  }
+}

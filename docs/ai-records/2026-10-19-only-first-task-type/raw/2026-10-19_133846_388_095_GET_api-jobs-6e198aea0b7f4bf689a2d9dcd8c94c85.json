@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 13:38:46.388",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/6e198aea0b7f4bf689a2d9dcd8c94c85",
+  "request": null,
+  "duration_ms": 0,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6e198aea0b7f4bf689a2d9dcd8c94c85",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792388246.627236,
+      "updated_at": 1792388301.7447207,
+      "result": {
+        "story": {
+          "story_title": "時光的足跡",
+          "story_prologue": "在中正公園的古老大樹下，阿吉伯發現了一封寄不出去的信，書信的字跡與他的手工書法一致。",
+          "story_synopsis": "跟著阿吉伯追蹤這封信的路程，找到家書的真相。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿吉伯",
+          "role": "外冷內熱的傳統工藝老師傅，重視手作與傳承",
+          "intro": "阿吉伯，外冷內熱的傳統工藝老師傅，四十年來在老街顧書攤，為人親切，卻深藏著對傳統工藝的熱情。"
+        },
+        "nodes": [
+          {
+            "place_id": "d752e19d-709d-471e-96a4-48779d0a6e46",
+            "sn_order": 1,
+            "sn_title": "新月的開始",
+            "location_codename": "花園之光",
+            "sn_opening_text": "你們來到中正公園，裡面充滿了陽光和美麗的花朵。阿吉伯等著你們，希望能夠與你們一起探索這個地方的秘密。",
+            "sn_success_text": "你們完成了這個任務！阿吉伯對你們的努力充滿了自豪感，希望你們能夠繼續探索這個世界的秘密。",
+            "dialogues": {
+              "opening": "我是阿吉伯，外冷內熱的傳統工藝老師傅。四十年來在老街顧書攤，為人親切卻深藏著對傳統工藝的熱情。我今天邀請你們來中正公園，希望能夠與你們一起找到家書的真相。",
+              "success": "你們找到了一些線索，讓我感到自豪！我相信你們能夠成功地找到家書的真相。我將給你們一個小禮物，希望能夠幫助你們在未來的旅程中。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在中正公園尋找線索，找到家書的關鍵信息",
+                "task_hint": "你們需要觀察周圍的環境，尋找一些線索。阿吉伯給了你們一個小禮物，希望能夠幫助你們在未來的旅程中",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "14ec2419-b9e9-4182-b719-5ac012ce823e",
+            "sn_order": 2,
+            "sn_title": "書屋之間",
+            "location_codename": "書院巷",
+            "sn_opening_text": "你們來到這座老屋，阿吉伯的書攤就在這裡。阿吉伯一直在這裡，為人親切，卻深藏著對傳統工藝的熱情。",
+            "sn_success_text": "你們成功拍攝了這張照片，阿吉伯的書攤現在在你們的相冊中。這張照片將是你們旅程的重要紀念。",
+            "dialogues": {
+              "opening": "你們來到書屋之間了？這是阿吉伯的書攤，你們可以在這裡找到很多古書和書籍。阿吉伯會在這裡教導你們如何找到真實的家書。",
+              "success": "你們拍攝了這張照片，阿吉伯很高興。這張照片將是你們旅程的重要紀念。阿吉伯的書攤在你們的相冊中，你們可以在那裡找到更多的古書和書籍。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請你們在這裡拍攝阿吉伯的書攤，拍攝後將在相冊中留下留言。",
+                "task_hint": "阿吉伯的書攤有很多古書和書籍，你們可以在那裡找到真實的家書。阿吉伯會教導你們如何找到真實的家書。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a5f5ec00-e4a4-451e-84a3-50433b511913",
+            "sn_order": 3,
+            "sn_title": "信箱之歌",
+            "location_codename": "書箱之路",
+            "sn_opening_text": "我們來到台中郵政博物館，尋找信箱的秘密",
+            "sn_success_text": "我們找到了一份信箱的關鍵，接下來要追蹤這封信的路程",
+            "dialogues": {
+              "opening": "你們來到台中郵政博物館了？這裡有許多關於信箱的故事",
+              "success": "你們找到了一份信箱的關鍵了！接下來要追蹤這封信的路程"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到郵政博物館台中館的書箱關鍵",
+                "task_hint": "在台中館中，找到一份關於信箱的文獻，可能會有所幫助",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "1e1d7cf4-d347-4bdf-b9b1-7bc98848cd71",
+            "sn_order": 4,
+            "sn_title": "尋找的足跡",
+            "location_codename": "晨曦廣場",
+            "sn_opening_text": "我們來到台中體育大學體育場館，阿吉伯正等待著我們。",
+            "sn_success_text": "我們完成了創意攝影任務！",
+            "dialogues": {
+              "opening": "來到台中體育大學體育場館了，大家好！我是阿吉伯，外冷內熱的傳統工藝老師傅。今天我們要一起尋找家書的真相。",
+              "success": "很高興大家能夠完成創意攝影任務！家書的真相不久就會揭露，讓我們一起努力!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "創意攝影：在體育場館內找到合適的角度拍攝，捕捉到體育場館的美麗景象。",
+                "task_hint": "觀察體育場館的燈光和燈柱，找到最佳拍攝角度。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "394e09e3-6736-4d3c-936c-6448be9c407e",
+            "sn_order": 5,
+            "sn_title": "尋找路口的足跡",
+            "location_codename": "紅線路口",
+            "sn_opening_text": "我們現在位於昌平路皮鞋街，阿吉伯邀請我們進入他的書攤，尋找路口的足跡。",
+            "sn_success_text": "我們找到路口的足跡，阿吉伯向我們透露了路口的秘密。",
+            "dialogues": {
+              "opening": "來來，孩子們，讓我們進入我的書攤，尋找路口的足跡。",
+              "success": "你們終於找到路口的足跡了，我很自豪。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請尋找路口的足跡，阿吉伯將給予您一份重要的線索。",
+                "task_hint": "觀察阿吉伯的書攤，尋找與路口相關的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "870c07cb-a0c8-4886-be96-3543d33d6b78",
+            "sn_order": 6,
+            "sn_title": "記憶的風景",
+            "location_codename": "天空之丘",
+            "sn_opening_text": "你們現在處於八二三紀念公園的中心，周圍充滿著對台灣歷史的回憶。阿吉伯等待著你們，讓你們深入記憶的風景中",
+            "sn_success_text": "你們完成了創意攝影任務！你們的照片將是記憶的風景",
+            "dialogues": {
+              "opening": "我希望你們能夠感受到這裡的氣息，讓你們的創意攝影能夠將這裡的美好留下",
+              "success": "你們的攝影風格非常出色，我希望你們能夠將這裡的風景帶到更多人面前"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，請拍攝一系列與八二三戰役相關的風景，包括戰爭的意義、戰士的勇氣、以及戰後的和解",
+                "task_hint": "你們可以在公園內的展品和解說牌中找到更多的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "536ee4ca-007f-40e9-a09b-8d4d772d0bbd",
+            "sn_order": 7,
+            "sn_title": "書院的深夜",
+            "location_codename": "老街",
+            "sn_opening_text": "你們今天來到了積善樓，阿吉伯已經等待著你們了。老街這里充滿著文學氣息，書院的門樓在你們面前敲擊著時光的節奏。",
+            "sn_success_text": "你們完成了這次的任務，找到了一份關於家書的線索，阿吉伯已經等待著你們的回應。",
+            "dialogues": {
+              "opening": "你們來到了積善樓了，正好我在這里等著你們。今天晚上，我有個特別的計畫要與你們分享。先找到這間書院的門樓，才有可能進入裡面。",
+              "success": "好啊，你們完成了這次的任務，找到了一份關於家書的線索。這是你們旅程中最重要的一步，阿吉伯已經等待著你們的回應。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到積善樓的門樓，進入書院，尋找關於家書的線索",
+                "task_hint": "你們需要觀察這間書院的門樓，找到適合進入的門道。阿吉伯會給你們提供一些線索，幫助你們找到正確的方向",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bdb0e42a-9fa8-44c0-8681-cc41f789e92a",
+            "sn_order": 8,
+            "sn_title": "書香的結局",
+            "location_codename": "書香之巖",
+            "sn_opening_text": "我們來到了一個充滿書香的地方，裡面藏著許多老舊的書籍和秘密",
+            "sn_success_text": "我們終於找到家書的真相，感謝阿吉伯的幫助",
+            "dialogues": {
+              "opening": "這裡是圖書館，裡面有許多書籍和資料",
+              "success": "我知道你想要的那本書，讓我帶你去找到它"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到圖書館裡的老舊書籍，了解家書的真相",
+                "task_hint": "在圖書館裡尋找書籍，記住圖書館裡有許多書籍",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/6e198aea0b7f4bf689a2d9dcd8c94c85",
+      "queue_position": null
+    }
+  }
+}

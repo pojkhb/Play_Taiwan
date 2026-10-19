@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 22:26:34.686",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺南市",
+      "district_name": "安平區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "9e8008eb-16ee-4c0d-970e-ce88525435ce",
+          "p_name": "河樂廣場(原中國城)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "fbc19c97-6b74-4bc9-9620-d913ae14e582",
+          "p_name": "淺草新天地",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "0024a175-b964-406e-a17d-2be96b18a750",
+          "p_name": "文鼎留聲博物館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "f0d7e924-b4d1-49a1-8a56-65c90cba159a",
+          "p_name": "土地銀行台南分行(原日本勸業銀行台南支店)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9ab929ec-44d9-48ed-b72c-5744a85280e5",
+          "p_name": "台南林百貨",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "78621d22-0b4a-4618-803c-d475070f62ef",
+          "p_name": "開基臨水夫人媽廟",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "b78545e0-a0e1-497d-927c-a985e6730e7d",
+          "p_name": "藍晒圖文創園區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "cb634615-c823-400b-888e-6ad82b04bdf4",
+          "p_name": "臺南市客家文化會館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 0,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "deabdd9c083d40f69af84c081c5fa671",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792419994.6866722,
+      "updated_at": 1792419994.6866722,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/deabdd9c083d40f69af84c081c5fa671",
+      "queue_position": 1
+    }
+  }
+}

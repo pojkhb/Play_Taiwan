@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:56:23.496",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/6ef7654493714b87b4effeeb3b549bf5",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "6ef7654493714b87b4effeeb3b549bf5",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792418078.0975437,
+      "updated_at": 1792418151.8623946,
+      "result": {
+        "story": {
+          "story_title": "水花點亮夜晚的笑容",
+          "story_prologue": "在中央噴水池的夜晚，水花點亮著一片笑容，卻忽略著一封未寄出的家書。",
+          "story_synopsis": "尋找這封家書的路，從中央噴水池開始。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "薯光",
+          "role": "充滿朝氣的新生代引導者，善於解開謎題、點燃線索",
+          "intro": "薯光，四年前在這個城市的新生代引導者，能夠解開迷雜的線索，帶領大家發現未見的美學。"
+        },
+        "nodes": [
+          {
+            "place_id": "27a0af63-fae6-42ff-a312-8ac49702998d",
+            "sn_order": 1,
+            "sn_title": "夜晚的美學",
+            "location_codename": "夜花",
+            "sn_opening_text": "你們來到嘉義的中央噴水池，夜晚的五彩繽紛變化多端，美不勝收!",
+            "sn_success_text": "你們的創意攝影成功！",
+            "dialogues": {
+              "opening": "你們來到夜晚的中央噴水池，讓我們一起探索這個充滿美學的地方!",
+              "success": "你們的攝影很棒！這個景點的夜晚美學是什麼？"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這個充滿美學的地方，攝影你的夜晚中央噴水池!",
+                "task_hint": "注意到噴水池周圍的光線和影子，試圖拍攝出最美麗的影象!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "da2f706c-cf4e-46e5-b7fb-d02420d57d34",
+            "sn_order": 2,
+            "sn_title": "夜晚的追蹤",
+            "location_codename": "晨曦",
+            "sn_opening_text": "你們來到這裡，想找到一封家書的路。薯光在這裡等著你們。",
+            "sn_success_text": "你們完成了創意攝影任務！你們的照片已經被傳到薯光的手中。",
+            "dialogues": {
+              "opening": "大家好！我是薯光，今天我將帶領你們在這座城市的丙午震災紀念碑找到一些線索。這個紀念碑是這座城市的文化資產，能夠給你們一些關於這座城市的知識。",
+              "success": "你們完成了創意攝影任務！你的照片已經被傳到我的手中。我會在下一個站等著你們。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這座城市的丙午震災紀念碑上拍攝一些創意攝影。這裡有許多線索，能夠幫助你們找到那封家書。",
+                "task_hint": "你們需要觀察這座紀念碑的雕像和文案，找出一些關於家書的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9d7389d6-3d48-454a-a7e1-14d75a46a631",
+            "sn_order": 3,
+            "sn_title": "一江山的光芒",
+            "location_codename": "水光碧",
+            "sn_opening_text": "你們來到一江山紀念碑，夜晚的光芒將點亮這個戰爭的遺跡!",
+            "sn_success_text": "你們完成了創意攝影任務，將一江山的光芒捕捉下來!",
+            "dialogues": {
+              "opening": "你們來到一江山紀念碑，看到這個戰爭的遺跡，現在我要帶你們發現這裡的秘密!",
+              "success": "你們完成了創意攝影任務，將一江山的光芒捕捉下來!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請在一江山紀念碑拍攝創意攝影，將這裡的光芒捕捉下來!",
+                "task_hint": "你們需要在這裡拍攝一些與戰爭有關的照片，將這裡的光芒捕捉下來!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "693ac0f3-ac15-4293-af98-8039104fa5b7",
+            "sn_order": 4,
+            "sn_title": "夜間的美景",
+            "location_codename": "陽光之丘",
+            "sn_opening_text": "你們現在在嘉義公園，為了找到家書的路，還有什麼可以做?",
+            "sn_success_text": "你們成功在嘉義公園找到了一些線索，接下來你們可以繼續尋找家書的路",
+            "dialogues": {
+              "opening": "你們現在正站在陽光之丘上，周圍的景色非常美麗，你們可以看到一處大型噴水池",
+              "success": "你們很好！你們在噴水池附近發現了一個小型書架，裡面有許多書籍，你們可以在這裡找到一些線索"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在嘉義公園找到一本關於家書的書籍，書籍內容應該能夠給你們提供一些線索",
+                "task_hint": "你們可以在公園內的書架和書店中尋找這本書籍，或者是觀察周圍的環境，看看是否有任何線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "55ad7dbd-7929-4ab8-86d8-96fd625938bd",
+            "sn_order": 5,
+            "sn_title": "十二門古砲的秘密",
+            "location_codename": "火星之城",
+            "sn_opening_text": "你們來到十二門古砲，夜晚的燈光在這裡點亮了你的面目，薯光等候著你們。",
+            "sn_success_text": "你們完成了創意攝影任務，十二門古砲的夜晚景色在你的眼前浮現。",
+            "dialogues": {
+              "opening": "你們來到十二門古砲了，現在是夜晚，古砲的燈光在這裡點亮了你的面目，準備好來解開這個謎題了!",
+              "success": "你們完成了創意攝影任務，十二門古砲的夜晚景色在你的眼前浮現，我們將繼續尋找家書的路。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，找到十二門古砲的古砲圖片，拍攝一張與古砲的景色一致的照片，完成創意攝影任務",
+                "task_hint": "你們可以在古砲周圍觀察，找到與古砲最相關的圖片，拍攝一張與古砲的景色一致的照片",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "3a181588-a593-402f-98f8-1908a7b7c079",
+            "sn_order": 6,
+            "sn_title": "樹木園的秘密",
+            "location_codename": "綠蔭之城",
+            "sn_opening_text": "你們來到嘉義樹木園了，現在是晚上，景色十分迷人。薯光在這裡等候著你們，讓你們在這裡發現未見的美學。",
+            "sn_success_text": "你們完成了創意攝影任務，發現了樹木園的獨特風格。薯光很高興看到你們的作品!",
+            "dialogues": {
+              "opening": "你們來到嘉義樹木園了！我是薯光，今天我們來一起探索這裡的秘密。我們會在這裡發現一些與大自然相關的線索，讓你們能夠拍攝出一些特別的照片。",
+              "success": "很好！你們的創意攝影作品很棒！樹木園的美學非常獨特，讓人難以用言語來描述。我們來到這裡，發現了許多與大自然相關的線索，讓你們能夠拍攝出一些特別的照片。現在，我們可以繼續前進了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在樹木園內拍攝一些與大自然相關的照片。這些照片可以用於創意攝影任務。",
+                "task_hint": "你們可以在樹木園內觀察自然環境，發現一些與大自然相關的線索。這些線索可以用於拍攝照片。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fd3f0870-de01-41fe-8905-658a89d6ceb7",
+            "sn_order": 7,
+            "sn_title": "夜香悄悄笑",
+            "location_codename": "夕陽之窗",
+            "sn_opening_text": "你們來到北香湖公園，現在是晚上，景色非常美麗。",
+            "sn_success_text": "你們發現了北香湖上的燈光，感受著夜晚的氛圍!",
+            "dialogues": {
+              "opening": "嗨，大家好！我是薯光，今天我們來到北香湖公園，目的是尋找那封家書!",
+              "success": "感謝大家的努力！我們找到了一些線索，接下來是去尋找下一個的關鍵!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在北香湖公園中，發現一處有燈光的景點，可能與家書有關！請拍攝這裡的景象!",
+                "task_hint": "注意看周圍的燈光和景色，是否能夠發現一些線索!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "04bca2d1-95c1-4ae8-b8aa-e4ee3c1cd0d5",
+            "sn_order": 8,
+            "sn_title": "星光點亮夜晚的笑容",
+            "location_codename": "緑意之路",
+            "sn_opening_text": "你們來到這裡了？薯光在等著你們，帶著這個旅程的最後一站，讓我們在夜晚的世賢路上發現美學的另一面!",
+            "sn_success_text": "你們完成了旅程！這封家書的路終於走到結束了。薯光希望你們能夠記得這個旅程的美學，和這個城市的夜晚",
+            "dialogues": {
+              "opening": "你們來到世賢路腳踏車道了！這裡是嘉義市的美學之都，為什麼？來看!",
+              "success": "你們完成了創意攝影任務！這裡的夜晚景色，正是你們所需的美學。記得這個旅程的美學，帶著它走去!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，利用你的創意攝影技巧，拍攝夜晚世賢路腳踏車道的美學。找到這裡的特色，捕捉這裡的美學!",
+                "task_hint": "夜晚的世賢路腳踏車道，綠意中擺動的腳踏車，陽光下落的景色，都是這裡的美學。讓你的攝影鏡頭捕捉這些美學，成為這個旅程的結束!",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/6ef7654493714b87b4effeeb3b549bf5",
+      "queue_position": null
+    }
+  }
+}

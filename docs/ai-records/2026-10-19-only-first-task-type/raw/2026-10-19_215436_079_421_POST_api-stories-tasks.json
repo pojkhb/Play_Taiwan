@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 21:54:36.079",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "嘉義市",
+      "district_name": "東區",
+      "party_size": 1,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "e0701e4d-42ce-45d6-b6be-31046afe9972",
+          "p_name": "紅毛井",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "40058452-41c3-4a21-b809-b577f6426e8a",
+          "p_name": "文化路夜市",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "4b7338f2-eb84-4df9-8463-e93f903aef46",
+          "p_name": "二二八紀念碑",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "f2369c1f-72e3-480d-807a-bfa1e2c50b2f",
+          "p_name": "牆之道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "fca5a395-6e76-4580-b843-5e57f023e916",
+          "p_name": "沉睡森林主題公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "8d11d3cf-bcab-4498-bc50-de776a90b9f8",
+          "p_name": "陳澄波畫架",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "0d7d8094-3aa4-4b70-8587-83fb685c12a6",
+          "p_name": "福康安紀功碑",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e99f5103-230a-44d6-8370-7c5c8963be59",
+          "p_name": "水源地水錶室",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2020,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "0a6a89af6fc7419aa38330e82fa239ae",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792418078.0975437,
+      "updated_at": 1792418078.0975437,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/0a6a89af6fc7419aa38330e82fa239ae",
+      "queue_position": 1
+    }
+  }
+}

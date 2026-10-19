@@ -1,0 +1,1025 @@
+﻿{
+  "time": "2026-10-13 15:54:08.140",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks/batch",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "花蓮縣",
+      "district_name": "民勤里",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊",
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "stories": [
+        {
+          "story_no": 1,
+          "nt_name": "溫情走心",
+          "places": [
+            {
+              "place_id": "64d99d52-d9ec-4a04-b8e2-5ea1e79c6dce",
+              "p_name": "花蓮太平洋賞鯨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "ca93c985-5a04-48cb-8ada-5a8584b4cc49",
+              "p_name": "介壽新村",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "c717f7b1-7e35-4acd-9ac4-18a3cfcb6e2b",
+              "p_name": "美崙山步道 一同遊賞",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "5d1e7117-83fa-42b6-a3a0-c9615c307a39",
+              "p_name": "馨工房",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "3bc644cd-5ef1-4d09-b0d1-addd3d17888d",
+              "p_name": "鯨世界",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "28ff72d1-8c87-4f67-ae93-25675bc33058",
+              "p_name": "花蓮港鳥踏石公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "0d702df6-378b-4a16-b51e-ddc4cfd2a198",
+              "p_name": "多羅滿賞鯨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "3524a65a-1b3f-4ad2-a8ef-cb6b922521f3",
+              "p_name": "救國團花蓮學苑",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "nt_name": "質感專業",
+          "places": [
+            {
+              "place_id": "ec729c09-ff64-4c51-91a2-6cc5130fa133",
+              "p_name": "花蓮港1-1倉庫美術館維納斯藝廊",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "fd67d736-eb16-450c-b208-c311596f1f7c",
+              "p_name": "花蓮港親水遊憩區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "d0ee27bc-869f-48ca-b48a-ed044a0ba5ff",
+              "p_name": "太平洋海景公園-海盜船、鞦韆沙坑遊戲區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "372c09f1-9d17-4c2d-947e-a50d04354d1b",
+              "p_name": "曙光橋",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "0cb711c3-5e7e-4c89-b758-0fff079a979b",
+              "p_name": "花崗山親子戲沙池",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "65e7bd13-e437-4a6f-91e4-4a4c3ac514c2",
+              "p_name": "花蓮縣餅菩提餅舖 中華店",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "b42842fc-2d6e-4533-82ad-c7cafdbb7bda",
+              "p_name": "欣航賞鯨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "54401a29-090b-43c4-894a-a76403a7dd09",
+              "p_name": "時光二手書店",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "nt_name": "幽默詼諧",
+          "places": [
+            {
+              "place_id": "ee57feb1-8805-4954-9dfd-e7f70948faeb",
+              "p_name": "璞石咖啡x光之島共享基地",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "d0ee27bc-869f-48ca-b48a-ed044a0ba5ff",
+              "p_name": "太平洋海景公園-海盜船、鞦韆沙坑遊戲區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "0d702df6-378b-4a16-b51e-ddc4cfd2a198",
+              "p_name": "多羅滿賞鯨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "64d99d52-d9ec-4a04-b8e2-5ea1e79c6dce",
+              "p_name": "花蓮太平洋賞鯨",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "28ff72d1-8c87-4f67-ae93-25675bc33058",
+              "p_name": "花蓮港鳥踏石公園",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "5d1e7117-83fa-42b6-a3a0-c9615c307a39",
+              "p_name": "馨工房",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "3bc644cd-5ef1-4d09-b0d1-addd3d17888d",
+              "p_name": "鯨世界",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "8d6d2ce0-f12d-4e40-a863-a15c57f63680",
+              "p_name": "花蓮漁港",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 83379,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "stories": [
+        {
+          "story_no": 1,
+          "story": {
+            "story_title": "花蓮的懸念點",
+            "story_prologue": "一片海濕的花蓮，太平洋賞鯨的聲音在空中回荺，卻是阿達力心裡的一個懷疑，什麼事會讓這個美麗的日子變成黑暗的天空？",
+            "story_synopsis": "阿達力要和朋友一起賞鯨，卻發現有什麼事會影響這個美麗的賞鯨活動？",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿達力",
+            "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+            "intro": "阿達力是一位花蓮的老手，四十年來掌握了這個城市的秘密，從書攤到街頭小食店，阿達力知道這裡的每一處都有它的故事，今天他要和你一起走遍這個城市，找到答案。"
+          },
+          "nodes": [
+            {
+              "place_id": "64d99d52-d9ec-4a04-b8e2-5ea1e79c6dce",
+              "sn_order": 1,
+              "sn_title": "賞鯨之夜的期待",
+              "location_codename": "賞鯨展場",
+              "sn_opening_text": "走進花蓮太平洋賞鯨的展場，空中擺放著一系列的燈箱，燈箱上寫著「賞鯨的時刻」，展場內的氣氛充滿著期待和懷疑。",
+              "sn_success_text": "你們的照片被放上了燈箱，燈箱的燈光點亮了，展場內的氛圍變得更加亂糟糕。",
+              "dialogues": {
+                "opening": "你來到花蓮太平洋賞鯨了，今天我們要一起賞鯨，然而我覺得這個活動有點問題。",
+                "success": "你們的照片被放上了燈箱，燈箱的燈光點亮了，展場內的氛圍變得更加亂糟糕。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "拍攝展場的燈箱和燈光，找到一個你們覺得最適合當燈箱內的照片的角度。",
+                  "task_hint": "你可以試著拍攝燈箱的不同角度，或者拍攝燈箱周圍的環境，來發現一個特別的角度。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ca93c985-5a04-48cb-8ada-5a8584b4cc49",
+              "sn_order": 2,
+              "sn_title": "夜晚的詩句",
+              "location_codename": "書店燈塔",
+              "sn_opening_text": "走進這間書店，燈塔上升起一股溫暖的光線，書架上堆積著老舊的書籍，書店主的笑容在燈塔上閃動。",
+              "sn_success_text": "你們的照片在燈塔上掛起了，書店主發出一聲感謝的笑聲，指向一間小的書店隔間。",
+              "dialogues": {
+                "opening": "你來了，來自花蓮的賞鯨活動，現在正是賞鯨的季節。",
+                "success": "這裡是書店燈塔，書店主的老朋友，我們要一起走遍這裡的書店，找到賞鯨活動的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們來到書店燈塔，燈塔上升起一股溫暖的光線，書架上堆積著老舊的書籍。",
+                  "task_hint": "在燈塔下方，你可以看到一本書籍的標題，與賞鯨活動有關。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "c717f7b1-7e35-4acd-9ac4-18a3cfcb6e2b",
+              "sn_order": 3,
+              "sn_title": "星光下的美崙",
+              "location_codename": "步道下方的石桌",
+              "sn_opening_text": "你和朋友來到這裡，步道下方的石桌上有個小燈，燈下面有個小書籍，書名是《花蓮的秘密》，你可以看到書的封面，封面上有個小畫框，框子裡面有一個小字，字是『請自行補上』。",
+              "sn_success_text": "你們在石桌旁拍了好看的照片，燈下的燈芯點亮了，燈芯發出一股柔和的光，光線照在書的封面上，書的封面上有一個小字，字是『這是這裡的秘密』，你們的照片在燈芯下面了。",
+              "dialogues": {
+                "opening": "你來到這裡了，現在是晚上，天空是星光灿烂的，石桌下方的燈點亮了，燈下的燈芯發出一股柔和的光，光線照在石桌上，石桌上有個小書籍，書名是《花蓮的秘密》，你可以看到書的封面，封面上有個小畫框，框子裡面有一個小字，字是『請自行補上』。",
+                "success": "你們的照片很好！燈芯點亮了，燈芯發出一股柔和的光，光線照在書的封面上，書的封面上有一個小字，字是『這是這裡的秘密』，你們的照片在燈芯下面了，現在可以走下去。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在石桌旁拍一張照片，拍好後可以走下去。",
+                  "task_hint": "你們可以在石桌旁拍一張照片，拍好後可以走下去，石桌旁有個小燈，燈下面有個小書籍，書名是《花蓮的秘密》，你可以看到書的封面，封面上有個小畫框，框子裡面有一個小字，字是『請自行補上』。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "5d1e7117-83fa-42b6-a3a0-c9615c307a39",
+              "sn_order": 4,
+              "sn_title": "文學之夜的秘密",
+              "location_codename": "書房燈",
+              "sn_opening_text": "走進這間小書店，燈光微弱，書籍排列整齊，空氣中充滿了書香和沉思的氛圍。",
+              "sn_success_text": "你們的照片放在書房燈的燈座上，燈光照在你們的臉上，像是在照亮你的未來。",
+              "dialogues": {
+                "opening": "這裡是花蓮的書房，書籍堆積到天花板，裡面有許多故事等待你們發現。",
+                "success": "你們的照片在燈座上，燈光照亮了你的臉，像是在照亮未來的路徑。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書房裡找到一本與賞鯨相關的書籍，拍攝書籍封面。",
+                  "task_hint": "書架上有許多書籍，找到一本與賞鯨相關的書籍，像是一本關於鯨類的科學書籍，或者一本與賞鯨相關的文學作品。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "3bc644cd-5ef1-4d09-b0d1-addd3d17888d",
+              "sn_order": 5,
+              "sn_title": "夜晚的懸疑",
+              "location_codename": "海濱燈塔",
+              "sn_opening_text": "你們來到這裡，海濱燈塔的燈光閃亮著，海水的波濤拍打著岸邊，空氣中充滿著海洋的氣味。",
+              "sn_success_text": "你們的攝影作品被掛在燈塔的牆上，燈塔的燈光閃亮著，海水的波濤拍打著岸邊。",
+              "dialogues": {
+                "opening": "你來到這裡，現在是晚上，天空是星空，海濱燈塔的燈光閃亮著。",
+                "success": "你們的攝影作品被掛在燈塔的牆上，燈塔的燈光閃亮著，海水的波濤拍打著岸邊。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在海濱燈塔的牆上拍攝一張照片，拍到燈塔的燈光和海水的波濤。",
+                  "task_hint": "你們可以在燈塔的牆上找到一個合適的角度，拍攝一張有文學感的照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "28ff72d1-8c87-4f67-ae93-25675bc33058",
+              "sn_order": 6,
+              "sn_title": "夜晚的書店",
+              "location_codename": "書香夜",
+              "sn_opening_text": "你們抵達這間書店時，書架上還留著老年書店主的書香，夜晚的燈光也使得書店的氛圍更加寬敞。",
+              "sn_success_text": "你們在書店裡找到了一本關於賞鯨活動的老舊雜誌，雜誌上提到有一個秘密的賞鯨活動，會在明年年底舉行。",
+              "dialogues": {
+                "opening": "你來到這裡，想找到一些關於賞鯨的資訊嗎？",
+                "success": "這本雜誌說明了賞鯨活動的秘密，但我覺得你們還需要去另一間店裡找到更多的資訊。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在這間書店裡找到一本關於賞鯨活動的老舊雜誌，然後把它拿到書店主面前，問他是否知道更多的資訊。",
+                  "task_hint": "你們可以在書架上找到一本老舊的雜誌，雜誌上有關於賞鯨活動的資訊。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "0d702df6-378b-4a16-b51e-ddc4cfd2a198",
+              "sn_order": 7,
+              "sn_title": "夜晚的賞鯨",
+              "location_codename": "賞鯨海灘",
+              "sn_opening_text": "你和朋友們來到多羅滿賞鯨的海灘，晚上天空染著金紅色，海面上浮動著一群鯨，光環映亮，美麗而安靜。",
+              "sn_success_text": "你們的攝影工作順利完成，賞鯨海灘的燈光和波浪的聲音，讓你們感受到一種深深的休息。",
+              "dialogues": {
+                "opening": "你們來到這裡了，現在就要開始賞鯨的時候了，我們要一起找到一些有趣的攝影機會。",
+                "success": "你們的攝影工作很好！賞鯨的燈光和波浪的聲音，讓人感受到一種深深的休息。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以拍攝賞鯨的各種姿勢，還可以尝試拍攝海灘的燈光和波浪的聲音。",
+                  "task_hint": "注意看賞鯨的眼睛，拍攝時可以用光線和波浪的聲音作為背景，讓你的照片更具感覺。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "3524a65a-1b3f-4ad2-a8ef-cb6b922521f3",
+              "sn_order": 8,
+              "sn_title": "書香濁霧",
+              "location_codename": "書院大廳",
+              "sn_opening_text": "走進書院大廳，空氣中充滿著書香，老木桌椅和古老的書架，書院牆壁掛著許多書籍的標題，燈光柔和，讓人感到沉思，周圍的椅子上放著各種書籍，書香濁霧，讓你感到身在古老的書院中，",
+              "sn_success_text": "你們完成了任務，阿達力向你們展示了一本古老的書籍，書上有關花蓮賞鯨的歷史，",
+              "dialogues": {
+                "opening": "你抵達了花蓮的學苑，現在我們要走進這裡，來看看這裡的秘密，",
+                "success": "這裡有許多書籍，記錄了花蓮的歷史和文化，包括賞鯨的故事，"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們來到書院大廳，看到書架上書籍，選擇一本書籍，拿來看看內容，",
+                  "task_hint": "在書架上選擇一本書籍，書籍的標題應該與花蓮或賞鯨有關",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "story": {
+            "story_title": "霓霓的光影之旅",
+            "story_prologue": "夜空下，花蓮港的燈光一片灿烂，霓霓在這片光影中找到了一個新的家。",
+            "story_synopsis": "與霓霓一起探索花蓮港的美景，尋找那片燈光中的一個秘密。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "霓霓",
+            "role": "對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索",
+            "intro": "霓霓是一位對美感極度敏銳的街頭藝術家，喜歡與夜間光影相遇，為了尋找自己心中的光影，霓霓決定帶著玩家一起探索花蓮港的夜間景色。"
+          },
+          "nodes": [
+            {
+              "place_id": "ec729c09-ff64-4c51-91a2-6cc5130fa133",
+              "sn_order": 1,
+              "sn_title": "夜晚的創意",
+              "location_codename": "空白畫框",
+              "sn_opening_text": "你們抵達的倉庫美術館內，燈光下空白畫框的牆面，旁邊的說明牌上寫著：請自行補上。夜晚的空白畫框，空氣中充滿了油漆的氣味，周圍的燈光閃躲著，讓人難以定睛。",
+              "sn_success_text": "你們的照片填滿了畫框，畫留下的腳印指向一條老巖，暗暗的老巖下方，霓霓一邊拍照一邊說：這個角落，充滿了創意。",
+              "dialogues": {
+                "opening": "你好，歡迎你們來到這裡。我的名字是霓霓，我是對美感極度敏銳的街頭藝術家。，我帶著你們來這裡，為了尋找自己心中的光影。",
+                "success": "你們的照片很棒！畫的腳印指向一條老巖，暗暗的老巖下方，霓霓一邊拍照一邊說：這個角落，充滿了創意。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "請在這裡找到一個你們覺得最適合當畫作的角落，兩人一起入鏡拍一張照片。",
+                  "task_hint": "你們可以在這裡找到一些雕塑和戶外的草地，找到一個你們覺得最適合的角落。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "fd67d736-eb16-450c-b208-c311596f1f7c",
+              "sn_order": 2,
+              "sn_title": "夜晚的海浪",
+              "location_codename": "海浪燈塔",
+              "sn_opening_text": "你們抵達花蓮港親水遊憩區，夜晚的海浪在燈塔下跳動，海面上泛著一層光滑的水面。",
+              "sn_success_text": "你們拍下了美麗的海浪照，燈塔的燈光也照亮了你的身影，霓霓覺得你們的照片很好看了。",
+              "dialogues": {
+                "opening": "你們來到花蓮港親水遊憩區了，我們現在要在這裡找到一點點光影。",
+                "success": "燈塔的燈光也照亮了你的身影，霓霓覺得你們的照片很好看了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "拍攝一張美麗的海浪照，包含燈塔的燈光和海浪的動態。",
+                  "task_hint": "你可以用你的手指指引燈塔的燈光，讓海浪的光線穿過你的身影，拍攝出一個美麗的圖片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d0ee27bc-869f-48ca-b48a-ed044a0ba5ff",
+              "sn_order": 3,
+              "sn_title": "夜晚海盜船的照相點",
+              "location_codename": "夜晚海盜船",
+              "sn_opening_text": "你們抵達太平洋海景公園，海面上一排海盜船在夜晚的光影下，鞦韆沙坑遊戲區的燈光也在跳動著。",
+              "sn_success_text": "你們的照相點在海盜船的前面，燈光的反射在水面上，很像一支大型的燈塔。",
+              "dialogues": {
+                "opening": "你們來到太平洋海景公園了，現在是夜晚。這裡的燈光非常美麗，能夠讓人感受到一股浪漫的氣息。",
+                "success": "你們的照相點在海盜船的前面，燈光的反射在水面上，很像一支大型的燈塔。這裡的燈光對人類來說是一種感官上的刺激，能夠讓人感受到一股浪漫的氣息。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在海盜船前面拍一張照，燈光的反射在水面上，很像一支大型的燈塔。",
+                  "task_hint": "你們可以利用海盜船的燈光和水面上的反射來拍出一個很好的照相點。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "372c09f1-9d17-4c2d-947e-a50d04354d1b",
+              "sn_order": 4,
+              "sn_title": "夜晚的橋頭",
+              "location_codename": "橋頭燈塔",
+              "sn_opening_text": "你們走到曙光橋上，夜空中的星光與橋頭燈塔的光芒交錯，橋頭燈塔的光芒照亮了水面，水面上有船隻的影子在浮動著。",
+              "sn_success_text": "你們的照相收到了，霓霓看了之後說：這一張照片的光影很好，現在就往那片燈塔的左邊走去。",
+              "dialogues": {
+                "opening": "你來到曙光橋了，現在我們要找到那片燈光中的秘密。",
+                "success": "你們的照相很好！現在就往那片燈塔的左邊走去，等著你們的下一步。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在橋頭燈塔旁拍攝一張燈塔的夜景照，燈塔的燈光照亮了水面，水面上有船隻的影子在浮動著。",
+                  "task_hint": "你們需要用好照相機，拍攝燈塔的夜景。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "0cb711c3-5e7e-4c89-b758-0fff079a979b",
+              "sn_order": 5,
+              "sn_title": "夜晚的幻想",
+              "location_codename": "花崗山親子戲沙池",
+              "sn_opening_text": "你們抵達花崗山親子戲沙池，夜晚的光影在水面上跳動，親子們在沙子上嬉戲，空氣中充滿著嬉笑和自由的感覺。",
+              "sn_success_text": "你們的照片填滿了畫框，畫留下的腳印指向一條老巷，霓霓說：「這是下一步的方向，跟上吧！」。",
+              "dialogues": {
+                "opening": "你來到花崗山親子戲沙池了，你們看到這裡的美景，對吧？這裡是我的心中光影的一個部分。",
+                "success": "好！你的照片完成了，現在我們要找到下一步的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在花崗山親子戲沙池找到一個你們覺得最適合當畫作的角落，兩人一起入鏡拍一張照片。",
+                  "task_hint": "你們可以選擇一個你們覺得最適合的角落，例如水面上的圖形或親子們的嬉戲。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "65e7bd13-e437-4a6f-91e4-4a4c3ac514c2",
+              "sn_order": 6,
+              "sn_title": "燈光之夜的美食之旅",
+              "location_codename": "燈光之夜燒肉",
+              "sn_opening_text": "你們走進這間中華店，燈光之夜的燒肉香味濃烈，人們在燒肉的氣氛中享受著美食。",
+              "sn_success_text": "你們拍了好看的燒肉照片，燒肉店老闆留下了一張燒肉店的門牌。",
+              "dialogues": {
+                "opening": "你來到這裡了，燒肉店的燒肉香味應該能夠引起你的感覺。",
+                "success": "燒肉店的燒肉很好吃！門牌裡的地址應該能夠幫助我們找到下一步的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在燒肉店裡尋找一個有趣的燒肉燈飾，拍一張照片。",
+                  "task_hint": "燒肉店裡有許多燒肉燈飾，選擇一個你覺得最有趣的燈飾，拍一張與燒肉店的燈飾融合的照片。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "b42842fc-2d6e-4533-82ad-c7cafdbb7bda",
+              "sn_order": 7,
+              "sn_title": "夜間海濱的秘密",
+              "location_codename": "海濱燈塔",
+              "sn_opening_text": "你們抵達欣航賞鯨的海濱，夜間燈塔的光芒閃閃，海面上飛揚著一片白色的光影。",
+              "sn_success_text": "你們的照片拍得很好，燈塔的光芒映在海濱的沙灘上，海濱燈塔的燈光也逐漸變暗了。",
+              "dialogues": {
+                "opening": "你們到了欣航賞鯨的海濱，燈塔的光芒就像霓霓的心裡的光影。",
+                "success": "燈塔的光芒在海濱上留下了自己的足跡，現在我們要往那裡走。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們可以在欣航賞鯨的海濱上拍攝一張與燈塔有關的照片，拍攝的時候可以用夜視鏡觀察燈塔的燈光。",
+                  "task_hint": "燈塔的燈光可以用夜視鏡觀察，拍攝的時候可以將燈塔放在鏡中，觀察燈光的變化。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "54401a29-090b-43c4-894a-a76403a7dd09",
+              "sn_order": 8,
+              "sn_title": "書店夜空",
+              "location_codename": "書架",
+              "sn_opening_text": "你們在一家老舊的時光二手書店裡，周圍的書架上燈光下泛著暖黃光，書籍的書籍間隔著木板，老舊的書架上掛著一些古老的書籍標誌，空間充滿著書香，書架上書籍的書名和作者的字母排列得很有規律，書籍的書籍間隔著木板，老舊的書架上掛著一些古老的書籍標誌，空間充滿著書香，書架上書籍的書名和作者的字母排列得很有規律。",
+              "sn_success_text": "你們的創意攝影完成了，霓霓說：你們的照片拍得很好，燈光下的書籍圖像很美麗，現在我們可以往前推進了。",
+              "dialogues": {
+                "opening": "你來到這裡，時光二手書店，霓霓的眼光正好落在這裡。",
+                "success": "現在你們可以繼續前行了，霓霓說：我們還有很多美麗的景色要探索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這裡選擇一本書籍，拍攝它的封面，霓霓說：你們的照片要能抓住這本書的美麗。",
+                  "task_hint": "你們可以在書架上選擇一本書籍，拍攝它的封面，霓霓說：要能抓住書籍的美麗，拍攝時要慢慢的移動。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "story": {
+            "story_title": "珊瑚海的秘密",
+            "story_prologue": "在民勤里的一個小書店，珍奶奶擁有數十年的記憶和失落的古老配方。",
+            "story_synopsis": "玩家需要幫助珍奶奶找回失落的配方，讓珊瑚海的海洋生物再次繁榮。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "珍奶奶",
+            "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+            "intro": "珍奶奶，掌管民勤里數十年的記憶和失落配方的守密人，對海洋生物的愛恨交织在心中，決心與玩家一起展開這個神秘旅程。"
+          },
+          "nodes": [
+            {
+              "place_id": "ee57feb1-8805-4954-9dfd-e7f70948faeb",
+              "sn_order": 1,
+              "sn_title": "書院的秘密",
+              "location_codename": "書院燈台",
+              "sn_opening_text": "你走進這間書院，燈台上燒著一根香燭，氣味濃郁，空間充滿了書籍的氣息，書架上書籍的書名與你看起來的時間不相符，像是古代的書籍與現代的科學書籍交錯著。",
+              "sn_success_text": "你在燈台前拍下了一張照片，燈台的香燭被你替換成了你自己的照相鏡，拍下的照片顯示出一張老照片，老照片上有一個書名，書名的字體與現代書籍不同，似乎是古代書籍。",
+              "dialogues": {
+                "opening": "你看起來是來找我了？我是珍奶奶，掌管這個地方的記憶，能夠幫助你找到你想要的東西。",
+                "success": "你完成了任務，我能夠讓你知道你要找的東西在哪裡。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你需要在燈台前拍下一張照片，替換燈台上的香燭，拍下一張照片，顯示出書名",
+                  "task_hint": "燈台上有個小燈，燈台前面有個書架，書架上有很多書籍，需要選擇一個書籍，替換燈台上的香燭，拍下一張照片，顯示出書名",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "d0ee27bc-869f-48ca-b48a-ed044a0ba5ff",
+              "sn_order": 2,
+              "sn_title": "海盜船的遺跡",
+              "location_codename": "船桅",
+              "sn_opening_text": "夜晚，太平洋海景公園的海盜船和鞦韆沙坑遊戲區在星光下一片漠漠。海盜船的桅桅上掛著一塊老舊的燈籠，燈籠上寫著『記憶的光』，光芒飄散著，照亮了整片海景公園。",
+              "sn_success_text": "你們的照片裡有幾個鞦韆，裡面放著一塊小的燈籠，燈籠上寫著『記憶的光』，燈籠的光芒指向一條老巷，老巷的門口掛著一塊木板，木板上寫著『不再回頭』。",
+              "dialogues": {
+                "opening": "你來到了太平洋海景公園，海盜船和鞦韆沙坑遊戲區，現在是夜晚，星光下，很靜靜的。",
+                "success": "你們的照片很好！燈籠的光芒指向了一條老巷，跟上吧，老巷裡有許多秘密，等你們一步一步地揭開。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在海盜船的桅桅上放置一塊燈籠，燈籠上寫著『記憶的光』，然後拍一張照片。",
+                  "task_hint": "燈籠上燈芒的方向指向一條老巷，請注意燈籠的燈芒，拍照時要注意燈芒的方向，否則燈籠的燈芒就不會在照片中。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "0d702df6-378b-4a16-b51e-ddc4cfd2a198",
+              "sn_order": 3,
+              "sn_title": "海洋之歌",
+              "location_codename": "海洋雕塑",
+              "sn_opening_text": "你們來到這裡，海洋雕塑的夜晚景象，月光照在水面上，雕塑的身體像一尊巨大的海洋女神，周圍的海洋生物睡眠中的空間，充滿著懷疑的氣味。",
+              "sn_success_text": "你們拍下了有趣的照片，雕塑的腳印指向一個小店。",
+              "dialogues": {
+                "opening": "你來到這裡，想找我什麼？",
+                "success": "你們拍的照片很有趣！雕塑的腳印指向了海洋之歌的書店。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在海洋雕塑旁，拍一張有趣的照片，雜亂的海洋生物睡眠中的空間，充滿著懷疑的氣味。",
+                  "task_hint": "你們可以拍照，拍下雕塑的身體，或者是周圍的海洋生物。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "64d99d52-d9ec-4a04-b8e2-5ea1e79c6dce",
+              "sn_order": 4,
+              "sn_title": "夜晚的海滴",
+              "location_codename": "海滴燈塔",
+              "sn_opening_text": "你們抵達了花蓮太平洋賞鯨，夜晚的海滴燈塔映著星空，燈塔上方的海洋生物雕塑在空中飛翔，海滴的聲音在你耳邊傳來，像是一個永遠的吟遊詩。",
+              "sn_success_text": "你們的攝影照在燈塔下面拍出了一張美麗的照片，燈塔的燈光照射在海洋生物的身體上，像是一個神秘的印記，燈塔的燈光也在你們的攝影機上留下了一個足跡。",
+              "dialogues": {
+                "opening": "你來到花蓮太平洋賞鯨了，現在就要找到珍奶奶了。",
+                "success": "你的照片很好！燈塔的燈光也在你的攝影機上留下了一個足跡，珍奶奶說：『這是你們的第一個線索，下一站要去老巷了』。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "拍攝賞鯨的夜晚景色，燈塔和海洋生物雕塑的攝影，燈塔下面拍攝燈塔和燈光的攝影",
+                  "task_hint": "在燈塔下面拍攝燈塔和燈光，拍攝賞鯨的夜晚景色，海洋生物雕塑的攝影，燈塔下面拍攝燈塔和燈光，燈塔上方的海洋生物雕塑在空中飛翔，海滴的聲音在你耳邊傳來，像是一個永遠的吟遊詩。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "28ff72d1-8c87-4f67-ae93-25675bc33058",
+              "sn_order": 5,
+              "sn_title": "夜晚的故事",
+              "location_codename": "鳥踏石公園",
+              "sn_opening_text": "走進鳥踏石公園，空間中充滿了夜晚的懷疑氣息，空中飄浮著星光，鳥鸣聲在耳邊低低響起，人們在此聚集，手持照相機，拍攝星空的美景。",
+              "sn_success_text": "你們的照片被珍奶奶點了，然後她把手指放在一塊石頭上，然後指向一條老巖。",
+              "dialogues": {
+                "opening": "你來到了鳥踏石公園，夜晚的星光使得這裡的景色更加迷人。",
+                "success": "你拍了好照片！現在，讓我們走向那條老巖，可能有關於珍奶奶失去的配方的線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在鳥踏石公園中，找到一塊石頭，拍攝一張與夜晚星空相關的照片。",
+                  "task_hint": "你可以選擇在石頭旁邊拍攝，或者找到一個與夜晚星空相關的角落。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "5d1e7117-83fa-42b6-a3a0-c9615c307a39",
+              "sn_order": 6,
+              "sn_title": "畫框的空白",
+              "location_codename": "画室",
+              "sn_opening_text": "夜晚的空房間，牆壁掛著各種古老的書籍和油畫，空間充滿著濃濃的書香，空白畫框掛在牆壁上，旁邊的說明牌寫著：請自行補上。",
+              "sn_success_text": "你們的照片填滿了畫框，畫留下的腳印指向一條老巷。",
+              "dialogues": {
+                "opening": "畫框裡的畫跑掉了，得找人頂替一下才行。",
+                "success": "拍得真好！畫的腳印往老巖去了，跟上吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "找到一張古老的畫本，將它的畫作擺在空白畫框上，兩人一起入鏡拍一張照片。",
+                  "task_hint": "古老的書籍和油畫充滿了空間，找到一本書本的時候，你就知道你找到了。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "3bc644cd-5ef1-4d09-b0d1-addd3d17888d",
+              "sn_order": 7,
+              "sn_title": "夜間的海洋之城",
+              "location_codename": "海洋之城角落",
+              "sn_opening_text": "你走進這個海洋之城，走過一排漁民的船舶，看到一排燈光閃亮的商店，夜晚的海洋之城氣氛非常濃厚，聲音和燈光交替閃動，海洋生物在這裡活動著，海水的味道和氣味充滿了這裡的空氣。",
+              "sn_success_text": "你們的照相發出了許多熱情的海洋生物，讓他們在你的相機鏡頭中表現出來，海洋之城角落的燈光和聲音也消失了，離著下一站的線索不遠了。",
+              "dialogues": {
+                "opening": "你來到海洋之城了，現在就要開始我們的旅程了，好好看一下這個地方，記住每一點細節。",
+                "success": "你們拍了許多有趣的海洋生物照相，現在我們就要離著下一站的線索不遠了，跟著我走吧。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在這裡拍攝一張你覺得最有趣的海洋生物的照相，能夠拍攝到這裡的多種海洋生物，包括魚、海星、海洋花朵等。",
+                  "task_hint": "你可以在這裡拍攝到許多不同種類的海洋生物，包括那些在海洋之城角落裡活動著的魚和海星，試著拍攝到最有趣的那一種!",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "8d6d2ce0-f12d-4e40-a863-a15c57f63680",
+              "sn_order": 8,
+              "sn_title": "海洋之吻",
+              "location_codename": "漁港燈塔",
+              "sn_opening_text": "夜幕降臨，漁港燈塔的燈光閃爍，海浪輕拍著船桅，海洋生物的叫聲在水中回荡，珍奶奶等著你在這裡。",
+              "sn_success_text": "你們的照片被珍奶奶取下，帶著它她走向海灘，天空中星星點點一亮，海浪的聲音慢慢遠去。",
+              "dialogues": {
+                "opening": "你抵達了漁港燈塔，珍奶奶在等著你，來得正好，天黑了，海洋生物的叫聲在水中回荡。",
+                "success": "你們的照片被珍奶奶取下，帶著它她走向海灘，天空中星星點點一亮，海浪的聲音慢慢遠去，珍奶奶的心情變得更加溫暖。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們來到漁港燈塔，珍奶奶在等著你，請你來拍一張與漁港燈塔相關的照片，將它帶給珍奶奶。",
+                  "task_hint": "你可以在燈塔周圍拍攝，注意燈塔的燈光，還有沿著海灘拍攝，觀察海洋生物的行為，拍攝他們的形狀和色彩。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

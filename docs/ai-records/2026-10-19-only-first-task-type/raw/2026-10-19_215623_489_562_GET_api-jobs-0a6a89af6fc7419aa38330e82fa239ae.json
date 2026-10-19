@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:56:23.489",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/0a6a89af6fc7419aa38330e82fa239ae",
+  "request": null,
+  "duration_ms": 2,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "0a6a89af6fc7419aa38330e82fa239ae",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792418078.0975437,
+      "updated_at": 1792418124.3982408,
+      "result": {
+        "story": {
+          "story_title": "紅毛井的秘密",
+          "story_prologue": "在紅毛井的深處，有一封家書被遺落，無人得知它的去向。",
+          "story_synopsis": "尋找家書的路上，追蹤著歷史的足跡，找到家書的回家路.",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力是本地的走路達人，熟悉這個區域的每個角落，能夠幫助你找到家書的方向., __:阿達力：我知道這裡有很多秘密，讓我們一起探索吧!, __:阿達力：我相信你能夠找到家書，現在就離家書不遠了!, __:你和朋友們在紅毛井的夜間漫步，突然發現了一封家書，似乎是被遺落在這裡。, __:你終於找到家書，回家的路上，感謝阿達力的幫助!, __:你和朋友們決定前往文化路夜市，尋找一些有趣的活動和美食., __:阿達力：文化路夜市是這個區域的特色之一，讓我們來看看吧!, __:你和朋友們在二二八紀念碑前停下，感嘆這個重要的歷史地標., __:阿達力：這裡是這個區域的重要符號，讓我們來拍攝留念!, __:你和朋友們經過牆之道，發現了一個隱藏的景點，讓我們來探索!, __:阿達力：這裡是這個區域的秘密之地，讓我們來欣賞!, __:你和朋友們進入沉睡森林主題公園，發現了一些有趣的景點和活動., __:阿達力：這裡是這個區域的特色之一，讓我們來玩一下!, __:你"
+        },
+        "nodes": [
+          {
+            "place_id": "e0701e4d-42ce-45d6-b6be-31046afe9972",
+            "sn_order": 1,
+            "sn_title": "紅毛井的起點",
+            "location_codename": "蘭井巷",
+            "sn_opening_text": "我們來到了紅毛井，這裡是荷蘭人在三百年前鑿的井，據說是荷蘭人頭髮為紅色，故稱蘭井或紅毛井。阿達力是本地的走路達人，熟悉這個區域的每個角落，能夠幫助你找到家書的方向。",
+            "sn_success_text": "你終於找到家書的方向了！阿達力給你了一份地圖，帶著你來到紅毛井，讓我們開始尋找家書!",
+            "dialogues": {
+              "opening": "你們來到了紅毛井，我知道這裡有很多秘密，讓我們一起探索吧!",
+              "success": "我相信你能夠找到家書，現在就離家書不遠了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你需要找到紅毛井的歷史地標，尋找一些有關荷蘭人和紅毛井的資訊，然後再決定下一步的路線",
+                "task_hint": "紅毛井是一個重要的歷史地標，荷蘭人在三百年前鑿的井，據說是荷蘭人頭髮為紅色",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "40058452-41c3-4a21-b809-b577f6426e8a",
+            "sn_order": 2,
+            "sn_title": "文化路夜市的美食秘密",
+            "location_codename": "夜花巷",
+            "sn_opening_text": "你和朋友們決定前往文化路夜市，尋找一些有趣的活動和美食。阿達力帶領著你們到這裡，讓我們一起探索吧!",
+            "sn_success_text": "你們終於找到自己喜歡的美食，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "文化路夜市是這個區域的特色之一，讓我們來看看吧!",
+              "success": "這裡是這個區域的美食秘密，讓我們來品嚐一下!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找文化路夜市的美食秘密",
+                "task_hint": "觀察夜市的景點和美食，尋找自己喜歡的食物",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4b7338f2-eb84-4df9-8463-e93f903aef46",
+            "sn_order": 3,
+            "sn_title": "在二二八紀念碑的哀思",
+            "location_codename": "哀思之地",
+            "sn_opening_text": "你和朋友們在夜間漫步，突然發現了一封家書，似乎是被遺落在這裡。",
+            "sn_success_text": "你終於找到家書，回家的路上，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "這裡是這個區域的重要符號，讓我們來拍攝留念!",
+              "success": "這裡是這個區域的特色之一，讓我們來欣賞!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到家書的回家路，感謝阿達力的幫助!",
+                "task_hint": "在這裡拍攝一些哀思的留念",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "f2369c1f-72e3-480d-807a-bfa1e2c50b2f",
+            "sn_order": 4,
+            "sn_title": "牆之道的神秘",
+            "location_codename": "天圓之巖",
+            "sn_opening_text": "你和朋友們在夜間漫步，突然發現了一個神秘的牆之道!",
+            "sn_success_text": "你終於找到家書，回家的路上，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "我知道這裡有很多秘密，讓我們一起探索吧!",
+              "success": "現在就離家書不遠了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你發現了一個神秘的牆之道，裡面有很多哲理的造型之作，讓你們感到神奇!",
+                "task_hint": "你們需要用創意攝影的方式，捕捉牆之道的神秘之處",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fca5a395-6e76-4580-b843-5e57f023e916",
+            "sn_order": 5,
+            "sn_title": "沉睡森林的夜晚",
+            "location_codename": "森林之夢",
+            "sn_opening_text": "你和朋友們決定進入沉睡森林主題公園，享受這個夜晚的美食和活動!",
+            "sn_success_text": "你們終於完成了創意攝影任務，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "文化路夜市是這個區域的特色之一，讓我們來看看吧!",
+              "success": "我相信你能夠找到家書，現在就離家書不遠了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在沉睡森林主題公園中，找到一些有趣的景點和活動，拍攝一些美妙的攝影!",
+                "task_hint": "觀察景點的燈光和氛圍，尋找一些有趣的攝影角度!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8d11d3cf-bcab-4498-bc50-de776a90b9f8",
+            "sn_order": 6,
+            "sn_title": "陳澄波畫架的藝術之旅",
+            "location_codename": "景點之巖",
+            "sn_opening_text": "我們現在站在陳澄波畫架的前面，讓我們一起探索這個藝術之旅!",
+            "sn_success_text": "你終於找到家書，回家的路上，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "我知道這裡有很多秘密，讓我們一起探索吧!",
+              "success": "我相信你能夠找到家書，現在就離家書不遠了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你和朋友們在紅毛井的夜間漫步，突然發現了一封家書，似乎是被遺落在這裡。阿達力幫助你找到家書的方向，現在你要決定要如何繼續前進?",
+                "task_hint": "你可以選擇前往陳澄波畫架，欣賞他的作品，還是選擇去文化路夜市，尋找一些有趣的活動和美食",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "0d7d8094-3aa4-4b70-8587-83fb685c12a6",
+            "sn_order": 7,
+            "sn_title": "福康安紀功碑的秘密",
+            "location_codename": "嘉義城門",
+            "sn_opening_text": "你和朋友們在夜間漫步的路上，突然發現了一個古老的碑座，似乎是福康安紀功碑的前身。",
+            "sn_success_text": "你終於找到家書，回家的路上，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "我知道這裡有很多秘密，讓我們一起探索吧!",
+              "success": "我相信你能夠找到家書，現在就離家書不遠了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你看到福康安紀功碑，問阿達力它的歷史，阿達力開始講述林爽文事變的故事。",
+                "task_hint": "你要聽完阿達力的故事，瞭解福康安紀功碑的重要性",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "e99f5103-230a-44d6-8370-7c5c8963be59",
+            "sn_order": 8,
+            "sn_title": "水錶室的秘密",
+            "location_codename": "水源地",
+            "sn_opening_text": "我們來到了水源地，夜晚的光線在水錶室的柱子上跳動，讓人感覺到時空的流逝",
+            "sn_success_text": "你終於找到家書，回家的路上，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "你們來到水源地了！這裡有很多秘密，讓我們一起探索吧!",
+              "success": "這裡是水源地水錶室，建造於大正3年，至少有八十五年歷史！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你發現了一座古老的水錶室，雖然現在已經停用，但它的歷史仍然充滿了秘密",
+                "task_hint": "你可以拍攝這座水錶室的美麗景象，或者探索周圍的環境，看看是否可以找到更多的線索",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/0a6a89af6fc7419aa38330e82fa239ae",
+      "queue_position": null
+    }
+  }
+}

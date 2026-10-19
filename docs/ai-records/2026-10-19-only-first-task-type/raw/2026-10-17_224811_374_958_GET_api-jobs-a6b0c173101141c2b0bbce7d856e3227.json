@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-17 22:48:11.374",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/a6b0c173101141c2b0bbce7d856e3227",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "a6b0c173101141c2b0bbce7d856e3227",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792248114.6006033,
+      "updated_at": 1792248240.0323365,
+      "result": {
+        "story": {
+          "story_title": "西區的秘密書信",
+          "story_prologue": "在西區的老街，珍奶奶曾經與一位年輕人相遇，交換了秘密的書信。",
+          "story_synopsis": "尋找這封書信，追蹤回家的路。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "珍奶奶",
+          "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+          "intro": "珍奶奶，掌管西區的記憶與失落古老配方的守密人，四十年來守護著這座城市的秘密，期待有人能夠繼承她的責任。"
+        },
+        "nodes": [
+          {
+            "place_id": "e251aa99-11fb-476c-bcf5-a345959d7869",
+            "sn_order": 1,
+            "sn_title": "尋找失落的記憶",
+            "location_codename": "古老的市場",
+            "sn_opening_text": "你們現在站在台中市第二市場，古老的市場，充滿了台中老饕的味道。珍奶奶期待著你們能夠在這裡找到失落的記憶",
+            "sn_success_text": "你們成功尋找了失落的記憶，珍奶奶感謝你們的努力",
+            "dialogues": {
+              "opening": "你們現在站在台中市第二市場，古老的市場，充滿了台中老饕的味道。我是珍奶奶，掌管西區的記憶與失落古老配方的守密人",
+              "success": "你們成功尋找了失落的記憶，我很感謝你們的努力，我們將繼續守護著這座城市的秘密"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找失落的記憶，找尋在第二市場的古老配方",
+                "task_hint": "在這裡，你們可以見到許多台中老饕來這一解嘴饞，試試看，是否能夠找到失落的記憶",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "099e7ea9-f07e-4a97-a61f-f3a4d44aecc4",
+            "sn_order": 2,
+            "sn_title": "台中公園的秘密",
+            "location_codename": "緑之城",
+            "sn_opening_text": "你們現在位於台中公園，尋找珍奶奶的書信，將會面對許多挑戰和意想不到的意外",
+            "sn_success_text": "你們成功尋找了珍奶奶的書信，珍奶奶感謝你們的幫助",
+            "dialogues": {
+              "opening": "你們來到台中公園了，我是珍奶奶，掌管這座城市的記憶與失落古老配方的守密人",
+              "success": "我感謝你們的幫助，找到書信後，我們可以一起繼承這座城市的秘密"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要找到珍奶奶留下的書信，書信中包含了關於西區的秘密，珍奶奶期待有人能夠繼承她的責任",
+                "task_hint": "你們需要在台中公園中找到書信，書信可能在人工湖、亭台樓閣、曲橋等地",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ea5da72e-307c-4ab7-a8dc-8f6ff7599e47",
+            "sn_order": 3,
+            "sn_title": "尋找珍奶奶的秘密",
+            "location_codename": "書室",
+            "sn_opening_text": "你們來到第四信用合作社，珍奶奶期待著你們的到來。",
+            "sn_success_text": "你們成功尋找了珍奶奶的秘密書信，珍奶奶感謝你們的幫助",
+            "dialogues": {
+              "opening": "我是珍奶奶，掌管西區的記憶與失落古老配方的守密人，我期待著你們能夠繼承我的責任",
+              "success": "你們終於找到書信了，我希望你們能夠繼承我的責任，守護著這座城市的秘密"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到珍奶奶的秘密書信",
+                "task_hint": "珍奶奶的書信在第四信用合作社的書室中，需要你們觀察周邊，找到書信的位置",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4e1b29ec-7d01-47dc-af42-852c7aa3068c",
+            "sn_order": 4,
+            "sn_title": "追蹤回家的路",
+            "location_codename": "綠空之廊",
+            "sn_opening_text": "你們到了這裡了，珍奶奶等著您。",
+            "sn_success_text": "你們成功找到書信的線索！",
+            "dialogues": {
+              "opening": "你們到了綠空鐵道1908了，我是珍奶奶。這裡是西區的秘密之所，四十年來我守護著這座城市的記憶與失落古老配方。今天，我需要你的幫助。",
+              "success": "你們找到書信的線索了，我很自豪！現在，你們可以繼續追蹤回家的路了。記住，西區的秘密需要被繼承!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到綠空鐵道1908的書信線索，拍攝一張圖片",
+                "task_hint": "觀察周邊，尋找書信的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "2cf48b47-9acd-44ec-84da-b98440eef483",
+            "sn_order": 5,
+            "sn_title": "刑務所的回憶",
+            "location_codename": "林森之館",
+            "sn_opening_text": "你們來到這裡，尋找著珍奶奶的書信。這裡是國家漫畫博物館，現原為台中刑務所演武場，珍奶奶希望你們能夠在這裡找到答案。",
+            "sn_success_text": "你們成功尋找了珍奶奶的書信，回家的路也就一點點近了!",
+            "dialogues": {
+              "opening": "你們來到了國家漫畫博物館，現原為台中刑務所演武場。這裡是台中市的重要文化資產，還是我的故鄉。我掌管這裡的記憶與失落古老配方，期待有人能夠繼承我的責任。",
+              "success": "你們找到書信了！這是一份非常重要的文件，珍奶奶的書信將能夠幫助你們回家的路。記住，這是你們的責任，我們將在這裡等待你們的回應!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找珍奶奶的書信，位於國家漫畫博物館的展示館中。",
+                "task_hint": "你們需要觀察博物館的內容，尋找相關的資料。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fb82ee03-0592-4d6d-8455-a85bfed56639",
+            "sn_order": 6,
+            "sn_title": "美術園道的創作之旅",
+            "location_codename": "藝術之巔",
+            "sn_opening_text": "你們來到這個商店街，美術園道的藝術界正在等待著您的來自!",
+            "sn_success_text": "您完成了創意攝影任務，獲得了珍奶奶的感謝!",
+            "dialogues": {
+              "opening": "我是珍奶奶，掌管這座城市的記憶與失落古老配方的守密人。您來這裡是為什麼?",
+              "success": "您完成了尋找書信的任務，回家的路也就不再遙遠了。珍奶奶期待著您的繼承!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到珍奶奶的書信，尋找書信的路",
+                "task_hint": "觀察周邊，記錄見聞，尋找書信的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "e22291db-6a3a-47a7-9014-b334fe3c9824",
+            "sn_order": 7,
+            "sn_title": "美術園道商圈的藝術之旅",
+            "location_codename": "風景之丘",
+            "sn_opening_text": "你們來到美術園道商圈，該處藝術氣息濃厚，為了尋找珍奶奶的書信，你們要拍攝一系列與當地藝術風格相關的風景照",
+            "sn_success_text": "你們完成了創意攝影任務，珍奶奶對你的工作很滿意，現在她將給你一份古老的配方，幫助你在未來的旅途中找到你所尋找的答案",
+            "dialogues": {
+              "opening": "你們來到美術園道商圈了嗎？這裡的藝術氣息濃厚，人們都在享受著這裡的美好時光",
+              "success": "你們完成了創意攝影任務，我很滿意。這些照片將幫助我記住這裡的藝術風格，我將將這份古老的配方交給你，幫助你在未來的旅途中找到你所尋找的答案"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝一系列與當地藝術風格相關的風景照",
+                "task_hint": "你們可以在這裡拍攝與當地藝術風格相關的風景照，例如拍攝美術館的外觀，或者拍攝藝人在街頭表演",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "7166e510-8aa4-407f-ab81-4f03661af065",
+            "sn_order": 8,
+            "sn_title": "草悟廣場的秘密",
+            "location_codename": "緣意之丘",
+            "sn_opening_text": "我們現在位於草悟廣場，該地點有著豐富的文化和歷史，期待能夠在這裡找到答案!",
+            "sn_success_text": "你找到書信了！這封書信將幫助你回家!",
+            "dialogues": {
+              "opening": "你們來到草悟廣場了，珍奶奶這裡是我的家，我能夠幫助你找到答案!",
+              "success": "你找到書信了！這封書信將幫助你回家！我期待你能夠繼承我的責任，守護這座城市的秘密!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到書信，解開草悟廣場的秘密!",
+                "task_hint": "在草悟廣場的公廁裡，找到一份關鍵的文件，將幫助你找到書信!",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/a6b0c173101141c2b0bbce7d856e3227",
+      "queue_position": null
+    }
+  }
+}

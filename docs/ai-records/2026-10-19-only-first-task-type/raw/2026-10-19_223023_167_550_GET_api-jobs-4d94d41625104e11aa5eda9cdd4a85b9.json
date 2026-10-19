@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 22:30:23.167",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/4d94d41625104e11aa5eda9cdd4a85b9",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "4d94d41625104e11aa5eda9cdd4a85b9",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792419994.6866722,
+      "updated_at": 1792420221.437969,
+      "result": {
+        "story": {
+          "story_title": "\\u738b\\u5f20\\u4e0a\\u79c\\u4f1a",
+          "story_prologue": "\\u89\\u662f\\u4e0a\\u79c\\u4f1a\\u4e00\\u4e2a\\u4e2d\\u4f8b\\u7684\\u4f1a\\u5b50\\u3002",
+          "story_synopsis": "\\u89\\u662f\\u4e0a\\u79c\\u4f1a\\u4e00\\u4e2a\\u4e2d\\u4f8b\\u768b\\u4e2d\\u4e1c\\u768b\\u77\\u4e09",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "墨先生",
+          "role": "博學嚴謹的文史工作者，擅長解讀古地圖與歷史檔案",
+          "intro": "墨先生\\u4e2d\\u4e1c\\u4e00\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u3002\\u5f20\\u6c34\\u6e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e3a\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002"
+        },
+        "nodes": [
+          {
+            "place_id": "70b2fa12-ba81-435e-89a3-0701b2b93358",
+            "sn_order": 1,
+            "sn_title": "夜市之光",
+            "location_codename": "武聖廣場",
+            "sn_opening_text": "你們現在站在臺南武聖夜市的武聖路 69巷及光賢街交界處廣場，夜市的氛圍正在逐漸增強。墨先生在這裡迎候你們，為你們準備了一個創意攝影型的任務。",
+            "sn_success_text": "你們完成了創意攝影任務，拍攝了武聖夜市的美麗景象!",
+            "dialogues": {
+              "opening": "我是墨先生，博學嚴謹的文史工作者。，我們將在臺南武聖夜市進行創意攝影任務。夜市的氛圍、店家、夜景等都是攝影的風景，讓我們來一起探索這個夜市的美麗!",
+              "success": "很好，你們完成了創意攝影任務，拍攝了武聖夜市的美麗景象！我相信這些照片將是你們的最佳回憶。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在武聖夜市拍攝創意攝影，找到一個美麗的景象，拍攝後將提供給墨先生，完成任務!",
+                "task_hint": "你們可以在夜市中找到許多美麗的景象，例如店家、夜景、人群等。記得拍攝時要注意照明和背景的平衡",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ac551398-3f42-4823-9434-e80aa1066825",
+            "sn_order": 2,
+            "sn_title": "\\u5f20\\u4e0a\\u79c\\u4f1a\\u4e00\\u4e2d\\u4e2d\\u768b\\u4e2d\\u4e1c\\u768b\\u77\\u4e09",
+            "location_codename": "咾咕城門",
+            "sn_opening_text": "你們到了兌悅門，咾咕城門的門口。\\u3000\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+            "sn_success_text": "\\u4e00\\u4e2d\\u4e2d\\u768b\\u4e2d\\u4e1c\\u768b\\u77\\u4e09\\u3002",
+            "dialogues": {
+              "opening": "\\u4e00\\u4e2d\\u5f20\\u6c34\\u4e8c\\u4e73\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+              "success": "\\u4e00\\u4e2d\\u4e2d\\u768b\\u4e2d\\u4e1c\\u768b\\u77\\u4e09\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u4e73\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u3002"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "\\u4e00\\u4e2d\\u4e2d\\u768b\\u4e2d\\u4e1c\\u768b\\u77\\u4e09\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u3002",
+                "task_hint": "\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4668840d-000f-4180-a1b1-09afb20bf5f2",
+            "sn_order": 3,
+            "sn_title": "\\u8d44\\u4e3b\\u4e00\\u4e2d\\u79c\\u4f1a",
+            "location_codename": "風水之巖",
+            "sn_opening_text": "你們到了普濟殿，臺南府城的文化重鎮。\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a\\u3000",
+            "sn_success_text": "你們完成了創意攝影任務！\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a\\u3000",
+            "dialogues": {
+              "opening": "\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a，臺南府城的風水之巖，普濟殿的位置，正是八卦網的中心點。\\u3000",
+              "success": "\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a，攝影後，你們的創意攝影任務完成了！\\u3000"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a，攝影臺南府城的風水之巖，攝影普濟殿的八卦網。\\u3000",
+                "task_hint": "\\u3000\\u4e00\\u4e2d\\u79c\\u4f1a\\u4e00\\u4e2d\\u79c\\u4f1a，攝影時，注意風水之巖的八卦網，攝影普濟殿的風水之巖。\\u3000",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8df8475a-83e2-41fb-bddd-4089acf33570",
+            "sn_order": 4,
+            "sn_title": "\\u6e05\\u4e0a\\u79c\\u4f1a",
+            "location_codename": "\\u8c01\\u5e73\\u5f20",
+            "sn_opening_text": "\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u4e8c\\u6e8c\\u768b\\u5f20\\u6c34\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+            "sn_success_text": "\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u4e8c\\u6e8c\\u768b\\u5f20\\u6c34\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+            "dialogues": {
+              "opening": "\\u5f20\\u6c34\\u4e00\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u4f60\\u5c0f\\u84\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+              "success": "\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u4e8c\\u6e8c\\u768b\\u5f20\\u6c34\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "\\u4e2d\\u4e1c\\u768b\\u4e8c\\u6e8c\\u768b\\u5f20\\u6c34\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+                "task_hint": "\\u4e00\\u4e2a\\u4e2",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8d0e8b46-3afe-4902-b40b-d4c892cf51be",
+            "sn_order": 5,
+            "sn_title": "祀典大天后宮(明寧靖王府邸)的線索",
+            "location_codename": "入口一帶",
+            "sn_opening_text": "你來到【祀典大天后宮(明寧靖王府邸)】，四周安靜下來，下一個線索就在附近。",
+            "sn_success_text": "你完成了這一站的任務，故事又往前推進了一步。",
+            "dialogues": {
+              "opening": "到了！先在這裡四處看看吧。",
+              "success": "做得好，我們繼續往下一站走。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在【祀典大天后宮(明寧靖王府邸)】找一個你最喜歡的角落，拍一張照片留念。",
+                "task_hint": "試著把這裡最有特色的東西拍進去。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "3e84ebf5-f6be-423f-9e0e-48c241d8b15f",
+            "sn_order": 6,
+            "sn_title": "\\u4e09\\u4e0d\\u7684\\u5f20\\u6c34\\u3000",
+            "location_codename": "夜花館",
+            "sn_opening_text": "你們到了全美戲院，李安的電影夢孕育的地方。墨先生在這裡等待著你們，希望能夠幫助你們解開一個古老的秘密。",
+            "sn_success_text": "你們完成了創意攝影任務！墨先生非常自豪，希望你們能夠在下一站再次與他一起解開更多的古老秘密。",
+            "dialogues": {
+              "opening": "\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u3000，\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u3000。\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+              "success": "\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u3000，\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u3000。\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在全美戲院，找到李安的電影看板，拍攝一張創意的攝影圖片。\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u3000，\\u6211\\u4e00\\u4e2a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+                "task_hint": "你們可以在全美戲院中找到手繪電影看板，拍攝創意的攝影圖片。\\u6211\\u4e00\\u4e2a\\u4e2",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "1df7c258-e007-44ab-846d-7a84efa906bb",
+            "sn_order": 7,
+            "sn_title": "蝸牛巷的秘密",
+            "location_codename": "巷弄之間",
+            "sn_opening_text": "你們來到蝸牛巷，墨先生正等待著你們!",
+            "sn_success_text": "你們成功找到蝸牛巷的秘密！",
+            "dialogues": {
+              "opening": "我是墨先生，博學嚴謹的文史工作者。歡迎你們來到蝸牛巷!",
+              "success": "你們真的是一個有趣的旅行團隊！蝸牛巷的秘密是什麼呢？讓我來教你們吧!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在蝸牛巷中尋找蝸牛的機會，拍攝蝸牛的風姿或隱身在角落中",
+                "task_hint": "你們可以在巷弄中走走看，尋找蝸牛的機會",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ffcbc177-adfc-4afd-bd73-e8d9771ffbfb",
+            "sn_order": 8,
+            "sn_title": "\\u548c\\u6d77\\u5f20\\u4e0a\\u79c\\u4f1a",
+            "location_codename": "木堂",
+            "sn_opening_text": "你們現在站在了報恩堂的外面，夜晚的臺南市內充滿著古老的氣息。\\u3002",
+            "sn_success_text": "你們完成了創意攝影任務！報恩堂的木造建築物在夜晚的光環下更加美麗。\\u3002",
+            "dialogues": {
+              "opening": "\\u4e00\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u3002\\u5f20\\u6c34\\u6e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+              "success": "\\u4e00\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "\\u4e00\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+                "task_hint": "\\u4e00\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u6e8c\\u768b\\u4e1c\\u4e00\\u4e2d\\u4e3a\\u4e2d\\u4e1c\\u768b\\u5f20\\u6c34\\u4e8c\\u768b\\u4e1c\\u3002",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/4d94d41625104e11aa5eda9cdd4a85b9",
+      "queue_position": null
+    }
+  }
+}

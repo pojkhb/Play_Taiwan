@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:20:36.097",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/b2c6a4eb2b40430e864542dfc12e9f9c",
+  "request": null,
+  "duration_ms": 1,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "b2c6a4eb2b40430e864542dfc12e9f9c",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792415931.2753928,
+      "updated_at": 1792415999.2457428,
+      "result": {
+        "story": {
+          "story_title": "阿達力的地圖書",
+          "story_prologue": "在中正公園的喧鬧之中，阿達力收到了一個神秘的信件，關於他的家書的去向。",
+          "story_synopsis": "幫助阿達力找到家書，解開中正公園的秘密。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力，四十年來的老街顧，熟悉臺中每個巷子和巢，熱愛尋找美食和歷史的好友，為了找到家書，阿達力需要玩家的幫助。"
+        },
+        "nodes": [
+          {
+            "place_id": "d752e19d-709d-471e-96a4-48779d0a6e46",
+            "sn_order": 1,
+            "sn_title": "尋找中正公園的秘密",
+            "location_codename": "公庭",
+            "sn_opening_text": "你們來到中正公園，阿達力等著你們!",
+            "sn_success_text": "你們找到了中正公園的秘密!",
+            "dialogues": {
+              "opening": "我在這裡等著你們，來自找我，我們要一起尋找中正公園的秘密!",
+              "success": "你們做出了很好的工作！中正公園的秘密是什麼？是這個地方的美食？是這個公園的歷史？你們一定要是真正的好友!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在中正公園尋找秘密，找到一張關於公園的歷史照片",
+                "task_hint": "你們可以在公園的步道上觀察，或者在大廣場上尋找照片",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bb7d2ea3-8044-4cce-ad5a-d9e30faea85e",
+            "sn_order": 2,
+            "sn_title": "古書之旅",
+            "location_codename": "藥房",
+            "sn_opening_text": "你們現在站在中國醫藥大學立夫中醫藥博物館的前面，阿達力在等著你們！",
+            "sn_success_text": "你們成功找到了一本古書！阿達力非常高興，希望你們能夠幫助他找到更多的古書!",
+            "dialogues": {
+              "opening": "你們來到立夫中醫藥博物館了！這裡有許多珍貴的中醫藥文物，我們要找到一本關於中醫藥的古書!",
+              "success": "你們找到了一本古書！這是一本非常珍貴的書，裡面有許多關於中醫藥的知識!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在博物館內找到一本關於中醫藥的古書，阿達力需要這本書來完成他的研究!",
+                "task_hint": "你們可以在博物館內觀察文物，尋找相關的標籤和標示，或者與博物館的工作人員交談，尋找更多的資訊!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "02b5b9ca-1248-4af8-b260-21a7fd052ce3",
+            "sn_order": 3,
+            "sn_title": "小熊屋中友店的美味秘密",
+            "location_codename": "小熊屋",
+            "sn_opening_text": "你們來到小熊屋中友店，熱情的阿達力在等待著你們!",
+            "sn_success_text": "你們成功解開了小熊屋的美味秘密！",
+            "dialogues": {
+              "opening": "你們來到小熊屋中友店了？我們今天特別準備了一個美味的秘密！",
+              "success": "你們成功解開了小熊屋的美味秘密！現在，你們可以享受濃湯和下午茶的美味!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要幫助阿達力解開小熊屋中友店的美味秘密。這個秘密是一個濃湯和下午茶的組合，需要你們的創意攝影技巧!",
+                "task_hint": "你們可以在小熊屋中友店觀察店家的工作，尋找一些關鍵的線索。不要忘記，濃湯和下午茶的秘密是什麼？",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "b717e40d-cede-4abe-85a3-9ea0332a99b6",
+            "sn_order": 4,
+            "sn_title": "中友百貨之夜",
+            "location_codename": "花園之巖",
+            "sn_opening_text": "你們來到中友百貨的花園之巖，裡面充滿了購物的魅力，但阿達力卻在這裡尋找什麼呢？",
+            "sn_success_text": "你們終於找到阿達力的家書！這是中友百貨的秘密！",
+            "dialogues": {
+              "opening": "你們來到中友百貨的花園之巖了？我在這裡尋找什麼呢？",
+              "success": "這是中友百貨的秘密！我找到家書了！你們幫助我了！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要幫阿達力尋找中友百貨的秘密！他在這裡尋找什麼呢？",
+                "task_hint": "你們可以在花園之巖裡找到購物的魅力，但阿達力卻在尋找什麼呢？",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "1e1d7cf4-d347-4bdf-b9b1-7bc98848cd71",
+            "sn_order": 5,
+            "sn_title": "體育場的燈光",
+            "location_codename": "運動場",
+            "sn_opening_text": "你們來到體育場館了，阿達力在這裡等著你們!",
+            "sn_success_text": "你們成功拍攝了體育場的燈光!",
+            "dialogues": {
+              "opening": "你們來到體育場館了，阿達力在這裡等著你們！我知道你們來這裡是為了找到家書的關鍵，體育場館內有很多能夠幫助你們的線索!",
+              "success": "你們成功拍攝了體育場的燈光！這是體育場館的一個很好地點，阿達力覺得你們拍攝的照片很好！現在你們需要往下一站去找下一個線索!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝體育場館的燈光!",
+                "task_hint": "體育場館內有很多燈光，需要找到最好的角度拍攝!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bc3672fc-db94-489d-a6b4-e91376a65e18",
+            "sn_order": 6,
+            "sn_title": "眷村秘書",
+            "location_codename": "新舊交錯",
+            "sn_opening_text": "你們來到這裡，為了找到阿達力的家書，需要了解眷村的歷史和文化，讓我們進入文物館，開始您的旅程!",
+            "sn_success_text": "完成了第一步，現在您已經瞭解了眷村的歷史和文化，繼續前行!",
+            "dialogues": {
+              "opening": "你來到我這裡了？阿達力很高興你來了，現在我要教你一些眷村的秘密，讓你找到家書!",
+              "success": "好棒！你完成了創意攝影任務，現在你有了眷村的秘密，繼續前行，找到阿達力的家書!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，你需要拍攝一些創意攝影，展現出眷村的文化和歷史，讓阿達力和你一起找到家書!",
+                "task_hint": "在這裡，你需要觀察和拍攝一些有趣的眷村風格的景象，例如老舊的建築物、傳統的服飾和美食，讓你的攝影更具創意!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "bdb0e42a-9fa8-44c0-8681-cc41f789e92a",
+            "sn_order": 7,
+            "sn_title": "圖書館之夜",
+            "location_codename": "書院",
+            "sn_opening_text": "我們來到了臺中市立圖書館興安分館，正是阿達力的尋找家書的關鍵地點。",
+            "sn_success_text": "你們成功幫助阿達力找到了一份重要的線索，下一步是進入圖書館的秘密區域!",
+            "dialogues": {
+              "opening": "你們來了！圖書館的秘密，應該是你們能夠解開的那個。",
+              "success": "真好！這份線索，應該能夠幫助我找到那份家書。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在臺中市立圖書館興安分館中，尋找阿達力的家書。",
+                "task_hint": "在這裡，請觀察周圍的環境，找到與尋找家書有關的線索。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "74428cb0-7361-467a-9be7-5305b0753183",
+            "sn_order": 8,
+            "sn_title": "水湳市場的夜晚美食之旅",
+            "location_codename": "夜花巷",
+            "sn_opening_text": "夜晚，水湳市場的光景變得更加迷人，人潮少得可見，美食店家一一關閉，阿達力在這個時刻需要你的幫助",
+            "sn_success_text": "你與阿達力一起找到家書，解開水湳市場的秘密，夜晚的美食之旅得以結束",
+            "dialogues": {
+              "opening": "夜晚，水湳市場的光景變得更加迷人，人潮少得可見，美食店家一一關閉，希望你能夠幫我找到家書，讓我們能夠解開水湳市場的秘密",
+              "success": "你真的是一位好友，找到家書後，我們能夠讓水湳市場的秘密得以解開，感謝你的幫助"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在水湳市場的夜晚，找到阿達力的家書，解開水湳市場的秘密",
+                "task_hint": "在夜晚的水湳市場中，找到阿達力的家書，與他一起解開水湳市場的秘密",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/b2c6a4eb2b40430e864542dfc12e9f9c",
+      "queue_position": null
+    }
+  }
+}

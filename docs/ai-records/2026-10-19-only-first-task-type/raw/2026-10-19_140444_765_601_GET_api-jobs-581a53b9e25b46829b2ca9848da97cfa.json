@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 14:04:44.765",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/581a53b9e25b46829b2ca9848da97cfa",
+  "request": null,
+  "duration_ms": 2,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "581a53b9e25b46829b2ca9848da97cfa",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792389743.4299178,
+      "updated_at": 1792389786.6716812,
+      "result": {
+        "story": {
+          "story_title": "光興里之旅的開始",
+          "story_prologue": "在光興里的一個小書攤，有一封寄不出去的信件，等待著一個人的回應。",
+          "story_synopsis": "在這個小鎮中，尋找這封信件的路上，找到回家的關鍵。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力，四十年來熟悉光興里的每個角落，從美食到地理，知道這裡的每個細節。今天，他在這裡等著你，為你帶路尋找回家的路。"
+        },
+        "nodes": [
+          {
+            "place_id": "220a39b7-fcc7-4442-b94c-2b2439be24de",
+            "sn_order": 1,
+            "sn_title": "第一站：尋找美食的路徑",
+            "location_codename": "食道",
+            "sn_opening_text": "你來到米倉劇場，今天是尋找回家的關鍵的開始!",
+            "sn_success_text": "你們找到了美食的路徑，接下來要尋找的關鍵在哪裡？",
+            "dialogues": {
+              "opening": "你來到米倉劇場，今天是尋找回家的關鍵的開始！這裡是桃園中小型劇場的實驗創作基地，熟悉地理的你，能夠找到這裡的每個細節。",
+              "success": "你們找到了美食的路徑，接下來要尋找的關鍵在這裡。去觀察周邊，看看你能夠發現的什麼！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在米倉劇場中，尋找與美食相關的關鍵",
+                "task_hint": "觀察周邊，看看你能夠發現的什麼！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9215c6f5-265e-49a0-b41c-99b713bab515",
+            "sn_order": 2,
+            "sn_title": "尋找回家的路",
+            "location_codename": "藝文町",
+            "sn_opening_text": "你們來到桃園77藝文町了，阿達力正在等著你，為你帶路尋找回家的路。",
+            "sn_success_text": "你們成功找到回家的路，感謝阿達力的幫助!",
+            "dialogues": {
+              "opening": "你們來到桃園77藝文町了，現在就要找到回家的路了!",
+              "success": "我知道這裡有很多美食，能夠幫助你找到回家的路。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到桃園77藝文町的歷史建築物，並尋找阿達力的位置",
+                "task_hint": "你們可以在這裡拍攝美食、拍照打卡，阿達力也會在這裡等著你",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "e6f4cf2a-974d-4a02-812d-fc66b126fd8f",
+            "sn_order": 3,
+            "sn_title": "軌道的幻想",
+            "location_codename": "鐵庫",
+            "sn_opening_text": "我們來到了桃園軌道願景館，現在是尋找回家的關鍵的時候。",
+            "sn_success_text": "你終於找到回家的關鍵！",
+            "dialogues": {
+              "opening": "你今天來到這裡是為了什麼？",
+              "success": "我知道這裡有很多美食，你可以試試看看看你喜歡的是什麼!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你現在面對著一個大型的鐵庫，內部有很多軌道模型，你需要拍攝一個合適的照片，展示軌道願景館的美麗景象。",
+                "task_hint": "你可以在這裡找到很多有趣的軌道模型，試試看你可以拍出什麼樣的照片呢？",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5d6fe8a5-98db-490d-b2b9-00e522163d1b",
+            "sn_order": 4,
+            "sn_title": "尋找回家的路",
+            "location_codename": "東方之館",
+            "sn_opening_text": "你們來到桃園市土地公文化館，現在是尋找回家的路",
+            "sn_success_text": "你們在這裡找到了一份關鍵性的線索，讓你們更接近回家的目標",
+            "dialogues": {
+              "opening": "你們來到桃園市土地公文化館了，今天我就帶你們走遍這裡的每個角落",
+              "success": "你們在這裡找到了一份關鍵性的線索，讓你們更接近回家的目標"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，你們需要找到一個與回家的路相關的線索",
+                "task_hint": "你們需要觀察這裡的環境，尋找與回家的路相關的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "77d3f95f-0777-422b-a0f7-8968671adcc3",
+            "sn_order": 5,
+            "sn_title": "香之旅",
+            "location_codename": "香行之巖",
+            "sn_opening_text": "你們來到明義堂香行，感受這裡的溫暖與香氣，阿達力等著你們，帶路尋找回家的路。",
+            "sn_success_text": "你們完成了香之旅，找到了一份回家的關鍵，感謝阿達力帶路，讓你們回家",
+            "dialogues": {
+              "opening": "你們來到明義堂香行，為了尋找回家的路，首先需要找到這裡的香氣，讓我們來探索一下!",
+              "success": "你們完成了香之旅，找到了一份回家的關鍵，感謝你們的努力，讓你們回家"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡找到明義堂香行的最好香品，讓你們感受這裡的香氣，尋找回家的關鍵",
+                "task_hint": "來到明義堂香行，感受這裡的香氣，尋找最好香品",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5bf36780-5575-4997-a659-c3b39654f0f2",
+            "sn_order": 6,
+            "sn_title": "夜市的美食之旅",
+            "location_codename": "夜花",
+            "sn_opening_text": "你們來到桃園觀光夜市，夜花的燈光和美食魅力使你們的眼睛和口感都受到了誘惑",
+            "sn_success_text": "你們完成了夜市的美食之旅!",
+            "dialogues": {
+              "opening": "你們來到夜花了，現在是尋找回家的關鍵的時候",
+              "success": "很高興你們完成了夜市的美食之旅，現在回家的路就更容易了"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在夜花中，尋找桃園觀光夜市最著名的美食",
+                "task_hint": "觀察夜市的攤位，尋找最著名的美食",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "e111a991-4558-48c1-86b5-31af73c0b1be",
+            "sn_order": 7,
+            "sn_title": "彩韻的歡迎",
+            "location_codename": "桃園門戶",
+            "sn_opening_text": "你們來到桃園的時候，太太太太喜歡迎你們！",
+            "sn_success_text": "你們找到回家的路！",
+            "dialogues": {
+              "opening": "你們來到彩韻廣場了！我是阿達力，今天我就為你們帶路尋找回家的路！",
+              "success": "你們找到回家的路了！現在你們可以離開彩韻廣場了！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在彩韻廣場，找到導航牌上的路徑，繼續尋找回家的路！",
+                "task_hint": "你們可以觀察廣場的藝術設計，找到導航牌！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "6c3a4d57-fd8a-46ab-b44b-924f6263d908",
+            "sn_order": 8,
+            "sn_title": "步入生態之間",
+            "location_codename": "自然之庭",
+            "sn_opening_text": "你在桃園1-4號生態埤塘步入了大自然的世界，眼前是環池步道、生態水池、原木平台、景觀涼亭、木棧道等親水設施。阿達力在這裡等著你，為你帶路尋找回家的路。",
+            "sn_success_text": "你在生態埤塘發現了一個小木箱，裡面有你的回家的信件!",
+            "dialogues": {
+              "opening": "你走進生態埤塘，見到阿達力，他穿著一件灰色外套，手裡攜帶一本地圖。他看起來很疲勉，但還是能夠開心地笑著迎接你。",
+              "success": "你終於找到回家的路了！這封信件是你回家的關鍵，現在你可以回家了！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在桃園1-4號生態埤塘，尋找回家的信件",
+                "task_hint": "在生態埤塘的親水設施中，尋找一個小木箱，裡面有你的回家的信件",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/581a53b9e25b46829b2ca9848da97cfa",
+      "queue_position": null
+    }
+  }
+}

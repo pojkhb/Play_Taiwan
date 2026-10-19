@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-17 22:48:11.378",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/9f796091e99a44f2a05e19c52d1339ad",
+  "request": null,
+  "duration_ms": 2,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "9f796091e99a44f2a05e19c52d1339ad",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792248114.6006033,
+      "updated_at": 1792248262.527254,
+      "result": {
+        "story": {
+          "story_title": "西區秘笛",
+          "story_prologue": "在老州廳的角落，藏著一封未寄出的信，帶著一位年輕人對家人的深深懷念。",
+          "story_synopsis": "尋找這封信，找到回家的路。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "珍奶奶",
+          "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+          "intro": "珍奶奶，掌管西區的記憶，守密失落古老配方的守護者，與旅程的開始有著深深的關係。"
+        },
+        "nodes": [
+          {
+            "place_id": "bb7d2ea3-8044-4cce-ad5a-d9e30faea85e",
+            "sn_order": 1,
+            "sn_title": "信標",
+            "location_codename": "記憶之館",
+            "sn_opening_text": "我們來到西區的第一站，珍奶奶將在這裡迎接您!",
+            "sn_success_text": "您完成了第一站！珍奶奶對您的好感度增加了!",
+            "dialogues": {
+              "opening": "你是來尋找回家的路的，對不對？我是珍奶奶，我掌管這個區域的記憶。你可以在這裡找到一些關於西區的信息，甚至是尋找失落的古老配方的線索!",
+              "success": "你完成了創意攝影任務！珍奶奶對您的好感度增加了，你還有一個機會成為我的好友！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，請拍攝一些與西區相關的照片，例如這座博物館、這個街景、或是這些中醫藥文物!",
+                "task_hint": "珍奶奶有一些古老的配方文書，可能會出現在這裡的展品中。用你的創意攝影技巧，拍攝出一些與西區的關聯!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "311c40c2-ca97-4aa6-a3bf-3598b9193227",
+            "sn_order": 2,
+            "sn_title": "宮中秘笛",
+            "location_codename": "清晏苑",
+            "sn_opening_text": "你們來到萬春宮，珍奶奶在等著你們。",
+            "sn_success_text": "你們找到了一封重要的信，珍奶奶很開心!",
+            "dialogues": {
+              "opening": "你們來到我家了，時候不錯，天氣也不錯。現在你們要做什麼呢？",
+              "success": "你們找到了一封信，裡面有關於回家的路。很好，很好。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要拍攝萬春宮的光影，珍奶奶給你們一個相機，記得拍到清晏苑的光影!",
+                "task_hint": "你們可以在宮殿的前殿拍攝，或者是藻井的蜘蛛網般形狀，兩者都很有趣",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "b7357243-147a-44ba-942e-aec3d91ad3f2",
+            "sn_order": 3,
+            "sn_title": "藝庶之旅",
+            "location_codename": "風之巔",
+            "sn_opening_text": "你們來到台中東區的藝庶之旅，藝術與娛樂交融，讓你們能夠找到尋找的路徑!",
+            "sn_success_text": "你們成功完成了創意攝影任務!",
+            "dialogues": {
+              "opening": "你們來到台中東區的藝庶之旅了嗎？這裡是藝術與娛樂的交融之地，能夠找到尋找的路徑!",
+              "success": "我知道你們找到尋找的路徑了！這裡的藝術與娛樂能夠讓你們找到回家的路徑!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡，你們需要拍攝一系列的創意攝影，讓藝術與娛樂的交融能夠展現出來!",
+                "task_hint": "你們可以在這裡找到許多藝術與娛樂的展品，讓你們能夠找到尋找的路徑!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a34aa411-64e7-49be-a9a0-380f05179e96",
+            "sn_order": 4,
+            "sn_title": "火車站的感覺",
+            "location_codename": "時刻站",
+            "sn_opening_text": "你來到了新臺中火車站，裡面充滿了人們的忙忙碌碌，卻又有著一個空間讓人感受到著一種溫暖的感覺。",
+            "sn_success_text": "你完成了創意攝影任務，拍攝了火車站中最美麗的時刻!",
+            "dialogues": {
+              "opening": "你來到這裡了？這裡是我的故鄉，記憶的故鄉。",
+              "success": "你完成了任務，我很高興。這封信，裡面有著我們的故事，裡面有著回家的路。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝火車站中最美麗的時刻!",
+                "task_hint": "觀察火車站中的人們，感受到空間的溫暖，尋找這封信的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "c3cfb095-73ff-4db4-b360-56633a6e14e9",
+            "sn_order": 5,
+            "sn_title": "火車站的秘密",
+            "location_codename": "火車站之間",
+            "sn_opening_text": "你們來到台中火車站了，現在是尋找珍奶奶的時候!",
+            "sn_success_text": "你們成功找到珍奶奶了!",
+            "dialogues": {
+              "opening": "你們來到台中火車站了？那麼高興！我是珍奶奶，掌管西區的記憶，我能夠幫助你們找到回家的路!",
+              "success": "你們找到我的秘密了！這封信是你們尋找的關鍵，我能夠幫助你們解開它的 رمز!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要找到珍奶奶的秘密，找到回家的路!",
+                "task_hint": "你們來到台中火車站，現在是尋找珍奶奶的時候！你們需要觀察周邊，尋找她在哪裡！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "6956df7e-0a1f-42c2-93bc-abe53a8f7505",
+            "sn_order": 6,
+            "sn_title": "眼科的秘密",
+            "location_codename": "紅磚之城",
+            "sn_opening_text": "你們來到了這個古老的診所，誰知道這裡有什麼秘密?",
+            "sn_success_text": "你們成功拍攝了這裡的美麗景象!",
+            "dialogues": {
+              "opening": "你們來到我的診所了？這裡是我的工作地，裡面有許多秘密",
+              "success": "你們成功記住了這裡的雜亂情況，我們有什麼秘密可以分享給你們?"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝宮原眼科的紅磚牆和挑高圖書館",
+                "task_hint": "你們可以在這裡找到許多有趣的攝影機機會",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "da6b9ba7-f0ca-4305-8d49-03472728ba95",
+            "sn_order": 7,
+            "sn_title": "芒果冰的秘密",
+            "location_codename": "西區冰店",
+            "sn_opening_text": "你們來到西區最著名的芒果冰店，玉井家族的傳承業，今年夏天又推出愛文芒果雪花冰了!",
+            "sn_success_text": "你們成功拍攝了愛文芒果雪花冰的美食照片!",
+            "dialogues": {
+              "opening": "你們來到西區最著名的芒果冰店了，我是珍奶奶，掌管這裡的記憶和秘密",
+              "success": "你們終於找到這封信的路，回家吧，珍奶奶給你們一點小心，西區的秘密不應該被外人知道"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡拍攝愛文芒果雪花冰的美食照片",
+                "task_hint": "珍奶奶會給你們一些小提示，幫助你們拍攝出最好的照片",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4f9e41a3-e146-403c-b670-7af33a28c5ef",
+            "sn_order": 8,
+            "sn_title": "最後一站：尋找珍奶奶的秘密",
+            "location_codename": "綠園",
+            "sn_opening_text": "我們終於抵達了最後一站！你們的旅程將在這裡結束，珍奶奶的秘密將揭露。",
+            "sn_success_text": "你們成功找到珍奶奶的秘密！珍奶奶感謝你們的幫助，希望你們能找到回家的路。",
+            "dialogues": {
+              "opening": "好啊，來了來了！我是珍奶奶，掌管西區的記憶和失落古老配方的守密人。現在，正是你們找到我秘密的時間!",
+              "success": "哇，你們真的是如此聰明！我知道你們一定能找到回家的路。珍奶奶的秘密是這個路，記住它吧!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到珍奶奶的秘密，珍奶奶將給你們一個回家的路",
+                "task_hint": "珍奶奶的秘密是這個路，記住它吧！",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/9f796091e99a44f2a05e19c52d1339ad",
+      "queue_position": null
+    }
+  }
+}

@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 19:57:09.405",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/67e10a32a626455896ea4f3a3b8bbc60",
+  "request": null,
+  "duration_ms": 2,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "67e10a32a626455896ea4f3a3b8bbc60",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792410527.0172153,
+      "updated_at": 1792410613.9211383,
+      "result": {
+        "story": {
+          "story_title": "西區的秘密步道",
+          "story_prologue": "阿達力在西區走了四十年，卻仍無法找到自己最喜歡的食物店。",
+          "story_synopsis": "找到忠信市場的老友，尋求美食的導航。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力：『在這個西區，路人都像家人，知道每個角落的秘密。』"
+        },
+        "nodes": [
+          {
+            "place_id": "4f9e41a3-e146-403c-b670-7af33a28c5ef",
+            "sn_order": 1,
+            "sn_title": "尋找美食的導航",
+            "location_codename": "大家來了",
+            "sn_opening_text": "你們來到西區的誠品綠園道了，你們要找誰?",
+            "sn_success_text": "你們找到了阿達力，現在可以尋找美食的導航了!",
+            "dialogues": {
+              "opening": "你們來到誠品綠園道了？我是阿達力，這裡是我的家，知道這個區域的每個角落的秘密。",
+              "success": "現在你們可以尋找美食的導航了，我可以給你們一些建議，去哪裡吃什麼好呢？"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到阿達力，尋找美食的導航",
+                "task_hint": "你們來到誠品綠園道，先觀察周邊，找出阿達力在哪裡",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "656bfab8-696f-45a7-b41f-eba6cc6857cd",
+            "sn_order": 2,
+            "sn_title": "幻覺的錯覺",
+            "location_codename": "夢境之巔",
+            "sn_opening_text": "你們來到幻覺博物館了，裡面有許多令人迷惑的錯覺藝術。阿達力在這裡等待著你們，帶你們發現西區的秘密步道。",
+            "sn_success_text": "你們完成了創意攝影任務，找到了一些令人迷惑的錯覺藝術。阿達力很高興，你們的攝影作品將在博物館的展品中出現!",
+            "dialogues": {
+              "opening": "你們來到幻覺博物館了，裡面有許多令人迷惑的錯覺藝術。阿達力在這裡等待著你們，帶你們發現西區的秘密步道。",
+              "success": "你們完成了創意攝影任務，找到了一些令人迷惑的錯覺藝術。這些作品將在博物館的展品中出現！你們的攝影作品將是這裡的一個亮點!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡拍攝一些令人迷惑的錯覺藝術，展現你的創意攝影技巧!",
+                "task_hint": "你們可以在這裡找到許多令人迷惑的錯覺藝術。試著拍攝一些你覺得有趣的作品，展現你的創意!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ad94bb99-2f27-4291-9c2a-8e79f04b094b",
+            "sn_order": 3,
+            "sn_title": "尋找美味的指引",
+            "location_codename": "小巷之友",
+            "sn_opening_text": "你們來到忠信市場，想尋找阿達力，找尋美食的導航。這個市場從一個老市場，變成一個藝文工作者的展演場所，展現出現代與復古的衝突美感。來到這裡，會發現這裡的建築空間都比較小，當初為了節省空間，讓空間更有效的應用，所以每一間房子，坪數其實都不大。",
+            "sn_success_text": "你們終於找到阿達力，得到了美食的導航！你們的創意攝影作品，將成為忠信市場的新傳統!",
+            "dialogues": {
+              "opening": "在這個西區，路人都像家人，知道每個角落的秘密。",
+              "success": "你們的攝影作品，將成為忠信市場的新傳統！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們要找到阿達力，找尋美食的導航。阿達力是忠信市場最機靈的導航者，熟悉大街小巷與美食情報。",
+                "task_hint": "你們需要觀察周邊，記錄見聞，尋找阿達力。阿達力可能會在市場的各個角落，等待著你們的到來",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "73b009a4-cb1f-416f-89c2-8c686cd08887",
+            "sn_order": 4,
+            "sn_title": "尋找阿達力的秘密步道",
+            "location_codename": "西區之巖",
+            "sn_opening_text": "你們在臺中市役所，找到了一個秘密步道。阿達力邀請你們出發，尋找忠信市場的老友，尋求美食的導航。",
+            "sn_success_text": "你們找到阿達力，得到了美食的導航。你的旅程就此結束。",
+            "dialogues": {
+              "opening": "在這個西區，路人都像家人，知道每個角落的秘密。",
+              "success": "現在你們知道了忠信市場的秘密步道。去嘗試吧！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到阿達力的秘密步道",
+                "task_hint": "尋找阿達力的位置，得到美食的導航",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "8e5feec2-3185-4f61-8403-f3ecc8ba3ac5",
+            "sn_order": 5,
+            "sn_title": "繼光街的秘密",
+            "location_codename": "西巷",
+            "sn_opening_text": "你們現在到了繼光街商圈，路人都像家人，知道每個角落的秘密。阿達力在這裡等著你們，幫助你們找到忠信市場的老友和尋求美食的導航。",
+            "sn_success_text": "你們成功找到忠信市場的老友，和他一起品嚐了美食。阿達力也給你們提供了尋求美食的導航，讓你們可以在西區找到更多美味的食物!",
+            "dialogues": {
+              "opening": "在這個西區，路人都像家人，知道每個角落的秘密。",
+              "success": "很高興能夠幫助你們找到忠信市場的老友和尋求美食的導航。西區有許多美味的食物，你們可以在這裡找到！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到忠信市場的老友和尋求美食的導航",
+                "task_hint": "在繼光街商圈尋找阿達力，幫助他找到忠信市場的老友",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "7cbf429d-56f0-4341-aeef-4d79f4c2acc2",
+            "sn_order": 6,
+            "sn_title": "新盛橋的秘密",
+            "location_codename": "緑橋",
+            "sn_opening_text": "你們來到新盛綠川水岸廊道了，現在是尋找阿達力的時候!",
+            "sn_success_text": "找到了阿達力！你們現在知道了忠信市場的美食導航！",
+            "dialogues": {
+              "opening": "你們來到新盛綠川水岸廊道了，阿達力在這裡等你們!",
+              "success": "這裡有許多美食店，能夠找到忠信市場的好吃食物！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這個景點中，找到阿達力的影象或拍攝一張與阿達力相關的影象",
+                "task_hint": "你們可以在這裡找到阿達力的影象，或者拍攝一張與阿達力相關的影象",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "6956df7e-0a1f-42c2-93bc-abe53a8f7505",
+            "sn_order": 7,
+            "sn_title": "眼科之間的秘密",
+            "location_codename": "紅磚之巖",
+            "sn_opening_text": "你們現在就在眼科之間的秘密步道上，走了七站！",
+            "sn_success_text": "你們終於找到忠信市場的老友了！",
+            "dialogues": {
+              "opening": "在這個西區，路人都像家人，知道每個角落的秘密。",
+              "success": "你們找到我了！現在來吃點甜點，我會指導你們找到最美味的甜點！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們要找到忠信市場的老友阿達力，並尋求美食的導航！",
+                "task_hint": "你們現在正位於宮原眼科，阿達力正好在這裡！他能夠指導你們找到忠信市場的路線。",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "4e1b29ec-7d01-47dc-af42-852c7aa3068c",
+            "sn_order": 8,
+            "sn_title": "尋找阿達力的秘密步道",
+            "location_codename": "陽光廊",
+            "sn_opening_text": "我們終於到了最後一個站！你們是否準備好尋找阿達力的秘密步道?",
+            "sn_success_text": "感謝你們在這個旅程中找到阿達力！他已經等待著你們，為你們準備了美食的秘密!",
+            "dialogues": {
+              "opening": "在這個西區，路人都像家人，知道每個角落的秘密。",
+              "success": "我知道這個西區的每個隱藏角落，你們可以依靠我找到忠信市場的老友，尋求美食的導航。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到阿達力的秘密步道，尋求美食的導航",
+                "task_hint": "在綠空鐵道1908的陽光廊，尋找阿達力的秘密步道，尋求美食的導航",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/67e10a32a626455896ea4f3a3b8bbc60",
+      "queue_position": null
+    }
+  }
+}

@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-19 22:09:10.175",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "新北市",
+      "district_name": "板橋區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊",
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "925e4d90-f2ba-4b79-a278-907388596821",
+          "p_name": "中和瑞穗配水池",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "8eecd99e-d396-48a3-b9e9-7ab4fca72a25",
+          "p_name": "板橋農村公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "64116a1b-6099-42e7-aa18-aca1bdbce366",
+          "p_name": "府中15新北市動畫故事館暨新北市紀錄片放映院",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ad39b649-30f9-4d7a-8a80-a9b8331f1df9",
+          "p_name": "板橋湳雅觀光夜市",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "bb200aa4-ffb4-4317-b747-efe7ac5096af",
+          "p_name": "接雲寺",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "54bb6d75-fed1-423d-91da-2b0645cc083e",
+          "p_name": "在一起One&Together",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ca4cc348-e9b6-4221-aed6-6c2c501d1c00",
+          "p_name": "一緒館",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "7f3fdd64-27bd-4100-85b2-659888ec0948",
+          "p_name": "新月橋",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2050,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "bfdd72748d5a4b269b670640cf778ecc",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792418952.225195,
+      "updated_at": 1792418952.225195,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/bfdd72748d5a4b269b670640cf778ecc",
+      "queue_position": 1
+    }
+  }
+}

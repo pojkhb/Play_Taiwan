@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 22:26:34.690",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "臺南市",
+      "district_name": "安平區",
+      "party_size": 1,
+      "s_tag": [
+        "家庭出遊"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "溫情走心",
+      "places": [
+        {
+          "place_id": "70b2fa12-ba81-435e-89a3-0701b2b93358",
+          "p_name": "台南武聖夜市",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "ac551398-3f42-4823-9434-e80aa1066825",
+          "p_name": "兌悅門",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "4668840d-000f-4180-a1b1-09afb20bf5f2",
+          "p_name": "普濟殿",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "8df8475a-83e2-41fb-bddd-4089acf33570",
+          "p_name": "88藝療所",
+          "is_hotel": 1,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "8d0e8b46-3afe-4902-b40b-d4c892cf51be",
+          "p_name": "祀典大天后宮(明寧靖王府邸)",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "3e84ebf5-f6be-423f-9e0e-48c241d8b15f",
+          "p_name": "全美戲院",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 8,
+              "type_name": "e 人訪談型"
+            }
+          ]
+        },
+        {
+          "place_id": "1df7c258-e007-44ab-846d-7a84efa906bb",
+          "p_name": "蝸牛巷",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ffcbc177-adfc-4afd-bd73-e8d9771ffbfb",
+          "p_name": "報恩堂",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 0,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "4d94d41625104e11aa5eda9cdd4a85b9",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792419994.6866722,
+      "updated_at": 1792419994.6866722,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/4d94d41625104e11aa5eda9cdd4a85b9",
+      "queue_position": 2
+    }
+  }
+}

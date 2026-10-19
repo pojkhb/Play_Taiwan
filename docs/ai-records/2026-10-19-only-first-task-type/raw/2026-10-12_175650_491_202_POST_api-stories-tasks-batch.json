@@ -1,0 +1,365 @@
+﻿{
+  "time": "2026-10-12 17:56:50.491",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks/batch",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "嘉義縣",
+      "district_name": "安仁里",
+      "party_size": 2,
+      "s_tag": [
+        "家庭出遊",
+        "探險運動"
+      ],
+      "is_night_mode": 1,
+      "stories": [
+        {
+          "story_no": 1,
+          "nt_name": "質感專業",
+          "places": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "p_name": "縣治特區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "p_name": "故宮博物院-南部院區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "nt_name": "溫情走心",
+          "places": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "p_name": "縣治特區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "p_name": "故宮博物院-南部院區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "nt_name": "幽默詼諧",
+          "places": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "p_name": "縣治特區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 6,
+                  "type_name": "文化問答型"
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "p_name": "故宮博物院-南部院區",
+              "is_hotel": 2,
+              "is_hidden": 2,
+              "type_list": [
+                {
+                  "type_id": 3,
+                  "type_name": "創意攝影型"
+                },
+                {
+                  "type_id": 2,
+                  "type_name": "跨關集結型"
+                },
+                {
+                  "type_id": 5,
+                  "type_name": "協作解謎型"
+                },
+                {
+                  "type_id": 7,
+                  "type_name": "景點猜猜樂"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 36412,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "stories": [
+        {
+          "story_no": 1,
+          "story": {
+            "story_title": "光影的追尋者",
+            "story_prologue": "在故宮博物院的南部院區，霓霓的眼神發現了一個隱藏在歲月的光影，",
+            "story_synopsis": "用霓霓的尋找家書的路途來交代她尋找真相的目標，",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "霓霓",
+            "role": "對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索",
+            "intro": "霓霓，與光影有無法分離的藝術家，對於每一片光影都能感受到深層的意義，,她在故宮博物院南部院區的書攤中，為了尋找家書的線索，,她將追尋光影的旅程，,並將與光影的旅程結合在一起，"
+          },
+          "nodes": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "sn_order": 1,
+              "sn_title": "夜晚的文學之巖",
+              "location_codename": "書香巖",
+              "sn_opening_text": "走進書香巖，夜晚的燈光下，書攤和書架擴展成一片繁花似锦的景象，書籍堆積高高，像一座小山脈，氣味濃郁的書香充滿了空氣。",
+              "sn_success_text": "你拍了完照片，畫框裡的空白畫框被填滿了你們的照片，畫的腳印指向一條小巷。",
+              "dialogues": {
+                "opening": "你好，我是霓霓。夜晚這裡的光影很美，很有趣，我可以帶你在這裡找到一些有趣的光影。",
+                "success": "你拍得很好！這個照片的腳印指向一條小巷，跟著它吧，可能會找到一些線索。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書香巖找到一本有趣的書籍，拍一張照片，將書籍放在一張椅子上，拍出一張合成的照片，將書籍和椅子放在一張空白的畫框中。",
+                  "task_hint": "你可以在書攤上找到有趣的書籍，椅子也可以在書香巖找到。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "sn_order": 2,
+              "sn_title": "書海之角",
+              "location_codename": "書海",
+              "sn_opening_text": "你站在南部院區的書攤前，書架上堆積著古老的書籍，光線閃動，書籍的封面與題材互相吻合，空間充滿著書香，書海的美感讓你感到沉思。",
+              "sn_success_text": "你找到了一本與家書相似的書籍，霓霓對你說：我認為這本書可能是你的家書的線索。",
+              "dialogues": {
+                "opening": "你在這裡找到了一本與家書相似的書籍，我想你一定很高興。",
+                "success": "現在，我們來到最後的站點。你的旅程就此結束。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書攤前選擇一本書籍，與家書相似，然後將它拿起，拍攝一張照片。",
+                  "task_hint": "選擇一本書籍，與家書相似，然後拿起書籍，拍攝一張照片，與霓霓一起。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 2,
+          "story": {
+            "story_title": "風中尋花的傳承",
+            "story_prologue": "在安仁里老街的書攤中，泛黃信紙的字跡像老師傅阿吉伯的手指，留下了許多故事的跡象。",
+            "story_synopsis": "為了找回失落的傳統工藝，阿吉伯的傳承，需要你幫助他解開一個古老的謎題。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "阿吉伯",
+            "role": "外冷內熱的傳統工藝老師傅，重視手作與傳承",
+            "intro": "阿吉伯是安仁里老街的傳統工藝老師傅，熱心傳承外冷內熱的技藝，對於他的工藝有深深的愛慮。"
+          },
+          "nodes": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "sn_order": 1,
+              "sn_title": "夜晚的書院",
+              "location_codename": "書院牆",
+              "sn_opening_text": "夜晚的月光照射在書院牆上，書本的書頁和木框的木材呈現出一種古老的氛圍，書院裡空氣中飄的紙張和書本的書頁，像是一種沉重的氣味。",
+              "sn_success_text": "你們的照片被掛在牆上，牆上的書籍和書架的木材也跟著一起拍下了，跟著牆上的書籍走進去。",
+              "dialogues": {
+                "opening": "你來了，還在尋找那個傳統工藝嗎？我是阿吉伯，外冷內熱的傳統工藝老師傅。",
+                "success": "你拍得真好！那個傳統工藝的痕跡，現在都在這裡了。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書院裡找一個書籍，書上有關外冷內熱的傳統工藝的插圖或說明，兩人一起入鏡拍一張照片。",
+                  "task_hint": "你可以在書架上查找有關外冷內熱的傳統工藝的書籍，還有書籍上有插圖和說明，記得拍出來。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "sn_order": 2,
+              "sn_title": "文學風格的古董鏡",
+              "location_codename": "鏡子",
+              "sn_opening_text": "走進這個南部院區的你，看到一間充滿古董品的房間，隔間隔間的隔著一系列的玻璃屏障，房間裡的光線很柔和，很少有人走過。",
+              "sn_success_text": "你在鏡子後面的玻璃屏障上留下了一個小腳印，阿吉伯看了又看，眼裡泛起了溫柔的光芒。",
+              "dialogues": {
+                "opening": "你來到南部院區了，你們在這裡可以看到一系列的古董品，很有文學感的。",
+                "success": "你們的腳印在玻璃屏障上留下了跡象，阿吉伯看了又看，眼裡泛起了溫柔的光芒。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "你們在這裡可以看到一系列的古董品，很有文學感的，請選擇一個你們覺得最適合當鏡子的角落，兩人一起入鏡拍一張照片。",
+                  "task_hint": "可以在玻璃屏障後面選擇不同的角度拍照。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "story_no": 3,
+          "story": {
+            "story_title": "古城的遺書",
+            "story_prologue": "在老州廳的書房裡，收到了個人的信，說著：你要記住這裡的秘密。",
+            "story_synopsis": "追蹤這封信的來源，找到家書的答案。",
+            "story_badge": [
+              "初心探員"
+            ]
+          },
+          "npc": {
+            "name": "珍奶奶",
+            "role": "掌管地方數十年的記憶與失落古老配方的守密人",
+            "intro": "珍奶奶，掌管這座古城的記憶，守護著失落的配方，四十年來一直在這裡。"
+          },
+          "nodes": [
+            {
+              "place_id": "c699daf3-ec98-4dc6-9baf-9e9ec53f7099",
+              "sn_order": 1,
+              "sn_title": "古書院的秘密",
+              "location_codename": "書院大門",
+              "sn_opening_text": "你走進這個古城的縣治特區，夜晚的燈光閃動，空氣中充滿了書香，老樹的葉子在微風中搖擺，老字軌的聲音在耳朵裡回聲，書院大門的門框上掛著一塊古老的木板，書院大門前方的花圃中，各種植物的花朵在夜晚的月光下擺擺得更加美麗。",
+              "sn_success_text": "你在書院大門前拍下了一張照片，門框上的木板上留下了你的腳印，老字軌的聲音在你背後傳回。",
+              "dialogues": {
+                "opening": "你來到我們的縣治特區了？我是珍奶奶，掌管這座古城的記憶，守護著失落的配方，四十年來一直在這裡。",
+                "success": "你完成了任務，門框上的木板上留下了你的腳印，老字軌的聲音在你背後傳回。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書院大門前拍下門框上的木板，門框上留下你的腳印",
+                  "task_hint": "你可以走近門框，拍照，然後離開，門框上留下你的腳印",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            },
+            {
+              "place_id": "ba1d04bf-3a0f-44bf-af7b-c3345117246e",
+              "sn_order": 2,
+              "sn_title": "古文意境的書籍架",
+              "location_codename": "書架",
+              "sn_opening_text": "你們走進這個南部院區的博物館，眼前是一排書架，書籍排列得很有規律，書籍上都有標題和作者的名字。",
+              "sn_success_text": "你們在書架上找到了一本古老的書籍，書籍上的字跡老舊，書名上有個「古城遺書」字樣。",
+              "dialogues": {
+                "opening": "你來到南部院區，看到這排書架，哪本書你們覺得最有趣？",
+                "success": "這本書的字跡老舊，書名上有個「古城遺書」字樣，應該是你們要找的書籍。"
+              },
+              "tasks": [
+                {
+                  "task_type": 3,
+                  "task_describe": "在書架上找到一本古老的書籍，書籍上的字跡老舊，書名上有個「古城遺書」字樣。",
+                  "task_hint": "你們可以在書架上查找書籍，找到書籍後可以拿來看。",
+                  "correct_answer": null,
+                  "task_option": null,
+                  "task_clue": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

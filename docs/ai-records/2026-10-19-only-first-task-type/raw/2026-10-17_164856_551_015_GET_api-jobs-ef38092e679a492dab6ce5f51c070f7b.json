@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-17 16:48:56.551",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/ef38092e679a492dab6ce5f51c070f7b",
+  "request": null,
+  "duration_ms": 0,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "ef38092e679a492dab6ce5f51c070f7b",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792226345.0582185,
+      "updated_at": 1792226477.8758986,
+      "result": {
+        "story": {
+          "story_title": "霓霓的光影之旅",
+          "story_prologue": "霓霓在西區的日子，總是被陽光和夜晚的光影所掃掃，直到她遇到一位旅客，需要幫助他找到家書的路。",
+          "story_synopsis": "找到家書的路，讓旅客重溫家書的故事，尋找回家的希望。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "霓霓",
+          "role": "對美感與光影極度敏銳的街頭藝術家，專門引導光影觀察與夜遊探索",
+          "intro": "霓霓是一位對美感與光影極度敏銳的街頭藝術家，四十年來在西區的老街上巡迴，為了追求光影的美感，無意中發現了自己也是一位好探索的旅客，對旅客的幫助而產生了熱情。"
+        },
+        "nodes": [
+          {
+            "place_id": "73b009a4-cb1f-416f-89c2-8c686cd08887",
+            "sn_order": 1,
+            "sn_title": "夜之光",
+            "location_codename": "光影之巖",
+            "sn_opening_text": "你們來到臺中市役所了，霓霓在等著你們！",
+            "sn_success_text": "你們完成了創意攝影任務！霓霓很高興!",
+            "dialogues": {
+              "opening": "你們來到臺中市役所了！這是一座老舊的建築，但它的美感卻非常強烈。我們可以在這裡找到許多光影的美感點！",
+              "success": "你們完成了創意攝影任務！我很高興看到你們對這裡的感受！這裡的光影對我來說是一種無限的創意源泉！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在這裡拍攝一些創意的光影照片，利用這裡的美感點來展現你的攝影技巧！",
+                "task_hint": "你們可以在這裡找到許多不同的光影美感點，從建築的影線到夜間的燈光！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "ea5da72e-307c-4ab7-a8dc-8f6ff7599e47",
+            "sn_order": 2,
+            "sn_title": "夜間之光",
+            "location_codename": "光影之巢",
+            "sn_opening_text": "你們現在站在第四信用合作社的夜間景象前，霓霓向你們解釋著這裡的美感.",
+            "sn_success_text": "你們成功拍攝了光影之巢的夜間景象，霓霓對你們的攝影技巧表示滿意.",
+            "dialogues": {
+              "opening": "好啊，夜間景象是這裡的特色之一，第四信用合作社的夜間燈光，將會使你們的攝影成像充滿了美感.",
+              "success": "你們的攝影技巧很好，光影之巢的夜間景象，將成為你們旅程的珍貴記憶."
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝第四信用合作社的夜間景象，將使你們的攝影成像充滿了美感.",
+                "task_hint": "你們可以在這裡觀察到第四信用合作社的夜間燈光，將會使你的攝影成像充滿了美感.",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "af86f55a-f280-49a2-91e0-df94dd815a8f",
+            "sn_order": 3,
+            "sn_title": "光影之舞",
+            "location_codename": "光影之城",
+            "sn_opening_text": "你們來到台中了？這裡的光影實在太美了！現在是好時機，來和霓霓一起探索這個城市的美麗之處！",
+            "sn_success_text": "你們完成了光影攝影任務！這些照片一定是你們的家書中最美麗的部分！",
+            "dialogues": {
+              "opening": "你們來到東協廣場了！這裡是台中市的經濟中心，充滿著購物、休閒和異國文化的氣息！我霓霓在這裡等著你們，來一起探索這裡的美麗之處！",
+              "success": "你們完成了光影攝影任務！這些照片一定是你們的家書中最美麗的部分！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在東協廣場中，尋找光影的美麗之處並拍攝美麗的光影！",
+                "task_hint": "來到這裡後，請你們觀察這裡的光影！你們可以在這裡拍攝美麗的光影！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "b7357243-147a-44ba-942e-aec3d91ad3f2",
+            "sn_order": 4,
+            "sn_title": "藝庶的燈光",
+            "location_codename": "夜花路",
+            "sn_opening_text": "我們現在停在台中市的秀泰生活台中站前店，霓霓帶我們來這裡，讓我們開始了夜花路的探索!",
+            "sn_success_text": "我們完成了創意攝影任務！霓霓對我們的作品非常高興，讓我們繼續向前走!",
+            "dialogues": {
+              "opening": "大家好，我是霓霓！我對美感和光影極度敏銳，四十年來在這個老街上巡迴，為了追求光影的美感，無意中發現了自己也是一位好探索的旅客。今天，我們來到台中市的秀泰生活台中站前店，讓我們一起探索這個地方的藝術風貌!",
+              "success": "您們的創意攝影作品真的是非常棒！我覺得這個店的藝術設計非常精彩，尤其是在晚上看起來的光影效果。讓我們繼續走下去，還有很多美麗的景點等著我們!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "用您的創意攝影技巧來捕捉秀泰生活台中站前店的藝術風貌，特別是晚上的光影效果!",
+                "task_hint": "請觀察店內的藝術設計，特別是燈光效果，讓您的攝影作品充滿美麗的光影感覺!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a34aa411-64e7-49be-a9a0-380f05179e96",
+            "sn_order": 5,
+            "sn_title": "新臺中火車站的光影之旅",
+            "location_codename": "夜花路",
+            "sn_opening_text": "我們來到新臺中火車站，當晚的台中都會區鐵路高架捷運化計畫讓我們有了這個新景點!",
+            "sn_success_text": "你拍下的光影照片讓霓霓非常自豪!",
+            "dialogues": {
+              "opening": "你們來到新臺中火車站了，霓霓看到你們的光影感覺就很興奮!",
+              "success": "這個景點的光影很美，讓我感覺到台中都會區鐵路高架捷運化計畫的美感!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "用你的攝影機拍攝火車站的光影，找出最美的風景!",
+                "task_hint": "觀察火車站的高架橋，找到最佳的拍攝角度!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "f91ccbae-27da-48e9-979f-47232eebb885",
+            "sn_order": 6,
+            "sn_title": "光影之夜，尋找家書的路",
+            "location_codename": "霹靂",
+            "sn_opening_text": "你們來到大魯閣新時代了，霹霓在等著你們。這裡是運動休閒、生活風格的提案者，你們要做的就是找到家書的路。",
+            "sn_success_text": "你們找到了家書的路！霹霓感覺到你們的努力，現在是時候回家了。",
+            "dialogues": {
+              "opening": "你們來到了大魯閣新時代！我霹霓是這裡的對美感與光影極度敏銳的街頭藝術家。我可以幫助你們在這裡找到家書的路",
+              "success": "你們找到了家書的路！我霹霓覺得你們的探索精神非常強大。現在是時候回家了，希望你們會再次來到這裡"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們需要在大魯閣新時代找到家書的路",
+                "task_hint": "霹霓會給你們一個小幫助，找到光影的美感",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "6956df7e-0a1f-42c2-93bc-abe53a8f7505",
+            "sn_order": 7,
+            "sn_title": "尋找光影的隱藏",
+            "location_codename": "紅磚之館",
+            "sn_opening_text": "我們來到宮原眼科了，霓霓對這裡有什麼感覺?",
+            "sn_success_text": "你們完成了創意攝影任務，找到了一些美麗的光影!",
+            "dialogues": {
+              "opening": "好久不見，旅客們！霓霓在這裡，為了讓你們在這個美麗的景點中找到光影的隱藏，我們來到了宮原眼科！",
+              "success": "哇，旅客們，你們的創意攝影作品真是太美了！霓霓覺得你們對這裡的感覺是非常敏銳的!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這個景點中，找到一些美麗的光影，拍攝出一些創意的攝影作品!",
+                "task_hint": "你們可以在這裡找到一些美麗的光影，例如紅磚牆的光影，騎樓的光影，還有玻璃募款箱的光影！",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "455908fd-375a-4b25-9014-09eea5175cd5",
+            "sn_order": 8,
+            "sn_title": "光影的重點",
+            "location_codename": "夜光之城",
+            "sn_opening_text": "你們來到廣三SOGO百貨了，現在是尋找家書的最後一站。霓霓在等著你們，期待你們能夠完成任務。",
+            "sn_success_text": "你們完成了任務！霓霓很高興能夠與你們一起重溫家書的故事，希望你們能夠找到回家的希望。",
+            "dialogues": {
+              "opening": "你們來到廣三SOGO百貨了，我是霓霓。這裡的光影很美，希望你們能夠發現它們的美感。",
+              "success": "你們完成了任務！我很高興能夠與你們一起重溫家書的故事，希望你們能夠找到回家的希望。現在你們可以離開這裡了。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡找到家書的路徑，完成創意攝影任務",
+                "task_hint": "你們需要在這裡找到家書的路徑，拍攝一些創意的攝影。霓霓可以幫助你們找到路徑，讓你們能夠完成任務",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/ef38092e679a492dab6ce5f51c070f7b",
+      "queue_position": null
+    }
+  }
+}

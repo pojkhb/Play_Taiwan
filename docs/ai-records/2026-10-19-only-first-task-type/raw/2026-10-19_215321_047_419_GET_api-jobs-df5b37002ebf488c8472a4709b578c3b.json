@@ -1,0 +1,199 @@
+﻿{
+  "time": "2026-10-19 21:53:21.047",
+  "method": "GET",
+  "url": "http://localhost:2026/api/jobs/df5b37002ebf488c8472a4709b578c3b",
+  "request": null,
+  "duration_ms": 2,
+  "response": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "df5b37002ebf488c8472a4709b578c3b",
+      "task_type": "stories_single",
+      "status": "done",
+      "stage": "完成",
+      "created_at": 1792417864.2457016,
+      "updated_at": 1792417952.1961842,
+      "result": {
+        "story": {
+          "story_title": "西屯的尋路之旅",
+          "story_prologue": "在西屯區的老街上，曾經有個家人留下了個未寄出的書信，等待著被找到。",
+          "story_synopsis": "尋找書信的路徑，從張家祖廟到黎明新村。",
+          "story_badge": [
+            "初心探員"
+          ]
+        },
+        "npc": {
+          "name": "阿達力",
+          "role": "機靈靈通的在地走透透達人，熟悉大街小巷與美食情報",
+          "intro": "阿達力，地道的西屯人，熟悉這個區域的路線和美食，能夠帶領你找到未來的答案。"
+        },
+        "nodes": [
+          {
+            "place_id": "c3aaa3be-961b-4ad0-8e06-56957e1e67d2",
+            "sn_order": 1,
+            "sn_title": "祖廟之路",
+            "location_codename": "古都隧道",
+            "sn_opening_text": "我們現在站在張家祖廟前，該是尋路的起點!",
+            "sn_success_text": "我們完成了第一站，現在可以繼續尋找書信的路徑!",
+            "dialogues": {
+              "opening": "你們來到張家祖廟了，這裡是我的故鄉，我可以帶你找到西屯的每一處好食店和好路徑!",
+              "success": "你們找到書信的路徑了！現在可以繼續尋找書信的下一站了!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請拍攝張家祖廟的照片，紀念這裡的重要里程碑!",
+                "task_hint": "來到這裡時，注意周圍的環境，找到適合拍攝的角度!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "fadd22f7-7e1d-4608-9089-ea0f38d632ed",
+            "sn_order": 2,
+            "sn_title": "圖書館之夜",
+            "location_codename": "溪西之光",
+            "sn_opening_text": "你們來到臺中市立圖書館溪西分館，裡面的燈光在夜間變得更加柔和。阿達力在這裡等候著你們，手中攜帶著一本古老的書本。",
+            "sn_success_text": "你們成功拍攝了圖書館夜景，阿達力對你們的攝影技巧表示了滿意!",
+            "dialogues": {
+              "opening": "晚上來到溪西分館，你們要找什麼？",
+              "success": "圖書館夜景的拍攝，你們的創意攝影技巧真不錯！"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "你們來到臺中市立圖書館溪西分館，需要拍攝圖書館夜景",
+                "task_hint": "你們可以在圖書館的燈光下拍攝，試圖捕捉出圖書館的美學特徵",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "5bf771f9-b251-4d77-9f58-01cf392448cd",
+            "sn_order": 3,
+            "sn_title": "逢甲夜市之旅",
+            "location_codename": "夜花巷",
+            "sn_opening_text": "我們現在到了逢甲觀光夜市，夜花巷是這個夜市的中心點，人潮熙熙、商店豐富，什麼也不怕的阿達力在等著我們!",
+            "sn_success_text": "我們完成了創意攝影任務！這些美麗的夜花巷景象將成為我們旅程的精彩之作!",
+            "dialogues": {
+              "opening": "你們來到逢甲夜市了！我是阿達力，地道的西屯人，熟悉這個區域的路線和美食。我能夠帶領你找到未來的答案!",
+              "success": "你們完成了創意攝影任務！這些美麗的夜花巷景象將成為我們旅程的精彩之作！我很自豪，你們的攝影技巧真不錯!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "請用創意攝影方式拍攝逢甲夜市的美麗景象，找到最具特色、最具人氣的景點，拍攝完成後將將成為我們旅程的精彩之作!",
+                "task_hint": "夜花巷是逢甲夜市的中心點，人潮熙熙、商店豐富，什麼也不怕的阿達力在等著我們！你們可以在夜花巷拍攝任何你想要的景象，從美麗的燈光到豐富的商店內容，都是好攝影題材!",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "3991cae1-ecda-4c17-8688-088b72bd2758",
+            "sn_order": 4,
+            "sn_title": "秋紅谷的秘密",
+            "location_codename": "紅谷",
+            "sn_opening_text": "我們現在位於秋紅谷景觀生態公園，為了找到書信的路徑，我們需要與阿達力一起探索這裡的秘密",
+            "sn_success_text": "我們終於找到書信的路徑，阿達力的指導幫助我們走出了這個困境",
+            "dialogues": {
+              "opening": "你們現在在秋紅谷景觀生態公園，想找到書信的路徑？我可以幫助你們找到答案",
+              "success": "我知道這裡的路徑很複雜，但我可以帶領你們找到書信的方向"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到書信的路徑，從秋紅谷景觀生態公園出發，找到書信的方向",
+                "task_hint": "你們現在需要觀察秋紅谷景觀生態公園的環境，尋找任何與書信路徑相關的線索",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "a3ab9776-2388-4ba0-890e-4a3b0734cafa",
+            "sn_order": 5,
+            "sn_title": "新市政大樓的夜景",
+            "location_codename": "新政大",
+            "sn_opening_text": "你們現在站在臺中市政府新市政大樓前，夜晚的玻璃帷幕下，建築空間分別命名為文心樓、中央川堂及惠中樓，透過玻璃窗看見內部的光景，感受大樓的空間感。阿達力會帶你找到未來的答案，但先讓我們欣賞這裡的夜景吧!",
+            "sn_success_text": "你們完成了創意攝影任務，拍下了新市政大樓的夜景!",
+            "dialogues": {
+              "opening": "你們現在在臺中市政府新市政大樓前，想去哪裡?",
+              "success": "很好，你們完成了創意攝影任務，拍下了新市政大樓的夜景!"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "拍攝新市政大樓的夜景，利用玻璃窗看見內部的光景，感受大樓的空間感。",
+                "task_hint": "用你的相機拍攝新市政大樓的夜景，注意玻璃窗的光線和建築空間的感覺",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9ff1a691-d264-4824-8445-67d1c76255b7",
+            "sn_order": 6,
+            "sn_title": "黎明新村的晚安",
+            "location_codename": "新村夜景",
+            "sn_opening_text": "我們現在出現在黎明新村，夜晚的照明與綠地美化讓這個社群充滿了自然的氣息。阿達力將帶領我們找到書信的路徑。",
+            "sn_success_text": "我們完成了尋找書信的旅程，找到書信的路徑將使我們能夠順利完成任務!",
+            "dialogues": {
+              "opening": "晚安，大家好，我是阿達力。現在我們出現在黎明新村，夜晚的照明與綠地美化讓這個社群充滿了自然的氣息。這裡是社群的中心，從這裡可以找到所有的主要街道和景點。",
+              "success": "很高興能夠帶領你們找到書信的路徑。這裡的綠地美化對我們來說是一個很好的旅程結束點。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "找到書信的路徑，從黎明新村的中心出發，沿著主要街道尋找路徑",
+                "task_hint": "在這裡，請觀察周邊的街道和景點，尋找書信的路徑。阿達力將給你一些線索，幫助你找到答案",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9c0fae1a-ca06-410c-a9dd-0bf8b0b029b3",
+            "sn_order": 7,
+            "sn_title": "圖書館之夜",
+            "location_codename": "書香之夜",
+            "sn_opening_text": "你們現在就在臺中市立圖書館李科永紀念圖書分館中",
+            "sn_success_text": "圖書館之夜的美食攝影已經完成",
+            "dialogues": {
+              "opening": "你們現在就在臺中市立圖書館李科永紀念圖書分館中",
+              "success": "這裡的燈光氛圍讓人感到非常舒適"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "在這裡拍攝圖書館之夜的美食",
+                "task_hint": "注意觀察圖書館內部的燈光氛圍，攝影時要考慮到這種質感",
+                "correct_answer": null
+              }
+            ]
+          },
+          {
+            "place_id": "9b764d36-2566-4804-9e34-6539d83b967b",
+            "sn_order": 8,
+            "sn_title": "尋找書信的路徑：天目城的最後一站",
+            "location_codename": "玉城",
+            "sn_opening_text": "你們來到臺中文心玉市-天目城，尋找書信的路徑接近尾聲。阿達力將帶領你找到未來的答案。",
+            "sn_success_text": "你們完成尋找書信的路徑！感謝阿達力的幫助，現在可以回家了。",
+            "dialogues": {
+              "opening": "你們來到臺中文心玉市-天目城了？這裡是全臺灣最大玉市交易場所，你們可以在這裡找到無數的珍貴文物!",
+              "success": "你們找到書信的路徑了！這裡是西屯最美麗的夜晚景色，希望你們能夠在回家的路上找到更多的美好。"
+            },
+            "tasks": [
+              {
+                "task_type": 3,
+                "task_describe": "尋找書信的路徑：從張家祖廟出發，來到臺中文心玉市-天目城，尋找書信的路徑",
+                "task_hint": "你們可以在這裡找到無數的珍貴文物，來自中國大陸、澳門、蒙古、西藏、印度、尼泊爾等世界各國，包涵翡翠玉石、珠寶、水晶、古玉、佛教文物、瓷器花瓶、日本鐵壺、奇石、字畫、古典傢俱、木雕奇珍異寶等",
+                "correct_answer": null
+              }
+            ]
+          }
+        ]
+      },
+      "error": null,
+      "check_url": "/api/jobs/df5b37002ebf488c8472a4709b578c3b",
+      "queue_position": null
+    }
+  }
+}

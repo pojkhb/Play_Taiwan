@@ -1,0 +1,169 @@
+﻿{
+  "time": "2026-10-19 15:49:10.841",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "連江縣",
+      "district_name": "南竿鄉",
+      "party_size": 1,
+      "s_tag": [
+        "好友結伴"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "幽默詼諧",
+      "places": [
+        {
+          "place_id": "db7394b6-2306-425f-924f-d1a73366c993",
+          "p_name": "大千文具店",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "5bdf95ad-fdaf-4072-820e-36c88d1e0d6f",
+          "p_name": "蔬菜公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "490d0c3b-55f3-4a57-809d-57316c985ef3",
+          "p_name": "八八坑道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "fafaa4fe-e50f-43ce-a39c-81636d823bd7",
+          "p_name": "牛角聚落",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "f5b32afb-5809-4948-aa3f-94607d25cfac",
+          "p_name": "馬祖酒廠",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "98302472-a90d-4c9d-ba1a-f99ec2c45618",
+          "p_name": "頂好食品行",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "9896e24c-be75-432e-86f9-30a8f1662043",
+          "p_name": "枕戈待旦紀念公園",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "7fe2d165-a6e4-4d34-b215-a4eebef415f3",
+          "p_name": "福清自行車道",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 2039,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "493e3ae7cbd94eaf9e73892a1a554536",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792396152.8795443,
+      "updated_at": 1792396152.8795443,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/493e3ae7cbd94eaf9e73892a1a554536",
+      "queue_position": 1
+    }
+  }
+}

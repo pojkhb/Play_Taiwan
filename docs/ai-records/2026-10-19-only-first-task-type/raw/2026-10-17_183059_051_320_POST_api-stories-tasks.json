@@ -1,0 +1,170 @@
+﻿{
+  "time": "2026-10-17 18:30:59.051",
+  "method": "POST",
+  "url": "http://localhost:2026/api/stories/tasks",
+  "request": {
+    "content_type": "application/json",
+    "body": {
+      "city_name": "澎湖縣",
+      "district_name": "中興里",
+      "party_size": 1,
+      "s_tag": [
+        "尋訪味蕾",
+        "文學建築"
+      ],
+      "is_night_mode": 1,
+      "nt_name": "質感專業",
+      "places": [
+        {
+          "place_id": "b013169b-a0f9-4d39-ab1a-ecf6940ace34",
+          "p_name": "馬公港 漁人碼頭",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ea1c9f56-2ff9-4110-8d7f-1d6ab0e1ae03",
+          "p_name": "信興名產",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "7f362c5b-ef7d-43e1-b394-5f4f950dc581",
+          "p_name": "順承門",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "e3337bb5-e848-40a2-8693-3324bd668048",
+          "p_name": "澎湖輪碼頭",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "0c0e7671-7a19-465d-8936-318da8361a1c",
+          "p_name": "澎湖廳憲兵隊",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        },
+        {
+          "place_id": "d217ec96-44f6-4147-9c54-5d374baedd1c",
+          "p_name": "觀音亭親水遊憩區",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "ecb48999-362a-488b-989b-125f51a43913",
+          "p_name": "重光里˙漳水神石碑",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 7,
+              "type_name": "景點猜猜樂"
+            }
+          ]
+        },
+        {
+          "place_id": "c5a4f883-ff23-4d45-9c90-971b987c6158",
+          "p_name": "西衛里˙塔尖",
+          "is_hotel": 2,
+          "is_hidden": 2,
+          "type_list": [
+            {
+              "type_id": 3,
+              "type_name": "創意攝影型"
+            },
+            {
+              "type_id": 2,
+              "type_name": "跨關集結型"
+            },
+            {
+              "type_id": 6,
+              "type_name": "文化問答型"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "duration_ms": 0,
+  "response": {
+    "status": 202,
+    "content_type": "application/json",
+    "body": {
+      "task_id": "71d7a7b569574caba92bbc2e61f83bdc",
+      "task_type": "stories_single",
+      "status": "queued",
+      "stage": "等待處理",
+      "created_at": 1792233059.0526161,
+      "updated_at": 1792233059.0526161,
+      "result": null,
+      "error": null,
+      "check_url": "/api/jobs/71d7a7b569574caba92bbc2e61f83bdc",
+      "queue_position": 1
+    }
+  }
+}

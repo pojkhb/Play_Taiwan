@@ -519,7 +519,8 @@ namespace backend.Controllers
         #region 自然語言生成劇本（遊你說了算）
         public class GenerateByTextRequest
         {
-            /// <summary>使用者輸入的一句話描述，例如「想來一趟美食之旅」</summary>
+            /// <summary>使用者輸入的一句話描述，最好有行政區和想看的東西，例如「兩個人想去臺南中西區看古蹟」</summary>
+            /// <example>兩個人想去臺南中西區看古蹟，大約走四個站點</example>
             public string user_prompt { get; set; }
         }
 
@@ -539,10 +540,14 @@ namespace backend.Controllers
         /// 2. 每 3 秒呼叫 GET /api/Story/GenerateByText/{job_id}，`status` 還是 processing 就繼續，`stage` 可以顯示在等待畫面。
         /// 3. `status = done` 時 `story_id`、`data` 有值；`status = failed` 時看 `error`，可以請使用者重新送出。
         ///
-        /// **Request 範例**：
+        /// AI 目前用使用者說的字直接比對景點的名稱、介紹與標籤（還沒有語意搜尋），所以句子要具體：
+        /// 說出行政區和想看的東西（例如「中西區看古蹟」）比較容易成功；
+        /// 太抽象（「深度文學解謎之旅」）會找不到景點，沒說地點時候選景點常分散在不同縣市，都會回 failed。
+        ///
+        /// **Request 範例**（2026-10-20 實測可以生成 4 站劇本，約 30～45 秒）：
         /// ```json
         /// {
-        ///   "user_prompt": "我們想要兩個人去臺南安平區來趟深度文學解謎之旅，大約走四個站點"
+        ///   "user_prompt": "兩個人想去臺南中西區看古蹟，大約走四個站點"
         /// }
         /// ```
         /// </remarks>
@@ -576,9 +581,12 @@ namespace backend.Controllers
         /// <remarks>
         /// 只查得到自己送出的工作，別人的 job_id 會回 404。
         ///
-        /// - `status = processing`：還在生成，`stage` 是 AI 目前的階段（例如「解析使用者需求」「查詢 Neo4j 地點」「生成劇本藍圖」），請繼續輪詢。
+        /// - `status = processing`：還在生成，`stage` 是 AI 目前的階段（例如「正在解析使用者需求」「正在依地點名稱、介紹與標籤檢索 Neo4j」「正在依真實地點資料生成劇本藍圖」），請繼續輪詢。
         /// - `status = done`：`story_id`、`detected_city`、`detected_town`、`parsed_intent`、`data` 有值；之後再查都回傳同一份劇本，不會重複存檔。
-        /// - `status = failed`：`error` 是失敗原因（AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成），可以請使用者重新送出。
+        ///   使用者沒說縣市行政區時，`detected_city`、`detected_town` 是 AI 依景點選定的，`parsed_intent` 裡的則是空的。
+        /// - `status = failed`：`error` 是失敗原因，可以直接顯示給使用者，請他換個說法或重新送出。包含：
+        ///   AI 沒產出劇本（例如「沒有找到符合目前需求關鍵字的景點」「未取得可用的旅遊需求關鍵字」、候選景點不在同一個行政區）、
+        ///   AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成。
         ///
         /// data.nodes[].image_url 是每一站的圖片，跟 GenerateGameStory 一樣：剛生成的劇本每一站都還沒抵達，所以一律是迷霧圖
         /// （這張照片的迷霧版；還沒做好時先給通用迷霧圖，後端會在背景做，之後再查或用劇本詳情 Detail 就拿得到每一站自己的迷霧圖）。

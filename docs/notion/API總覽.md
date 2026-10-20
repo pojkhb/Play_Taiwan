@@ -557,7 +557,7 @@ Request：
 
 ```json
 {
-  "user_prompt": "string"
+  "user_prompt": "兩個人想去臺南中西區看古蹟，大約走四個站點"
 }
 ```
 

@@ -12,7 +12,7 @@ namespace TrafficSystem.Tests.Api;
 [AllureBddHierarchy("劇本", "API 整合測試")]
 public class GenerateByTextApiTests
 {
-    private const string PollPath = "/api/api/admin/generate_script_blueprint_by_text/" + FakeAiService.TextJobId;
+    private const string PollPath = "/api/jobs/" + FakeAiService.TextJobId;
 
     private readonly ApiFactory _api;
 
@@ -22,7 +22,7 @@ public class GenerateByTextApiTests
         _api.FakeAi.Reset();
     }
 
-    private static object Processing(string stage) => new { job_id = FakeAiService.TextJobId, status = "processing", stage, data = (object)null };
+    private static object Running(string stage) => FakeAiService.TextJob("running", stage: stage);
 
     private static object Completed(string place1, string place2) => Completed(
         new Node(1, "uid-text-a", place1, "穹頂下的信", "開場"),
@@ -31,12 +31,19 @@ public class GenerateByTextApiTests
 
     private record Node(int order, string uid, string place, string title, string opening);
 
-    private static object Completed(Node first, Node second, string synopsis) => new
+    private static object Intent(string city, string town) =>
+        new { city_name = city, town_name = town, traveler_count = 2, preferences = new[] { "歷史人文" }, transportation = new[] { "步行" }, node_count = 2, is_night = false };
+
+    /// <summary>AI 做完而且有劇本（outcome = generated），劇本在 result.blueprint</summary>
+    private static object Completed(Node first, Node second, string synopsis, object parsedIntent = null, object selectedArea = null) => FakeAiService.TextJob("done", new
     {
-        job_id = FakeAiService.TextJobId,
-        status = "done",
-        parsed_intent = new { city_name = "臺北市", town_name = "中正區", traveler_count = 2, preferences = new[] { "歷史人文" }, transportation = new[] { "步行" }, node_count = 2, is_night = false },
-        data = new
+        outcome = "generated",
+        original_prompt = "兩個人想去台北中正區走走",
+        parsed_intent = parsedIntent ?? Intent("臺北市", "中正區"),
+        selected_area = selectedArea ?? new { city_name = "臺北市", town_name = "中正區" },
+        retrieval_mode = "name_description_tag_keyword",
+        locations = Array.Empty<object>(),
+        blueprint = new
         {
             title = "城南的失落卷軸",
             preface = "一封沒有署名的信，把你帶到了城南。",
@@ -47,8 +54,20 @@ public class GenerateByTextApiTests
                 node_order = n.order, spot_uuid = n.uid, place_name = n.place, location_codename = "白色穹頂", node_title = n.title,
                 task_type = "文化問答型", task_description = "找出牌樓上的字", dialogues = new { opening = n.opening, success = "完成" }
             }).ToArray()
-        }
-    };
+        },
+        warnings = new[] { "本次使用關鍵字檢索，尚未使用向量語意搜尋。" }
+    });
+
+    /// <summary>AI 做完但沒產出劇本（找不到景點等），blueprint 是 null，message 是原因</summary>
+    private static object NoBlueprint(string outcome, string message) => FakeAiService.TextJob("done", new
+    {
+        outcome,
+        message,
+        original_prompt = "想去看海",
+        parsed_intent = Intent(null, null),
+        locations = Array.Empty<object>(),
+        blueprint = (object)null
+    });
 
     private static async Task<ApiResult<GenerateByTextResult>> SubmitAsync(HttpClient client, string prompt) =>
         await (await client.PostAsJsonAsync("/api/Story/GenerateByText", new { user_prompt = prompt })).ReadResultAsync<GenerateByTextResult>();
@@ -68,7 +87,7 @@ public class GenerateByTextApiTests
     [Fact]
     public async Task 送出後先回job_id_輪詢到AI完成才存成劇本_之後再查不會重複存()
     {
-        _api.FakeAi.TextJobPolls.Enqueue(Processing("解析使用者需求"));
+        _api.FakeAi.TextJobPolls.Enqueue(Running("正在解析使用者需求"));
         _api.FakeAi.TextJobPolls.Enqueue(Completed($"文字測試景點A{Guid.NewGuid():N}", $"文字測試景點B{Guid.NewGuid():N}"));
         int user = _api.NewUserId();
         HttpClient client = _api.ClientFor(user);
@@ -84,7 +103,7 @@ public class GenerateByTextApiTests
 
         ApiResult<GenerateByTextResult> generating = await PollAsync(client);
         Assert.Equal("processing", generating.Result.status);
-        Assert.Equal("解析使用者需求", generating.Result.stage);
+        Assert.Equal("正在解析使用者需求", generating.Result.stage);
 
         ApiResult<GenerateByTextResult> done = await PollAsync(client);
         Assert.True(done.isSuccess, done.message);
@@ -108,16 +127,74 @@ public class GenerateByTextApiTests
     [Fact]
     public async Task AI生成失敗時回傳失敗階段與原因()
     {
-        _api.FakeAi.TextJobPolls.Enqueue(new { job_id = FakeAiService.TextJobId, status = "error", stage = "查詢 Neo4j 地點", error = "找不到 中正區 地點資料。", data = (object)null });
+        _api.FakeAi.TextJobPolls.Enqueue(FakeAiService.TextJob("error", error: "任務生成失敗，請聯絡管理員並提供任務 ID"));
         HttpClient client = _api.ClientFor(_api.NewUserId());
 
         ApiResult<GenerateByTextResult> result = await GenerateAsync(client, "台北中正區");
 
         Assert.True(result.isSuccess, result.message);
         Assert.Equal("failed", result.Result.status);
-        Assert.Equal("AI 劇本生成失敗（查詢 Neo4j 地點）：找不到 中正區 地點資料。", result.Result.error);
+        Assert.Equal("AI 劇本生成失敗（處理失敗）：任務生成失敗，請聯絡管理員並提供任務 ID", result.Result.error);
         Assert.Equal(result.Result.error, result.message);
         Assert.Equal("failed", (await PollAsync(client)).Result.status);   // 失敗記在資料庫，再查還是失敗
+    }
+
+    [Theory]
+    [InlineData("no_candidates", "沒有找到符合目前需求關鍵字的景點；未使用隨機地點補足。")]
+    [InlineData("needs_clarification", "未取得可用的旅遊需求關鍵字。請描述想看的景觀或想進行的活動。")]
+    [InlineData("candidate_selection_required", "已找到符合需求的候選景點，但候選未共享同一縣市及行政區，或行政區資料不足。請先選擇目的地，再生成單一地區的劇本。")]
+    public async Task AI做完但沒產出劇本_馬上回失敗_原因用AI的說明(string outcome, string message)
+    {
+        // 2026-10-19 AI 改版後，這些情況都是 status = done、blueprint = null；以前後端當成還在生成，前端白等 10 分鐘
+        _api.FakeAi.TextJobPolls.Enqueue(NoBlueprint(outcome, message));
+        int user = _api.NewUserId();
+        HttpClient client = _api.ClientFor(user);
+
+        await SubmitAsync(client, "想去看海");
+        ApiResult<GenerateByTextResult> result = await PollAsync(client);
+
+        Assert.True(result.isSuccess, result.message);
+        Assert.Equal("failed", result.Result.status);
+        Assert.Equal(message, result.Result.error);
+        Assert.Equal(message, result.message);
+        Assert.Null(result.Result.story_id);
+        Assert.Equal(0, await _api.QueryAsync<int>("SELECT COUNT(*) FROM story WHERE au_id = @user;", new { user }));
+
+        Assert.Equal("failed", (await PollAsync(client)).Result.status);   // 失敗記在資料庫，再查不用再問 AI
+        Assert.Equal(1, _api.FakeAi.Requests.Count(r => r.Path == PollPath));
+    }
+
+    [Fact]
+    public async Task AI說做完卻沒有結果_馬上回失敗不用等到逾時()
+    {
+        _api.FakeAi.TextJobPolls.Enqueue(FakeAiService.TextJob("done"));
+        HttpClient client = _api.ClientFor(_api.NewUserId());
+
+        ApiResult<GenerateByTextResult> result = await GenerateAsync(client, "台北中正區");
+
+        Assert.Equal("failed", result.Result.status);
+        Assert.Contains("沒有回傳劇本", result.Result.error);
+    }
+
+    [Fact]
+    public async Task 使用者沒說縣市行政區_劇本存AI選定的縣市行政區()
+    {
+        _api.FakeAi.TextJobPolls.Enqueue(Completed(
+            new Node(1, "uid-text-a", $"文字測試景點A{Guid.NewGuid():N}", "穹頂下的信", "開場"),
+            new Node(2, "uid-text-b", $"文字測試景點B{Guid.NewGuid():N}", "古剎的香火", "開場"),
+            synopsis: "沿著兩個地標找回卷軸。",
+            parsedIntent: Intent(null, null),
+            selectedArea: new { city_name = "臺南市", town_name = "安平區" }));
+
+        ApiResult<GenerateByTextResult> result = await GenerateAsync(_api.ClientFor(_api.NewUserId()), "兩個人想去看古蹟");
+
+        Assert.Equal("done", result.Result.status);
+        Assert.Equal("臺南市", result.Result.detected_city);
+        Assert.Equal("安平區", result.Result.detected_town);
+        Assert.Null(result.Result.parsed_intent.city_name);   // 解析條件照 AI 原樣回傳
+        var story = await _api.QueryAsync<(string city_name, string district_name)>(
+            "SELECT city_name, district_name FROM story WHERE s_id = @id;", new { id = result.Result.story_id });
+        Assert.Equal(("臺南市", "安平區"), story);
     }
 
     [Fact]
@@ -142,6 +219,17 @@ public class GenerateByTextApiTests
 
         Assert.Equal("failed", result.Result.status);
         Assert.Contains("請重新送出", result.Result.error);
+    }
+
+    [Fact]
+    public async Task Swagger的範例是實測AI能生成劇本的句子()
+    {
+        // 舊範例「去臺南安平區來趟深度文學解謎之旅」在 AI 只做關鍵字比對後一定找不到景點；這句 2026-10-20 實測兩次都生成 4 站
+        string json = await (await _api.ClientFor(null).GetAsync("/swagger/v1/swagger.json")).Content.ReadAsStringAsync();
+        System.Text.Json.JsonElement prompt = System.Text.Json.JsonDocument.Parse(json).RootElement
+            .GetProperty("components").GetProperty("schemas").GetProperty("GenerateByTextRequest").GetProperty("properties").GetProperty("user_prompt");
+
+        Assert.Equal("兩個人想去臺南中西區看古蹟，大約走四個站點", prompt.GetProperty("example").GetString());
     }
 
     [Fact]

@@ -279,22 +279,51 @@ public class ScriptBlueprintSimple
     [JsonConverter(typeof(LooseStringListJsonConverter))]
     public List<string> preparation_tips { get; set; }
 }
+/// <summary>遊你說了算的 AI 背景工作（排隊模式：送出回 202 與 task_id，再用 GET /api/jobs/{task_id} 查進度）</summary>
 public class GenerateScriptBlueprintByTextResponse
 {
-    /// <summary>processing（生成中）、error（失敗）；完成時 data 有值</summary>
+    /// <summary>queued、running（生成中）、done（做完，看 result.outcome）、error（失敗）</summary>
     public string status { get; set; }
 
-    /// <summary>AI 背景工作代號，送出後用它查進度</summary>
-    public string job_id { get; set; }
+    /// <summary>AI 背景工作代號，送出後帶入 /api/jobs/{task_id} 查進度</summary>
+    public string task_id { get; set; }
 
-    /// <summary>目前進行到的階段，例如「查詢 Neo4j 地點」</summary>
+    /// <summary>目前進行到的階段，例如「正在依地點名稱、介紹與標籤檢索 Neo4j」</summary>
     public string stage { get; set; }
 
     /// <summary>status = error 時的原因</summary>
     public string error { get; set; }
 
+    /// <summary>status = done 時才有值</summary>
+    public ScriptBlueprintByTextResult result { get; set; }
+}
+
+/// <summary>遊你說了算 AI 做完的結果：outcome = generated 才有劇本，其他 outcome 的 message 是沒產出劇本的原因</summary>
+public class ScriptBlueprintByTextResult
+{
+    /// <summary>
+    /// generated（有劇本）、needs_clarification（抓不到旅遊需求關鍵字）、no_candidates（找不到符合的景點）、
+    /// candidate_selection_required（候選景點不在同一個縣市行政區）
+    /// </summary>
+    public string outcome { get; set; }
+
+    /// <summary>沒產出劇本時的原因，例如「沒有找到符合目前需求關鍵字的景點」</summary>
+    public string message { get; set; }
+
     public ParsedIntent parsed_intent { get; set; }
-    public ScriptBlueprintData data { get; set; }
+
+    /// <summary>劇本實際所在的縣市行政區（使用者沒說時由候選景點決定），outcome = generated 才有</summary>
+    public ScriptBlueprintArea selected_area { get; set; }
+
+    /// <summary>劇本內容，outcome = generated 才有值</summary>
+    public ScriptBlueprintData blueprint { get; set; }
+}
+
+/// <summary>劇本所在的縣市行政區</summary>
+public class ScriptBlueprintArea
+{
+    public string city_name { get; set; }
+    public string town_name { get; set; }
 }
 
 /// <summary>AI 從一句話解析出的旅遊條件</summary>

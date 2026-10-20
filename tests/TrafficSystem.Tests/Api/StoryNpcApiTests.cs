@@ -158,12 +158,12 @@ public class StoryNpcApiTests
         Assert.Equal("霓霓", _api.FakeAi.Last("/api/npc/speak").Fields["npc_name"]);
     }
 
-    private static object CompletedWithNpc(string npcName, string place1, string place2) => new
+    private static object CompletedWithNpc(string npcName, string place1, string place2) => FakeAiService.TextJob("done", new
     {
-        job_id = FakeAiService.TextJobId,
-        status = "completed",
+        outcome = "generated",
         parsed_intent = new { city_name = "臺北市", town_name = "中正區", traveler_count = 2, preferences = new[] { "歷史人文" }, transportation = new[] { "步行" }, node_count = 2, is_night = false },
-        data = new
+        selected_area = new { city_name = "臺北市", town_name = "中正區" },
+        blueprint = new
         {
             title = "城南的失落卷軸",
             preface = "一封沒有署名的信，把你帶到了城南。",
@@ -176,7 +176,7 @@ public class StoryNpcApiTests
                 new { node_order = 2, place_name = place2, location_codename = "紅色古剎", node_title = "古剎的香火", task_type = "創意攝影型", task_description = "拍一張香爐", dialogues = new { opening = "開場", success = "完成" } },
             }
         }
-    };
+    });
 
     [Theory]
     [InlineData("墨先生", "墨先生")]

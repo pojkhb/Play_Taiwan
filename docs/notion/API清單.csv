@@ -57,7 +57,7 @@
   ]
 }",取得首頁目前總覽資訊。 對應「首頁」頁面的目前總覽卡片，包含已完成探索數、明信片、徽章、Vlog 等統計數字。 GET /api/Home/Overview,
 接收使用者輸入的一句自然語言描述，送給外部 AI 服務解析條件並生成劇本（送出後立刻回傳 job_id）,POST,/api/Story/GenerateByText,劇本生成,二、出發探險,⚠️ 卡在 AI 服務,需要,要接,JSON：user_prompt（string）,job_id、status、stage、error、story_id、detected_city、detected_town、parsed_intent、data,"{
-  ""user_prompt"": ""string""
+  ""user_prompt"": ""兩個人想去臺南中西區看古蹟，大約走四個站點""
 }","{
   ""job_id"": ""string"",
   ""status"": ""string"",
@@ -153,7 +153,7 @@
       }
     ]
   }
-}",查詢「遊你說了算」的生成進度；生成完成時在這次查詢存成劇本並回傳。 只查得到自己送出的工作，別人的 job_id 會回 404。,processing：還在生成，stage 是 AI 目前的階段，請繼續輪詢；done：story_id、data 有值，之後再查都回同一份劇本，不會重複存檔；failed：看 error（AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成），可以請使用者重新送出
+}",查詢「遊你說了算」的生成進度；生成完成時在這次查詢存成劇本並回傳。 只查得到自己送出的工作，別人的 job_id 會回 404。,processing：還在生成，stage 是 AI 目前的階段，請繼續輪詢；done：story_id、data 有值，之後再查都回同一份劇本，不會重複存檔；failed：error 可以直接顯示給使用者（AI 沒產出劇本，例如找不到符合需求的景點、抓不到旅遊需求、候選景點不在同一個行政區；AI 生成失敗、AI 重啟後找不到工作、超過 10 分鐘還沒完成），請使用者換個說法或重新送出
 依使用者位置與交通方式自動挑景點，由 AI 生成 3 份劇本（含每個景點的任務）讓使用者挑，並存入資料庫（送出後立刻回傳 job_id）,POST,/api/Story/GenerateGameStory,劇本生成,"二、出發探險, 三、組隊集結",⚠️ 卡在 AI 服務,需要,要接,JSON：lat（number）、lng（number）、city_name（string）、town_name（string）、party_size（integer）、transportation（string[]）、preferences（string[]）、max_minutes（integer，可省略）、start_time（datetime，可省略）,job_id、status、stage、total_count、finished_count、error、stories,"{
   ""lat"": 0.0,
   ""lng"": 0.0,

@@ -54,7 +54,25 @@ public class FakeAiService : HttpMessageHandler
 
     /// <summary>遊你說了算：每次查詢進度依序回傳的內容；用完後一直回最後一個</summary>
     public ConcurrentQueue<object> TextJobPolls { get; } = new();
-    private object _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
+    private object _lastTextPoll = TextJob("queued");
+
+    /// <summary>
+    /// 遊你說了算的工作進度（跟正式 AI 的格式相同）：queued、running、done、error。
+    /// done 的 result 有 outcome，generated 才有 blueprint；用 GET /api/jobs/{task_id} 查
+    /// </summary>
+    public static object TextJob(string status, object result = null, string stage = null, string error = null) => new
+    {
+        task_id = TextJobId, task_type = "script_blueprint", status,
+        stage = stage ?? status switch { "queued" => "等待處理", "running" => "正在解析使用者需求", "done" => "完成", _ => "處理失敗" },
+        result, error, check_url = "/api/jobs/" + TextJobId, queue_position = status == "queued" ? 1 : (int?)null
+    };
+
+    /// <summary>遊你說了算送出後的回應：排隊中，比查進度多一個 job_id</summary>
+    private static readonly object TextJobSubmitted = new
+    {
+        task_id = TextJobId, task_type = "script_blueprint", status = "queued", stage = "等待處理",
+        result = (object)null, error = (object)null, check_url = "/api/jobs/" + TextJobId, queue_position = 1, job_id = TextJobId
+    };
 
     /// <summary>遊你說了算：模擬 AI 重啟後查不到工作（查詢進度回 404）</summary>
     public bool TextJobLost { get; set; }
@@ -208,7 +226,7 @@ public class FakeAiService : HttpMessageHandler
     {
         Requests.Clear();
         TextJobPolls.Clear();
-        _lastTextPoll = new { job_id = TextJobId, status = "processing", stage = "排隊中" };
+        _lastTextPoll = TextJob("queued");
         TextJobLost = false;
         StoryJobs.Clear();
         NpcJobs.Clear();
@@ -322,8 +340,8 @@ public class FakeAiService : HttpMessageHandler
             _ when path.StartsWith("/api/jobs/") && NpcJobs.TryGetValue(path["/api/jobs/".Length..], out object npcJob) => npcJob,
             _ when path == "/api/check_status/" + TaskId => CheckStatusResponse,
             "/upload" => new { pincode = "PT123456", qrcode_base64 = "iVBORw0KGgo=" },   // ibon 列印服務
-            "/api/api/admin/generate_script_blueprint_by_text" => new { status = "processing", job_id = TextJobId, check_url = "fake" },
-            _ when path == "/api/api/admin/generate_script_blueprint_by_text/" + TextJobId && !TextJobLost => NextTextPoll(),
+            "/api/api/admin/generate_script_blueprint_by_text" => TextJobSubmitted,   // 排隊模式：先回 task_id（HTTP 202）
+            _ when path == "/api/jobs/" + TextJobId && !TextJobLost => NextTextPoll(),
             "/api/agent/orchestrate" => AgentOrchestrateResponse,
             "/api/postcard/create_ai" => PostcardResponse,
             "/search" => new[] { new { lat = "25.0324", lon = "121.5199" } },   // Nominatim：地名 → 座標

@@ -300,8 +300,8 @@ namespace backend.Services
 
 
         /// <summary>
-        /// 把使用者的一句話送給 AI 生成劇本。AI 立刻回 job_id，劇本在背景生成；
-        /// 這裡記下 job_id 是誰送的就回傳，前端再用 GetTextBlueprintJobAsync 輪詢到完成。
+        /// 把使用者的一句話送給 AI 生成劇本。AI 立刻回 task_id，劇本在背景生成，用 GET /api/jobs/{task_id} 查進度；
+        /// 這裡把 task_id 當成 job_id 記下是誰送的就回傳，前端再用 GetTextBlueprintJobAsync 輪詢到完成。
         /// </summary>
         public async Task<GenerateByTextResult> SubmitTextBlueprintJobAsync(int auId, string userPrompt)
         {
@@ -312,13 +312,14 @@ namespace backend.Services
                 throw new Exception($"外部 AI 服務回應錯誤 (Status: {(int)response.StatusCode}): {VlogAiGateway.AiErrorMessage(body)}");
 
             GenerateScriptBlueprintByTextResponse job = JsonSerializer.Deserialize<GenerateScriptBlueprintByTextResponse>(body, AiJsonOptions);
-            if (string.IsNullOrWhiteSpace(job?.job_id))
-                throw new Exception($"AI 服務沒有回傳 job_id：{VlogAiGateway.AiErrorMessage(body)}");
+            if (string.IsNullOrWhiteSpace(job?.task_id))
+                throw new Exception($"AI 服務沒有回傳 task_id：{VlogAiGateway.AiErrorMessage(body)}");
 
-            await _dao.CreateTextJobAsync(job.job_id, auId, userPrompt);
+            // AI 的 task_id 就是給前端輪詢的 job_id
+            await _dao.CreateTextJobAsync(job.task_id, auId, userPrompt);
 
-            if (job.data != null) return await SaveTextJobAsync(auId, job.job_id, job);   // AI 若直接回傳結果就不用等輪詢
-            return TextJobProcessing(job.job_id, job.stage ?? "排隊中");
+            // AI 若直接回傳結果就不用等輪詢
+            return await FinishTextJobAsync(auId, job.task_id, job) ?? TextJobProcessing(job.task_id, job.stage ?? "排隊中");
         }
 
 
@@ -339,7 +340,7 @@ namespace backend.Services
             GenerateScriptBlueprintByTextResponse job;
             try
             {
-                using HttpResponseMessage response = await CreateTextJobClient().GetAsync(AiServiceConfig.Url($"{TextBlueprintPath}/{Uri.EscapeDataString(jobId)}"));
+                using HttpResponseMessage response = await CreateTextJobClient().GetAsync(AiServiceConfig.Url(AiJobsPath + Uri.EscapeDataString(jobId)));
                 string body = await response.Content.ReadAsStringAsync();
 
                 // AI 只把結果放在記憶體裡保留 1 小時，重啟或過期就查不到了
@@ -359,11 +360,8 @@ namespace backend.Services
                 return TextJobProcessing(jobId, "暫時查不到 AI 進度，稍後再試");
             }
 
-            if (job?.data != null) return await SaveTextJobAsync(auId, jobId, job);
-
-            string status = (job?.status ?? "").Trim().ToLowerInvariant();
-            if (status is "error" or "failed" or "failure")
-                return await FailTextJobAsync(jobId, $"AI 劇本生成失敗（{job.stage}）：{job.error}");
+            GenerateByTextResult finished = await FinishTextJobAsync(auId, jobId, job);
+            if (finished != null) return finished;
             if (row.elapsed_seconds > TextJobTimeout.TotalSeconds)
                 return await FailTextJobAsync(jobId, $"AI 劇本生成超過 {TextJobTimeout.TotalMinutes} 分鐘仍未完成，請重新送出");
 
@@ -372,10 +370,29 @@ namespace backend.Services
 
 
         /// <summary>
+        /// AI 做完就收尾：有劇本就存檔；AI 失敗，或做完卻沒產出劇本（例如找不到符合的景點）就記成失敗，原因用 AI 給的說明。
+        /// 還在排隊或生成中回傳 null
+        /// </summary>
+        private async Task<GenerateByTextResult> FinishTextJobAsync(int auId, string jobId, GenerateScriptBlueprintByTextResponse job)
+        {
+            if (job?.result?.blueprint != null) return await SaveTextJobAsync(auId, jobId, job.result);
+            if (job?.result != null)
+                return await FailTextJobAsync(jobId, string.IsNullOrWhiteSpace(job.result.message) ? "AI 沒有生成劇本，請換個說法再試一次" : job.result.message);
+
+            return (job?.status ?? "").Trim().ToLowerInvariant() switch
+            {
+                "error" or "failed" or "failure" => await FailTextJobAsync(jobId, $"AI 劇本生成失敗（{job.stage}）：{job.error}"),
+                "done" or "completed" or "success" => await FailTextJobAsync(jobId, "AI 劇本生成完成，但沒有回傳劇本，請重新送出"),
+                _ => null   // queued、running
+            };
+        }
+
+
+        /// <summary>
         /// AI 做完的劇本存檔。同一個工作只讓一個請求存（把狀態搶成「存檔中」的那個），
         /// 同時進來的其他請求回「存檔中」，下次輪詢就會拿到存好的劇本。
         /// </summary>
-        private async Task<GenerateByTextResult> SaveTextJobAsync(int auId, string jobId, GenerateScriptBlueprintByTextResponse job)
+        private async Task<GenerateByTextResult> SaveTextJobAsync(int auId, string jobId, ScriptBlueprintByTextResult ai)
         {
             if (!await _dao.TryStartSavingTextJobAsync(jobId, TextJobSavingTimeout))
             {
@@ -388,25 +405,26 @@ namespace backend.Services
                 job_id = jobId,
                 status = GenerateByTextResult.Done,
                 stage = "完成",
-                detected_city = job.parsed_intent?.city_name ?? "",
-                detected_town = job.parsed_intent?.town_name ?? "",
-                parsed_intent = job.parsed_intent,
-                data = job.data
+                // 使用者沒說縣市行政區時，AI 會用候選景點共同的縣市行政區
+                detected_city = ai.selected_area?.city_name ?? ai.parsed_intent?.city_name ?? "",
+                detected_town = ai.selected_area?.town_name ?? ai.parsed_intent?.town_name ?? "",
+                parsed_intent = ai.parsed_intent,
+                data = ai.blueprint
             };
 
             try
             {
                 // spot_uuid 是 AI 依站點順序填入的 Neo4j uid：用它查正確的名稱與座標，
                 // 順便把 LLM 寫壞的罕用字（例如「簃居青衖」變成「�居青衖」）換回來
-                List<string> spotUuids = (job.data.nodes ?? new List<ScriptBlueprintNode>()).Select(n => n.spot_uuid).ToList();
+                List<string> spotUuids = (ai.blueprint.nodes ?? new List<ScriptBlueprintNode>()).Select(n => n.spot_uuid).ToList();
                 Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places = await _placeLookup.GetPlacesAsync(spotUuids);
-                BlueprintTextRepair.Repair(job.data, places.ToDictionary(p => p.Key, p => p.Value.name));
+                BlueprintTextRepair.Repair(ai.blueprint, places.ToDictionary(p => p.Key, p => p.Value.name));
 
                 // place 表要的地址、分類、介紹、照片、營業時間等，新增或補齊 place 時一起寫進去
                 Dictionary<string, Neo4j.PlaceLookupService.PlaceRecord> placeRecords = await _placeLookup.GetPlaceRecordsAsync(spotUuids);
 
                 result.story_id = await _dao.SaveFullAiGeneratedStory(auId, result.detected_city, result.detected_town,
-                    job.parsed_intent?.traveler_count ?? 0, job.data, places, placeRecords,
+                    ai.parsed_intent?.traveler_count ?? 0, ai.blueprint, places, placeRecords,
                     jobId, JsonSerializer.Serialize(result, TextJobJsonOptions));
             }
             catch

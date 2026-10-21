@@ -773,6 +773,81 @@ namespace backend.dao
             }
         }
 
+        #region 台灣好行景點規劃
+
+        /// <summary>範圍內可以上車的台灣好行站牌：每個行駛型態各一筆（同一個站牌有幾條好行經過就有幾筆）</summary>
+        public class TripperBoardingRow
+        {
+            public int bs_id { get; set; }
+            public double lat { get; set; }
+            public double lng { get; set; }
+            public int brp_id { get; set; }
+            public int stop_sequence { get; set; }
+            public string route_name { get; set; }
+        }
+
+        /// <summary>範圍內（外框）營運中的台灣好行站牌與經過的行駛型態</summary>
+        public async Task<List<TripperBoardingRow>> GetTripperBoardingStopsAsync(double minLat, double maxLat, double minLon, double maxLon)
+        {
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<TripperBoardingRow>(@"
+                SELECT bs.bs_id, bs.bs_latitude AS lat, bs.bs_longitude AS lng, brs.brp_id, brs.stop_sequence, br.route_name
+                FROM bus_stop bs
+                INNER JOIN bus_route_stop brs ON brs.bs_id = bs.bs_id
+                INNER JOIN bus_route_pattern brp ON brp.brp_id = brs.brp_id
+                INNER JOIN bus_sub_route bsr ON bsr.bsr_id = brp.bsr_id
+                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.route_type = 3 AND br.is_active = 1
+                WHERE bs.bs_latitude BETWEEN @minLat AND @maxLat AND bs.bs_longitude BETWEEN @minLon AND @maxLon;",
+                new { minLat, maxLat, minLon, maxLon })).ToList();
+        }
+
+        /// <summary>行駛型態上每一站附近的景點（place_bus_stop），walk_minutes 是站牌走到景點的時間</summary>
+        public class TripperRoutePlaceRow
+        {
+            public int brp_id { get; set; }
+            public int stop_sequence { get; set; }
+            public string place_id { get; set; }
+            public double walk_minutes { get; set; }
+        }
+
+        public async Task<List<TripperRoutePlaceRow>> GetTripperRoutePlacesAsync(IEnumerable<int> brpIds)
+        {
+            List<int> ids = brpIds.Distinct().ToList();
+            if (ids.Count == 0) return new List<TripperRoutePlaceRow>();
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<TripperRoutePlaceRow>(@"
+                SELECT brs.brp_id, brs.stop_sequence, pbs.place_id, pbs.walk_minutes
+                FROM bus_route_stop brs
+                INNER JOIN place_bus_stop pbs ON pbs.bs_id = brs.bs_id
+                WHERE brs.brp_id IN @ids;", new { ids })).ToList();
+        }
+
+        /// <summary>行駛型態每一站的座標（依站序），用來算沿途距離估乘車時間</summary>
+        public class TripperPatternStopRow
+        {
+            public int brp_id { get; set; }
+            public int stop_sequence { get; set; }
+            public double lat { get; set; }
+            public double lng { get; set; }
+        }
+
+        public async Task<List<TripperPatternStopRow>> GetTripperPatternStopsAsync(IEnumerable<int> brpIds)
+        {
+            List<int> ids = brpIds.Distinct().ToList();
+            if (ids.Count == 0) return new List<TripperPatternStopRow>();
+
+            using var conn = new MySqlConnection(_appSettings.mydb);
+            return (await conn.QueryAsync<TripperPatternStopRow>(@"
+                SELECT brs.brp_id, brs.stop_sequence, bs.bs_latitude AS lat, bs.bs_longitude AS lng
+                FROM bus_route_stop brs
+                INNER JOIN bus_stop bs ON bs.bs_id = brs.bs_id
+                WHERE brs.brp_id IN @ids
+                ORDER BY brs.brp_id, brs.stop_sequence;", new { ids })).ToList();
+        }
+
+        #endregion
+
         /// <summary>商家題庫的一題（含選項），place_id 為商家對應的 Neo4j uuid（store.store_uid）</summary>
         public class MerchantQuestionRow
         {
@@ -875,8 +950,9 @@ namespace backend.dao
         /// 把 AI 生成的多份劇本 + 任務整包寫入 story、story_tag、story_node、task、task_option、task_clue（同一個交易，全部成功才寫入）。
         /// 商家知識問答（task.question_id 有值）只寫 task 本身，題目與選項沿用商家題庫。
         /// 寫入後把 story_id、sn_id、task_db_id 回填到 results。
+        /// planBusTransit 時一併寫入相鄰節點間的直達公車；tripperOnly 時只找台灣好行（台灣好行劇本）。
         /// </summary>
-        public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit)
+        public async Task SaveGameStoriesAsync(int auId, List<string> preferences, List<GameStoryResult> results, bool planBusTransit, bool tripperOnly = false)
         {
             string insertStorySql = @"
                 INSERT INTO story (
@@ -1034,7 +1110,7 @@ namespace backend.dao
                                 List<GameStoryNode> nodes = result.nodes ?? new List<GameStoryNode>();
                                 for (int i = 1; i < nodes.Count; i++)
                                 {
-                                    await SaveDirectBusLegAsync(conn, transaction, nodes[i - 1], nodes[i]);
+                                    await SaveDirectBusLegAsync(conn, transaction, nodes[i - 1], nodes[i], tripperOnly);
                                 }
                             }
 
@@ -1078,8 +1154,8 @@ namespace backend.dao
 
         #region 公車 / 台灣好行
 
-        // 粗估每站乘車時間（分鐘），存進 story_node_transit.est_ride_minutes 當快照
-        private const double EstMinutesPerStop = 2.0;
+        // 粗估每站乘車時間（分鐘），存進 story_node_transit.est_ride_minutes 當快照；台灣好行景點規劃也用它估乘車時間
+        internal const double EstMinutesPerStop = 2.0;
 
         public static string RouteTypeName(int routeType)
         {
@@ -1095,8 +1171,9 @@ namespace backend.dao
         /// <summary>
         /// 找出從景點 A 附近站牌上車、在景點 B 附近站牌下車的直達公車（同一個行駛型態、下車站序較大），
         /// 優先搭乘站數少、再來步行距離短的；找到就寫入 story_node_transit。找不到直達就不寫（目前不做轉乘）。
+        /// tripperOnly 時只找台灣好行。
         /// </summary>
-        private static async Task SaveDirectBusLegAsync(MySqlConnection conn, MySqlTransaction transaction, GameStoryNode from, GameStoryNode to)
+        private static async Task SaveDirectBusLegAsync(MySqlConnection conn, MySqlTransaction transaction, GameStoryNode from, GameStoryNode to, bool tripperOnly)
         {
             if (string.IsNullOrWhiteSpace(from.place_id) || string.IsNullOrWhiteSpace(to.place_id)) return;
 
@@ -1109,14 +1186,14 @@ namespace backend.dao
                 INNER JOIN place_bus_stop pb ON pb.bs_id = a.bs_id AND pb.place_id = @toPlace
                 INNER JOIN bus_route_pattern brp ON brp.brp_id = b.brp_id
                 INNER JOIN bus_sub_route bsr ON bsr.bsr_id = brp.bsr_id
-                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.is_active = 1
+                INNER JOIN bus_route br ON br.br_id = bsr.br_id AND br.is_active = 1 AND (@tripperOnly = 0 OR br.route_type = 3)
                 WHERE pa.place_id = @fromPlace
                 ORDER BY stop_count ASC, pa.walk_distance_m + pb.walk_distance_m ASC
                 LIMIT 1;
             ";
 
             var leg = await conn.QueryFirstOrDefaultAsync<DirectLegRow>(findSql,
-                new { fromPlace = from.place_id, toPlace = to.place_id }, transaction);
+                new { fromPlace = from.place_id, toPlace = to.place_id, tripperOnly = tripperOnly ? 1 : 0 }, transaction);
             if (leg == null) return;
 
             await conn.ExecuteAsync(@"

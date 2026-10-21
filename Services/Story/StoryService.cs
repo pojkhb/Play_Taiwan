@@ -597,6 +597,21 @@ namespace backend.Services
         // 選了這些交通方式時，才規劃節點之間的公車
         private static readonly HashSet<string> BusTransports = new HashSet<string> { "公車", "客運", "台灣好行" };
 
+        // 選了台灣好行時，景點改沿台灣好行路線規劃，不跟其他交通方式混在一起（見 FindTripperAttractionsAsync）
+        internal const string TripperTransport = "台灣好行";
+
+        // 出發點走到台灣好行站牌最多多遠（直線）；步行速度與繞路係數跟路線規劃一樣
+        private const double TripperBoardingMeters = 800;
+        private const double WalkMetersPerMinute = 75;
+        private const double WalkDetourFactor = 1.25;
+
+        // 台灣好行乘車時間：每站至少 2 分鐘；長途線站距大，改用沿途站牌的距離估（車速約 30 km/h，道路比站牌連線多繞 2 成）
+        private const double TripperBusMetersPerMinute = 500;
+        private const double TripperRideDetourFactor = 1.2;
+
+        internal static bool IsTripper(List<string> transportation) =>
+            (transportation ?? new List<string>()).Any(t => t?.Trim() == TripperTransport);
+
         private static readonly Dictionary<int, string> FallbackTypeNames = new Dictionary<int, string>
         {
             { 1, "GPS 區域定位型" }, { 2, "跨關集結型" }, { 3, "創意攝影型" }, { 4, "地方美食型" },
@@ -730,6 +745,10 @@ namespace backend.Services
                 .ToList();
             if (transport.Count == 0) transport.Add("步行");
 
+            // 台灣好行劇本：景點沿台灣好行規劃，站與站之間也只搭台灣好行
+            bool tripper = IsTripper(plan.transportation);
+            if (tripper) transport = new List<string> { TripperTransport };
+
             bool planBusTransit = transport.Any(t => BusTransports.Contains(t));
 
             var results = new List<GameStoryResult>();
@@ -814,7 +833,7 @@ namespace backend.Services
                 throw new Exception("AI 劇本任務回傳內容為空");
 
             // 寫入資料庫（回填 story_id、sn_id、task_id；有選公車時一併寫入節點間的直達公車）
-            await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit);
+            await _dao.SaveGameStoriesAsync(auId, plan.preferences, results, planBusTransit, tripperOnly: tripper);
 
             // ── 6. 可抽的勳章類別、每一站的照片（劇本檔案館的車票用）；把公車方案（含經過的站牌）掛回每個節點 ──
             // 剛生成的劇本每一站都還沒抵達，照片一律是迷霧圖（真實照片抵達後才給，見 StationImages）。
@@ -868,7 +887,8 @@ namespace backend.Services
 
         /// <summary>
         /// 規劃旅遊行程：
-        /// 1. 用交通等時圈找出範圍內所有景點（已去重複、不含公車）。範圍是玩家選的「最遠願意花幾分鐘」，切成近、中、遠三圈
+        /// 1. 用交通等時圈找出範圍內所有景點（已去重複、不含公車）。範圍是玩家選的「最遠願意花幾分鐘」，切成近、中、遠三圈。
+        ///    選了台灣好行時改找台灣好行沿線的景點（FindTripperAttractionsAsync），不跟其他交通方式混在一起
         /// 2. 抽出 storyCount 組、每組 placesPerStory 個景點（景點夠多時各組不重複），每組各自排好順路的參觀順序
         /// 3. 從出發時間開始估算每一站幾點到，把不合適的站換成範圍內沒被抽到的景點（ItineraryRules.ArrangeByArrival）
         /// 回傳每份劇本排好的站，每一站都帶著預計抵達時間。
@@ -876,24 +896,35 @@ namespace backend.Services
         private async Task<List<List<ItineraryRules.PlannedStop>>> PlanItinerariesAsync(
             double lat, double lng, List<string> transportation, int storyCount, int placesPerStory, int? maxMinutes, DateTime startTime)
         {
-            // 要拿等時圈補商家景點，所以請核心一併回傳等時圈
-            ReachableAttractionsResponse reachable = await FindAllReachableAttractionsAsync(new ReachableAttractionsRequest
-            {
-                lat = lat,
-                lng = lng,
-                transportation = transportation,
-                contour_minutes = ItineraryRules.ContourMinutes(maxMinutes),
-                include_polygons = true
-            });
+            bool tripper = IsTripper(transportation);
+            ReachableAttractionsResponse reachable;
 
-            await AddReachableMerchantPlacesAsync(reachable, transportation);
+            if (tripper)
+            {
+                reachable = await FindTripperAttractionsAsync(lat, lng, maxMinutes);
+            }
+            else
+            {
+                // 要拿等時圈補商家景點，所以請核心一併回傳等時圈
+                reachable = await FindAllReachableAttractionsAsync(new ReachableAttractionsRequest
+                {
+                    lat = lat,
+                    lng = lng,
+                    transportation = transportation,
+                    contour_minutes = ItineraryRules.ContourMinutes(maxMinutes),
+                    include_polygons = true
+                });
+
+                await AddReachableMerchantPlacesAsync(reachable, transportation);
+            }
 
             if (reachable.attractions.Count < ItineraryRules.MinReachablePlaces)
             {
                 int range = reachable.contour_minutes.Last();
+                string along = tripper ? "搭台灣好行" : "";
                 throw new BadRequestException(reachable.attractions.Count == 0
-                    ? $"{range} 分鐘內找不到可到達的景點，請把時間調長，或換個地點、交通方式再試一次"
-                    : $"{range} 分鐘內只找到 {reachable.attractions.Count} 個景點，不夠排成一份劇本，請把時間調長，或換個地點、交通方式再試一次");
+                    ? $"{range} 分鐘內{along}找不到可到達的景點，請把時間調長，或換個地點、交通方式再試一次"
+                    : $"{range} 分鐘內{along}只找到 {reachable.attractions.Count} 個景點，不夠排成一份劇本，請把時間調長，或換個地點、交通方式再試一次");
             }
 
             List<List<ReachableAttractionNode>> sets = PickPlaceSets(reachable.attractions, storyCount, placesPerStory);
@@ -909,6 +940,133 @@ namespace backend.Services
             return sets
                 .Select(set => ItineraryRules.ArrangeByArrival(OrderByVisit(set, lat, lng), spare, hours, startTime, speed))
                 .ToList();
+        }
+
+
+        /// <summary>
+        /// 台灣好行景點規劃：從出發點走得到（直線 800 公尺內）的台灣好行站牌上車，
+        /// 候選景點是同一個行駛型態「往後」各站附近的景點（place_bus_stop，含上車站本身）。
+        /// 交通時間 = 走到上車站 + 搭車（見 RideMinutes）+ 下車走到景點，多種搭法取最快；
+        /// 跟一般規劃一樣只留玩家選的分鐘數以內的景點，依交通時間分近、中、遠三圈。
+        /// 附近沒有台灣好行站牌時丟出 BadRequestException。
+        /// </summary>
+        private async Task<ReachableAttractionsResponse> FindTripperAttractionsAsync(double lat, double lng, int? maxMinutes)
+        {
+            List<int> minutes = ItineraryRules.ContourMinutes(maxMinutes);
+
+            double latDelta = TripperBoardingMeters / 111000.0;
+            double lonDelta = TripperBoardingMeters / (111000.0 * Math.Cos(lat * Math.PI / 180));
+            List<TripperBoarding> boardings = (await _dao.GetTripperBoardingStopsAsync(lat - latDelta, lat + latDelta, lng - lonDelta, lng + lonDelta))
+                .Select(s => (stop: s, meters: DistanceMeters(lat, lng, s.lat, s.lng)))
+                .Where(x => x.meters <= TripperBoardingMeters)
+                .Select(x => new TripperBoarding(x.stop.brp_id, x.stop.stop_sequence, x.meters * WalkDetourFactor / WalkMetersPerMinute, x.stop.route_name))
+                .ToList();
+
+            if (boardings.Count == 0)
+                throw new BadRequestException($"出發點附近 {TripperBoardingMeters} 公尺內沒有台灣好行站牌，請換個出發地點，或改選其他交通方式");
+
+            List<int> patterns = boardings.Select(b => b.brp_id).Distinct().ToList();
+            List<StoryDao.TripperRoutePlaceRow> routePlaces = await _dao.GetTripperRoutePlacesAsync(patterns);
+            Dictionary<(int, int), double> routeMeters = RouteMeters(await _dao.GetTripperPatternStopsAsync(patterns));
+            Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places = await _placeLookup.GetPlacesAsync(routePlaces.Select(p => p.place_id));
+            List<ReachableAttractionNode> attractions = BuildTripperAttractions(lat, lng, boardings, routePlaces, routeMeters, places, minutes);
+
+            return new ReachableAttractionsResponse
+            {
+                center_lat = lat,
+                center_lng = lng,
+                contour_minutes = minutes,
+                attractions = attractions,
+                total_reachable = attractions.Count
+            };
+        }
+
+        /// <summary>在哪裡上台灣好行：行駛型態、上車站序、從出發點走過去幾分鐘、路線名稱</summary>
+        internal record TripperBoarding(int brp_id, int stop_sequence, double walk_minutes, string route_name);
+
+        /// <summary>每個行駛型態從第一站沿著各站牌連線到每一站的累計距離（公尺），key = (brp_id, stop_sequence)</summary>
+        internal static Dictionary<(int, int), double> RouteMeters(IEnumerable<StoryDao.TripperPatternStopRow> stops)
+        {
+            var meters = new Dictionary<(int, int), double>();
+
+            foreach (var pattern in stops.GroupBy(s => s.brp_id))
+            {
+                double total = 0;
+                StoryDao.TripperPatternStopRow previous = null;
+
+                foreach (StoryDao.TripperPatternStopRow stop in pattern.OrderBy(s => s.stop_sequence))
+                {
+                    if (previous != null) total += DistanceMeters(previous.lat, previous.lng, stop.lat, stop.lng);
+                    meters[(stop.brp_id, stop.stop_sequence)] = total;
+                    previous = stop;
+                }
+            }
+
+            return meters;
+        }
+
+        /// <summary>
+        /// 搭幾站要幾分鐘：每站至少 2 分鐘（市區站距短），沿途距離換算的時間比較長就用距離（長途線站距大）。
+        /// 查不到站牌座標時只用站數估
+        /// </summary>
+        internal static double RideMinutes(int brpId, int boardSeq, int alightSeq, Dictionary<(int, int), double> routeMeters)
+        {
+            double byStops = (alightSeq - boardSeq) * StoryDao.EstMinutesPerStop;
+
+            if (!routeMeters.TryGetValue((brpId, boardSeq), out double from) || !routeMeters.TryGetValue((brpId, alightSeq), out double to))
+                return byStops;
+
+            return Math.Max(byStops, (to - from) * TripperRideDetourFactor / TripperBusMetersPerMinute);
+        }
+
+        /// <summary>
+        /// 算出每個景點最快的台灣好行搭法（只能往後搭），留下 minutes 最大值以內、查得到名稱座標的景點，
+        /// 去掉重複後依交通時間分圈；reachable_by 是搭的路線名稱
+        /// </summary>
+        internal static List<ReachableAttractionNode> BuildTripperAttractions(double lat, double lng,
+            List<TripperBoarding> boardings, List<StoryDao.TripperRoutePlaceRow> routePlaces, Dictionary<(int, int), double> routeMeters,
+            Dictionary<string, Neo4j.PlaceLookupService.PlaceInfo> places, List<int> minutes)
+        {
+            ILookup<int, TripperBoarding> boardingsByPattern = boardings.ToLookup(b => b.brp_id);
+            var fastest = new Dictionary<string, (double minutes, string route)>();
+
+            foreach (StoryDao.TripperRoutePlaceRow row in routePlaces)
+            {
+                foreach (TripperBoarding b in boardingsByPattern[row.brp_id].Where(b => b.stop_sequence <= row.stop_sequence))
+                {
+                    double total = b.walk_minutes + RideMinutes(row.brp_id, b.stop_sequence, row.stop_sequence, routeMeters) + row.walk_minutes;
+                    if (!fastest.TryGetValue(row.place_id, out var current) || total < current.minutes)
+                        fastest[row.place_id] = (total, b.route_name);
+                }
+            }
+
+            int max = minutes.Last();
+            List<ReachableAttractionNode> candidates = fastest
+                .Where(f => f.Value.minutes <= max
+                            && places.TryGetValue(f.Key, out var p) && !string.IsNullOrWhiteSpace(p.name))
+                .Select(f =>
+                {
+                    Neo4j.PlaceLookupService.PlaceInfo place = places[f.Key];
+                    double travel = Math.Round(f.Value.minutes, 1);
+                    int ring = minutes.FindIndex(m => travel <= m) + 1;
+
+                    return new ReachableAttractionNode
+                    {
+                        uid = f.Key,
+                        name = place.name,
+                        lat = place.lat,
+                        lon = place.lng,
+                        distance_m = Math.Round(DistanceMeters(lat, lng, place.lat, place.lng), 1),
+                        travel_minutes = travel,
+                        reachable_by = f.Value.route,
+                        ring = ring,
+                        reachable_minutes = minutes[ring - 1]
+                    };
+                })
+                .OrderBy(a => a.distance_m)
+                .ToList();
+
+            return RemoveDuplicateAttractions(candidates);
         }
 
 
